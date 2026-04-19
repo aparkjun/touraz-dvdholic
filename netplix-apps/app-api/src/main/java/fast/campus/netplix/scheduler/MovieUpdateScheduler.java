@@ -111,14 +111,19 @@ public class MovieUpdateScheduler {
         try {
             log.info("=== DVD 목록 업데이트 시작 ({}) ===", LocalDateTime.now());
 
-            Set<String> oldNames = collectExistingNames("dvd");
+            Map<String, LocalDateTime> oldFirstSeen = collectExistingFirstSeen("dvd");
+            Set<String> oldNames = oldFirstSeen.keySet();
+            LocalDateTime runAt = LocalDateTime.now();
 
             List<NetplixMovie> allMovies = new ArrayList<>();
             for (int page = 1; page <= 80; page++) {
                 try {
                     NetplixPageableMovies movies = tmdbMoviePort.fetchPageable(page);
                     if (movies.getNetplixMovies().isEmpty()) break;
-                    movies.getNetplixMovies().forEach(movie -> allMovies.add(withContentType(movie, "dvd")));
+                    movies.getNetplixMovies().forEach(movie -> {
+                        LocalDateTime firstSeen = oldFirstSeen.getOrDefault(movie.getMovieName(), runAt);
+                        allMovies.add(withContentTypeAndFirstSeen(movie, "dvd", firstSeen));
+                    });
                     log.info("=== DVD 페이지 {} (누적 {}편) ===", page, allMovies.size());
                     if (!movies.isHasNext()) break;
                 } catch (Exception pageEx) {
@@ -178,14 +183,19 @@ public class MovieUpdateScheduler {
         try {
             log.info("=== 영화 목록 업데이트 시작 ({}) ===", LocalDateTime.now());
 
-            Set<String> oldNames = collectExistingNames("movie");
+            Map<String, LocalDateTime> oldFirstSeen = collectExistingFirstSeen("movie");
+            Set<String> oldNames = oldFirstSeen.keySet();
+            LocalDateTime runAt = LocalDateTime.now();
 
             List<NetplixMovie> allMovies = new ArrayList<>();
             for (int page = 1; page <= 80; page++) {
                 try {
                     NetplixPageableMovies movies = tmdbMoviePlayingPort.fetchPageable(page);
                     if (movies.getNetplixMovies().isEmpty()) break;
-                    movies.getNetplixMovies().forEach(movie -> allMovies.add(withContentType(movie, "movie")));
+                    movies.getNetplixMovies().forEach(movie -> {
+                        LocalDateTime firstSeen = oldFirstSeen.getOrDefault(movie.getMovieName(), runAt);
+                        allMovies.add(withContentTypeAndFirstSeen(movie, "movie", firstSeen));
+                    });
                     log.info("=== 영화 페이지 {} (누적 {}편) ===", page, allMovies.size());
                     if (!movies.isHasNext()) break;
                 } catch (Exception pageEx) {
@@ -267,16 +277,21 @@ public class MovieUpdateScheduler {
     }
 
     private Set<String> collectExistingNames(String contentType) {
-        Set<String> names = new HashSet<>();
+        return collectExistingFirstSeen(contentType).keySet();
+    }
+
+    /** 기존 DB에서 영화명 → FIRST_SEEN_AT 맵을 만든다 (배치 재삽입 시 기존 값 보존용). */
+    private Map<String, LocalDateTime> collectExistingFirstSeen(String contentType) {
+        Map<String, LocalDateTime> map = new HashMap<>();
         int p = 0;
         while (true) {
             List<NetplixMovie> batch = persistenceMoviePort.fetchByContentType(contentType, p, 50);
             if (batch.isEmpty()) break;
-            batch.forEach(m -> names.add(m.getMovieName()));
+            batch.forEach(m -> map.put(m.getMovieName(), m.getFirstSeenAt()));
             if (batch.size() < 50) break;
             p++;
         }
-        return names;
+        return map;
     }
 
     private static String formatKstDate() {
@@ -303,6 +318,10 @@ public class MovieUpdateScheduler {
     }
 
     private NetplixMovie withContentType(NetplixMovie movie, String contentType) {
+        return withContentTypeAndFirstSeen(movie, contentType, null);
+    }
+
+    private NetplixMovie withContentTypeAndFirstSeen(NetplixMovie movie, String contentType, LocalDateTime firstSeenAt) {
         return NetplixMovie.builder()
                 .movieName(movie.getMovieName())
                 .isAdult(movie.getIsAdult())
@@ -339,6 +358,7 @@ public class MovieUpdateScheduler {
                 .taglineEn(movie.getTaglineEn())
                 .posterPathEn(movie.getPosterPathEn())
                 .backdropPathEn(movie.getBackdropPathEn())
+                .firstSeenAt(firstSeenAt)
                 .build();
     }
 }

@@ -4,6 +4,8 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Builder
 @AllArgsConstructor
@@ -44,4 +46,6 @@ public class NetplixMovie {
     private final String taglineEn;        // 영어 태그라인
     private final String posterPathEn;     // 영어 포스터 경로
     private final String backdropPathEn;   // 영어 배경 이미지 경로
+
+    private final LocalDateTime firstSeenAt; // 이 영화/DVD가 카탈로그에 최초 등장한 시점 (NEW 뱃지 기준)
 }

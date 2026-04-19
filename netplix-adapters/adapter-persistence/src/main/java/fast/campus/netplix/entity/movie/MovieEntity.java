@@ -11,7 +11,9 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Getter
@@ -129,6 +131,10 @@ public class MovieEntity extends MutableBaseEntity {
     @Column(name = "BACKDROP_PATH_EN", length = 500)
     private String backdropPathEn;
 
+    @Setter
+    @Column(name = "FIRST_SEEN_AT")
+    private LocalDateTime firstSeenAt;
+
     public NetplixMovie toDomain() {
         return NetplixMovie.builder()
                 .movieName(this.movieName)
@@ -166,6 +172,7 @@ public class MovieEntity extends MutableBaseEntity {
                 .taglineEn(this.taglineEn)
                 .posterPathEn(this.posterPathEn)
                 .backdropPathEn(this.backdropPathEn)
+                .firstSeenAt(this.firstSeenAt)
                 .build();
     }
 
@@ -206,7 +213,8 @@ public class MovieEntity extends MutableBaseEntity {
                 truncateOrNull(netplixMovie.getOverviewEn()),
                 netplixMovie.getTaglineEn(),
                 netplixMovie.getPosterPathEn(),
-                netplixMovie.getBackdropPathEn()
+                netplixMovie.getBackdropPathEn(),
+                netplixMovie.getFirstSeenAt() != null ? netplixMovie.getFirstSeenAt() : LocalDateTime.now()
         );
     }
 

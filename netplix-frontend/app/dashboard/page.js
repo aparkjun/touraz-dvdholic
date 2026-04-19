@@ -128,6 +128,50 @@ function ContentBadge({ contentType, size }) {
   return null;
 }
 
+// 최근 배치(새벽 2~3시 KST)로 새로 추가된 아이템인지 판정.
+// 백엔드에서 firstSeenAt 값을 받아, 지난 30시간 이내에 처음 등장한 경우 NEW 처리.
+const NEW_WINDOW_MS = 30 * 60 * 60 * 1000; // 30h
+function isNewItem(item) {
+  if (!item) return false;
+  const raw = item.firstSeenAt ?? item.first_seen_at;
+  if (!raw) return false;
+  try {
+    const ts = typeof raw === "string" ? new Date(raw).getTime() : new Date(raw).getTime();
+    if (!Number.isFinite(ts)) return false;
+    return Date.now() - ts <= NEW_WINDOW_MS;
+  } catch (e) {
+    return false;
+  }
+}
+
+function NewBadge() {
+  return (
+    <div
+      aria-label="NEW"
+      style={{
+        position: "absolute",
+        top: "6px",
+        left: "6px",
+        zIndex: 3,
+        padding: "2px 8px",
+        borderRadius: "6px",
+        background: "linear-gradient(135deg, #ef4444 0%, #f97316 100%)",
+        color: "#fff",
+        fontSize: "11px",
+        fontWeight: 800,
+        letterSpacing: "0.5px",
+        boxShadow: "0 0 10px 1px rgba(239,68,68,0.7), 0 0 0 1.5px rgba(255,255,255,0.9)",
+        textShadow: "0 1px 1px rgba(0,0,0,0.35)",
+        pointerEvents: "none",
+        userSelect: "none",
+        lineHeight: 1.2,
+      }}
+    >
+      NEW
+    </div>
+  );
+}
+
 function DashboardContent() {
   const isNative = typeof window !== "undefined" && Capacitor?.isNativePlatform?.();
   const searchParams = useSearchParams();
@@ -1091,6 +1135,7 @@ function DashboardContent() {
                         ) : (
                           <img src="/no-poster-placeholder.png" alt="No Image" className="dash-card-img" />
                         )}
+                        {isNewItem(item) && <NewBadge />}
                         <ContentBadge contentType={ct} />
                       </button>
                       <button
@@ -1251,6 +1296,7 @@ function DashboardContent() {
                         ) : (
                           <img src="/no-poster-placeholder.png" alt="No Image" style={{ width: "100%", height: "200px", objectFit: "cover", display: "block" }} />
                         )}
+                        {isNewItem(m) && <NewBadge />}
                         <ContentBadge contentType={ct} />
                       </button>
                       <div style={{ padding: "8px" }}>
@@ -1483,6 +1529,7 @@ function DashboardContent() {
                               </span>
                             </div>
                           )}
+                          {isNewItem(m) && <NewBadge />}
                           <ContentBadge contentType={ct} />
                         </div>
                         <div style={{ fontSize: "12px", color: palette.text, fontWeight: 600, lineHeight: 1.3, marginBottom: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -1575,6 +1622,7 @@ function DashboardContent() {
                         ) : (
                           <img src="/no-poster-placeholder.png" alt="No Image" className="dash-card-img" />
                         )}
+                        {isNewItem(item) && <NewBadge />}
                         <ContentBadge contentType={item.contentType} />
                       </button>
                       <button

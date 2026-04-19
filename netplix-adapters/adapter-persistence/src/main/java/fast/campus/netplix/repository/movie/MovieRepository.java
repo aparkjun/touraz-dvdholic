@@ -89,7 +89,12 @@ public class MovieRepository implements PersistenceMoviePort {
             }
             
             log.info("Updating existing movie: {}", netplixMovie.getMovieName());
-            
+
+            // 기존 firstSeenAt 을 보존하여 재삽입 (업데이트 경로에서도 NEW 판정 안정성 유지)
+            if (existingEntity.getFirstSeenAt() != null) {
+                entity.setFirstSeenAt(existingEntity.getFirstSeenAt());
+            }
+
             // Delete old and insert new to ensure all fields are updated
             movieJpaRepository.delete(existingEntity);
             movieJpaRepository.flush();
