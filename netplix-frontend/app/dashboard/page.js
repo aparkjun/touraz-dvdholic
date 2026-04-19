@@ -130,18 +130,33 @@ function ContentBadge({ contentType, size }) {
 
 // 최근 배치(새벽 2~3시 KST)로 새로 추가된 아이템인지 판정.
 // 백엔드에서 firstSeenAt 값을 받아, 지난 30시간 이내에 처음 등장한 경우 NEW 처리.
+// Jackson(JSR310) 미적용 환경에서는 [yyyy, M, d, H, m, s(, nano)] 배열 형태로 오므로 함께 처리한다.
 const NEW_WINDOW_MS = 30 * 60 * 60 * 1000; // 30h
+
+function parseFirstSeenAt(raw) {
+  if (raw == null) return NaN;
+  if (Array.isArray(raw)) {
+    const [y, mo, d, h = 0, mi = 0, s = 0] = raw;
+    if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(d)) return NaN;
+    // 백엔드는 서버 로컬시(KST) 기준 LocalDateTime. UTC 로 간주하면 9시간 오차가 생기지만,
+    // 30시간 윈도우 안에서는 판정 결과가 동일하므로 문제 없음.
+    return Date.UTC(y, mo - 1, d, h, mi, s);
+  }
+  if (typeof raw === "number") return raw;
+  if (typeof raw === "string") {
+    const t = new Date(raw).getTime();
+    return Number.isFinite(t) ? t : NaN;
+  }
+  return NaN;
+}
+
 function isNewItem(item) {
   if (!item) return false;
   const raw = item.firstSeenAt ?? item.first_seen_at;
-  if (!raw) return false;
-  try {
-    const ts = typeof raw === "string" ? new Date(raw).getTime() : new Date(raw).getTime();
-    if (!Number.isFinite(ts)) return false;
-    return Date.now() - ts <= NEW_WINDOW_MS;
-  } catch (e) {
-    return false;
-  }
+  const ts = parseFirstSeenAt(raw);
+  if (!Number.isFinite(ts)) return false;
+  const delta = Date.now() - ts;
+  return delta >= 0 && delta <= NEW_WINDOW_MS;
 }
 
 function NewBadge() {
