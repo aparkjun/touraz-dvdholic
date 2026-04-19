@@ -49,6 +49,8 @@ function BrandLink({ isDashboard, isLoggedIn }) {
   const router = useRouter();
   const { t } = useTranslation();
 
+  const homeHref = isLoggedIn ? '/dashboard' : '/';
+
   const handleClick = (e) => {
     if (isDashboard && isLoggedIn) {
       e.preventDefault();
@@ -57,7 +59,7 @@ function BrandLink({ isDashboard, isLoggedIn }) {
   };
 
   return (
-    <Link className="app-brand" href="/" onClick={handleClick}>
+    <Link className="app-brand" href={homeHref} onClick={handleClick}>
       <img src="https://img.icons8.com/color/48/film-reel.png" alt="Home" className="app-brand-film" />
       <img src="/icons8-dvd-logo-100.png" alt="DVD Logo" className="app-brand-dvd" />
       <span className="app-brand-text">Holic</span>
