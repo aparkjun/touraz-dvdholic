@@ -84,6 +84,33 @@ function DvdBadge({ size = 40 }) {
   );
 }
 
+function MovieBadge({ size = 40 }) {
+  return (
+    <img
+      src="/icons/movie-clap.gif"
+      alt="Movie"
+      draggable={false}
+      style={{
+        position: "absolute",
+        top: "6px",
+        right: "6px",
+        width: `${size}px`,
+        height: `${size}px`,
+        filter: "drop-shadow(0 2px 10px rgba(245,158,11,0.75)) drop-shadow(0 0 4px rgba(255,255,255,0.5))",
+        zIndex: 2,
+        pointerEvents: "none",
+        userSelect: "none",
+      }}
+    />
+  );
+}
+
+function ContentBadge({ contentType, size }) {
+  if (contentType === "dvd") return <DvdBadge size={size} />;
+  if (contentType === "movie") return <MovieBadge size={size} />;
+  return null;
+}
+
 function DashboardContent() {
   const isNative = typeof window !== "undefined" && Capacitor?.isNativePlatform?.();
   const searchParams = useSearchParams();
@@ -1047,7 +1074,7 @@ function DashboardContent() {
                         ) : (
                           <img src="/no-poster-placeholder.png" alt="No Image" className="dash-card-img" />
                         )}
-                        {ct === "dvd" && <DvdBadge />}
+                        <ContentBadge contentType={ct} />
                       </button>
                       <button
                         type="button"
@@ -1207,7 +1234,7 @@ function DashboardContent() {
                         ) : (
                           <img src="/no-poster-placeholder.png" alt="No Image" style={{ width: "100%", height: "200px", objectFit: "cover", display: "block" }} />
                         )}
-                        {ct === "dvd" && <DvdBadge />}
+                        <ContentBadge contentType={ct} />
                       </button>
                       <div style={{ padding: "8px" }}>
                         <button
@@ -1439,7 +1466,7 @@ function DashboardContent() {
                               </span>
                             </div>
                           )}
-                          {ct === "dvd" && <DvdBadge />}
+                          <ContentBadge contentType={ct} />
                         </div>
                         <div style={{ fontSize: "12px", color: palette.text, fontWeight: 600, lineHeight: 1.3, marginBottom: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {getMovieTitle(m)}
@@ -1531,7 +1558,7 @@ function DashboardContent() {
                         ) : (
                           <img src="/no-poster-placeholder.png" alt="No Image" className="dash-card-img" />
                         )}
-                        {item.contentType === "dvd" && <DvdBadge />}
+                        <ContentBadge contentType={item.contentType} />
                       </button>
                       <button
                         type="button"
