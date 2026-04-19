@@ -35,31 +35,18 @@ function CategorySentinel({ cat, isLoadingMore, loadMoreCategory, palette }) {
     return () => observer.disconnect();
   }, [cat, isLoadingMore, loadMoreCategory]);
 
+  // IntersectionObserver 를 위한 보이지 않는 sentinel. 빨간 로딩 스피너는 제거.
   return (
     <div
       ref={sentinelRef}
-      className="dash-card-more"
+      aria-hidden="true"
       style={{
-        margin: 0,
-        padding: 0,
-        border: "none",
+        width: "1px",
+        minWidth: "1px",
+        flexShrink: 0,
         background: "transparent",
-        borderRadius: "14px",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "rgba(167, 139, 250, 1)",
-        fontSize: "14px",
-        fontWeight: 700,
-        gap: "8px",
-        minWidth: "80px",
       }}
-    >
-      {isLoadingMore && (
-        <span className="spinner-border spinner-border-sm" style={{ color: palette.primary }} />
-      )}
-    </div>
+    />
   );
 }
 
