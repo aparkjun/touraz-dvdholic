@@ -1,6 +1,7 @@
 package fast.campus.netplix.visitkorea;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -72,8 +73,15 @@ public class VisitKoreaPhokoResponse {
         private String contentId;
         private String koTitle;
         private String enTitle;
+
+        // Jackson Bean-convention 이 "lDong..." 을 "LDong..." 로 기대해 자동 매핑이 실패하는
+        // 이슈가 있어 @JsonProperty 로 원본 JSON 키를 고정한다.
+        @JsonProperty("lDongRegnCd")
         private String lDongRegnCd;
+
+        @JsonProperty("lDongRegnNm")
         private String lDongRegnNm;
+
         private String koFilmst;
         private String enFilmst;
         private String filmDay;
