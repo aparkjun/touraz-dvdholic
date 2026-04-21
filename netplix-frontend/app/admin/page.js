@@ -19,6 +19,102 @@ import {
 } from "lucide-react";
 import axios from "@/lib/axiosConfig";
 
+const ADMIN_FETCH_TIMEOUT_MS = 15000;
+
+function isTimeoutError(e) {
+  if (!e) return false;
+  if (e.code === "ECONNABORTED") return true;
+  if (typeof e.message === "string" && e.message.toLowerCase().includes("timeout")) return true;
+  return false;
+}
+
+function LoadingIndicator({ label, hint }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 12,
+        padding: 40,
+        color: "#6b7280",
+      }}
+      role="status"
+      aria-live="polite"
+    >
+      <div
+        style={{
+          width: 32,
+          height: 32,
+          border: "3px solid #e5e7eb",
+          borderTopColor: "#6366f1",
+          borderRadius: "50%",
+          animation: "adminSpin 0.9s linear infinite",
+        }}
+      />
+      <div style={{ fontSize: 14, fontWeight: 600 }}>{label}</div>
+      {hint && <div style={{ fontSize: 12, color: "#9ca3af" }}>{hint}</div>}
+      <style>{`@keyframes adminSpin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+}
+
+function ErrorState({ kind, onRetry, t }) {
+  const isTimeout = kind === "timeout";
+  const title = isTimeout
+    ? t("admin.loadTimeout", "서버 응답이 없어요 (15초 초과)")
+    : t("admin.loadFailed", "데이터를 불러오지 못했어요");
+  const hint = isTimeout
+    ? t(
+        "admin.loadTimeoutHint",
+        "네트워크가 불안정하거나 서버가 바쁠 수 있어요. 잠시 후 다시 시도해주세요."
+      )
+    : t(
+        "admin.loadFailedHint",
+        "잠시 후 다시 시도하거나, 관리자에게 문의해주세요."
+      );
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        padding: 40,
+        color: "#991b1b",
+        background: "#fef2f2",
+        border: "1px solid #fecaca",
+        borderRadius: 12,
+      }}
+      role="alert"
+    >
+      <div style={{ fontSize: 28 }}>{isTimeout ? "⏱️" : "⚠️"}</div>
+      <div style={{ fontSize: 15, fontWeight: 700, color: "#7f1d1d" }}>{title}</div>
+      <div style={{ fontSize: 13, color: "#991b1b", textAlign: "center", maxWidth: 480 }}>{hint}</div>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          style={{
+            marginTop: 8,
+            padding: "8px 20px",
+            background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          {t("admin.retry", "다시 시도")}
+        </button>
+      )}
+    </div>
+  );
+}
+
 function LoginForm({ onLogin }) {
   const { t } = useTranslation();
   const [adminId, setAdminId] = useState("");
@@ -235,74 +331,96 @@ function Dashboard({ onLogout }) {
   const [pendingMappings, setPendingMappings] = useState([]);
   const [pendingMappingsTotal, setPendingMappingsTotal] = useState(0);
   const [pendingMappingsLoading, setPendingMappingsLoading] = useState(false);
+  const [pendingMappingsError, setPendingMappingsError] = useState(null);
+  const [insightsError, setInsightsError] = useState(null);
+  const [dashboardError, setDashboardError] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  React.useEffect(() => {
+  const fetchAll = React.useCallback(async () => {
     const token = localStorage.getItem("adminToken");
     if (!token) return;
-    const fetchAll = async () => {
-      setLoading(true);
-      try {
-        const [a, u, l, s] = await Promise.allSettled([
-          axios.get("/api/v1/admin/admins"),
-          axios.get("/api/v1/admin/users"),
-          axios.get("/api/v1/admin/access-logs"),
-          axios.get("/api/v1/admin/daily-stats"),
-        ]);
-        const has401 = [a, u, l, s].some(
-          (p) => p.status === "rejected" && p.reason?.response?.status === 401
-        );
-        if (has401) {
-          localStorage.removeItem("adminToken");
-          onLogout();
-          return;
-        }
-        if (a.status === "fulfilled" && a.value?.data?.success) setAdmins(a.value.data.data || []);
-        if (u.status === "fulfilled" && u.value?.data?.success) setUsers(u.value.data.data || []);
-        if (l.status === "fulfilled" && l.value?.data?.success) setLogs(l.value.data.data || []);
-        if (s.status === "fulfilled" && s.value?.data?.success) setStats(s.value.data.data || []);
-      } catch (e) {
-        if (e?.response?.status === 401) {
-          localStorage.removeItem("adminToken");
-          onLogout();
-        } else {
-          console.error("대시보드 데이터 로드 실패:", e);
-        }
-      } finally {
-        setLoading(false);
+    setLoading(true);
+    setDashboardError(null);
+    try {
+      const opts = { timeout: ADMIN_FETCH_TIMEOUT_MS };
+      const [a, u, l, s] = await Promise.allSettled([
+        axios.get("/api/v1/admin/admins", opts),
+        axios.get("/api/v1/admin/users", opts),
+        axios.get("/api/v1/admin/access-logs", opts),
+        axios.get("/api/v1/admin/daily-stats", opts),
+      ]);
+      const has401 = [a, u, l, s].some(
+        (p) => p.status === "rejected" && p.reason?.response?.status === 401
+      );
+      if (has401) {
+        localStorage.removeItem("adminToken");
+        onLogout();
+        return;
       }
-    };
+      if (a.status === "fulfilled" && a.value?.data?.success) setAdmins(a.value.data.data || []);
+      if (u.status === "fulfilled" && u.value?.data?.success) setUsers(u.value.data.data || []);
+      if (l.status === "fulfilled" && l.value?.data?.success) setLogs(l.value.data.data || []);
+      if (s.status === "fulfilled" && s.value?.data?.success) setStats(s.value.data.data || []);
+      const allRejected = [a, u, l, s].every((p) => p.status === "rejected");
+      if (allRejected) {
+        const anyTimeout = [a, u, l, s].some((p) => isTimeoutError(p.reason));
+        setDashboardError(anyTimeout ? "timeout" : "error");
+      }
+    } catch (e) {
+      if (e?.response?.status === 401) {
+        localStorage.removeItem("adminToken");
+        onLogout();
+      } else {
+        console.error("대시보드 데이터 로드 실패:", e);
+        setDashboardError(isTimeoutError(e) ? "timeout" : "error");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [onLogout]);
+
+  React.useEffect(() => {
     fetchAll();
+  }, [fetchAll]);
+
+  const fetchInsights = React.useCallback(async () => {
+    const token = localStorage.getItem("adminToken");
+    if (!token) return;
+    setInsightsLoading(true);
+    setInsightsError(null);
+    try {
+      const res = await axios.get("/api/v1/admin/insights/culture-vs-tour", {
+        timeout: ADMIN_FETCH_TIMEOUT_MS,
+      });
+      if (res?.data?.success) setInsights(res.data.data || []);
+    } catch (e) {
+      if (e?.response?.status === 401) {
+        localStorage.removeItem("adminToken");
+        onLogout();
+      } else {
+        console.error("인사이트 로드 실패:", e);
+        setInsightsError(isTimeoutError(e) ? "timeout" : "error");
+      }
+    } finally {
+      setInsightsLoading(false);
+    }
   }, [onLogout]);
 
   useEffect(() => {
     if (activeTab !== "insights") return;
     if (insights.length > 0 || insightsLoading) return;
-    const token = localStorage.getItem("adminToken");
-    if (!token) return;
-    setInsightsLoading(true);
-    axios
-      .get("/api/v1/admin/insights/culture-vs-tour")
-      .then((res) => {
-        if (res?.data?.success) setInsights(res.data.data || []);
-      })
-      .catch((e) => {
-        if (e?.response?.status === 401) {
-          localStorage.removeItem("adminToken");
-          onLogout();
-        } else {
-          console.error("인사이트 로드 실패:", e);
-        }
-      })
-      .finally(() => setInsightsLoading(false));
-  }, [activeTab, insights.length, insightsLoading, onLogout]);
+    fetchInsights();
+  }, [activeTab, insights.length, insightsLoading, fetchInsights]);
 
   const fetchPendingMappings = React.useCallback(async () => {
     const token = localStorage.getItem("adminToken");
     if (!token) return;
     setPendingMappingsLoading(true);
+    setPendingMappingsError(null);
     try {
-      const res = await axios.get("/api/v1/admin/cine-trip/pending-mappings?limit=100");
+      const res = await axios.get("/api/v1/admin/cine-trip/pending-mappings?limit=100", {
+        timeout: ADMIN_FETCH_TIMEOUT_MS,
+      });
       if (res?.data?.success) {
         const data = res.data.data || {};
         setPendingMappings(Array.isArray(data.items) ? data.items : []);
@@ -314,6 +432,7 @@ function Dashboard({ onLogout }) {
         onLogout();
       } else {
         console.error("승인 대기 매핑 로드 실패:", e);
+        setPendingMappingsError(isTimeoutError(e) ? "timeout" : "error");
       }
     } finally {
       setPendingMappingsLoading(false);
@@ -593,7 +712,12 @@ function Dashboard({ onLogout }) {
 
           <div style={{ padding: 24, overflowX: "auto" }}>
             {loading ? (
-              <p style={{ textAlign: "center", color: "#6b7280", padding: 40 }}>{t("admin.loading")}</p>
+              <LoadingIndicator
+                label={t("admin.loading", "데이터 로딩 중...")}
+                hint={t("admin.loadingHint", "최대 15초까지 기다립니다")}
+              />
+            ) : dashboardError ? (
+              <ErrorState kind={dashboardError} onRetry={fetchAll} t={t} />
             ) : (
               <AnimatePresence mode="wait">
                 <motion.div
@@ -635,6 +759,8 @@ function Dashboard({ onLogout }) {
                     <CultureVsTourPanel
                       rows={filterList(insights, ["areaCode", "regionName"])}
                       loading={insightsLoading}
+                      error={insightsError}
+                      onRetry={fetchInsights}
                       onDownloadCsv={downloadInsightsCsv}
                     />
                   )}
@@ -643,6 +769,7 @@ function Dashboard({ onLogout }) {
                       rows={filterList(pendingMappings, ["movieName", "regionName", "areaCode", "mappingType"])}
                       total={pendingMappingsTotal}
                       loading={pendingMappingsLoading}
+                      error={pendingMappingsError}
                       onApprove={approvePendingMapping}
                       onReject={rejectPendingMapping}
                       onRefresh={fetchPendingMappings}
@@ -708,14 +835,18 @@ function Table({ cols, rows, fieldMap }) {
   );
 }
 
-function CultureVsTourPanel({ rows, loading, onDownloadCsv }) {
+function CultureVsTourPanel({ rows, loading, error, onRetry, onDownloadCsv }) {
   const { t } = useTranslation();
   if (loading) {
     return (
-      <p style={{ textAlign: "center", color: "#6b7280", padding: 40 }}>
-        {t("admin.loading")}
-      </p>
+      <LoadingIndicator
+        label={t("admin.loading", "데이터 로딩 중...")}
+        hint={t("admin.loadingHint", "최대 15초까지 기다립니다")}
+      />
     );
+  }
+  if (error) {
+    return <ErrorState kind={error} onRetry={onRetry} t={t} />;
   }
   if (!rows || rows.length === 0) {
     return (
@@ -895,7 +1026,7 @@ function CultureVsTourPanel({ rows, loading, onDownloadCsv }) {
   );
 }
 
-function PendingMappingsPanel({ rows, total, loading, onApprove, onReject, onRefresh }) {
+function PendingMappingsPanel({ rows, total, loading, error, onApprove, onReject, onRefresh }) {
   const { t } = useTranslation();
 
   const typeColor = (type) => {
@@ -964,7 +1095,12 @@ function PendingMappingsPanel({ rows, total, loading, onApprove, onReject, onRef
       </div>
 
       {loading ? (
-        <p style={{ textAlign: "center", color: "#6b7280", padding: 40 }}>{t("admin.loading")}</p>
+        <LoadingIndicator
+          label={t("admin.loading", "데이터 로딩 중...")}
+          hint={t("admin.loadingHint", "최대 15초까지 기다립니다")}
+        />
+      ) : error ? (
+        <ErrorState kind={error} onRetry={onRefresh} t={t} />
       ) : rows.length === 0 ? (
         <p style={{ textAlign: "center", color: "#6b7280", padding: 40 }}>
           {t("admin.noPending", "승인 대기 중인 매핑이 없습니다.")}
