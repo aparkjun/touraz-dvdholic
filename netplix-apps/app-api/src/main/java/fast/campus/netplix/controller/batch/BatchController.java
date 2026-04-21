@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import fast.campus.netplix.movie.NetplixMovie;
@@ -215,21 +216,34 @@ public class BatchController {
     /**
      * 관광공사 데이터랩 API 에서 지자체별 지표를 당겨와 tour_index_snapshots 에 upsert.
      * 자동 스케줄은 app-batch SyncTourIndexBatch 가 매일 03:30 KST 에 실행.
+     *
+     * @param baseDate yyyy-MM-dd 형식. 미지정 시 KST 기준 어제(데이터 지연 감안).
+     *                 관광공사 API 가 과거 데이터만 제공하므로 미래/오늘 은 403/404 가 나서 의미 없음.
      */
     @PostMapping("/tour/sync")
-    public NetplixApiResponse<String> runTourSync() {
-        log.info("Tour Sync 수동 실행 요청");
+    public NetplixApiResponse<String> runTourSync(
+            @RequestParam(value = "baseDate", required = false) String baseDate) {
+        log.info("Tour Sync 수동 실행 요청 baseDate={}", baseDate);
+        final LocalDate target;
         try {
-            LocalDate kstBase = LocalDate.now(ZoneId.of("Asia/Seoul"));
+            if (baseDate != null && !baseDate.isBlank()) {
+                target = LocalDate.parse(baseDate);
+            } else {
+                target = LocalDate.now(ZoneId.of("Asia/Seoul")).minusDays(1);
+            }
+        } catch (Exception e) {
+            return NetplixApiResponse.ok("baseDate 파싱 실패 (yyyy-MM-dd): " + e.getMessage());
+        }
+        try {
             CompletableFuture.runAsync(() -> {
                 try {
-                    int saved = tourIndexUseCase.syncFromApi(kstBase);
-                    log.info("[TOUR-SYNC-MANUAL] 완료 - baseDate={}, saved={}", kstBase, saved);
+                    int saved = tourIndexUseCase.syncFromApi(target);
+                    log.info("[TOUR-SYNC-MANUAL] 완료 - baseDate={}, saved={}", target, saved);
                 } catch (Exception e) {
                     log.error("[TOUR-SYNC-MANUAL] 실패: {}", e.getMessage(), e);
                 }
             });
-            return NetplixApiResponse.ok("Tour 지표 동기화를 시작했습니다. baseDate=" + kstBase + ". 완료 후 /api/v1/tour/regions 로 확인하세요.");
+            return NetplixApiResponse.ok("Tour 지표 동기화를 시작했습니다. baseDate=" + target + ". 완료 후 /api/v1/tour/regions 로 확인하세요.");
         } catch (Exception e) {
             log.error("Tour Sync 실행 실패: {}", e.getMessage(), e);
             return NetplixApiResponse.ok("Tour Sync 실행 실패: " + e.getMessage());
