@@ -19,16 +19,18 @@ tmdb:
     movie-reviews: https://api.themoviedb.org/3/movie/{movie_id}/reviews?api_key=${TMDB_API_KEY:}&language=ko-KR&page=1
     trending-week: https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY:}
 
-# 한국관광공사 데이터랩 & 파생 API (2026-04 기준 Base URL 전부 확인 완료)
-# 공공데이터포털 등록 경로:
-#   15101972 관광빅데이터 정보서비스_GW   → DataLabService            (활성: 방문자수 광역)
-#   15152138 지역별 관광 자원 수요        → AreaTarResDemService       (확인, 데이터셋 적재 대기중 — totalCount=0)
-#   15151365 지역별 관광 다양성           → AreaTarDivService          (Base 확인, 일부 operation 미확정)
-#   15128555 관광지 집중률 방문자 추이 예측 → TatsCnctrRateService     (Base 확인, operation 파라미터 미확정)
-#   15145706 관광공모전(사진) 수상작 정보  → PhokoAwrdService          (활성: 사진 섹션)
+# 한국관광공사 데이터랩 & 파생 API (2026-04 기준 Base URL + operation 명까지 확정)
+# 공공데이터포털 등록 경로 / 점검 결과:
+#   15101972 관광빅데이터 정보서비스_GW   → DataLabService            (활성: metcoRegnVisitrDDList 광역 방문자수)
+#   15152138 지역별 관광 자원 수요        → AreaTarResDemService       (operation 확정 — areaTarSvcDemList / areaCulResDemList, 2026-04 현재 totalCount=0 적재 대기)
+#   15151365 지역별 관광 다양성           → AreaTarDivService          (operation 3종 확정 — areaTouDivList / areaExpDivList / areaIntlDivList, totalCount=0 적재 대기)
+#   15128555 관광지 집중률 방문자 추이 예측 → TatsCnctrRateService     (활성 확인: tatsCnctrRatedList, 미래 7일 기초지자체 관광지 집중률 예측. 파라미터 areaCd+signguCd 필수, tAtsNm 선택)
+#   15145706 관광공모전(사진) 수상작 정보  → PhokoAwrdService          (활성: phokoAwrdList / ldongCode)
 # 필수 파라미터 규약
 #   - DataLabService 계열: serviceKey, MobileOS=ETC, MobileApp, startYmd, endYmd, numOfRows, pageNo
-#   - AreaTar* 계열:       serviceKey, MobileOS, MobileApp, baseYm(YYYYMM), areaCd(광역 법정동 2자리)
+#   - AreaTarDivService : serviceKey, MobileOS, MobileApp, baseYm(YYYYMM), areaCd(광역 법정동 2자리)
+#   - AreaTarResDem     : 위와 동일 + 일부 operation 은 signguCd 추가
+#   - TatsCnctrRate     : serviceKey, MobileOS, MobileApp, areaCd, signguCd (날짜/관광지 자동)
 # TourIndex 조인 전제: DataLabHttpClient 가 내부에서 lDongRegnCd(11,26,...) → KorService2 areaCode(1~8,31~39) 로
 # 변환 후 저장. 이 규약을 깨는 신규 오퍼레이션은 반드시 동일 변환을 거쳐야 한다.
 visitkorea:
@@ -52,15 +54,22 @@ visitkorea:
     base-url: https://apis.data.go.kr/B551011/AreaTarResDemService
     service-demand: ${visitkorea.area-demand.base-url}/areaTarSvcDemList
     cultural-demand: ${visitkorea.area-demand.base-url}/areaCulResDemList
-  # 지역별 관광 다양성 (AreaTarDivService) - 확인된 operation 1개 (areaIntlDivList).
-  # 관광객/관광소비 다양성 operation 은 가이드 문서 확보 시 채울 것.
+  # 지역별 관광 다양성 (AreaTarDivService) - operation 3종 확정
+  #   areaTouDivList : 관광객(방문자) 다양성
+  #   areaExpDivList : 관광소비(지출) 다양성
+  #   areaIntlDivList: 외국인 관광 다양성
+  # 2026-04 현재 세 operation 모두 resultCode=0000 이지만 totalCount=0 (KTO 데이터 적재 대기).
   diversity:
     base-url: https://apis.data.go.kr/B551011/AreaTarDivService
+    tourist-diversity: ${visitkorea.diversity.base-url}/areaTouDivList
+    consumption-diversity: ${visitkorea.diversity.base-url}/areaExpDivList
     intl-diversity: ${visitkorea.diversity.base-url}/areaIntlDivList
-  # 관광지 집중률 방문자 추이 예측 (TatsCnctrRateService) - operation 명 미확정.
-  # 가이드(TourAPI_Guide_(관광지집중률방문자추이예측정보)v4.0.zip) 확보 시 활성화.
+  # 관광지 집중률 방문자 추이 예측 (TatsCnctrRateService) - 활성 확인
+  #   tatsCnctrRatedList : areaCd(2자리) + signguCd(5자리) 필수, tAtsNm(관광지명) 선택.
+  #   응답: baseYmd, areaCd, areaNm, signguCd, signguNm, tAtsNm, cnctrRate (오늘 기준 향후 7일 예측)
   concentration:
     base-url: https://apis.data.go.kr/B551011/TatsCnctrRateService
+    concentration-rate: ${visitkorea.concentration.base-url}/tatsCnctrRatedList
   # 매 일 호출을 상한하기 위한 일일 배치 기준 값
   batch:
     default-period-days: 7
