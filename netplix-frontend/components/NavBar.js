@@ -126,6 +126,13 @@ function AuthActions({ isLoggedIn, isAdmin, isAuthPage, pathname, onLogout }) {
       </li>
     );
   }
+  if (pathname !== '/cine-trip') {
+    navItems.push(
+      <li key="cine-trip">
+        <Link href="/cine-trip" className="app-chip app-chip-secondary" onClick={closeMenu}>{t('nav.cineTrip', 'CineTrip')}</Link>
+      </li>
+    );
+  }
   if (pathname !== '/support') {
     navItems.push(
       <li key="support">

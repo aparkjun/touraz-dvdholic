@@ -1,6 +1,7 @@
 {
   "nav": {
     "dvdStores": "DVD매장",
+    "cineTrip": "CineTrip",
     "support": "지원",
     "login": "로그인",
     "signup": "회원가입",
@@ -305,7 +306,42 @@
     "accessTime": "접속일시",
     "date": "날짜",
     "activeUsers": "활성 회원",
-    "totalUsers": "전체 회원"
+    "totalUsers": "전체 회원",
+    "cultureVsTour": "문화×관광",
+    "insightsTitle": "문화×관광 인사이트",
+    "insightsEmpty": "데이터가 없습니다. 관광공사 동기화 배치를 먼저 실행해 주세요.",
+    "downloadCsv": "CSV 다운로드",
+    "insightsRegionCount": "분석 지자체 수",
+    "insightsTotalStores": "총 매장",
+    "insightsClosedStores": "폐업",
+    "insightsAvgClosure": "평균 폐업률",
+    "insightsTopClosure": "폐업률 상위 지자체",
+    "insightsTopSearch": "검색량 상위 지자체",
+    "insightsArea": "지자체 코드",
+    "insightsRegion": "지역명",
+    "insightsTotal": "매장",
+    "insightsOperating": "영업",
+    "insightsClosed": "폐업",
+    "insightsClosureRate": "폐업률",
+    "insightsTourDemand": "관광수요",
+    "insightsCulturalDemand": "문화자원수요",
+    "insightsSearch": "검색량",
+    "aiMappingReview": "AI 매핑 승인",
+    "aiMappingReviewHint": "AutoTagCineTripMappingBatch 가 저신뢰도로 분류한 영화-지역 매핑입니다. 승인하면 movie_region_mappings 에 즉시 반영돼 CineTrip 큐레이션에 노출됩니다.",
+    "pendingTotal": "대기",
+    "refresh": "새로고침",
+    "noPending": "승인 대기 중인 매핑이 없습니다.",
+    "pendingMovie": "영화",
+    "pendingRegion": "지역",
+    "pendingType": "유형",
+    "pendingConfidence": "신뢰도",
+    "pendingSource": "소스",
+    "pendingEvidence": "근거",
+    "pendingCreated": "생성일",
+    "pendingActions": "조치",
+    "approve": "승인",
+    "reject": "반려",
+    "confirmReject": "정말 반려하시겠습니까? 반려된 매핑은 다시 자동 태깅되지 않습니다."
   },
   "movieImages": {
     "poster": "포스터",
@@ -392,5 +428,64 @@
   },
   "common": {
     "lang": "한국어"
+  },
+  "cultureMap": {
+    "title": "문화 × 관광 지도",
+    "subtitle": "DVD 대여점 밀도와 지자체 관광지표를 한 눈에",
+    "layerStores": "DVD 매장 밀도",
+    "layerTourDemand": "관광수요지수",
+    "layerCultural": "문화자원 수요",
+    "layerSearch": "검색량",
+    "legendLow": "낮음",
+    "legendHigh": "높음",
+    "regionTotal": "총 매장",
+    "regionOperating": "운영중",
+    "regionClosed": "폐업",
+    "regionTourIdx": "관광수요",
+    "regionCulture": "문화자원",
+    "regionSearch": "검색량",
+    "viewDetails": "지역 상세 보기"
+  },
+  "cineTrip": {
+    "title": "CineTrip: 영화 따라 떠나는 여행",
+    "heroSubtitle": "작품 속 장소 × 지자체 관광데이터로 만든 큐레이션",
+    "listEmpty": "아직 큐레이션된 작품이 없어요. 곧 업데이트됩니다.",
+    "mappingShot": "촬영지",
+    "mappingBackground": "배경",
+    "mappingTheme": "테마",
+    "nearbyStores": "주변 DVD 매장",
+    "localStats": "지역 관광 지표",
+    "ctaOpenCineTrip": "이 영화로 여행 떠나기",
+    "filters": {
+      "mood": "분위기",
+      "type": "매핑 타입",
+      "region": "지역"
+    }
+  },
+  "trendingRegions": {
+    "title": "오늘 뜨는 지역",
+    "subtitle": "검색량 급등한 지자체의 대표 영화/DVD",
+    "rankPrefix": "#",
+    "openMap": "지도에서 보기",
+    "period": {
+      "today": "오늘",
+      "week": "이번주",
+      "month": "이번달"
+    },
+    "periodTitle": {
+      "today": "오늘 뜨는 지역",
+      "week": "이번주 뜨는 지역",
+      "month": "이번달 뜨는 지역"
+    },
+    "periodSubtitle": {
+      "today": "관광공사 검색량 급등 기준",
+      "week": "관광수요·경쟁력 가중 지수",
+      "month": "문화·관광자원 종합 점수"
+    }
+  },
+  "aiTravel": {
+    "toggleOn": "여행 모드",
+    "toggleOff": "일반 모드",
+    "hint": "여행 모드: 관광데이터와 작품 매핑을 반영해 지역 기반 추천을 받아요."
   }
 }

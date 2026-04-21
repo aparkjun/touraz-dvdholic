@@ -12,7 +12,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class GetMoviesForRagService implements GetMoviesForRagUseCase {
 
-    private static final int PAGE_SIZE = 100;
+    private static final int PAGE_SIZE = 50;
 
     private final PersistenceMoviePort persistenceMoviePort;
 
@@ -21,8 +21,8 @@ public class GetMoviesForRagService implements GetMoviesForRagUseCase {
         List<NetplixMovie> result = new ArrayList<>();
         int page = 0;
         while (result.size() < maxCount) {
-            List<NetplixMovie> pageDvd = persistenceMoviePort.fetchByContentType("dvd", page, PAGE_SIZE);
-            List<NetplixMovie> pageMovie = persistenceMoviePort.fetchByContentType("movie", page, PAGE_SIZE);
+            List<NetplixMovie> pageDvd = safeFetch("dvd", page);
+            List<NetplixMovie> pageMovie = safeFetch("movie", page);
             if (pageDvd.isEmpty() && pageMovie.isEmpty()) {
                 break;
             }
@@ -41,5 +41,14 @@ public class GetMoviesForRagService implements GetMoviesForRagUseCase {
         }
         log.info("RAG용 영화 목록 조회: {}편", result.size());
         return result;
+    }
+
+    private List<NetplixMovie> safeFetch(String contentType, int page) {
+        try {
+            return persistenceMoviePort.fetchByContentType(contentType, page, PAGE_SIZE);
+        } catch (Exception e) {
+            log.warn("[RAG-FETCH] {} page={} 실패: {}", contentType, page, e.getMessage());
+            return List.of();
+        }
     }
 }

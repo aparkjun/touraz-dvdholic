@@ -128,11 +128,14 @@ public class MovieController {
             @RequestParam(required = false) String mood,
             @RequestParam(required = false) String companion,
             @RequestParam(defaultValue = "movie") String contentType,
-            @RequestParam(defaultValue = "20") int limit) {
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) String mode,
+            @RequestParam(required = false) String areaCode) {
         int safeLimit = Math.min(Math.max(limit, 1), 50);
         String safeContentType = "dvd".equalsIgnoreCase(contentType) ? "dvd" : "movie";
+        boolean travelMode = "travel".equalsIgnoreCase(mode);
         List<MovieWithRecommendReason> list = promptRecommendUseCase.recommendByPrompt(
-                q, mood, companion, safeContentType, safeLimit);
+                q, mood, companion, safeContentType, safeLimit, travelMode, areaCode);
         // 로그인 사용자면 추천 알림 1건 발송 (첫 번째 추천 작품 기준)
         try {
             String userId = jwtTokenProvider.getUserId();

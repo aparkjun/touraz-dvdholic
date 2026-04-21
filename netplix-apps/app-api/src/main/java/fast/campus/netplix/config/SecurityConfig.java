@@ -63,6 +63,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/batch/**").permitAll()
                         .requestMatchers("/api/v1/dvd-stores/**").permitAll()
                         .requestMatchers("/api/v1/support/**").permitAll()
+                        .requestMatchers("/api/v1/tour/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/cine-trip/import").authenticated()
+                        .requestMatchers("/api/v1/cine-trip/**").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll());
         

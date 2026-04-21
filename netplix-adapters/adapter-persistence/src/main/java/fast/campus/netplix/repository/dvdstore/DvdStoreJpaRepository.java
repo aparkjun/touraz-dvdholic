@@ -9,6 +9,20 @@ import java.util.List;
 
 public interface DvdStoreJpaRepository extends JpaRepository<DvdStoreEntity, Long> {
 
+    @Query(value = """
+            SELECT AREA_CODE AS areaCode,
+                   COUNT(*) AS totalCount,
+                   SUM(CASE WHEN STATUS_CODE = '01' THEN 1 ELSE 0 END) AS operatingCount,
+                   SUM(CASE WHEN STATUS_CODE <> '01' THEN 1 ELSE 0 END) AS closedCount,
+                   AVG(LATITUDE)  AS avgLatitude,
+                   AVG(LONGITUDE) AS avgLongitude
+              FROM dvd_stores
+             WHERE AREA_CODE IS NOT NULL
+             GROUP BY AREA_CODE
+            """, nativeQuery = true)
+    List<DvdStoreRegionStatRow> aggregateByRegion();
+
+
     List<DvdStoreEntity> findByStatusCode(String statusCode);
 
     @Query("SELECT e FROM DvdStoreEntity e WHERE " +

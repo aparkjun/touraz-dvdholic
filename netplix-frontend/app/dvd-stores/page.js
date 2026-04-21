@@ -3,7 +3,8 @@ import React, { useEffect, useRef, useState, useMemo, useCallback, Suspense } fr
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
-import { Search, MapPin, Phone, Clock, Package, ChevronLeft, ChevronRight, Store, LocateFixed, Navigation, X, Building2, Briefcase, CalendarClock, PauseCircle, Ruler, Map, List } from "lucide-react";
+import { Search, MapPin, Phone, Clock, Package, ChevronLeft, ChevronRight, Store, LocateFixed, Navigation, X, Building2, Briefcase, CalendarClock, PauseCircle, Ruler, Map, List, Layers } from "lucide-react";
+import CultureMapLayer from "@/components/CultureMapLayer";
 let L, MapContainer, TileLayer, Marker, Popup, useMap;
 let greenIcon, redIcon, blueIcon;
 
@@ -62,6 +63,7 @@ function DvdStoresContent() {
   const [page, setPage] = useState(0);
   const [showClosed, setShowClosed] = useState(false);
   const [viewMode, setViewMode] = useState("list"); // "list" | "map"
+  const [cultureLayer, setCultureLayer] = useState("off"); // off | stores | tourDemand | cultural | search
 
   const [nearbyMode, setNearbyMode] = useState(false);
   const [nearbyStores, setNearbyStores] = useState([]);
@@ -412,6 +414,43 @@ function DvdStoresContent() {
         </div>
       </div>
 
+      {viewMode === "map" && (
+        <div style={{
+          display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8,
+          margin: "10px 0 14px", padding: "10px 12px",
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(245,158,11,0.15)",
+          borderRadius: 12,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, color: "#f59e0b", fontSize: "0.82rem", fontWeight: 600, marginRight: 4 }}>
+            <Layers size={14} /> {t("cultureMap.title")}
+          </div>
+          {[
+            { key: "off", label: "OFF" },
+            { key: "stores", label: t("cultureMap.layerStores") },
+            { key: "tourDemand", label: t("cultureMap.layerTourDemand") },
+            { key: "cultural", label: t("cultureMap.layerCultural") },
+            { key: "search", label: t("cultureMap.layerSearch") },
+          ].map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => setCultureLayer(opt.key)}
+              style={{
+                padding: "5px 10px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.1)",
+                background: cultureLayer === opt.key ? "rgba(245,158,11,0.25)" : "rgba(255,255,255,0.04)",
+                color: cultureLayer === opt.key ? "#f59e0b" : "rgba(255,255,255,0.6)",
+                fontSize: "0.75rem", cursor: "pointer",
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+          <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "0.72rem", marginLeft: "auto" }}>
+            {t("cultureMap.legendLow")} → {t("cultureMap.legendHigh")}
+          </span>
+        </div>
+      )}
+
       {isLoading ? (
         <div style={{ textAlign: "center", padding: 60, color: "rgba(255,255,255,0.4)" }}>
           {t("dvdStores.loading")}
@@ -425,7 +464,7 @@ function DvdStoresContent() {
               : t("dvdStores.noData")}
         </div>
       ) : viewMode === "map" ? (
-        mounted ? <StoreMap stores={filtered} userPos={userPos} nearbyMode={nearbyMode} /> : <div style={{ textAlign: "center", padding: 60, color: "rgba(255,255,255,0.4)" }}>{t("dvdStores.loading")}</div>
+        mounted ? <StoreMap stores={filtered} userPos={userPos} nearbyMode={nearbyMode} cultureLayer={cultureLayer} /> : <div style={{ textAlign: "center", padding: 60, color: "rgba(255,255,255,0.4)" }}>{t("dvdStores.loading")}</div>
       ) : (
         <>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -646,7 +685,7 @@ function FitBounds({ stores, userPos }) {
   return null;
 }
 
-function StoreMap({ stores, userPos, nearbyMode }) {
+function StoreMap({ stores, userPos, nearbyMode, cultureLayer = "off" }) {
   const { t } = useTranslation();
   const mappable = useMemo(
     () => stores.filter((s) => s.latitude && s.longitude),
@@ -672,6 +711,8 @@ function StoreMap({ stores, userPos, nearbyMode }) {
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <FitBounds stores={mappable} userPos={userPos} />
+
+        {cultureLayer !== "off" && <CultureMapLayer layer={cultureLayer} />}
 
         {userPos && (
           <Marker position={[userPos.lat, userPos.lon]} icon={blueIcon}>

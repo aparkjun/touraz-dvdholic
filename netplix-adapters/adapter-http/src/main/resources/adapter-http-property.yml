@@ -18,3 +18,20 @@ tmdb:
     movie-recommendations: https://api.themoviedb.org/3/movie/{movie_id}/recommendations?api_key=${TMDB_API_KEY:}&language=ko-KR&page=1
     movie-reviews: https://api.themoviedb.org/3/movie/{movie_id}/reviews?api_key=${TMDB_API_KEY:}&language=ko-KR&page=1
     trending-week: https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY:}
+
+# 한국관광공사 데이터랩 (관광수요지수/경쟁력/문화자원수요/검색량)
+# 공공데이터포털: https://www.data.go.kr/data/15152138/openapi.do
+# base-url 은 실제 운영 키에 맞춰 수정 가능. 대부분 Operation 은 serviceKey + baseYm(또는 baseYmd) 파라미터 사용.
+visitkorea:
+  auth:
+    service-key: ${VISITKOREA_SERVICE_KEY:}
+  api:
+    base-url: https://apis.data.go.kr/B551011/DataLabService
+    tour-demand-index: ${visitkorea.api.base-url}/metcoRegnVisitrDDList
+    tour-competitiveness: ${visitkorea.api.base-url}/tourCmpttIdxDDList
+    cultural-resource-demand: ${visitkorea.api.base-url}/cultureRsrceDemndDDList
+    tour-search-volume: ${visitkorea.api.base-url}/srchKwrdDDList
+  # 매 일 호출을 상한하기 위한 일일 배치 기준 값
+  batch:
+    default-period-days: 7
+    page-size: 100

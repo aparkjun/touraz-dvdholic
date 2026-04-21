@@ -1,5 +1,6 @@
 package fast.campus.netplix.controller.batch;
 
+import fast.campus.netplix.cinetrip.AutoTagCineTripMappingUseCase;
 import fast.campus.netplix.controller.NetplixApiResponse;
 import fast.campus.netplix.scheduler.MovieUpdateScheduler;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class BatchController {
     private final SearchUserPort searchUserPort;
     private final PersistenceMoviePort persistenceMoviePort;
     private final OwnerRecommendUseCase ownerRecommendUseCase;
+    private final AutoTagCineTripMappingUseCase autoTagCineTripMappingUseCase;
 
     /**
      * 배치 스케줄·마지막 실행 시각 확인 (매일 새벽 배치가 도는지 검증용)
@@ -175,6 +177,31 @@ public class BatchController {
         } catch (Exception e) {
             log.error("Movie 배치 실행 실패: {}", e.getMessage(), e);
             return NetplixApiResponse.ok("영화 배치 실행 실패: " + e.getMessage());
+        }
+    }
+
+    /**
+     * LLM + 룰 기반 영화-지역 자동 태깅 수동 트리거.
+     * Heroku 는 web dyno 만 외부 노출이므로 app-batch 의 동명 엔드포인트를 여기로도 노출한다.
+     * 자동 스케줄은 BatchScheduler#runAutoTagCineTripMappingBatch 가 매일 05:00 KST 에 실행한다.
+     */
+    @PostMapping("/cine-trip/auto-tag")
+    public NetplixApiResponse<String> runAutoTagCineTripMapping() {
+        log.info("CineTrip 자동 태깅 수동 실행 요청");
+        try {
+            CompletableFuture.runAsync(() -> {
+                try {
+                    AutoTagCineTripMappingUseCase.Result r = autoTagCineTripMappingUseCase.runAll();
+                    log.info("[AUTOTAG-MANUAL] 완료 - 스캔 {} / 자동승인 {} / 대기 {} / 스킵 {}",
+                            r.scanned, r.autoApproved, r.pending, r.skipped);
+                } catch (Exception e) {
+                    log.error("[AUTOTAG-MANUAL] 실패: {}", e.getMessage(), e);
+                }
+            });
+            return NetplixApiResponse.ok("CineTrip 자동 태깅을 시작했습니다. 완료 후 /api/v1/admin/cine-trip/pending-mappings 로 결과를 확인하세요.");
+        } catch (Exception e) {
+            log.error("자동 태깅 배치 실행 실패: {}", e.getMessage(), e);
+            return NetplixApiResponse.ok("자동 태깅 배치 실행 실패: " + e.getMessage());
         }
     }
 }

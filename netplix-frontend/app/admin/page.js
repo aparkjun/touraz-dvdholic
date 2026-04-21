@@ -230,6 +230,11 @@ function Dashboard({ onLogout }) {
   const [users, setUsers] = useState([]);
   const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState([]);
+  const [insights, setInsights] = useState([]);
+  const [insightsLoading, setInsightsLoading] = useState(false);
+  const [pendingMappings, setPendingMappings] = useState([]);
+  const [pendingMappingsTotal, setPendingMappingsTotal] = useState(0);
+  const [pendingMappingsLoading, setPendingMappingsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   React.useEffect(() => {
@@ -269,6 +274,98 @@ function Dashboard({ onLogout }) {
     };
     fetchAll();
   }, [onLogout]);
+
+  useEffect(() => {
+    if (activeTab !== "insights") return;
+    if (insights.length > 0 || insightsLoading) return;
+    const token = localStorage.getItem("adminToken");
+    if (!token) return;
+    setInsightsLoading(true);
+    axios
+      .get("/api/v1/admin/insights/culture-vs-tour")
+      .then((res) => {
+        if (res?.data?.success) setInsights(res.data.data || []);
+      })
+      .catch((e) => {
+        if (e?.response?.status === 401) {
+          localStorage.removeItem("adminToken");
+          onLogout();
+        } else {
+          console.error("인사이트 로드 실패:", e);
+        }
+      })
+      .finally(() => setInsightsLoading(false));
+  }, [activeTab, insights.length, insightsLoading, onLogout]);
+
+  const fetchPendingMappings = React.useCallback(async () => {
+    const token = localStorage.getItem("adminToken");
+    if (!token) return;
+    setPendingMappingsLoading(true);
+    try {
+      const res = await axios.get("/api/v1/admin/cine-trip/pending-mappings?limit=100");
+      if (res?.data?.success) {
+        const data = res.data.data || {};
+        setPendingMappings(Array.isArray(data.items) ? data.items : []);
+        setPendingMappingsTotal(typeof data.total === "number" ? data.total : 0);
+      }
+    } catch (e) {
+      if (e?.response?.status === 401) {
+        localStorage.removeItem("adminToken");
+        onLogout();
+      } else {
+        console.error("승인 대기 매핑 로드 실패:", e);
+      }
+    } finally {
+      setPendingMappingsLoading(false);
+    }
+  }, [onLogout]);
+
+  useEffect(() => {
+    if (activeTab !== "pending") return;
+    if (pendingMappings.length > 0 || pendingMappingsLoading) return;
+    fetchPendingMappings();
+  }, [activeTab, pendingMappings.length, pendingMappingsLoading, fetchPendingMappings]);
+
+  const approvePendingMapping = async (id) => {
+    try {
+      await axios.post(`/api/v1/admin/cine-trip/pending-mappings/${id}/approve`);
+      await fetchPendingMappings();
+    } catch (e) {
+      console.error("승인 실패:", e);
+      alert("승인 실패: " + (e?.response?.data?.message || e.message));
+    }
+  };
+
+  const rejectPendingMapping = async (id) => {
+    try {
+      await axios.post(`/api/v1/admin/cine-trip/pending-mappings/${id}/reject`);
+      await fetchPendingMappings();
+    } catch (e) {
+      console.error("반려 실패:", e);
+      alert("반려 실패: " + (e?.response?.data?.message || e.message));
+    }
+  };
+
+  const downloadInsightsCsv = async () => {
+    const token = localStorage.getItem("adminToken");
+    if (!token) return;
+    try {
+      const res = await axios.get("/api/v1/admin/insights/culture-vs-tour.csv", {
+        responseType: "blob",
+      });
+      const blob = new Blob([res.data], { type: "text/csv;charset=utf-8" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "culture-vs-tour.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error("CSV 다운로드 실패:", e);
+    }
+  };
 
   const emailCount = users.filter(u => u.provider === "email").length;
   const kakaoCount = users.filter(u => u.provider === "kakao").length;
@@ -414,7 +511,7 @@ function Dashboard({ onLogout }) {
             }}
           >
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-              {["admins", "users", "logs", "stats"].map((tab) => (
+              {["admins", "users", "logs", "stats", "insights", "pending"].map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -422,16 +519,52 @@ function Dashboard({ onLogout }) {
                     padding: "10px 16px",
                     borderRadius: "10px",
                     border: activeTab === tab ? "none" : "2px solid #d1fae5",
-                    background: activeTab === tab ? "linear-gradient(135deg, #10b981, #059669)" : "#fff",
-                    color: activeTab === tab ? "#fff" : "#047857",
+                    background: activeTab === tab
+                      ? (tab === "insights"
+                          ? "linear-gradient(135deg, #6366f1, #ec4899)"
+                          : tab === "pending"
+                            ? "linear-gradient(135deg, #f97316, #ef4444)"
+                            : "linear-gradient(135deg, #10b981, #059669)")
+                      : "#fff",
+                    color: activeTab === tab
+                      ? "#fff"
+                      : (tab === "insights" ? "#6366f1" : tab === "pending" ? "#c2410c" : "#047857"),
                     fontWeight: 600,
                     cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
                   }}
                 >
                   {tab === "admins" && t("admin.admins")}
                   {tab === "users" && t("admin.users")}
                   {tab === "logs" && t("admin.accessLogs")}
                   {tab === "stats" && t("admin.dailyStats")}
+                  {tab === "insights" && t("admin.cultureVsTour", "문화×관광")}
+                  {tab === "pending" && (
+                    <>
+                      {t("admin.aiMappingReview", "AI 매핑 승인")}
+                      {pendingMappingsTotal > 0 && (
+                        <span
+                          style={{
+                            minWidth: 20,
+                            height: 20,
+                            padding: "0 6px",
+                            borderRadius: 10,
+                            background: activeTab === tab ? "rgba(255,255,255,0.3)" : "#fecaca",
+                            color: activeTab === tab ? "#fff" : "#b91c1c",
+                            fontSize: 11,
+                            fontWeight: 700,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {pendingMappingsTotal}
+                        </span>
+                      )}
+                    </>
+                  )}
                 </button>
               ))}
             </div>
@@ -498,6 +631,23 @@ function Dashboard({ onLogout }) {
                       rows={filterList(stats, ["statDate"])}
                     />
                   )}
+                  {activeTab === "insights" && (
+                    <CultureVsTourPanel
+                      rows={filterList(insights, ["areaCode", "regionName"])}
+                      loading={insightsLoading}
+                      onDownloadCsv={downloadInsightsCsv}
+                    />
+                  )}
+                  {activeTab === "pending" && (
+                    <PendingMappingsPanel
+                      rows={filterList(pendingMappings, ["movieName", "regionName", "areaCode", "mappingType"])}
+                      total={pendingMappingsTotal}
+                      loading={pendingMappingsLoading}
+                      onApprove={approvePendingMapping}
+                      onReject={rejectPendingMapping}
+                      onRefresh={fetchPendingMappings}
+                    />
+                  )}
                 </motion.div>
               </AnimatePresence>
             )}
@@ -555,6 +705,401 @@ function Table({ cols, rows, fieldMap }) {
         )}
       </tbody>
     </table>
+  );
+}
+
+function CultureVsTourPanel({ rows, loading, onDownloadCsv }) {
+  const { t } = useTranslation();
+  if (loading) {
+    return (
+      <p style={{ textAlign: "center", color: "#6b7280", padding: 40 }}>
+        {t("admin.loading")}
+      </p>
+    );
+  }
+  if (!rows || rows.length === 0) {
+    return (
+      <div style={{ textAlign: "center", color: "#6b7280", padding: 40 }}>
+        <p style={{ marginBottom: 12 }}>{t("admin.insightsEmpty", "데이터가 없습니다. 관광공사 동기화 배치를 먼저 실행해 주세요.")}</p>
+      </div>
+    );
+  }
+
+  const totalStores = rows.reduce((s, r) => s + (Number(r.totalStores) || 0), 0);
+  const totalClosed = rows.reduce((s, r) => s + (Number(r.closedStores) || 0), 0);
+  const avgClosure = totalStores > 0 ? totalClosed / totalStores : 0;
+
+  const topClosure = [...rows]
+    .filter((r) => r.closureRate != null && r.totalStores > 0)
+    .sort((a, b) => b.closureRate - a.closureRate)
+    .slice(0, 8);
+  const topSearch = [...rows]
+    .filter((r) => r.searchVolume != null)
+    .sort((a, b) => (b.searchVolume || 0) - (a.searchVolume || 0))
+    .slice(0, 8);
+  const maxSearch = topSearch[0]?.searchVolume || 1;
+
+  const KPIS = [
+    { label: t("admin.insightsRegionCount", "분석 지자체 수"), value: rows.length },
+    { label: t("admin.insightsTotalStores", "총 매장"), value: totalStores.toLocaleString() },
+    { label: t("admin.insightsClosedStores", "폐업"), value: totalClosed.toLocaleString() },
+    { label: t("admin.insightsAvgClosure", "평균 폐업률"), value: `${(avgClosure * 100).toFixed(1)}%` },
+  ];
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#111", margin: 0 }}>
+          {t("admin.insightsTitle", "문화×관광 인사이트")}
+        </h2>
+        <button
+          type="button"
+          onClick={onDownloadCsv}
+          style={{
+            padding: "8px 14px",
+            borderRadius: "8px",
+            border: "2px solid #a5b4fc",
+            background: "#eef2ff",
+            color: "#4338ca",
+            fontWeight: 600,
+            fontSize: "13px",
+            cursor: "pointer",
+          }}
+        >
+          ⬇ {t("admin.downloadCsv", "CSV 다운로드")}
+        </button>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+        {KPIS.map((k) => (
+          <div
+            key={k.label}
+            style={{
+              background: "#fff",
+              border: "2px solid #e0e7ff",
+              borderRadius: 12,
+              padding: "14px 16px",
+            }}
+          >
+            <p style={{ fontSize: "12px", color: "#6366f1", margin: 0, fontWeight: 600 }}>{k.label}</p>
+            <p style={{ fontSize: "20px", fontWeight: 700, color: "#111", margin: "4px 0 0" }}>{k.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
+        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
+          <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#111", margin: "0 0 12px" }}>
+            {t("admin.insightsTopClosure", "폐업률 상위 지자체")}
+          </h3>
+          {topClosure.length === 0 ? (
+            <p style={{ color: "#9ca3af", fontSize: "13px" }}>-</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {topClosure.map((r) => {
+                const pct = (r.closureRate || 0) * 100;
+                return (
+                  <div key={r.areaCode}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: 4, color: "#374151" }}>
+                      <span>{r.regionName || r.areaCode}</span>
+                      <span style={{ fontWeight: 700, color: "#ef4444" }}>{pct.toFixed(1)}%</span>
+                    </div>
+                    <div style={{ width: "100%", height: 6, background: "#fee2e2", borderRadius: 3, overflow: "hidden" }}>
+                      <div
+                        style={{
+                          width: `${Math.min(100, pct)}%`,
+                          height: "100%",
+                          background: "linear-gradient(90deg, #f87171, #ef4444)",
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 16 }}>
+          <h3 style={{ fontSize: "14px", fontWeight: 700, color: "#111", margin: "0 0 12px" }}>
+            {t("admin.insightsTopSearch", "검색량 상위 지자체")}
+          </h3>
+          {topSearch.length === 0 ? (
+            <p style={{ color: "#9ca3af", fontSize: "13px" }}>-</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {topSearch.map((r) => {
+                const pct = ((r.searchVolume || 0) / maxSearch) * 100;
+                return (
+                  <div key={r.areaCode}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: 4, color: "#374151" }}>
+                      <span>{r.regionName || r.areaCode}</span>
+                      <span style={{ fontWeight: 700, color: "#6366f1" }}>{(r.searchVolume || 0).toLocaleString()}</span>
+                    </div>
+                    <div style={{ width: "100%", height: 6, background: "#e0e7ff", borderRadius: 3, overflow: "hidden" }}>
+                      <div
+                        style={{
+                          width: `${pct}%`,
+                          height: "100%",
+                          background: "linear-gradient(90deg, #818cf8, #ec4899)",
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", minWidth: 780 }}>
+          <thead>
+            <tr style={{ borderBottom: "2px solid #e5e7eb", background: "#f9fafb" }}>
+              {[
+                t("admin.insightsArea", "지자체 코드"),
+                t("admin.insightsRegion", "지역명"),
+                t("admin.insightsTotal", "매장"),
+                t("admin.insightsOperating", "영업"),
+                t("admin.insightsClosed", "폐업"),
+                t("admin.insightsClosureRate", "폐업률"),
+                t("admin.insightsTourDemand", "관광수요"),
+                t("admin.insightsCulturalDemand", "문화자원수요"),
+                t("admin.insightsSearch", "검색량"),
+              ].map((h) => (
+                <th key={h} style={{ padding: "10px 12px", textAlign: "left", fontWeight: 600, color: "#374151", whiteSpace: "nowrap" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.areaCode} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                <td style={{ padding: "10px 12px", color: "#6b7280" }}>{r.areaCode}</td>
+                <td style={{ padding: "10px 12px", color: "#111", fontWeight: 600 }}>{r.regionName || "-"}</td>
+                <td style={{ padding: "10px 12px" }}>{(r.totalStores || 0).toLocaleString()}</td>
+                <td style={{ padding: "10px 12px", color: "#059669" }}>{(r.operatingStores || 0).toLocaleString()}</td>
+                <td style={{ padding: "10px 12px", color: "#ef4444" }}>{(r.closedStores || 0).toLocaleString()}</td>
+                <td style={{ padding: "10px 12px", color: "#ef4444", fontWeight: 700 }}>
+                  {r.closureRate == null ? "-" : `${(r.closureRate * 100).toFixed(1)}%`}
+                </td>
+                <td style={{ padding: "10px 12px" }}>{r.tourDemandIdx == null ? "-" : r.tourDemandIdx.toFixed(1)}</td>
+                <td style={{ padding: "10px 12px" }}>{r.culturalResourceDemand == null ? "-" : r.culturalResourceDemand.toFixed(1)}</td>
+                <td style={{ padding: "10px 12px" }}>{r.searchVolume == null ? "-" : r.searchVolume.toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function PendingMappingsPanel({ rows, total, loading, onApprove, onReject, onRefresh }) {
+  const { t } = useTranslation();
+
+  const typeColor = (type) => {
+    switch ((type || "").toUpperCase()) {
+      case "SHOT": return { bg: "#dcfce7", fg: "#166534" };
+      case "BACKGROUND": return { bg: "#dbeafe", fg: "#1e40af" };
+      case "THEME": return { bg: "#fef3c7", fg: "#92400e" };
+      default: return { bg: "#f3f4f6", fg: "#374151" };
+    }
+  };
+
+  const sourceColor = (src) => {
+    if (src === "RULE") return { bg: "#e0f2fe", fg: "#075985" };
+    if (src === "LLM")  return { bg: "#fae8ff", fg: "#86198f" };
+    return { bg: "#f3f4f6", fg: "#374151" };
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 12,
+          padding: "12px 16px",
+          background: "linear-gradient(135deg, #fff7ed, #fef2f2)",
+          border: "2px solid #fecaca",
+          borderRadius: 12,
+        }}
+      >
+        <div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#9a3412" }}>
+            {t("admin.aiMappingReview", "AI 매핑 승인")}
+          </div>
+          <div style={{ fontSize: 12, color: "#7c2d12", marginTop: 2 }}>
+            {t(
+              "admin.aiMappingReviewHint",
+              "AutoTagCineTripMappingBatch 가 저신뢰도(≤2) 로 분류한 영화-지역 매핑. 승인 시 movie_region_mappings 에 즉시 반영됩니다."
+            )}
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ fontSize: 13, color: "#7c2d12" }}>
+            {t("admin.pendingTotal", "대기")}: <strong>{total}</strong>
+          </div>
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 8,
+              border: "2px solid #fca5a5",
+              background: "#fff",
+              color: "#b91c1c",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: loading ? "not-allowed" : "pointer",
+              opacity: loading ? 0.6 : 1,
+            }}
+          >
+            {loading ? t("admin.loading") : t("admin.refresh", "새로고침")}
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <p style={{ textAlign: "center", color: "#6b7280", padding: 40 }}>{t("admin.loading")}</p>
+      ) : rows.length === 0 ? (
+        <p style={{ textAlign: "center", color: "#6b7280", padding: 40 }}>
+          {t("admin.noPending", "승인 대기 중인 매핑이 없습니다.")}
+        </p>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 900 }}>
+            <thead>
+              <tr style={{ borderBottom: "2px solid #e5e7eb", background: "#f9fafb" }}>
+                {[
+                  t("admin.pendingMovie", "영화"),
+                  t("admin.pendingRegion", "지역"),
+                  t("admin.pendingType", "유형"),
+                  t("admin.pendingConfidence", "신뢰도"),
+                  t("admin.pendingSource", "소스"),
+                  t("admin.pendingEvidence", "근거"),
+                  t("admin.pendingCreated", "생성일"),
+                  t("admin.pendingActions", "조치"),
+                ].map((h) => (
+                  <th
+                    key={h}
+                    style={{
+                      padding: "10px 12px",
+                      textAlign: "left",
+                      fontWeight: 600,
+                      color: "#374151",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const tc = typeColor(r.mappingType);
+                const sc = sourceColor(r.source);
+                return (
+                  <tr key={r.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                    <td style={{ padding: "10px 12px", color: "#111", fontWeight: 600 }}>{r.movieName}</td>
+                    <td style={{ padding: "10px 12px", color: "#374151" }}>
+                      {r.regionName || "-"}{" "}
+                      <span style={{ color: "#9ca3af", fontSize: 11 }}>({r.areaCode})</span>
+                    </td>
+                    <td style={{ padding: "10px 12px" }}>
+                      <span
+                        style={{
+                          padding: "3px 8px",
+                          borderRadius: 999,
+                          background: tc.bg,
+                          color: tc.fg,
+                          fontSize: 11,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {r.mappingType}
+                      </span>
+                    </td>
+                    <td style={{ padding: "10px 12px", fontWeight: 700, color: "#6366f1" }}>
+                      {r.confidence == null ? "-" : r.confidence}
+                    </td>
+                    <td style={{ padding: "10px 12px" }}>
+                      <span
+                        style={{
+                          padding: "3px 8px",
+                          borderRadius: 999,
+                          background: sc.bg,
+                          color: sc.fg,
+                          fontSize: 11,
+                          fontWeight: 700,
+                        }}
+                      >
+                        {r.source}
+                      </span>
+                    </td>
+                    <td
+                      style={{
+                        padding: "10px 12px",
+                        color: "#4b5563",
+                        maxWidth: 280,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={r.evidence || ""}
+                    >
+                      {r.evidence || "-"}
+                    </td>
+                    <td style={{ padding: "10px 12px", color: "#6b7280", fontSize: 12, whiteSpace: "nowrap" }}>
+                      {r.createdAt ? r.createdAt.replace("T", " ").substring(0, 16) : "-"}
+                    </td>
+                    <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+                      <button
+                        onClick={() => onApprove(r.id)}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: 6,
+                          border: "none",
+                          background: "linear-gradient(135deg, #10b981, #059669)",
+                          color: "#fff",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          marginRight: 6,
+                        }}
+                      >
+                        {t("admin.approve", "승인")}
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(t("admin.confirmReject", "정말 반려하시겠습니까?"))) onReject(r.id);
+                        }}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: 6,
+                          border: "2px solid #fca5a5",
+                          background: "#fff",
+                          color: "#b91c1c",
+                          fontSize: 12,
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {t("admin.reject", "반려")}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
 

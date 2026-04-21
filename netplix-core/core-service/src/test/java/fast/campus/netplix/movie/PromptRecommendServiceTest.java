@@ -1,6 +1,8 @@
 package fast.campus.netplix.movie;
 
+import fast.campus.netplix.cinetrip.MovieRegionMappingPort;
 import fast.campus.netplix.movie.response.MovieWithRecommendReason;
+import fast.campus.netplix.tour.TourIndexUseCase;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,6 +28,12 @@ class PromptRecommendServiceTest {
 
     @Mock
     private PersistenceMoviePort persistenceMoviePort;
+
+    @Mock
+    private TourIndexUseCase tourIndexUseCase;
+
+    @Mock
+    private MovieRegionMappingPort movieRegionMappingPort;
 
     @InjectMocks
     private PromptRecommendService promptRecommendService;
@@ -79,18 +87,12 @@ class PromptRecommendServiceTest {
                 movie("라라랜드", CONTENT_TYPE)
         );
         when(persistenceMoviePort.fetchByContentType(eq(CONTENT_TYPE), anyInt(), eq(50)))
-                .thenReturn(catalog)
-                .thenReturn(List.of());
+                .thenReturn(catalog);
 
         String fakeLlmResponse = "메간 - 비 오는 날 분위기 몰입하기 좋은 영화\n"
                 + "노트북 - 라면과 함께 보기 좋은 클래식 로맨스\n"
                 + "라라랜드 - 비와 잘 어울리는 감성 뮤지컬";
         when(openAiClientPort.chat(anyString(), anyString())).thenReturn(fakeLlmResponse);
-
-        when(persistenceMoviePort.fetchByMovieNames(anyList())).thenAnswer(inv -> {
-            List<String> names = inv.getArgument(0);
-            return names.stream().map(n -> movie(n, CONTENT_TYPE)).toList();
-        });
 
         List<MovieWithRecommendReason> result = promptRecommendService.recommendByPrompt(
                 q, mood, companion, CONTENT_TYPE, limit);
@@ -116,16 +118,11 @@ class PromptRecommendServiceTest {
                 movie("노팅힐", CONTENT_TYPE)
         );
         when(persistenceMoviePort.fetchByContentType(eq(CONTENT_TYPE), anyInt(), eq(50)))
-                .thenReturn(catalog)
-                .thenReturn(List.of());
+                .thenReturn(catalog);
         String fakeLlmResponse = "러브 액츄얼리 - 여러 커플 이야기가 웃음과 감동을 준다\n"
                 + "어바웃 타임 - 시간 여행 로맨스로 유쾌하고 따뜻하다\n"
                 + "노팅힐 - 히트 영화 스타와 서점 주인의 로맨스";
         when(openAiClientPort.chat(anyString(), anyString())).thenReturn(fakeLlmResponse);
-        when(persistenceMoviePort.fetchByMovieNames(anyList())).thenAnswer(inv -> {
-            List<String> names = inv.getArgument(0);
-            return names.stream().map(n -> movie(n, CONTENT_TYPE)).toList();
-        });
 
         List<MovieWithRecommendReason> result = promptRecommendService.recommendByPrompt(
                 q, "기대", "연인", CONTENT_TYPE, 3);

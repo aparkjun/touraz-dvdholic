@@ -1,0 +1,55 @@
+-- =====================================================================
+-- V33: CineTrip × 문화지도 기반 테이블
+-- - tour_index_snapshots: 한국관광공사 데이터랩 일일 스냅샷
+-- - movie_region_mappings: 영화/DVD ↔ 지자체 매핑 (큐레이션)
+-- - trending_regions_cache: 검색량 급등 지자체 캐시 (배치 산출물)
+-- =====================================================================
+
+CREATE TABLE tour_index_snapshots (
+    ID                         BIGINT AUTO_INCREMENT PRIMARY KEY,
+    AREA_CODE                  VARCHAR(20) NOT NULL,
+    REGION_NAME                VARCHAR(100),
+    SNAPSHOT_DATE              DATE NOT NULL,
+    TOUR_DEMAND_IDX            DECIMAL(8,2),
+    TOUR_COMPETITIVENESS       DECIMAL(8,2),
+    CULTURAL_RESOURCE_DEMAND   DECIMAL(8,2),
+    TOUR_SERVICE_DEMAND        DECIMAL(8,2),
+    TOUR_RESOURCE_DEMAND       DECIMAL(8,2),
+    SEARCH_VOLUME              INT,
+    CREATED_AT                 DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UPDATED_AT                 DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY UK_TOUR_INDEX_AREA_DATE (AREA_CODE, SNAPSHOT_DATE)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX IDX_TOUR_INDEX_DATE_AREA  ON tour_index_snapshots (SNAPSHOT_DATE, AREA_CODE);
+CREATE INDEX IDX_TOUR_INDEX_SEARCH_VOL ON tour_index_snapshots (SEARCH_VOLUME);
+
+CREATE TABLE movie_region_mappings (
+    ID             BIGINT AUTO_INCREMENT PRIMARY KEY,
+    MOVIE_NAME     VARCHAR(255) NOT NULL,
+    AREA_CODE      VARCHAR(20)  NOT NULL,
+    REGION_NAME    VARCHAR(100),
+    MAPPING_TYPE   VARCHAR(20)  NOT NULL,          -- SHOT | BACKGROUND | THEME
+    EVIDENCE       VARCHAR(500),
+    CONFIDENCE     TINYINT      DEFAULT 3,         -- 1~5
+    TRENDING_SCORE DECIMAL(8,2) DEFAULT 0,
+    CREATED_AT     DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UPDATED_AT     DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY UK_MOVIE_REGION (MOVIE_NAME, AREA_CODE, MAPPING_TYPE)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX IDX_MRM_AREA  ON movie_region_mappings (AREA_CODE);
+CREATE INDEX IDX_MRM_MOVIE ON movie_region_mappings (MOVIE_NAME);
+
+CREATE TABLE trending_regions_cache (
+    ID           BIGINT AUTO_INCREMENT PRIMARY KEY,
+    AREA_CODE    VARCHAR(20) NOT NULL,
+    REGION_NAME  VARCHAR(100),
+    PERIOD       VARCHAR(10) NOT NULL,      -- today | week | month
+    RANK_NO      TINYINT     NOT NULL,
+    SCORE        DECIMAL(8,2),
+    COMPUTED_AT  DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY UK_TRENDING_PERIOD_AREA (PERIOD, AREA_CODE)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE INDEX IDX_TRENDING_PERIOD_RANK ON trending_regions_cache (PERIOD, RANK_NO);

@@ -16,4 +16,6 @@ public interface DvdStorePort {
     List<DvdStore> findNearby(double lat, double lon, double radiusKm);
 
     long count();
+
+    List<DvdStoreRegionStat> aggregateByRegion();
 }

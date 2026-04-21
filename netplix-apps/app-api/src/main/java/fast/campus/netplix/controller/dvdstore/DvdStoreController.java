@@ -2,6 +2,7 @@ package fast.campus.netplix.controller.dvdstore;
 
 import fast.campus.netplix.controller.NetplixApiResponse;
 import fast.campus.netplix.dvdstore.DvdStore;
+import fast.campus.netplix.dvdstore.DvdStoreRegionStat;
 import fast.campus.netplix.dvdstore.DvdStoreUseCase;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -50,6 +51,11 @@ public class DvdStoreController {
         Map<String, Long> result = new LinkedHashMap<>();
         result.put("total", dvdStoreUseCase.getStoreCount());
         return NetplixApiResponse.ok(result);
+    }
+
+    @GetMapping("/stats/by-region")
+    public NetplixApiResponse<List<DvdStoreRegionStat>> statsByRegion() {
+        return NetplixApiResponse.ok(dvdStoreUseCase.getRegionStats());
     }
 
     @PostMapping("/load-csv")

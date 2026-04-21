@@ -121,6 +121,138 @@ public class BatchScheduler {
     }
 
     /**
+     * 한국관광공사 데이터랩 스냅샷 동기화 배치
+     * 매일 새벽 3시 30분에 실행
+     * cron: 초(0) 분(30) 시(3) 일(*) 월(*) 요일(*)
+     */
+    @Scheduled(cron = "0 30 3 * * *")
+    public void runSyncTourIndexBatch() {
+        try {
+            log.info("========================================");
+            log.info("=== 관광공사 데이터랩 동기화 배치 시작 ===");
+            log.info("=== 실행 시간: {} ===", LocalDateTime.now());
+            log.info("========================================");
+
+            Job job = applicationContext.getBean("SyncTourIndexBatch", Job.class);
+
+            JobParameters jobParameters = new JobParametersBuilder()
+                    .addLong("timestamp", System.currentTimeMillis())
+                    .toJobParameters();
+
+            jobLauncher.run(job, jobParameters);
+
+            log.info("========================================");
+            log.info("=== 관광공사 데이터랩 동기화 배치 완료 ===");
+            log.info("========================================");
+
+        } catch (Exception e) {
+            log.error("========================================");
+            log.error("=== 관광공사 데이터랩 동기화 배치 실패 ===");
+            log.error("=== 에러: {} ===", e.getMessage(), e);
+            log.error("========================================");
+        }
+    }
+
+    /**
+     * 트렌딩 지역 캐시 재계산 배치
+     * 매일 새벽 4시에 실행
+     * cron: 초(0) 분(0) 시(4) 일(*) 월(*) 요일(*)
+     */
+    @Scheduled(cron = "0 0 4 * * *")
+    public void runComputeTrendingRegionsBatch() {
+        try {
+            log.info("========================================");
+            log.info("=== 트렌딩 지역 재계산 배치 시작 ===");
+            log.info("=== 실행 시간: {} ===", LocalDateTime.now());
+            log.info("========================================");
+
+            Job job = applicationContext.getBean("ComputeTrendingRegionsBatch", Job.class);
+
+            JobParameters jobParameters = new JobParametersBuilder()
+                    .addLong("timestamp", System.currentTimeMillis())
+                    .toJobParameters();
+
+            jobLauncher.run(job, jobParameters);
+
+            log.info("========================================");
+            log.info("=== 트렌딩 지역 재계산 배치 완료 ===");
+            log.info("========================================");
+
+        } catch (Exception e) {
+            log.error("========================================");
+            log.error("=== 트렌딩 지역 재계산 배치 실패 ===");
+            log.error("=== 에러: {} ===", e.getMessage(), e);
+            log.error("========================================");
+        }
+    }
+
+    /**
+     * CineTrip trending_score 재계산 배치
+     * 매일 새벽 4시 30분에 실행
+     * cron: 초(0) 분(30) 시(4) 일(*) 월(*) 요일(*)
+     */
+    @Scheduled(cron = "0 30 4 * * *")
+    public void runRecomputeCineTripScoreBatch() {
+        try {
+            log.info("========================================");
+            log.info("=== CineTrip 스코어 재계산 배치 시작 ===");
+            log.info("=== 실행 시간: {} ===", LocalDateTime.now());
+            log.info("========================================");
+
+            Job job = applicationContext.getBean("RecomputeCineTripScoreBatch", Job.class);
+
+            JobParameters jobParameters = new JobParametersBuilder()
+                    .addLong("timestamp", System.currentTimeMillis())
+                    .toJobParameters();
+
+            jobLauncher.run(job, jobParameters);
+
+            log.info("========================================");
+            log.info("=== CineTrip 스코어 재계산 배치 완료 ===");
+            log.info("========================================");
+
+        } catch (Exception e) {
+            log.error("========================================");
+            log.error("=== CineTrip 스코어 재계산 배치 실패 ===");
+            log.error("=== 에러: {} ===", e.getMessage(), e);
+            log.error("========================================");
+        }
+    }
+
+    /**
+     * 영화-지역 자동 태깅 배치 (룰 + LLM)
+     * 매일 새벽 5시에 실행 — RecomputeCineTripScoreBatch 이후 다음 주기에 score 가 채워지는 파이프라인.
+     * cron: 초(0) 분(0) 시(5) 일(*) 월(*) 요일(*)
+     */
+    @Scheduled(cron = "0 0 5 * * *")
+    public void runAutoTagCineTripMappingBatch() {
+        try {
+            log.info("========================================");
+            log.info("=== CineTrip 자동 태깅 배치 시작 ===");
+            log.info("=== 실행 시간: {} ===", LocalDateTime.now());
+            log.info("========================================");
+
+            Job job = applicationContext.getBean("AutoTagCineTripMappingBatch", Job.class);
+
+            JobParameters jobParameters = new JobParametersBuilder()
+                    .addLong("timestamp", System.currentTimeMillis())
+                    .toJobParameters();
+
+            jobLauncher.run(job, jobParameters);
+
+            log.info("========================================");
+            log.info("=== CineTrip 자동 태깅 배치 완료 ===");
+            log.info("========================================");
+
+        } catch (Exception e) {
+            log.error("========================================");
+            log.error("=== CineTrip 자동 태깅 배치 실패 ===");
+            log.error("=== 에러: {} ===", e.getMessage(), e);
+            log.error("========================================");
+        }
+    }
+
+    /**
      * 테스트용 - 매 5분마다 실행 (개발 환경용)
      * 실제 운영 환경에서는 주석 처리하거나 제거하세요
      */

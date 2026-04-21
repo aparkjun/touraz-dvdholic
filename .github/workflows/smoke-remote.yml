@@ -1,0 +1,62 @@
+name: Smoke (remote)
+
+# 외부(스테이징/프로덕션/Heroku) 서버 대상 E2E 스모크 테스트.
+# - workflow_dispatch: 수동 실행 (URL 입력 가능)
+# - schedule: 매일 07:00 KST (22:00 UTC) 자동 회귀
+# 로컬 스크립트 scripts/smoke.sh 를 그대로 재사용해 CI/로컬 동치를 보장한다.
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base:
+        description: 'API Base URL (예: https://netplix-api.herokuapp.com)'
+        required: true
+        default: 'https://netplix-api.herokuapp.com'
+      batch_base:
+        description: 'Batch Base URL (예: https://netplix-batch.herokuapp.com)'
+        required: false
+        default: ''
+      run_batches:
+        description: 'Batch 수동 트리거 실행 여부 (1=on, 0=off)'
+        required: false
+        default: '0'
+  schedule:
+    # 매일 22:00 UTC = 07:00 KST
+    - cron: '0 22 * * *'
+
+jobs:
+  smoke:
+    name: Run smoke.sh against remote
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      API_BASE:   ${{ github.event.inputs.api_base   || vars.NETPLIX_API_BASE   || 'https://netplix-api.herokuapp.com' }}
+      BATCH_BASE: ${{ github.event.inputs.batch_base || vars.NETPLIX_BATCH_BASE || '' }}
+      RUN_BATCHES: ${{ github.event.inputs.run_batches || '0' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Make smoke.sh executable
+        run: chmod +x scripts/smoke.sh
+
+      - name: Show target configuration
+        run: |
+          echo "API_BASE   = $API_BASE"
+          echo "BATCH_BASE = $BATCH_BASE"
+          echo "RUN_BATCHES= $RUN_BATCHES"
+
+      - name: Run smoke tests
+        id: smoke
+        run: |
+          if [ -z "${BATCH_BASE}" ]; then
+            # batch 서버가 분리되어 있지 않으면 API 호스트로 동일 사용 (배치 트리거는 실패해도 무방)
+            export BATCH_BASE="${API_BASE}"
+          fi
+          ./scripts/smoke.sh
+
+      - name: Notify failure summary
+        if: failure()
+        run: |
+          echo "::error::Remote smoke failed against ${API_BASE}. See previous step for details."

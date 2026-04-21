@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { Undo2 } from "lucide-react";
 import axios from "@/lib/axiosConfig";
 import { getMovieTitle, getPosterPath, getBackdropPath, getOverview, getTagline } from "@/lib/movieLang";
+import CineTripCTA from "@/components/CineTripCTA";
 
 const baseUrl = "https://image.tmdb.org/t/p/original";
 const palette = {
@@ -560,6 +561,9 @@ function MovieImagesContent() {
             </a>
           )}
         </div>
+
+        {/* CineTrip CTA - 이 영화로 떠나는 여행 */}
+        <CineTripCTA movieName={movieName} posterUrl={posterPath || backdropPath || ""} />
 
         {/* 줄거리 */}
         <div style={{ padding: "15px", color: palette.text, fontSize: "13px", lineHeight: "1.6", borderBottom: `1px solid ${palette.border}`, textAlign: "center", marginBottom: "12px" }}>

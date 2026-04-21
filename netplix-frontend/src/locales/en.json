@@ -1,6 +1,7 @@
 {
   "nav": {
     "dvdStores": "DVD Stores",
+    "cineTrip": "CineTrip",
     "support": "Support",
     "login": "Login",
     "signup": "Sign Up",
@@ -305,7 +306,42 @@
     "accessTime": "Access Time",
     "date": "Date",
     "activeUsers": "Active Users",
-    "totalUsers": "Total Users"
+    "totalUsers": "Total Users",
+    "cultureVsTour": "Culture × Tourism",
+    "insightsTitle": "Culture × Tourism Insights",
+    "insightsEmpty": "No data yet. Run the tourism sync batch first.",
+    "downloadCsv": "Download CSV",
+    "insightsRegionCount": "Regions analyzed",
+    "insightsTotalStores": "Total stores",
+    "insightsClosedStores": "Closed",
+    "insightsAvgClosure": "Avg. closure rate",
+    "insightsTopClosure": "Top closure-rate regions",
+    "insightsTopSearch": "Top search-volume regions",
+    "insightsArea": "Area code",
+    "insightsRegion": "Region",
+    "insightsTotal": "Stores",
+    "insightsOperating": "Operating",
+    "insightsClosed": "Closed",
+    "insightsClosureRate": "Closure rate",
+    "insightsTourDemand": "Tour demand",
+    "insightsCulturalDemand": "Cultural demand",
+    "insightsSearch": "Search vol.",
+    "aiMappingReview": "AI mapping review",
+    "aiMappingReviewHint": "Low-confidence movie-region mappings from AutoTagCineTripMappingBatch. Approving writes to movie_region_mappings and exposes the pair on CineTrip immediately.",
+    "pendingTotal": "Pending",
+    "refresh": "Refresh",
+    "noPending": "No mappings awaiting review.",
+    "pendingMovie": "Movie",
+    "pendingRegion": "Region",
+    "pendingType": "Type",
+    "pendingConfidence": "Confidence",
+    "pendingSource": "Source",
+    "pendingEvidence": "Evidence",
+    "pendingCreated": "Created",
+    "pendingActions": "Actions",
+    "approve": "Approve",
+    "reject": "Reject",
+    "confirmReject": "Really reject? Rejected mappings won't be auto-tagged again."
   },
   "movieImages": {
     "poster": "Poster",
@@ -392,5 +428,64 @@
   },
   "common": {
     "lang": "English"
+  },
+  "cultureMap": {
+    "title": "Culture × Tourism Map",
+    "subtitle": "DVD store density and regional tourism indicators at a glance",
+    "layerStores": "DVD Store Density",
+    "layerTourDemand": "Tourism Demand",
+    "layerCultural": "Cultural Resource Demand",
+    "layerSearch": "Search Volume",
+    "legendLow": "Low",
+    "legendHigh": "High",
+    "regionTotal": "Total stores",
+    "regionOperating": "Operating",
+    "regionClosed": "Closed",
+    "regionTourIdx": "Tour demand",
+    "regionCulture": "Cultural demand",
+    "regionSearch": "Search volume",
+    "viewDetails": "View region details"
+  },
+  "cineTrip": {
+    "title": "CineTrip: Travel the Movies",
+    "heroSubtitle": "Curated by film locations × regional tourism data",
+    "listEmpty": "No curations yet. Stay tuned.",
+    "mappingShot": "Shot",
+    "mappingBackground": "Background",
+    "mappingTheme": "Theme",
+    "nearbyStores": "Nearby DVD stores",
+    "localStats": "Regional tourism indicators",
+    "ctaOpenCineTrip": "Travel with this movie",
+    "filters": {
+      "mood": "Mood",
+      "type": "Mapping type",
+      "region": "Region"
+    }
+  },
+  "trendingRegions": {
+    "title": "Trending Regions Today",
+    "subtitle": "Featured movies & DVDs from fast-rising regions",
+    "rankPrefix": "#",
+    "openMap": "Open on map",
+    "period": {
+      "today": "Today",
+      "week": "This Week",
+      "month": "This Month"
+    },
+    "periodTitle": {
+      "today": "Trending Regions Today",
+      "week": "Trending Regions This Week",
+      "month": "Trending Regions This Month"
+    },
+    "periodSubtitle": {
+      "today": "Based on KTO search-volume surges",
+      "week": "Weighted tourism demand & competitiveness",
+      "month": "Combined cultural & tourism resource score"
+    }
+  },
+  "aiTravel": {
+    "toggleOn": "Travel mode",
+    "toggleOff": "Normal mode",
+    "hint": "Travel mode: recommendations are enriched with regional tourism data and film mappings."
   }
 }

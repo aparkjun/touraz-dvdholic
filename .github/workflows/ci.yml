@@ -1,0 +1,83 @@
+name: CI
+
+# PR / main 브랜치 push 마다 backend 컴파일 + 단위 테스트 + frontend 빌드 검증.
+# 전체 통합/스모크는 별도 workflow(smoke-remote.yml) 에서 수행.
+
+on:
+  pull_request:
+    branches: [main, master, develop]
+  push:
+    branches: [main, master, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (JDK 17 build & test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/master' }}
+
+      - name: Compile all modules
+        run: ./gradlew compileJava --no-daemon --stacktrace
+
+      - name: Unit tests (core-service + adapter-persistence)
+        run: ./gradlew :netplix-core:core-service:test :netplix-adapters:adapter-persistence:test --no-daemon --stacktrace
+
+      - name: Upload test reports on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: |
+            **/build/reports/tests/**
+            **/build/test-results/**
+          retention-days: 7
+
+  frontend:
+    name: Frontend (Node 20 build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ./netplix-frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.9.0'
+          cache: 'npm'
+          cache-dependency-path: netplix-frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --progress=false
+
+      - name: Validate i18n locales (JSON parse)
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('src/locales/ko.json','utf8'));JSON.parse(require('fs').readFileSync('src/locales/en.json','utf8'));console.log('locales OK')"
+
+      - name: Next.js build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build

@@ -9,6 +9,7 @@ import { Capacitor } from "@capacitor/core";
 import { showBanner, getTrackingStatus } from "@/lib/admob";
 import { getMovieTitle, getPosterPath, getBackdropPath } from "@/lib/movieLang";
 import useDragScrollAll from "@/lib/useDragScroll";
+import TrendingRegionsWidget from "@/components/TrendingRegionsWidget";
 
 function CategorySentinel({ cat, isLoadingMore, loadMoreCategory, palette }) {
   const sentinelRef = useRef(null);
@@ -249,6 +250,7 @@ function DashboardContent() {
   const [promptResults, setPromptResults] = useState([]);
   const [promptLoading, setPromptLoading] = useState(false);
   const [promptResultsExpanded, setPromptResultsExpanded] = useState(false);
+  const [promptTravelMode, setPromptTravelMode] = useState(false);
   const [ownerResults, setOwnerResults] = useState([]);
   const [ownerLoading, setOwnerLoading] = useState(false);
   const [ownerResultsExpanded, setOwnerResultsExpanded] = useState(false);
@@ -439,6 +441,7 @@ function DashboardContent() {
       const base = getApiBaseUrl();
       const baseUrl = base ? base.replace(/\/$/, "") : "";
       const params = new URLSearchParams({ q, contentType: "movie" });
+      if (promptTravelMode) params.append("mode", "travel");
       const url = `${baseUrl}/api/v1/movie/recommend/prompt?${params}`;
       const res = await fetch(url, { method: "GET", headers: { "Content-Type": "application/json" } });
       const json = await res.json();
@@ -872,6 +875,11 @@ function DashboardContent() {
           </div>
         )}
 
+        {/* CineTrip - 오늘 뜨는 지역 (관광 검색량 기반) */}
+        <div style={{ marginBottom: "24px", display: "flex", justifyContent: "center" }}>
+          <TrendingRegionsWidget limit={5} />
+        </div>
+
         {/* This Week's / This Month's Popular */}
         {!popularLoading && (weekMovies.length > 0 || weekDvds.length > 0 || monthMovies.length > 0 || monthDvds.length > 0) && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "24px" }}>
@@ -1200,15 +1208,46 @@ function DashboardContent() {
             <p style={{ color: palette.textMuted, fontSize: "12px", marginBottom: "12px", lineHeight: 1.4 }}>
               {t("dashboard.aiRecommendDesc")}
             </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
+              <button
+                type="button"
+                onClick={() => setPromptTravelMode((v) => !v)}
+                title="한국관광공사 지역 지표를 AI 추천 컨텍스트로 주입"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "6px 12px",
+                  borderRadius: "999px",
+                  border: promptTravelMode
+                    ? "1px solid rgba(139, 92, 246, 0.6)"
+                    : "1px solid rgba(255,255,255,0.12)",
+                  background: promptTravelMode
+                    ? "linear-gradient(135deg, rgba(59,130,246,0.25), rgba(139,92,246,0.25), rgba(236,72,153,0.25))"
+                    : "rgba(255,255,255,0.04)",
+                  color: promptTravelMode ? "#fff" : "rgba(255,255,255,0.65)",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  transition: "all 0.2s ease",
+                }}
+              >
+                <span style={{ fontSize: "13px" }}>{promptTravelMode ? "🌏" : "🧭"}</span>
+                {promptTravelMode ? "여행 모드 ON" : "여행 모드"}
+              </button>
+            </div>
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
                 borderRadius: "12px",
                 overflow: "hidden",
-                border: "1px solid rgba(255,215,0,0.2)",
+                border: promptTravelMode
+                  ? "1px solid rgba(139, 92, 246, 0.5)"
+                  : "1px solid rgba(255,215,0,0.2)",
                 background: "rgba(0,0,0,0.25)",
                 boxShadow: "inset 0 1px 2px rgba(0,0,0,0.2)",
+                transition: "border-color 0.2s ease",
               }}
             >
               <input
@@ -1274,6 +1313,7 @@ function DashboardContent() {
                   const m = item.movie || item;
                   const reason = item.reason || "";
                   const ct = m.contentType || "movie";
+                  const regionCtx = item.regionContext || null;
                   return (
                     <div
                       key={`prompt-${m.movieName}-${idx}`}
@@ -1313,6 +1353,36 @@ function DashboardContent() {
                           <p style={{ margin: "4px 0 0", color: palette.textMuted, fontSize: "11px", lineHeight: 1.3, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                             {reason}
                           </p>
+                        )}
+                        {regionCtx && (regionCtx.regionName || regionCtx.summary) && (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (regionCtx.areaCode) {
+                                router.push(`/cine-trip?area=${regionCtx.areaCode}`);
+                              } else {
+                                router.push(`/cine-trip`);
+                              }
+                            }}
+                            style={{
+                              marginTop: 6,
+                              padding: "4px 8px",
+                              borderRadius: 6,
+                              background: "linear-gradient(135deg, rgba(59,130,246,0.18), rgba(139,92,246,0.18), rgba(236,72,153,0.18))",
+                              border: "1px solid rgba(139, 92, 246, 0.3)",
+                              fontSize: 10,
+                              fontWeight: 700,
+                              color: "#e9d5ff",
+                              cursor: "pointer",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                            title={regionCtx.summary || regionCtx.regionName}
+                          >
+                            📍 {regionCtx.regionName}
+                            {regionCtx.summary ? ` · ${regionCtx.summary}` : ""}
+                          </div>
                         )}
                       </div>
                     </div>

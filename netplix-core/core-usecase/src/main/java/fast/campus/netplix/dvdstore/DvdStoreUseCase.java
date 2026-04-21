@@ -16,4 +16,6 @@ public interface DvdStoreUseCase {
     String loadFromCsvContent(String csvContent);
 
     int refreshFromApi();
+
+    List<DvdStoreRegionStat> getRegionStats();
 }

@@ -2,6 +2,7 @@ package fast.campus.netplix.repository.dvdstore;
 
 import fast.campus.netplix.dvdstore.DvdStore;
 import fast.campus.netplix.dvdstore.DvdStorePort;
+import fast.campus.netplix.dvdstore.DvdStoreRegionStat;
 import fast.campus.netplix.entity.dvdstore.DvdStoreEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -66,5 +67,19 @@ public class DvdStoreRepository implements DvdStorePort {
     @Override
     public long count() {
         return jpaRepository.count();
+    }
+
+    @Override
+    public List<DvdStoreRegionStat> aggregateByRegion() {
+        return jpaRepository.aggregateByRegion().stream()
+                .map(r -> DvdStoreRegionStat.builder()
+                        .areaCode(r.getAreaCode())
+                        .totalCount(r.getTotalCount() == null ? 0 : r.getTotalCount())
+                        .operatingCount(r.getOperatingCount() == null ? 0 : r.getOperatingCount())
+                        .closedCount(r.getClosedCount() == null ? 0 : r.getClosedCount())
+                        .avgLatitude(r.getAvgLatitude())
+                        .avgLongitude(r.getAvgLongitude())
+                        .build())
+                .toList();
     }
 }
