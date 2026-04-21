@@ -357,6 +357,9 @@ TRENDING_REGIONS_CACHE
 | GET    | `/api/v1/cinetrip/movie/{movieName}/regions` | 영화 → 지역 역매핑                            |
 | GET    | `/api/v1/cinetrip/trending?period=today`     | US-2 홈 위젯용                                |
 | GET    | `/api/v1/dvd-stores/stats/by-region`         | 지자체별 매장 통계                            |
+| GET    | `/api/v1/cine-trip/photos?areaCode=6`        | 관광공모전(사진) 수상작 — KorService2 코드    |
+| GET    | `/api/v1/cine-trip/photos?lDongRegnCd=26`    | 관광공모전(사진) 수상작 — 법정동 광역 코드     |
+| GET    | `/api/v1/cine-trip/photos?q=가야산`          | 제목/촬영지/키워드 검색                       |
 
 ### 7.2 확장 (기존 수정)
 
@@ -514,6 +517,9 @@ TRENDING_REGIONS_CACHE
 
 - 한국관광콘텐츠랩: https://api.visitkorea.or.kr/#/useUtilExercises
 - 공공데이터포털(데이터랩): https://www.data.go.kr/data/15152138/openapi.do
+- 공공데이터포털(관광공모전 사진 수상작 15145706): https://www.data.go.kr/data/15145706/openapi.do
+  - Base URL: `https://apis.data.go.kr/B551011/PhokoAwrdService`
+  - Operations: `/phokoAwrdList`, `/ldongCode`
 - 기존 문서: `docs/RAG_AND_DATA_SOURCES.md`
 - 관련 엔티티: `core-domain/dvdstore/DvdStore.java`, `MOVIES` 테이블
 

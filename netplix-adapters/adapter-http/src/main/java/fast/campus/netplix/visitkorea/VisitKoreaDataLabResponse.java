@@ -66,8 +66,13 @@ public class VisitKoreaDataLabResponse {
     }
 
     /**
-     * 4개 Operation(관광수요/경쟁력/문화자원수요/검색량) 을 하나의 DTO 로 흡수.
-     * 각 Operation 별로 채워지는 필드가 다르므로 null 허용.
+     * 여러 Operation 응답을 흡수하기 위한 너그러운 DTO.
+     * - metcoRegnVisitrDDList (광역 방문자수): areaCode, areaNm, touNum, touDivCd/Nm, daywkDivCd/Nm, baseYmd
+     * - locgoRegnVisitrDDList (기초 방문자수): signguCode, signguNm, touNum, touDivCd/Nm, daywkDivCd/Nm, baseYmd
+     * - areaTarSvcDemList (관광서비스 수요 — Base URL 미확정)
+     * - areaCulResDemList (문화자원 수요 — Base URL 미확정)
+     *
+     * 필드명은 KTO 응답의 실제 JSON 키에 맞춰 매핑. 미사용 필드는 null.
      */
     @Getter
     @Setter
@@ -75,36 +80,49 @@ public class VisitKoreaDataLabResponse {
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Item {
-        // 공통
-        private String baseYmd;       // YYYYMMDD
-        private String baseYm;        // YYYYMM
-        private String areaCode;      // 시도 코드
-        private String signguCode;    // 시군구 코드
-        private String areaName;      // 시도명
-        private String signguName;    // 시군구명
-        private String daesoName;     // 세부 분류명 (검색량 API 등)
+        private String baseYmd;
+        private String baseYm;
+        private String areaCode;
+        private String signguCode;
 
-        // 관광수요지수
+        @JsonProperty("areaNm")
+        private String areaName;
+
+        @JsonProperty("signguNm")
+        private String signguName;
+
+        private String daesoName;
+
+        @JsonProperty("daywkDivCd")
+        private String dayOfWeekCode;
+
+        @JsonProperty("daywkDivNm")
+        private String dayOfWeekName;
+
+        @JsonProperty("touDivCd")
+        private String touristDivCode;
+
+        @JsonProperty("touDivNm")
+        private String touristDivName;
+
+        @JsonProperty("touNum")
+        private Double touristCount;
+
         @JsonProperty("tAtrctDmIdx")
         private Double tourDemandIdx;
 
-        // 관광경쟁력
         @JsonProperty("tCmpttIdx")
         private Double tourCompetitiveness;
 
-        // 문화자원 수요
         @JsonProperty("cltreRsrceDmIdx")
         private Double culturalResourceDemand;
 
-        // 관광서비스 수요
         @JsonProperty("tSrvcDmIdx")
         private Double tourServiceDemand;
 
-        // 관광자원 수요
         @JsonProperty("tRsrceDmIdx")
         private Double tourResourceDemand;
 
-        // 검색량 (정수)
         @JsonProperty("srchCnt")
         private Integer searchVolume;
     }

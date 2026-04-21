@@ -217,8 +217,8 @@ public class BatchController {
      * 관광공사 데이터랩 API 에서 지자체별 지표를 당겨와 tour_index_snapshots 에 upsert.
      * 자동 스케줄은 app-batch SyncTourIndexBatch 가 매일 03:30 KST 에 실행.
      *
-     * @param baseDate yyyy-MM-dd 형식. 미지정 시 KST 기준 어제(데이터 지연 감안).
-     *                 관광공사 API 가 과거 데이터만 제공하므로 미래/오늘 은 403/404 가 나서 의미 없음.
+     * @param baseDate yyyy-MM-dd 형식. 미지정 시 KST 기준 2개월 전(=KTO 데이터 공개 시차 고려).
+     *                 metcoRegnVisitrDDList 등은 월 단위 지연이 커서 최근 날짜는 totalCount=0 응답.
      */
     @PostMapping("/tour/sync")
     public NetplixApiResponse<String> runTourSync(
@@ -229,7 +229,7 @@ public class BatchController {
             if (baseDate != null && !baseDate.isBlank()) {
                 target = LocalDate.parse(baseDate);
             } else {
-                target = LocalDate.now(ZoneId.of("Asia/Seoul")).minusDays(1);
+                target = LocalDate.now(ZoneId.of("Asia/Seoul")).minusMonths(2);
             }
         } catch (Exception e) {
             return NetplixApiResponse.ok("baseDate 파싱 실패 (yyyy-MM-dd): " + e.getMessage());

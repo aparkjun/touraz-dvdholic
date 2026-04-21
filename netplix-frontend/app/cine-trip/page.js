@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { MapPin, Film, TrendingUp, Sparkles, Share2 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import { shareContent, shareResultMessage } from '@/lib/shareUtils';
+import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
 
 const REGION_FILTERS = [
   { label: '전체', areaCode: null },
@@ -502,6 +503,16 @@ export default function CineTripPage() {
       </div>
 
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '40px 20px' }}>
+        <PhotoGalleryStrip
+          areaCode={selectedAreaCode}
+          limit={12}
+          title={
+            selectedAreaCode
+              ? `${REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''} 수상작 포토스팟`
+              : '전국 수상작 포토스팟'
+          }
+        />
+
         <div
           style={{
             display: 'grid',

@@ -20,9 +20,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 한국관광공사 데이터랩 4개 Operation 을 호출해 지자체 지표 스냅샷을 조립한다.
+ * 한국관광공사 데이터랩 Operation 들을 호출해 지자체 지표 스냅샷을 조립한다.
  * - 호출량 제어를 위해 배치(매일 03:30) 에서만 호출되는 것을 전제한다.
  * - serviceKey 미설정 시 {@link #isConfigured()} 가 false 를 반환하며 배치는 no-op.
+ *
+ * 확인된 오퍼레이션 (Base: DataLabService)
+ *   - metcoRegnVisitrDDList : 광역 지자체 일별 방문자수 (필수: startYmd, endYmd)
+ *   - locgoRegnVisitrDDList : 기초 지자체 일별 방문자수 (필수: startYmd, endYmd)
+ * 미확인 (Base URL TBD — 승인됐으나 경로 미수신)
+ *   - areaTarSvcDemList     : 관광서비스 수요
+ *   - areaCulResDemList     : 문화자원 수요
  */
 @Slf4j
 @Component
@@ -30,6 +37,9 @@ import java.util.Map;
 public class VisitKoreaDataLabHttpClient implements VisitKoreaDataLabPort {
 
     private static final DateTimeFormatter YMD = DateTimeFormatter.ofPattern("yyyyMMdd");
+
+    // 외지인(관광객) 구분 코드. 1=현지인, 2=외지인, 3=외국인. "진짜 관광객" 신호로 2 만 사용.
+    private static final String TOURIST_DIV_OUTSIDER = "2";
 
     private final HttpClient httpClient;
 
@@ -63,15 +73,18 @@ public class VisitKoreaDataLabHttpClient implements VisitKoreaDataLabPort {
             return Collections.emptyList();
         }
         String ymd = baseDate.format(YMD);
-        log.info("[VISITKOREA] fetchIndicesForDate baseYmd={}", ymd);
+        log.info("[VISITKOREA] fetchIndicesForDate startYmd={} endYmd={}", ymd, ymd);
 
         // 지자체 단위로 병합용 맵. key = signguCode(없으면 areaCode).
         Map<String, TourIndex.TourIndexBuilder> merged = new HashMap<>();
 
-        mergeOperation(merged, tourDemandIndexUrl, ymd, "TOUR_DEMAND");
-        mergeOperation(merged, tourCompetitivenessUrl, ymd, "TOUR_COMPETITIVENESS");
-        mergeOperation(merged, culturalResourceDemandUrl, ymd, "CULTURAL_RESOURCE_DEMAND");
-        mergeOperation(merged, tourSearchVolumeUrl, ymd, "TOUR_SEARCH_VOLUME");
+        // 의미: tour-demand-index = METCO(광역) 방문자수 — 확인됨
+        mergeOperation(merged, tourDemandIndexUrl, ymd, ymd, "METCO_VISITORS");
+        // 의미: tour-competitiveness = LOCGO(기초) 방문자수 — 확인됨
+        mergeOperation(merged, tourCompetitivenessUrl, ymd, ymd, "LOCGO_VISITORS");
+        // Base URL 미확정 — 설정에 URL 비어 있으면 자동 스킵
+        mergeOperation(merged, culturalResourceDemandUrl, ymd, ymd, "CULTURAL_RESOURCE_DEMAND");
+        mergeOperation(merged, tourSearchVolumeUrl, ymd, ymd, "TOUR_SERVICE_DEMAND");
 
         List<TourIndex> result = new ArrayList<>(merged.size());
         for (Map.Entry<String, TourIndex.TourIndexBuilder> e : merged.entrySet()) {
@@ -83,7 +96,8 @@ public class VisitKoreaDataLabHttpClient implements VisitKoreaDataLabPort {
 
     private void mergeOperation(Map<String, TourIndex.TourIndexBuilder> merged,
                                  String baseUrl,
-                                 String baseYmd,
+                                 String startYmd,
+                                 String endYmd,
                                  String operation) {
         if (baseUrl == null || baseUrl.isBlank()) {
             log.warn("[VISITKOREA] {} URL 미설정 - 건너뜀", operation);
@@ -92,13 +106,17 @@ public class VisitKoreaDataLabHttpClient implements VisitKoreaDataLabPort {
 
         int pageNo = 1;
         while (true) {
-            String url = buildUrl(baseUrl, baseYmd, pageNo);
+            String url = buildUrl(baseUrl, startYmd, endYmd, pageNo);
             String rawResponse = safeRequest(url, operation);
             if (rawResponse == null) return;
 
             VisitKoreaDataLabResponse parsed;
             try {
-                parsed = ObjectMapperUtil.toObject(rawResponse, VisitKoreaDataLabResponse.class);
+                // KTO API 는 "데이터 없음" 응답에서 items 를 객체가 아닌 빈 문자열("")로 내려보내
+                // Jackson 이 실패한다. 객체로 역직렬화 가능하도록 사전 치환.
+                String safe = rawResponse == null ? null
+                        : rawResponse.replace("\"items\":\"\"", "\"items\":null");
+                parsed = ObjectMapperUtil.toObject(safe, VisitKoreaDataLabResponse.class);
             } catch (Exception ex) {
                 log.error("[VISITKOREA] {} 파싱 실패 page={} err={}", operation, pageNo, ex.getMessage());
                 return;
@@ -138,19 +156,18 @@ public class VisitKoreaDataLabHttpClient implements VisitKoreaDataLabPort {
                                       VisitKoreaDataLabResponse.Item item,
                                       String operation) {
         switch (operation) {
-            case "TOUR_DEMAND" -> {
-                if (item.getTourDemandIdx() != null) builder.tourDemandIdx(item.getTourDemandIdx());
-                if (item.getTourServiceDemand() != null) builder.tourServiceDemand(item.getTourServiceDemand());
-                if (item.getTourResourceDemand() != null) builder.tourResourceDemand(item.getTourResourceDemand());
+            case "METCO_VISITORS", "LOCGO_VISITORS" -> {
+                // touDivCd=2(외지인) 행만 반영해 "관광객 규모" 프록시로 사용. searchVolume 필드에 저장.
+                if (TOURIST_DIV_OUTSIDER.equals(item.getTouristDivCode()) && item.getTouristCount() != null) {
+                    builder.searchVolume(item.getTouristCount().intValue());
+                }
             }
-            case "TOUR_COMPETITIVENESS" -> {
+            case "TOUR_SERVICE_DEMAND" -> {
+                if (item.getTourServiceDemand() != null) builder.tourServiceDemand(item.getTourServiceDemand());
                 if (item.getTourCompetitiveness() != null) builder.tourCompetitiveness(item.getTourCompetitiveness());
             }
             case "CULTURAL_RESOURCE_DEMAND" -> {
                 if (item.getCulturalResourceDemand() != null) builder.culturalResourceDemand(item.getCulturalResourceDemand());
-            }
-            case "TOUR_SEARCH_VOLUME" -> {
-                if (item.getSearchVolume() != null) builder.searchVolume(item.getSearchVolume());
             }
             default -> { /* no-op */ }
         }
@@ -169,8 +186,9 @@ public class VisitKoreaDataLabHttpClient implements VisitKoreaDataLabPort {
         return combined.isBlank() ? item.getDaesoName() : combined;
     }
 
-    private String buildUrl(String base, String baseYmd, int pageNo) {
-        // 공공데이터포털 규약: 쿼리 스트링에 serviceKey + 공통 파라미터.
+    private String buildUrl(String base, String startYmd, String endYmd, int pageNo) {
+        // 한국관광공사 DataLabService 규약: serviceKey + MobileOS + MobileApp + startYmd + endYmd + 페이징.
+        // baseYmd 는 받지 않으며 startYmd == endYmd 로 당일 단일 스냅샷 조회.
         char joiner = base.contains("?") ? '&' : '?';
         return base + joiner
                 + "serviceKey=" + serviceKey
@@ -179,7 +197,8 @@ public class VisitKoreaDataLabHttpClient implements VisitKoreaDataLabPort {
                 + "&MobileApp=touraz-dvdholic"
                 + "&numOfRows=" + pageSize
                 + "&pageNo=" + pageNo
-                + "&baseYmd=" + baseYmd;
+                + "&startYmd=" + startYmd
+                + "&endYmd=" + endYmd;
     }
 
     private String safeRequest(String url, String operation) {

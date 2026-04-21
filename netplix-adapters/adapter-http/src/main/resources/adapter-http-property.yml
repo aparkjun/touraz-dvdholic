@@ -19,19 +19,37 @@ tmdb:
     movie-reviews: https://api.themoviedb.org/3/movie/{movie_id}/reviews?api_key=${TMDB_API_KEY:}&language=ko-KR&page=1
     trending-week: https://api.themoviedb.org/3/trending/movie/week?api_key=${TMDB_API_KEY:}
 
-# 한국관광공사 데이터랩 (관광수요지수/경쟁력/문화자원수요/검색량)
-# 공공데이터포털: https://www.data.go.kr/data/15152138/openapi.do
-# base-url 은 실제 운영 키에 맞춰 수정 가능. 대부분 Operation 은 serviceKey + baseYm(또는 baseYmd) 파라미터 사용.
+# 한국관광공사 데이터랩
+# 공공데이터포털:
+#   https://www.data.go.kr/data/15101972/openapi.do - 관광빅데이터(방문자수) - DataLabService 확인됨
+#   https://www.data.go.kr/data/15152138/openapi.do - 지역별관광자원수요(areaTarSvcDemList,areaCulResDemList) - Base URL 미확인 (확정되면 area-demand-base-url 채우기)
+# 필수 파라미터 (방문자수): serviceKey, MobileOS=ETC, MobileApp, startYmd, endYmd, numOfRows, pageNo
+# 키 네이밍은 기존 @Value 호환성 유지. 실제 의미는 코드 주석 참고.
 visitkorea:
   auth:
     service-key: ${VISITKOREA_SERVICE_KEY:}
   api:
     base-url: https://apis.data.go.kr/B551011/DataLabService
+    # 광역 지자체 방문자수 (metcoRegnVisitrDDList) - 확인됨, 활성화
     tour-demand-index: ${visitkorea.api.base-url}/metcoRegnVisitrDDList
-    tour-competitiveness: ${visitkorea.api.base-url}/tourCmpttIdxDDList
-    cultural-resource-demand: ${visitkorea.api.base-url}/cultureRsrceDemndDDList
-    tour-search-volume: ${visitkorea.api.base-url}/srchKwrdDDList
+    # 기초 지자체 방문자수 (locgoRegnVisitrDDList) - 확인됨. signguCode(5자리) 기반이라
+    # 현재 광역(1~8,31~39) 기준 TourIndex 키와 충돌하므로 일단 비활성. 후속 PR에서 집계 추가 예정.
+    tour-competitiveness: ""
+    # 지역 관광서비스/문화자원 수요 - Base URL 미확인. 빈 값 유지 시 자동 스킵.
+    # 확정되면 ${visitkorea.api.area-demand-base}/areaXxxxList 형태로 활성화
+    cultural-resource-demand: ""
+    tour-search-volume: ""
   # 매 일 호출을 상한하기 위한 일일 배치 기준 값
   batch:
     default-period-days: 7
     page-size: 100
+  # 관광공모전(사진) 수상작 정보 (공공데이터 15145706)
+  # https://apis.data.go.kr/B551011/PhokoAwrdService
+  # 엔드포인트: /phokoAwrdList (수상작 리스트), /ldongCode (법정동 광역 코드)
+  # 필수: serviceKey, MobileOS=ETC, MobileApp, numOfRows, pageNo
+  # 선택 필터: lDongRegnCd (예: 11=서울, 48=경남)
+  phoko:
+    base-url: https://apis.data.go.kr/B551011/PhokoAwrdService
+    award-list: ${visitkorea.phoko.base-url}/phokoAwrdList
+    ldong-code: ${visitkorea.phoko.base-url}/ldongCode
+    cache-minutes: 1440
