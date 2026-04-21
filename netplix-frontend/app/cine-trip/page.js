@@ -6,6 +6,7 @@ import { MapPin, Film, TrendingUp, Sparkles, Share2 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import { shareContent, shareResultMessage } from '@/lib/shareUtils';
 import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
+import ConcentrationForecastStrip from '@/components/ConcentrationForecastStrip';
 
 const REGION_FILTERS = [
   { label: '전체', areaCode: null },
@@ -503,6 +504,13 @@ export default function CineTripPage() {
       </div>
 
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '40px 20px' }}>
+        <ConcentrationForecastStrip
+          areaCode={selectedAreaCode}
+          regionLabel={
+            REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''
+          }
+        />
+
         <PhotoGalleryStrip
           areaCode={selectedAreaCode}
           limit={12}
