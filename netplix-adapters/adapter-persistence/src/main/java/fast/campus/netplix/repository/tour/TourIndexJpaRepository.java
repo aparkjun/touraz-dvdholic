@@ -25,6 +25,12 @@ public interface TourIndexJpaRepository extends JpaRepository<TourIndexSnapshotE
            """)
     List<TourIndexSnapshotEntity> findLatestPerRegion();
 
+    /**
+     * 주어진 areaCode 기준 가장 최근 스냅샷. KTO DataLab 은 신규 데이터 공개까지 1~2개월
+     * 시차가 있으므로 날짜 창을 두지 않고 전체 기간에서 최신 1건을 반환한다.
+     */
+    Optional<TourIndexSnapshotEntity> findFirstByAreaCodeOrderBySnapshotDateDesc(String areaCode);
+
     @Query("""
            SELECT e FROM TourIndexSnapshotEntity e
            WHERE e.snapshotDate = (

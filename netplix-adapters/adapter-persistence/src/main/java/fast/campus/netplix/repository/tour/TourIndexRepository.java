@@ -44,8 +44,11 @@ public class TourIndexRepository implements TourIndexRepositoryPort {
 
     @Override
     public Optional<TourIndex> findLatestByAreaCode(String areaCode) {
-        return jpaRepository.findByAreaCodeAndSnapshotDateGreaterThanEqualOrderBySnapshotDateDesc(areaCode, LocalDate.now().minusDays(30))
-                .stream().findFirst().map(TourIndexSnapshotEntity::toDomain);
+        // KTO 방문자수 데이터는 통상 2개월 지연 공개되므로 최근 30일 창으로 한정하면
+        // CineTrip 큐레이션의 regionIndices 가 항상 비어버린다. 기간 제약을 두지 않고
+        // 해당 지자체의 최신 1건을 반환한다.
+        return jpaRepository.findFirstByAreaCodeOrderBySnapshotDateDesc(areaCode)
+                .map(TourIndexSnapshotEntity::toDomain);
     }
 
     @Override
