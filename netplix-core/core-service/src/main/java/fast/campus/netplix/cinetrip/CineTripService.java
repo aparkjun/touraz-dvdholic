@@ -4,8 +4,11 @@ import fast.campus.netplix.movie.NetplixMovie;
 import fast.campus.netplix.movie.PersistenceMoviePort;
 import fast.campus.netplix.tour.TourIndex;
 import fast.campus.netplix.tour.TourIndexRepositoryPort;
+import fast.campus.netplix.tour.TourPhoto;
+import fast.campus.netplix.tour.TourPhotoPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
@@ -26,6 +29,9 @@ public class CineTripService implements CineTripUseCase {
     private final MovieRegionMappingPort mappingPort;
     private final PersistenceMoviePort moviePort;
     private final TourIndexRepositoryPort tourIndexPort;
+    /** Optional 주입: TourPhotoPort 빈이 없어도 서비스는 정상 기동 (포스터 폴백만 비활성화). */
+    @Autowired(required = false)
+    private TourPhotoPort tourPhotoPort;
 
     @Override
     @Cacheable(value = "cineTripCuration", key = "'default:' + #limit")
@@ -37,11 +43,16 @@ public class CineTripService implements CineTripUseCase {
         Map<String, List<MovieRegionMapping>> byMovie = groupByMovie(top);
         Map<String, NetplixMovie> movieMap = loadMovies(byMovie.keySet());
         Map<String, TourIndex> tourByArea = loadToursForMappings(top);
+        List<String> fallbackPosters = loadFallbackPostersAll(byMovie.size());
+        int posterIdx = 0;
 
         List<CineTripItem> result = new ArrayList<>();
         for (Map.Entry<String, List<MovieRegionMapping>> e : byMovie.entrySet()) {
             NetplixMovie movie = movieMap.get(e.getKey());
-            if (movie == null) movie = stubMovie(e.getKey());
+            if (movie == null) {
+                String fallback = nextPoster(fallbackPosters, posterIdx++);
+                movie = stubMovie(e.getKey(), fallback);
+            }
             List<TourIndex> indices = new ArrayList<>();
             double score = 0.0;
             for (MovieRegionMapping m : e.getValue()) {
@@ -74,11 +85,16 @@ public class CineTripService implements CineTripUseCase {
         Map<String, List<MovieRegionMapping>> byMovie = groupByMovie(regional);
         Map<String, NetplixMovie> movieMap = loadMovies(byMovie.keySet());
         Optional<TourIndex> latest = tourIndexPort.findLatestByAreaCode(areaCode);
+        List<String> fallbackPosters = loadFallbackPostersForArea(areaCode, byMovie.size());
+        int posterIdx = 0;
 
         List<CineTripItem> result = new ArrayList<>();
         for (Map.Entry<String, List<MovieRegionMapping>> e : byMovie.entrySet()) {
             NetplixMovie movie = movieMap.get(e.getKey());
-            if (movie == null) movie = stubMovie(e.getKey());
+            if (movie == null) {
+                String fallback = nextPoster(fallbackPosters, posterIdx++);
+                movie = stubMovie(e.getKey(), fallback);
+            }
             List<TourIndex> indices = latest.map(List::of).orElse(List.of());
             double score = e.getValue().stream()
                     .mapToDouble(m -> m.getTrendingScore() == null ? 0.0 : m.getTrendingScore())
@@ -95,8 +111,8 @@ public class CineTripService implements CineTripUseCase {
         result.sort((a, b) -> Double.compare(
                 b.getTrendingScore() == null ? 0.0 : b.getTrendingScore(),
                 a.getTrendingScore() == null ? 0.0 : a.getTrendingScore()));
-        log.info("[CINE-TRIP] curateByRegion area={} -> {}건 (매핑 {}건)",
-                areaCode, result.size(), regional.size());
+        log.info("[CINE-TRIP] curateByRegion area={} -> {}건 (매핑 {}건, 포스터폴백 {}장)",
+                areaCode, result.size(), regional.size(), fallbackPosters.size());
         return result;
     }
 
@@ -106,7 +122,11 @@ public class CineTripService implements CineTripUseCase {
         List<MovieRegionMapping> byMovie = mappingPort.findByMovieName(movieName);
         if (byMovie.isEmpty()) return List.of();
         NetplixMovie movie = moviePort.findBy(movieName);
-        if (movie == null) movie = stubMovie(movieName);
+        if (movie == null) {
+            String anchorArea = byMovie.get(0).getAreaCode();
+            List<String> posters = loadFallbackPostersForArea(anchorArea, 1);
+            movie = stubMovie(movieName, nextPoster(posters, 0));
+        }
         List<TourIndex> indices = new ArrayList<>();
         for (MovieRegionMapping m : byMovie) {
             tourIndexPort.findLatestByAreaCode(m.getAreaCode()).ifPresent(indices::add);
@@ -124,13 +144,60 @@ public class CineTripService implements CineTripUseCase {
 
     /**
      * TMDB 영화 DB 에 해당 제목이 없을 때 CSV 매핑 정보만으로 구성한 최소 영화 객체.
-     * 프론트엔드는 posterPath/voteAverage 가 null 이면 플레이스홀더로 폴백한다.
+     * posterPath 가 제공되면 KTO 관광공모전 수상작 이미지로 카드 썸네일을 채운다.
      */
-    private NetplixMovie stubMovie(String movieName) {
+    private NetplixMovie stubMovie(String movieName, String posterPath) {
         return NetplixMovie.builder()
                 .movieName(movieName)
                 .contentType("movie")
+                .posterPath(posterPath)
                 .build();
+    }
+
+    /**
+     * 지역 코드로 KTO 관광공모전 수상작 이미지 URL 을 수집. 빈 리스트면 폴백 미적용.
+     * 실패/미설정 시 빈 리스트 반환 (스텁은 프론트 플레이스홀더로 폴백).
+     */
+    private List<String> loadFallbackPostersForArea(String areaCode, int demand) {
+        if (tourPhotoPort == null || areaCode == null || areaCode.isBlank() || demand <= 0) {
+            return List.of();
+        }
+        try {
+            List<TourPhoto> photos = tourPhotoPort.fetchByAreaCode(areaCode, Math.max(demand, 6));
+            return toImageUrls(photos);
+        } catch (Exception ex) {
+            log.warn("[CINE-TRIP] 지역 포토 폴백 실패 area={} : {}", areaCode, ex.getMessage());
+            return List.of();
+        }
+    }
+
+    /** 전국 큐레이션용 폴백. areaCode 없는 curate() 경로에서 사용. */
+    private List<String> loadFallbackPostersAll(int demand) {
+        if (tourPhotoPort == null || demand <= 0) return List.of();
+        try {
+            List<TourPhoto> photos = tourPhotoPort.fetchAll(Math.max(demand, 12));
+            return toImageUrls(photos);
+        } catch (Exception ex) {
+            log.warn("[CINE-TRIP] 전체 포토 폴백 실패: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<String> toImageUrls(List<TourPhoto> photos) {
+        if (photos == null || photos.isEmpty()) return List.of();
+        List<String> out = new ArrayList<>(photos.size());
+        for (TourPhoto p : photos) {
+            String url = p.getImageUrl();
+            if (url == null || url.isBlank()) url = p.getThumbnailUrl();
+            if (url != null && !url.isBlank()) out.add(url);
+        }
+        return out;
+    }
+
+    /** 주어진 인덱스로 폴백 이미지 라운드로빈 선택. 리스트 비어있으면 null. */
+    private String nextPoster(List<String> posters, int idx) {
+        if (posters == null || posters.isEmpty()) return null;
+        return posters.get(idx % posters.size());
     }
 
     @Override

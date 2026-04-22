@@ -717,8 +717,8 @@ export default function CineTripPage() {
       try {
         const url =
           selectedAreaCode == null
-            ? '/api/v1/cine-trip/curate?limit=12'
-            : `/api/v1/cine-trip/region/${selectedAreaCode}?limit=12`;
+            ? '/api/v1/cine-trip/curate?limit=24'
+            : `/api/v1/cine-trip/region/${selectedAreaCode}?limit=30`;
         const res = await axios.get(url);
         const payload = res?.data?.data ?? [];
         if (alive) setItems(Array.isArray(payload) ? payload : []);
