@@ -16,6 +16,7 @@ import { useRouter } from 'next/navigation';
 import ConcentrationForecastStrip from '@/components/ConcentrationForecastStrip';
 import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
 import AccessibleSpotsStrip from '@/components/AccessibleSpotsStrip';
+import PetFriendlySpotsStrip from '@/components/PetFriendlySpotsStrip';
 
 /**
  * "여행 코스 보기" 버튼에서 열리는 영화 단위 여행 코스 모달.
@@ -602,6 +603,11 @@ export default function TravelCourseModal({
                   />
 
                   <AccessibleSpotsStrip
+                    areaCode={m.areaCode}
+                    regionLabel={regionName}
+                  />
+
+                  <PetFriendlySpotsStrip
                     areaCode={m.areaCode}
                     regionLabel={regionName}
                   />

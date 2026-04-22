@@ -4,7 +4,9 @@ import fast.campus.netplix.cinetrip.CineTripItem;
 import fast.campus.netplix.cinetrip.CineTripUseCase;
 import fast.campus.netplix.controller.NetplixApiResponse;
 import fast.campus.netplix.controller.tour.AccessiblePoiResponse;
+import fast.campus.netplix.controller.tour.PetFriendlyPoiResponse;
 import fast.campus.netplix.tour.GetAccessiblePoiUseCase;
+import fast.campus.netplix.tour.GetPetFriendlyPoiUseCase;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -31,6 +33,7 @@ public class CineTripController {
 
     private final CineTripUseCase cineTripUseCase;
     private final GetAccessiblePoiUseCase accessiblePoiUseCase;
+    private final GetPetFriendlyPoiUseCase petFriendlyPoiUseCase;
 
     /** CineTrip 상세 모달에서 "이 지역 함께 가볼만한 곳" 섹션에 쓰는 키. */
     /**
@@ -48,6 +51,22 @@ public class CineTripController {
         m.put("restaurants", "39");     // 음식점
         m.put("accommodations", "32");  // 숙박
         ACCESSIBLE_BUCKETS = java.util.Collections.unmodifiableMap(m);
+    }
+
+    /**
+     * 반려동물 동반여행(KorPetTourService) 버킷.
+     * KorPetTourService 는 관광지/문화시설/레포츠/숙박/쇼핑/음식점 6종을 제공.
+     */
+    private static final Map<String, String> PET_BUCKETS;
+    static {
+        Map<String, String> m = new LinkedHashMap<>();
+        m.put("attractions", "12");     // 관광지
+        m.put("cultural", "14");        // 문화시설
+        m.put("leisure", "28");         // 레포츠
+        m.put("accommodations", "32");  // 숙박
+        m.put("shopping", "38");        // 쇼핑
+        m.put("restaurants", "39");     // 음식점
+        PET_BUCKETS = java.util.Collections.unmodifiableMap(m);
     }
 
     @GetMapping("/curate")
@@ -107,6 +126,31 @@ public class CineTripController {
                     .byArea(areaCode, typeId, perBucket)
                     .stream()
                     .map(AccessiblePoiResponse::from)
+                    .toList();
+            result.put(bucket, pois);
+        });
+        return NetplixApiResponse.ok(result);
+    }
+
+    /**
+     * CineTrip 상세 모달용 "이 영화 배경지에서 반려동물과 함께 갈 수 있는 곳" 묶음 조회.
+     * 관광지/문화시설/레포츠/숙박/쇼핑/음식점 6종을 각 {@code perBucket} 개씩 반환.
+     * KorPetTourService 미설정 시 빈 맵.
+     */
+    @GetMapping("/region/{areaCode}/pet-friendly")
+    public NetplixApiResponse<Map<String, List<PetFriendlyPoiResponse>>> petFriendlyByRegion(
+            @PathVariable String areaCode,
+            @RequestParam(defaultValue = "5") int perBucket) {
+        Map<String, List<PetFriendlyPoiResponse>> result = new LinkedHashMap<>();
+        if (!petFriendlyPoiUseCase.isConfigured()) {
+            PET_BUCKETS.keySet().forEach(k -> result.put(k, List.of()));
+            return NetplixApiResponse.ok(result);
+        }
+        PET_BUCKETS.forEach((bucket, typeId) -> {
+            List<PetFriendlyPoiResponse> pois = petFriendlyPoiUseCase
+                    .byArea(areaCode, typeId, perBucket)
+                    .stream()
+                    .map(PetFriendlyPoiResponse::from)
                     .toList();
             result.put(bucket, pois);
         });

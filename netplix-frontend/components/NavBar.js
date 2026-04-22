@@ -133,6 +133,13 @@ function AuthActions({ isLoggedIn, isAdmin, isAuthPage, pathname, onLogout }) {
       </li>
     );
   }
+  if (pathname !== '/pet-travel') {
+    navItems.push(
+      <li key="pet-travel">
+        <Link href="/pet-travel" className="app-chip app-chip-secondary" onClick={closeMenu}>{t('nav.petTravel', '반려동물')}</Link>
+      </li>
+    );
+  }
   if (pathname !== '/support') {
     navItems.push(
       <li key="support">
