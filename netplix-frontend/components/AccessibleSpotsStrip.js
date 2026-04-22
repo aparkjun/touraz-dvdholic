@@ -157,6 +157,7 @@ export default function AccessibleSpotsStrip({ areaCode, regionLabel = '' }) {
 
       {loading ? (
         <div
+          className="js-drag-scroll"
           style={{
             display: 'flex',
             gap: 10,
@@ -193,12 +194,12 @@ export default function AccessibleSpotsStrip({ areaCode, regionLabel = '' }) {
         </div>
       ) : (
         <div
+          className="js-drag-scroll"
           style={{
             display: 'flex',
             gap: 10,
             overflowX: 'auto',
             paddingBottom: 6,
-            scrollbarWidth: 'thin',
           }}
         >
           {activeList.map((poi, idx) => (

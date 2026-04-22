@@ -56,12 +56,12 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
       </div>
 
       <div
+        className="js-drag-scroll"
         style={{
           display: 'flex',
           gap: 12,
           overflowX: 'auto',
           paddingBottom: 8,
-          scrollbarWidth: 'thin',
         }}
       >
         {loading

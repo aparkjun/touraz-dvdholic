@@ -70,14 +70,14 @@ button,
 /* ===== CineTrip 페이지 가로 스와이프 캐러셀 ===== */
 .cinetrip-page,
 .cinetrip-page * {
-  scrollbar-width: none;          /* Firefox */
-  -ms-overflow-style: none;       /* IE/Edge legacy */
+  scrollbar-width: none !important;       /* Firefox */
+  -ms-overflow-style: none !important;    /* IE/Edge legacy */
 }
 .cinetrip-page::-webkit-scrollbar,
 .cinetrip-page *::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-  display: none;                  /* Chrome/Safari */
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;               /* Chrome/Safari */
 }
 .cinetrip-scroll-row {
   display: flex;
@@ -95,6 +95,33 @@ button,
   scroll-snap-align: start;
 }
 .cinetrip-scroll-row img {
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ===== 공용 드래그 스크롤 레일 (useDragScrollAll 이 자동 바인딩) ===== */
+/* 이 클래스를 가로 스크롤 컨테이너에 붙이면:
+ *   1) 수평/수직 스크롤바 완전 숨김 (Chrome/Safari/Firefox/Edge)
+ *   2) 마우스 드래그/터치 스와이프로 좌우 이동 (관성 포함, lib/useDragScroll.js)
+ *   3) 내부 이미지 드래그 방지
+ */
+.js-drag-scroll {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+.js-drag-scroll::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+  background: transparent !important;
+}
+.js-drag-scroll img {
   -webkit-user-drag: none;
   user-select: none;
   -webkit-user-select: none;
