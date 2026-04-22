@@ -109,7 +109,9 @@ visitkorea:
     detail-intro: ${visitkorea.access.base-url}/detailIntro2
     detail-info: ${visitkorea.access.base-url}/detailInfo2
     cache-minutes: 360
-  # 반려동물 동반여행 정보 (공공데이터 포털 Base URL: apis.data.go.kr/B551011/KorPetTourService)
+  # 반려동물 동반여행 정보 (공공데이터 포털 Base URL: apis.data.go.kr/B551011/KorPetTourService2)
+  # ※ KTO 2026-01-09 공지: 기존 KorPetTourService 는 폐기되고 KorPetTourService2 로 이전됨.
+  #   (data.go.kr NOTICE_0000000004471) 구 URL 호출 시 404 "API not found" 반환.
   # - areaBasedList2     : 지역/콘텐츠타입 기반 반려동물 친화 POI 목록
   # - locationBasedList2 : 좌표(경·위도) 반경 기반 반려동물 친화 POI 목록
   # - searchKeyword2     : 키워드 검색
@@ -122,7 +124,7 @@ visitkorea:
   #               detailCommon/PetTour → contentId + contentTypeId
   # 지원 contentTypeId: 12(관광지) / 14(문화시설) / 28(레포츠) / 32(숙박) / 38(쇼핑) / 39(음식점)
   pet:
-    base-url: https://apis.data.go.kr/B551011/KorPetTourService
+    base-url: https://apis.data.go.kr/B551011/KorPetTourService2
     area-based: ${visitkorea.pet.base-url}/areaBasedList2
     location-based: ${visitkorea.pet.base-url}/locationBasedList2
     search-keyword: ${visitkorea.pet.base-url}/searchKeyword2
