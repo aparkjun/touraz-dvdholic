@@ -725,10 +725,12 @@ export default function CineTripPage() {
     (async () => {
       setLoading(true);
       try {
+        // '전체' 탭은 CSV 시드 고유 영화 전체(≈234)를 한 번에 노출.
+        // 지역 탭은 해당 지역 고유 영화 전체(최대 서울 90).
         const url =
           selectedAreaCode == null
-            ? '/api/v1/cine-trip/curate?limit=24'
-            : `/api/v1/cine-trip/region/${selectedAreaCode}?limit=30`;
+            ? '/api/v1/cine-trip/curate?limit=500'
+            : `/api/v1/cine-trip/region/${selectedAreaCode}?limit=200`;
         const res = await axios.get(url);
         const payload = res?.data?.data ?? [];
         if (alive) setItems(Array.isArray(payload) ? payload : []);

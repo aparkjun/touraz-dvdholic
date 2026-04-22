@@ -24,7 +24,11 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class CineTripService implements CineTripUseCase {
 
-    private static final int MAX_LIMIT = 50;
+    /**
+     * 큐레이션 결과 최대 개수. CSV 시드 고유 영화 수(≈234)를 넉넉히 커버하도록 500 으로 둔다.
+     * 프론트가 limit 미지정/0 이면 기본 12 로 클램프 (clampLimit 참고).
+     */
+    private static final int MAX_LIMIT = 500;
 
     private final MovieRegionMappingPort mappingPort;
     private final PersistenceMoviePort moviePort;
