@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Accessibility,
@@ -409,6 +409,7 @@ function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
+  const [imageBroken, setImageBroken] = useState(false);
 
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
@@ -453,9 +454,16 @@ function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
     };
   }, [summary?.contentId, summary?.contentTypeId]);
 
-  const merged = { ...summary, ...(detail || {}) };
+  // summary 를 기준으로, detail 응답의 "비어있지 않은" 필드만 덮어쓴다.
+  // - detailCommon2 에서 firstImage/title 등이 null 로 내려와 summary 값을 지워버리는 현상 방지
+  // - accessibilityDetail 은 항목 수가 더 많은 쪽을 채택
+  const merged = useMemo(() => mergeDetailOverSummary(summary, detail), [summary, detail]);
   const addr = merged.addr1 || merged.addr2 || '';
   const image = merged.firstImage || merged.firstImageThumb;
+  // 이미지 URL 이 바뀌면 실패 상태를 리셋해 새 URL 을 다시 시도.
+  useEffect(() => {
+    setImageBroken(false);
+  }, [image]);
   const kakaoMapUrl = merged.mapY && merged.mapX
     ? `https://map.kakao.com/link/map/${encodeURIComponent(merged.title || '장소')},${merged.mapY},${merged.mapX}`
     : null;
@@ -529,7 +537,7 @@ function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
           <X size={18} />
         </button>
 
-        {image ? (
+        {image && !imageBroken ? (
           <img
             src={image}
             alt={merged.title || 'poi'}
@@ -540,10 +548,9 @@ function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
               display: 'block',
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
+              background: '#111',
             }}
-            onError={(e) => {
-              e.target.style.display = 'none';
-            }}
+            onError={() => setImageBroken(true)}
           />
         ) : (
           <div
@@ -555,6 +562,8 @@ function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
               alignItems: 'center',
               justifyContent: 'center',
               color: '#444',
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
             }}
           >
             <meta.icon size={48} />
@@ -803,6 +812,29 @@ function extLinkStyle(color) {
     textDecoration: 'none',
     border: `1px solid ${color}44`,
   };
+}
+
+/**
+ * 요약(summary) 위에 상세(detail) 값을 "비어있지 않은 경우에만" 덮어쓴다.
+ * - null/undefined/빈 문자열은 무시 (요약 값 유지)
+ * - accessibilityDetail 맵은 항목 수가 더 많은 쪽을 채택해, 상세 호출 실패 시에도 퇴행 없음
+ */
+function mergeDetailOverSummary(summary, detail) {
+  const base = { ...(summary || {}) };
+  if (!detail) return base;
+  Object.entries(detail).forEach(([k, v]) => {
+    if (v === null || v === undefined) return;
+    if (typeof v === 'string' && v.trim() === '') return;
+    if (k === 'accessibilityDetail') {
+      const existing = base.accessibilityDetail || {};
+      const incoming = v || {};
+      base.accessibilityDetail =
+        Object.keys(incoming).length >= Object.keys(existing).length ? incoming : existing;
+      return;
+    }
+    base[k] = v;
+  });
+  return base;
 }
 
 /** overview 에 섞여 들어오는 <br>/<p> 를 개행으로 치환하고 나머지 태그 제거. */
