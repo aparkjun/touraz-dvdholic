@@ -67,6 +67,39 @@ button,
   display: none;
 }
 
+/* ===== CineTrip 페이지 가로 스와이프 캐러셀 ===== */
+.cinetrip-page,
+.cinetrip-page * {
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* IE/Edge legacy */
+}
+.cinetrip-page::-webkit-scrollbar,
+.cinetrip-page *::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;                  /* Chrome/Safari */
+}
+.cinetrip-scroll-row {
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x proximity;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+  cursor: grab;
+}
+.cinetrip-scroll-row > * {
+  scroll-snap-align: start;
+}
+.cinetrip-scroll-row img {
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 @media (min-width: 1200px) {
   .dashboard-page {
     --card-w: 180px;

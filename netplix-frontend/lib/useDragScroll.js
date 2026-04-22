@@ -6,7 +6,11 @@ export default function useDragScrollAll(containerRef) {
     const container = containerRef?.current ?? document;
     if (!container) return;
 
-    const rows = container.querySelectorAll(".dashboard-scroll-row");
+    // 드래그 스크롤을 원하는 모든 영역은 아래 셀렉터 중 하나를 클래스로 사용.
+    // (dashboard 레거시 호환 + 일반 목적의 .js-drag-scroll 클래스도 지원)
+    const rows = container.querySelectorAll(
+      ".dashboard-scroll-row, .cinetrip-scroll-row, .js-drag-scroll"
+    );
     const cleanups = [];
 
     rows.forEach((el) => {

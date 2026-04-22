@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MapPin, Film, TrendingUp, Sparkles, Share2, X, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -9,6 +9,7 @@ import { shareContent, shareResultMessage } from '@/lib/shareUtils';
 import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
 import ConcentrationForecastStrip from '@/components/ConcentrationForecastStrip';
 import AccessibleSpotsStrip from '@/components/AccessibleSpotsStrip';
+import useDragScrollAll from '@/lib/useDragScroll';
 
 const REGION_FILTERS = [
   { label: '전체', areaCode: null },
@@ -56,6 +57,8 @@ function SkeletonCard() {
   return (
     <div
       style={{
+        flex: '0 0 auto',
+        width: 300,
         background: 'linear-gradient(145deg, #1a1a1a 0%, #0f0f0f 100%)',
         borderRadius: 16,
         overflow: 'hidden',
@@ -96,7 +99,12 @@ function EmptyState() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '80px 20px' }}
+      style={{
+        flex: '1 1 100%',
+        minWidth: '100%',
+        textAlign: 'center',
+        padding: '80px 20px',
+      }}
     >
       <Film size={64} style={{ margin: '0 auto 24px', opacity: 0.3, color: '#a855f7' }} />
       <h3 style={{ fontSize: 24, fontWeight: 600, color: '#fff', marginBottom: 12 }}>
@@ -159,6 +167,9 @@ function MovieCard({ item, index }) {
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
+        // 가로 스크롤 캐러셀용 고정 너비 (부모가 flex row 일 때)
+        flex: '0 0 auto',
+        width: 300,
         background: 'linear-gradient(145deg, #1a1a1a 0%, #0f0f0f 100%)',
         borderRadius: 16,
         overflow: 'hidden',
@@ -732,6 +743,9 @@ export default function CineTripPage() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedAreaCode, setSelectedAreaCode] = useState(null);
+  const pageRef = useRef(null);
+  // 드래그/스와이프 스크롤을 cine-trip 내부의 모든 .cinetrip-scroll-row / .dashboard-scroll-row 에 적용.
+  useDragScrollAll(pageRef);
 
   useEffect(() => {
     let alive = true;
@@ -761,6 +775,8 @@ export default function CineTripPage() {
 
   return (
     <div
+      ref={pageRef}
+      className="cinetrip-page"
       style={{
         minHeight: '100vh',
         background: '#0a0a0a',
@@ -886,13 +902,12 @@ export default function CineTripPage() {
           }
         />
 
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-            gap: 24,
-          }}
-        >
+        {/*
+         * 영화 카드 영역: 그리드 → 가로 스와이프 캐러셀.
+         * - 마우스 드래그/터치 스와이프로 좌우 이동(useDragScrollAll 로 바인딩)
+         * - 스크롤바(수평/수직) 는 .cinetrip-page / .cinetrip-scroll-row 전역 규칙으로 숨김.
+         */}
+        <div className="cinetrip-scroll-row" role="list" aria-label="영화 카드">
           {loading ? (
             Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
           ) : items.length === 0 ? (
