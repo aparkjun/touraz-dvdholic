@@ -159,18 +159,26 @@ public class CineTripService implements CineTripUseCase {
     }
 
     /**
-     * 지역 코드로 KTO 관광공모전 수상작 이미지 URL 을 수집. 빈 리스트면 폴백 미적용.
-     * 실패/미설정 시 빈 리스트 반환 (스텁은 프론트 플레이스홀더로 폴백).
+     * 지역 코드로 KTO 관광공모전 수상작 이미지 URL 을 수집.
+     * 1차: 해당 지역 수상작 → 2차(비어있을 때): 전국 수상작 폴백.
+     * 대전/광주/세종처럼 KTO 수상작이 없는 광역시도 카드 이미지가 비지 않도록 보장.
      */
     private List<String> loadFallbackPostersForArea(String areaCode, int demand) {
-        if (tourPhotoPort == null || areaCode == null || areaCode.isBlank() || demand <= 0) {
-            return List.of();
+        if (tourPhotoPort == null || demand <= 0) return List.of();
+        List<String> regional = List.of();
+        if (areaCode != null && !areaCode.isBlank()) {
+            try {
+                regional = toImageUrls(tourPhotoPort.fetchByAreaCode(areaCode, Math.max(demand, 6)));
+            } catch (Exception ex) {
+                log.warn("[CINE-TRIP] 지역 포토 폴백 실패 area={} : {}", areaCode, ex.getMessage());
+            }
         }
+        if (!regional.isEmpty()) return regional;
+        // 2차 폴백: 전국 수상작
         try {
-            List<TourPhoto> photos = tourPhotoPort.fetchByAreaCode(areaCode, Math.max(demand, 6));
-            return toImageUrls(photos);
+            return toImageUrls(tourPhotoPort.fetchAll(Math.max(demand, 12)));
         } catch (Exception ex) {
-            log.warn("[CINE-TRIP] 지역 포토 폴백 실패 area={} : {}", areaCode, ex.getMessage());
+            log.warn("[CINE-TRIP] 전국 포토 2차 폴백 실패 area={} : {}", areaCode, ex.getMessage());
             return List.of();
         }
     }
