@@ -42,8 +42,11 @@ const MAPPING_TYPE_LABEL = {
   THEME: '테마',
 };
 
+// KTO/TMDB 모두 이미지가 없을 때 dashboard 와 동일한 로컬 NO IMAGE 플레이스홀더를 사용.
+const NO_POSTER_PLACEHOLDER = '/no-poster-placeholder.png';
+
 const posterSrc = (posterPath) => {
-  if (!posterPath) return 'https://via.placeholder.com/500x750/1a1a1a/666666?text=No+Image';
+  if (!posterPath) return NO_POSTER_PLACEHOLDER;
   if (posterPath.startsWith('http')) return posterPath;
   return `https://image.tmdb.org/t/p/w500${posterPath}`;
 };
@@ -178,7 +181,9 @@ function MovieCard({ item, index }) {
             transform: isHovered ? 'scale(1.08)' : 'scale(1)',
           }}
           onError={(e) => {
-            e.target.src = 'https://via.placeholder.com/500x750/1a1a1a/666666?text=No+Image';
+            if (!e.target.src.endsWith(NO_POSTER_PLACEHOLDER)) {
+              e.target.src = NO_POSTER_PLACEHOLDER;
+            }
           }}
         />
         {typeof movie.voteAverage === 'number' && (
@@ -515,7 +520,9 @@ function TravelCourseModal({ movie, mappings, regionIndices, score, onClose }) {
               border: '1px solid rgba(255,255,255,0.08)',
             }}
             onError={(e) => {
-              e.target.src = 'https://via.placeholder.com/240x340/1a1a1a/666?text=No+Image';
+              if (!e.target.src.endsWith(NO_POSTER_PLACEHOLDER)) {
+                e.target.src = NO_POSTER_PLACEHOLDER;
+              }
             }}
           />
           <div style={{ flex: 1, minWidth: 0 }}>
