@@ -106,5 +106,13 @@ public class VisitKoreaAccessibleResponse {
         private String stroller;              // 유모차 대여
         private String lactationroom;         // 수유실
         private String babysparechair;        // 유아동반 의자
+
+        // detailInfo2 - 반복정보 (장애유형별 편의시설 리스트)
+        private String serialnum;             // 행 번호
+        private String infoname;              // 편의시설 라벨 (예: "휠체어 대여", "엘리베이터")
+        private String infotext;              // 편의시설 상태/설명 (예: "가능", "설치")
+
+        // detailCommon2 - 홈페이지 보강 필드
+        private String homepage;
     }
 }

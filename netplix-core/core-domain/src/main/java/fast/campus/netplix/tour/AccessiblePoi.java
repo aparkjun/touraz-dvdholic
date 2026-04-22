@@ -3,6 +3,8 @@ package fast.campus.netplix.tour;
 import lombok.Builder;
 import lombok.Getter;
 
+import java.util.Map;
+
 /**
  * 한국관광공사 무장애 여행정보(KorWithService2) POI.
  *
@@ -27,7 +29,7 @@ import lombok.Getter;
  * </ul>
  */
 @Getter
-@Builder
+@Builder(toBuilder = true)
 public class AccessiblePoi {
 
     private final String contentId;
@@ -60,6 +62,14 @@ public class AccessiblePoi {
     private final String strollerRental;         // 유모차 대여
     private final String lactationRoom;          // 수유실
     private final String babySparechair;         // 유아동반 의자
+
+    /**
+     * detailInfo2 에서 내려온 반복정보 (infoname -> infotext).
+     *
+     * <p>KTO 무장애 API 는 편의시설 항목이 계속 확장되므로, 고정 필드 매핑 대신
+     * 맵 형태로 원문 라벨과 값을 그대로 보관해 UI 가 자유롭게 렌더링하도록 한다.
+     */
+    private final Map<String, String> accessibilityDetail;
 
     /**
      * 장애 유형별 접근성 요약 비트. UI 에서 빠르게 칩으로 표시할 때 사용.

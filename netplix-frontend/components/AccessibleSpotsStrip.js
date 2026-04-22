@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Accessibility,
   UtensilsCrossed,
@@ -11,6 +11,9 @@ import {
   Eye,
   Ear,
   Baby,
+  X,
+  ExternalLink,
+  Navigation,
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 
@@ -39,6 +42,7 @@ export default function AccessibleSpotsStrip({ areaCode, regionLabel = '' }) {
   const [buckets, setBuckets] = useState({});
   const [activeBucket, setActiveBucket] = useState('attractions');
   const [loading, setLoading] = useState(true);
+  const [activePoi, setActivePoi] = useState(null); // { poi, bucket }
 
   useEffect(() => {
     if (!areaCode) return;
@@ -180,24 +184,43 @@ export default function AccessibleSpotsStrip({ areaCode, regionLabel = '' }) {
           }}
         >
           {activeList.map((poi, idx) => (
-            <PoiCard key={poi.contentId || idx} poi={poi} bucket={activeBucket} />
+            <PoiCard
+              key={poi.contentId || idx}
+              poi={poi}
+              bucket={activeBucket}
+              onOpen={() => setActivePoi({ poi, bucket: activeBucket })}
+            />
           ))}
         </div>
       )}
+
+      <AnimatePresence>
+        {activePoi && (
+          <AccessiblePoiDetailModal
+            summary={activePoi.poi}
+            bucket={activePoi.bucket}
+            onClose={() => setActivePoi(null)}
+          />
+        )}
+      </AnimatePresence>
     </section>
   );
 }
 
-function PoiCard({ poi, bucket }) {
+function PoiCard({ poi, bucket, onOpen }) {
   const meta = BUCKET_META[bucket];
   const Icon = meta.icon;
   const addr = poi.addr1 || poi.addr2 || '';
 
   return (
-    <motion.div
+    <motion.button
+      type="button"
+      onClick={onOpen}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -2, borderColor: meta.color }}
       transition={{ duration: 0.3 }}
+      aria-label={`${poi.title || ''} 상세 정보 보기`}
       style={{
         flex: '0 0 auto',
         width: 240,
@@ -207,6 +230,10 @@ function PoiCard({ poi, bucket }) {
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
+        padding: 0,
+        cursor: 'pointer',
+        textAlign: 'left',
+        color: 'inherit',
       }}
     >
       <div
@@ -313,7 +340,7 @@ function PoiCard({ poi, bucket }) {
         )}
         <AccessibilityChips poi={poi} />
       </div>
-    </motion.div>
+    </motion.button>
   );
 }
 
@@ -369,4 +396,423 @@ function AccessibilityChips({ poi }) {
       })}
     </div>
   );
+}
+
+/**
+ * POI 상세 모달.
+ * - areaBasedList2 로 얻은 summary 를 즉시 표시하고,
+ *   백그라운드로 detailWithTour2 를 호출해 접근성 원문 필드를 채운다.
+ * - detailWithTour2 가 비어있어도(KTO 미등록) summary 만으로 동작.
+ */
+function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
+  const meta = BUCKET_META[bucket];
+  const [detail, setDetail] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!summary?.contentId) {
+      setLoading(false);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      setLoading(true);
+      setErr(null);
+      try {
+        const typeQuery = summary.contentTypeId
+          ? `?type=${encodeURIComponent(summary.contentTypeId)}`
+          : '';
+        const res = await axios.get(
+          `/api/v1/tour/accessible/${encodeURIComponent(summary.contentId)}${typeQuery}`,
+          { timeout: 15000 }
+        );
+        if (alive) setDetail(res?.data?.data || null);
+      } catch (e) {
+        console.error('[accessible-detail] fetch failed:', e?.message || e);
+        if (alive) setErr('상세 정보를 불러오지 못했습니다.');
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [summary?.contentId, summary?.contentTypeId]);
+
+  const merged = { ...summary, ...(detail || {}) };
+  const addr = merged.addr1 || merged.addr2 || '';
+  const image = merged.firstImage || merged.firstImageThumb;
+  const kakaoMapUrl = merged.mapY && merged.mapX
+    ? `https://map.kakao.com/link/map/${encodeURIComponent(merged.title || '장소')},${merged.mapY},${merged.mapX}`
+    : null;
+  const naverSearchUrl = merged.title
+    ? `https://search.naver.com/search.naver?query=${encodeURIComponent(merged.title)}`
+    : null;
+
+  return (
+    <motion.div
+      key="accessible-poi-lightbox"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 10000,
+        background: 'rgba(0,0,0,0.86)',
+        backdropFilter: 'blur(6px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+        cursor: 'zoom-out',
+      }}
+    >
+      <motion.div
+        role="dialog"
+        aria-modal="true"
+        aria-label={merged.title || '무장애 여행 스팟 상세'}
+        initial={{ opacity: 0, y: 24, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 16, scale: 0.98 }}
+        transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%',
+          maxWidth: 720,
+          maxHeight: '90vh',
+          overflowY: 'auto',
+          borderRadius: 20,
+          background: 'linear-gradient(180deg, #141419 0%, #0a0a0f 100%)',
+          border: `1px solid ${meta.color}55`,
+          boxShadow: `0 25px 60px ${meta.color}33, 0 0 0 1px rgba(255,255,255,0.04)`,
+          cursor: 'default',
+          position: 'relative',
+        }}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="닫기"
+          style={{
+            position: 'absolute',
+            top: 14,
+            right: 14,
+            width: 36,
+            height: 36,
+            borderRadius: 18,
+            border: '1px solid rgba(255,255,255,0.15)',
+            background: 'rgba(0,0,0,0.55)',
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            zIndex: 2,
+          }}
+        >
+          <X size={18} />
+        </button>
+
+        {image ? (
+          <img
+            src={image}
+            alt={merged.title || 'poi'}
+            style={{
+              width: '100%',
+              maxHeight: 360,
+              objectFit: 'cover',
+              display: 'block',
+              borderTopLeftRadius: 20,
+              borderTopRightRadius: 20,
+            }}
+            onError={(e) => {
+              e.target.style.display = 'none';
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: '100%',
+              height: 200,
+              background: '#1a1a1a',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#444',
+            }}
+          >
+            <meta.icon size={48} />
+          </div>
+        )}
+
+        <div style={{ padding: '22px 24px 24px' }}>
+          <span
+            style={{
+              display: 'inline-block',
+              fontSize: 11,
+              fontWeight: 700,
+              padding: '3px 9px',
+              borderRadius: 10,
+              background: meta.color,
+              color: '#fff',
+              marginBottom: 8,
+            }}
+          >
+            {meta.label}
+          </span>
+          <h3 style={{ margin: '0 0 10px', fontSize: 22, fontWeight: 800, color: '#fff', lineHeight: 1.3 }}>
+            {merged.title || '이름 없음'}
+          </h3>
+
+          {addr && (
+            <p style={{ margin: '0 0 6px', fontSize: 13, color: '#cbd5e1', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+              <MapPin size={14} style={{ color: '#a855f7', marginTop: 2, flexShrink: 0 }} />
+              <span>{addr}</span>
+            </p>
+          )}
+          {merged.tel && (
+            <p style={{ margin: '0 0 6px', fontSize: 13, color: '#6ee7b7', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Phone size={13} />
+              <a href={`tel:${merged.tel}`} style={{ color: 'inherit', textDecoration: 'none' }}>
+                {merged.tel}
+              </a>
+            </p>
+          )}
+
+          {/* 외부 링크 */}
+          {(kakaoMapUrl || naverSearchUrl) && (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10, marginBottom: 14 }}>
+              {kakaoMapUrl && (
+                <a
+                  href={kakaoMapUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={extLinkStyle('#fbbf24')}
+                >
+                  <Navigation size={13} /> 카카오맵
+                </a>
+              )}
+              {naverSearchUrl && (
+                <a
+                  href={naverSearchUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={extLinkStyle('#10b981')}
+                >
+                  <ExternalLink size={13} /> 네이버 검색
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* 접근성 칩 요약 */}
+          <AccessibilityChips poi={merged} />
+
+          {/* overview */}
+          {merged.overview && (
+            <p
+              style={{
+                marginTop: 16,
+                fontSize: 13,
+                lineHeight: 1.65,
+                color: '#cbd5e1',
+                whiteSpace: 'pre-line',
+              }}
+            >
+              {stripHtml(merged.overview)}
+            </p>
+          )}
+
+          {/* 접근성 원문 필드 그리드 */}
+          <AccessibilityDetailGrid detail={merged} loading={loading} err={err} />
+
+          <p style={{ marginTop: 18, fontSize: 10, color: '#555' }}>
+            © 한국관광공사 무장애 여행정보 (KorWithService2)
+          </p>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function AccessibilityDetailGrid({ detail, loading, err }) {
+  // 1) 신규 KorWithService2 detailInfo2 경로 — 서버가 label → value 맵을 그대로 내려줌.
+  const rawMap = detail?.accessibilityDetail || {};
+  const mapEntries = Object.entries(rawMap).filter(
+    ([k, v]) => k && String(v || '').trim() !== ''
+  );
+
+  // 2) 레거시 고정 필드 (이전 detailWithTour2 호환) — 값이 있을 때만 폴백으로 사용.
+  const legacyFields = [
+    { key: 'parkingAccessible', label: '장애인 주차', icon: Accessibility },
+    { key: 'restroomAccessible', label: '장애인 화장실', icon: Accessibility },
+    { key: 'wheelchairRental', label: '휠체어 대여', icon: Accessibility },
+    { key: 'elevatorAccessible', label: '엘리베이터', icon: Accessibility },
+    { key: 'publicTransport', label: '대중교통', icon: Navigation },
+    { key: 'blindHandicapEtc', label: '시각장애 편의', icon: Eye },
+    { key: 'brailleBlock', label: '점자블록', icon: Eye },
+    { key: 'hearingHandicapEtc', label: '청각장애 편의', icon: Ear },
+    { key: 'signGuide', label: '수어/안내판', icon: Ear },
+    { key: 'videoGuide', label: '수어 비디오', icon: Ear },
+    { key: 'helpDog', label: '안내견 동반', icon: Accessibility },
+    { key: 'strollerRental', label: '유모차 대여', icon: Baby },
+    { key: 'lactationRoom', label: '수유실', icon: Baby },
+  ];
+  const legacyPopulated = legacyFields.filter((f) => {
+    const v = detail?.[f.key];
+    return v != null && String(v).trim() !== '';
+  });
+  // 라벨별 아이콘 추정 (맵 key 는 자유 텍스트이므로 키워드 기반)
+  const iconFor = (label = '') => {
+    const s = String(label);
+    if (/휠체어|주차|화장실|엘리베이터|안내견/.test(s)) return Accessibility;
+    if (/점자|시각/.test(s)) return Eye;
+    if (/수어|청각|비디오/.test(s)) return Ear;
+    if (/유모차|수유|유아/.test(s)) return Baby;
+    if (/교통|이동/.test(s)) return Navigation;
+    return Accessibility;
+  };
+
+  if (loading) {
+    return (
+      <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div
+            key={i}
+            style={{
+              width: 140,
+              height: 44,
+              borderRadius: 10,
+              background:
+                'linear-gradient(90deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%)',
+              backgroundSize: '200% 100%',
+              animation: 'cinetrip-shimmer 1.5s infinite',
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+  if (err) {
+    return (
+      <p style={{ marginTop: 16, fontSize: 12, color: '#f87171' }}>{err}</p>
+    );
+  }
+
+  const useMap = mapEntries.length > 0;
+  const useLegacy = !useMap && legacyPopulated.length > 0;
+
+  if (!useMap && !useLegacy) {
+    return (
+      <p style={{ marginTop: 18, fontSize: 12, color: '#6b7280', lineHeight: 1.6 }}>
+        한국관광공사에 등록된 무장애 상세 편의시설 정보가 아직 없습니다.
+        기본 정보만 제공해요.
+      </p>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 18 }}>
+      <h4 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 700, color: '#f1f5f9' }}>
+        편의시설 정보
+      </h4>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+          gap: 8,
+        }}
+      >
+        {useMap
+          ? mapEntries.map(([label, value]) => {
+              const Icon = iconFor(label);
+              return (
+                <div key={label} style={detailCellStyle}>
+                  <p style={detailLabelStyle}>
+                    <Icon size={11} style={{ color: '#a855f7' }} />
+                    {label}
+                  </p>
+                  <p style={detailValueStyle}>{value}</p>
+                </div>
+              );
+            })
+          : legacyPopulated.map(({ key, label, icon: Icon }) => (
+              <div key={key} style={detailCellStyle}>
+                <p style={detailLabelStyle}>
+                  <Icon size={11} style={{ color: '#a855f7' }} />
+                  {label}
+                </p>
+                <p style={detailValueStyle}>{detail[key]}</p>
+              </div>
+            ))}
+      </div>
+    </div>
+  );
+}
+
+const detailCellStyle = {
+  padding: '10px 12px',
+  borderRadius: 10,
+  background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.06)',
+};
+const detailLabelStyle = {
+  margin: '0 0 4px',
+  fontSize: 11,
+  color: '#94a3b8',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 5,
+};
+const detailValueStyle = {
+  margin: 0,
+  fontSize: 13,
+  color: '#e5e7eb',
+  lineHeight: 1.5,
+  whiteSpace: 'pre-line',
+  wordBreak: 'break-word',
+};
+
+function extLinkStyle(color) {
+  return {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    fontSize: 12,
+    fontWeight: 600,
+    padding: '6px 10px',
+    borderRadius: 8,
+    background: `${color}22`,
+    color,
+    textDecoration: 'none',
+    border: `1px solid ${color}44`,
+  };
+}
+
+/** overview 에 섞여 들어오는 <br>/<p> 를 개행으로 치환하고 나머지 태그 제거. */
+function stripHtml(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .trim();
 }

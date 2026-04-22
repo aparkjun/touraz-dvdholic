@@ -17,6 +17,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -54,6 +55,13 @@ public class VisitKoreaAccessibleHttpClient implements AccessiblePoiPort {
     @Value("${visitkorea.access.search-keyword:}")
     private String searchKeywordUrl;
 
+    @Value("${visitkorea.access.detail-common:}")
+    private String detailCommonUrl;
+
+    @Value("${visitkorea.access.detail-info:}")
+    private String detailInfoUrl;
+
+    /** Legacy(v1) 호환 — 필요 시 fallback 용도. 기본값은 비어있다. */
     @Value("${visitkorea.access.detail-with-tour:}")
     private String detailWithTourUrl;
 
@@ -87,15 +95,52 @@ public class VisitKoreaAccessibleHttpClient implements AccessiblePoiPort {
         return take(items, limit);
     }
 
+    /**
+     * KorWithService2 상세 조회.
+     * <ol>
+     *   <li>{@code detailCommon2} 로 overview/홈페이지 등 공통 정보를 얻고,</li>
+     *   <li>{@code detailInfo2} 로 장애유형별 편의시설(반복정보)을 병합한다.</li>
+     * </ol>
+     * v1 레거시인 {@code detailWithTour2} 는 KTO 가 더 이상 서비스하지 않으므로
+     * 명시적 설정이 없으면 건너뛴다.
+     */
     @Override
     public Optional<AccessiblePoi> fetchDetail(String contentId, String contentTypeId) {
         if (!isConfigured() || contentId == null || contentId.isBlank()) return Optional.empty();
-        if (detailWithTourUrl == null || detailWithTourUrl.isBlank()) return Optional.empty();
-        List<AccessiblePoi> items = callListApi(detailWithTourUrl, Map.of(
-                "contentId", contentId,
-                "contentTypeId", nullSafe(contentTypeId)
-        ));
-        return items.stream().findFirst();
+
+        Optional<AccessiblePoi> common = Optional.empty();
+        if (detailCommonUrl != null && !detailCommonUrl.isBlank()) {
+            List<AccessiblePoi> items = callListApi(detailCommonUrl, Map.of(
+                    "contentId", contentId,
+                    "contentTypeId", nullSafe(contentTypeId)
+            ));
+            common = items.stream().findFirst();
+        }
+
+        Map<String, String> infoMap = Collections.emptyMap();
+        if (detailInfoUrl != null && !detailInfoUrl.isBlank()) {
+            infoMap = callInfoApi(detailInfoUrl, Map.of(
+                    "contentId", contentId,
+                    "contentTypeId", nullSafe(contentTypeId)
+            ));
+        }
+
+        if (common.isEmpty() && infoMap.isEmpty()) {
+            if (detailWithTourUrl != null && !detailWithTourUrl.isBlank()) {
+                return callListApi(detailWithTourUrl, Map.of(
+                        "contentId", contentId,
+                        "contentTypeId", nullSafe(contentTypeId)
+                )).stream().findFirst();
+            }
+            return Optional.empty();
+        }
+
+        AccessiblePoi base = common.orElseGet(() -> AccessiblePoi.builder()
+                .contentId(contentId)
+                .contentTypeId(contentTypeId)
+                .build());
+        if (infoMap.isEmpty()) return Optional.of(base);
+        return Optional.of(base.toBuilder().accessibilityDetail(infoMap).build());
     }
 
     @Override
@@ -177,6 +222,64 @@ public class VisitKoreaAccessibleHttpClient implements AccessiblePoiPort {
             result.add(toDomain(i));
         }
         return Collections.unmodifiableList(result);
+    }
+
+    /**
+     * {@code detailInfo2} 응답을 infoname → infotext 맵으로 변환한다.
+     * KTO 가 편의시설 항목을 계속 확장하더라도 UI 가 그대로 렌더링할 수 있도록
+     * 필드 매핑을 하지 않고 원문을 보존한다.
+     */
+    private Map<String, String> callInfoApi(String baseUrl, Map<String, String> extraParams) {
+        StringBuilder url = new StringBuilder(baseUrl);
+        url.append(baseUrl.contains("?") ? "&" : "?")
+                .append("serviceKey=").append(serviceKey)
+                .append("&_type=json")
+                .append("&MobileOS=ETC")
+                .append("&MobileApp=touraz-dvdholic")
+                .append("&numOfRows=").append(MAX_PAGE_SIZE)
+                .append("&pageNo=1");
+        for (Map.Entry<String, String> e : extraParams.entrySet()) {
+            if (e.getValue() == null || e.getValue().isBlank()) continue;
+            url.append("&").append(e.getKey()).append("=")
+                    .append(URLEncoder.encode(e.getValue(), StandardCharsets.UTF_8));
+        }
+
+        String raw;
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.ACCEPT, "application/json");
+            raw = httpClient.request(url.toString(), HttpMethod.GET, headers, Map.of());
+        } catch (Exception ex) {
+            log.warn("[KOR-WITH] detailInfo 호출 실패 url={} err={}", baseUrl, ex.getMessage());
+            return Collections.emptyMap();
+        }
+        if (raw == null || raw.isBlank()) return Collections.emptyMap();
+
+        VisitKoreaAccessibleResponse parsed;
+        try {
+            String safe = raw.replace("\"items\":\"\"", "\"items\":null");
+            parsed = ObjectMapperUtil.toObject(safe, VisitKoreaAccessibleResponse.class);
+        } catch (Exception ex) {
+            log.warn("[KOR-WITH] detailInfo 파싱 실패 err={}", ex.getMessage());
+            return Collections.emptyMap();
+        }
+
+        if (parsed == null || parsed.getResponse() == null
+                || parsed.getResponse().getBody() == null
+                || parsed.getResponse().getBody().getItems() == null
+                || parsed.getResponse().getBody().getItems().getItem() == null) {
+            return Collections.emptyMap();
+        }
+
+        Map<String, String> result = new LinkedHashMap<>();
+        for (VisitKoreaAccessibleResponse.Item i : parsed.getResponse().getBody().getItems().getItem()) {
+            String k = i.getInfoname();
+            String v = i.getInfotext();
+            if (k == null || k.isBlank()) continue;
+            if (v == null) v = "";
+            result.merge(k.trim(), v.trim(), (a, b) -> a.isBlank() ? b : (b.isBlank() ? a : a + " / " + b));
+        }
+        return result;
     }
 
     private static AccessiblePoi toDomain(VisitKoreaAccessibleResponse.Item i) {

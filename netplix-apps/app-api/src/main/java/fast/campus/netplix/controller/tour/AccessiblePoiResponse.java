@@ -2,6 +2,9 @@ package fast.campus.netplix.controller.tour;
 
 import fast.campus.netplix.tour.AccessiblePoi;
 
+import java.util.Collections;
+import java.util.Map;
+
 /**
  * 무장애 여행 POI 응답 DTO.
  * 프론트엔드 경량화를 위해 장애유형별 편의 플래그(hasPhysical/Visual/Hearing/Family) 를 함께 노출한다.
@@ -34,6 +37,8 @@ public record AccessiblePoiResponse(
         String helpDog,
         String strollerRental,
         String lactationRoom,
+        // detailInfo2 에서 내려온 반복정보 (infoname → infotext 원문 맵)
+        Map<String, String> accessibilityDetail,
         // 편의 플래그 (UI 칩)
         boolean physicalAccess,
         boolean visualAccess,
@@ -41,6 +46,9 @@ public record AccessiblePoiResponse(
         boolean familyAccess
 ) {
     public static AccessiblePoiResponse from(AccessiblePoi p) {
+        Map<String, String> detail = p.getAccessibilityDetail() == null
+                ? Collections.emptyMap()
+                : p.getAccessibilityDetail();
         return new AccessiblePoiResponse(
                 p.getContentId(),
                 p.getContentTypeId(),
@@ -68,6 +76,7 @@ public record AccessiblePoiResponse(
                 p.getHelpDog(),
                 p.getStrollerRental(),
                 p.getLactationRoom(),
+                detail,
                 p.hasPhysicalAccess(),
                 p.hasVisualAccess(),
                 p.hasHearingAccess(),

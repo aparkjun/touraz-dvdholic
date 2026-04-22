@@ -101,5 +101,11 @@ visitkorea:
     area-based: ${visitkorea.access.base-url}/areaBasedList2
     location-based: ${visitkorea.access.base-url}/locationBasedList2
     search-keyword: ${visitkorea.access.base-url}/searchKeyword2
-    detail-with-tour: ${visitkorea.access.base-url}/detailWithTour2
+    # detailCommon2  : 공통정보 (title/addr/overview/homepage/firstimage)
+    # detailIntro2   : 소개정보 (콘텐츠타입별 운영시간/주차/입장료 등)
+    # detailInfo2    : 반복정보 (장애유형별 편의시설 리스트 — infoname/infotext)
+    # KorService v1 의 detailWithTour 는 v2 에 존재하지 않으므로 세 엔드포인트를 조합.
+    detail-common: ${visitkorea.access.base-url}/detailCommon2
+    detail-intro: ${visitkorea.access.base-url}/detailIntro2
+    detail-info: ${visitkorea.access.base-url}/detailInfo2
     cache-minutes: 360
