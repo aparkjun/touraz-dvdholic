@@ -56,17 +56,42 @@ public class MovieRepository implements PersistenceMoviePort {
     @Transactional(readOnly = true)
     public List<NetplixMovie> fetchByMovieNames(List<String> movieNames) {
         if (movieNames == null || movieNames.isEmpty()) return List.of();
-        return movieJpaRepository.findByMovieNameIn(movieNames)
-                .stream()
-                .map(MovieEntity::toDomain)
-                .toList();
+        List<MovieEntity> all = movieJpaRepository.findByMovieNameIn(movieNames);
+        if (all.isEmpty()) return List.of();
+        // 동일 제목 다수 존재 시 한국어 원어 + 고평점 우선
+        java.util.Map<String, MovieEntity> best = new java.util.HashMap<>();
+        for (MovieEntity e : all) {
+            MovieEntity cur = best.get(e.getMovieName());
+            if (cur == null || preferNewer(cur, e) < 0) {
+                best.put(e.getMovieName(), e);
+            }
+        }
+        return best.values().stream().map(MovieEntity::toDomain).toList();
+    }
+
+    /**
+     * 두 MovieEntity 중 선호 순위 비교. 음수면 b가 a보다 선호됨.
+     * 1. original_language == 'ko' 우선
+     * 2. vote_average 내림차순
+     */
+    private int preferNewer(MovieEntity a, MovieEntity b) {
+        boolean aKo = "ko".equalsIgnoreCase(a.getOriginalLanguage());
+        boolean bKo = "ko".equalsIgnoreCase(b.getOriginalLanguage());
+        if (aKo != bKo) return aKo ? 1 : -1;
+        double av = a.getVoteAverage() == null ? 0.0 : a.getVoteAverage();
+        double bv = b.getVoteAverage() == null ? 0.0 : b.getVoteAverage();
+        return Double.compare(av, bv);
     }
 
     @Override
+    @Transactional(readOnly = true)
     public NetplixMovie findBy(String movieName) {
-        return movieJpaRepository.findByMovieName(movieName)
-                .map(MovieEntity::toDomain)
-                .orElseThrow();
+        List<MovieEntity> preferred = movieJpaRepository.findByMovieNamePreferKorean(
+                movieName, org.springframework.data.domain.PageRequest.of(0, 1));
+        if (!preferred.isEmpty()) {
+            return preferred.get(0).toDomain();
+        }
+        return null;
     }
 
     @Override

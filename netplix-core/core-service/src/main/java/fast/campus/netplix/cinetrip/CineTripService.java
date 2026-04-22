@@ -41,7 +41,7 @@ public class CineTripService implements CineTripUseCase {
         List<CineTripItem> result = new ArrayList<>();
         for (Map.Entry<String, List<MovieRegionMapping>> e : byMovie.entrySet()) {
             NetplixMovie movie = movieMap.get(e.getKey());
-            if (movie == null) continue;
+            if (movie == null) movie = stubMovie(e.getKey());
             List<TourIndex> indices = new ArrayList<>();
             double score = 0.0;
             for (MovieRegionMapping m : e.getValue()) {
@@ -78,7 +78,7 @@ public class CineTripService implements CineTripUseCase {
         List<CineTripItem> result = new ArrayList<>();
         for (Map.Entry<String, List<MovieRegionMapping>> e : byMovie.entrySet()) {
             NetplixMovie movie = movieMap.get(e.getKey());
-            if (movie == null) continue;
+            if (movie == null) movie = stubMovie(e.getKey());
             List<TourIndex> indices = latest.map(List::of).orElse(List.of());
             double score = e.getValue().stream()
                     .mapToDouble(m -> m.getTrendingScore() == null ? 0.0 : m.getTrendingScore())
@@ -91,6 +91,12 @@ public class CineTripService implements CineTripUseCase {
                     .build());
             if (result.size() >= safe) break;
         }
+        // 트렌딩 스코어 내림차순 정렬 (스텁 포함 전체 결과)
+        result.sort((a, b) -> Double.compare(
+                b.getTrendingScore() == null ? 0.0 : b.getTrendingScore(),
+                a.getTrendingScore() == null ? 0.0 : a.getTrendingScore()));
+        log.info("[CINE-TRIP] curateByRegion area={} -> {}건 (매핑 {}건)",
+                areaCode, result.size(), regional.size());
         return result;
     }
 
@@ -100,7 +106,7 @@ public class CineTripService implements CineTripUseCase {
         List<MovieRegionMapping> byMovie = mappingPort.findByMovieName(movieName);
         if (byMovie.isEmpty()) return List.of();
         NetplixMovie movie = moviePort.findBy(movieName);
-        if (movie == null) return List.of();
+        if (movie == null) movie = stubMovie(movieName);
         List<TourIndex> indices = new ArrayList<>();
         for (MovieRegionMapping m : byMovie) {
             tourIndexPort.findLatestByAreaCode(m.getAreaCode()).ifPresent(indices::add);
@@ -114,6 +120,17 @@ public class CineTripService implements CineTripUseCase {
                 .regionIndices(indices)
                 .trendingScore(score)
                 .build());
+    }
+
+    /**
+     * TMDB 영화 DB 에 해당 제목이 없을 때 CSV 매핑 정보만으로 구성한 최소 영화 객체.
+     * 프론트엔드는 posterPath/voteAverage 가 null 이면 플레이스홀더로 폴백한다.
+     */
+    private NetplixMovie stubMovie(String movieName) {
+        return NetplixMovie.builder()
+                .movieName(movieName)
+                .contentType("movie")
+                .build();
     }
 
     @Override
