@@ -1018,6 +1018,28 @@ function CineTripPageInner() {
         />
 
         {/*
+         * 총 컨텐츠 수 카운터: 현재 필터/로케일 조합에서 화면에 노출되는 영화 카드 총 개수.
+         * - 자동 매핑(AUTO) 집계 반영을 즉시 체감할 수 있도록 그리드 바로 위 중앙에 빨간색 강조.
+         * - 로딩 중/빈 상태에서는 숨겨 UX 혼선을 막는다.
+         */}
+        {!loading && items.length > 0 && (
+          <div
+            style={{
+              textAlign: 'center',
+              margin: '8px 0 16px',
+              color: '#dc2626',
+              fontSize: 18,
+              fontWeight: 800,
+              letterSpacing: '-0.01em',
+              textShadow: '0 2px 6px rgba(220, 38, 38, 0.25)',
+            }}
+            aria-live="polite"
+          >
+            {isEn ? `Total ${items.length} titles` : `총 ${items.length}편`}
+          </div>
+        )}
+
+        {/*
          * 영화 카드 영역: 그리드 → 가로 스와이프 캐러셀.
          * - 마우스 드래그/터치 스와이프로 좌우 이동(useDragScrollAll 로 바인딩)
          * - 스크롤바(수평/수직) 는 .cinetrip-page / .cinetrip-scroll-row 전역 규칙으로 숨김.
