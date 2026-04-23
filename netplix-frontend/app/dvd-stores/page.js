@@ -590,9 +590,10 @@ function StoreCard({ store, showDistance }) {
       )}
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 14px" }}>
-        {store.phone && (
-          <InfoChip icon={<Phone size={12} />} text={store.phone} />
-        )}
+        <InfoChip
+          icon={<Phone size={12} />}
+          text={store.phone && store.phone.trim() ? store.phone : t("dvdStores.phoneNone")}
+        />
         {store.businessType && (
           <InfoChip icon={<Briefcase size={12} />} text={store.businessType} />
         )}
@@ -745,7 +746,9 @@ function StoreMap({ stores, userPos, nearbyMode, cultureLayer = "off" }) {
                     )}
                   </div>
                   {addr && <div style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>{addr}</div>}
-                  {store.phone && <div style={{ fontSize: 11, color: "#555" }}>Tel: {store.phone}</div>}
+                  <div style={{ fontSize: 11, color: "#555" }}>
+                    Tel: {store.phone && store.phone.trim() ? store.phone : t("dvdStores.phoneNone")}
+                  </div>
                   {store.productInfo && <div style={{ fontSize: 11, color: "#555" }}>{t("dvdStores.productsLabel")}: {store.productInfo}</div>}
                   {store.businessType && <div style={{ fontSize: 11, color: "#555" }}>{t("dvdStores.businessType")}: {store.businessType}</div>}
                 </div>

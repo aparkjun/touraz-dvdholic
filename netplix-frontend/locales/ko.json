@@ -300,7 +300,8 @@
     "locationUnavailable": "위치를 확인할 수 없습니다. 브라우저 위치 권한을 허용하거나 네트워크를 확인해주세요.",
     "floorInfo": "총 {{total}}층",
     "floorInfoWithBasement": "총 {{total}}층 (지하 {{below}}층)",
-    "productsLabel": "취급"
+    "productsLabel": "취급",
+    "phoneNone": "전화번호 없음"
   },
   "admin": {
     "loginTitle": "관리자 로그인",

@@ -300,7 +300,8 @@
     "locationUnavailable": "Unable to determine location. Please allow browser location or check network.",
     "floorInfo": "{{total}} floors total",
     "floorInfoWithBasement": "{{total}} floors ({{below}} basement)",
-    "productsLabel": "Products"
+    "productsLabel": "Products",
+    "phoneNone": "No phone"
   },
   "admin": {
     "loginTitle": "Admin Login",
