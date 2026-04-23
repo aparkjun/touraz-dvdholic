@@ -109,6 +109,20 @@ public class CineTripController {
     }
 
     /**
+     * TMDB 영화 메타에서 한국 지역명을 regex 매칭해 AUTO 매핑을 일괄 생성한다. (관리자 전용)
+     * 기존 MANUAL 매핑은 보존된다(동일 movie-area 조합은 스킵).
+     *
+     * @param maxPerMovie 한 영화당 상위 매칭 지역 N개까지 저장 (기본 3, 최대 5)
+     */
+    @PostMapping("/auto-map")
+    public NetplixApiResponse<CineTripUseCase.AutoMappingReport> autoMap(
+            @RequestParam(defaultValue = "3") int maxPerMovie) {
+        CineTripUseCase.AutoMappingReport report = cineTripUseCase.runAutoMapping(maxPerMovie);
+        log.info("[CINE-TRIP] /auto-map 트리거 결과: {}", report);
+        return NetplixApiResponse.ok(report);
+    }
+
+    /**
      * CineTrip 상세 모달용 "이 영화 배경지 근처 무장애 스팟" 묶음 조회.
      * 관광지/음식점/숙박 3종을 각 {@code perBucket} 개씩 반환. KorWithService2 미설정 시 빈 맵.
      */

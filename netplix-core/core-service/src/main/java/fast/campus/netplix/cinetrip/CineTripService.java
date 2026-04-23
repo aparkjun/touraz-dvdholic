@@ -33,6 +33,7 @@ public class CineTripService implements CineTripUseCase {
     private final MovieRegionMappingPort mappingPort;
     private final PersistenceMoviePort moviePort;
     private final TourIndexRepositoryPort tourIndexPort;
+    private final CineTripAutoMappingService autoMappingService;
     /** Optional 주입: TourPhotoPort 빈이 없어도 서비스는 정상 기동 (포스터 폴백만 비활성화). */
     @Autowired(required = false)
     private TourPhotoPort tourPhotoPort;
@@ -254,6 +255,11 @@ public class CineTripService implements CineTripUseCase {
     @Override
     public long count() {
         return mappingPort.count();
+    }
+
+    @Override
+    public CineTripUseCase.AutoMappingReport runAutoMapping(int maxPerMovie) {
+        return autoMappingService.run(maxPerMovie);
     }
 
     private int clampLimit(int limit) {

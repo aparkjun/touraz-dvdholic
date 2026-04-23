@@ -20,4 +20,25 @@ public interface CineTripUseCase {
     int importFromCsv(String csvText);
 
     long count();
+
+    /**
+     * TMDB 에 이미 enrichment 된 영화 메타(title/overview/tagline 등)에서
+     * 한국 광역시도명/영문명/주요 랜드마크를 regex 매칭해 AUTO 매핑을 자동 생성한다.
+     *
+     * <p>기존 MANUAL 시드(SHOT/BACKGROUND/THEME)가 있는 (movie, area) 조합은 스킵하여
+     * 큐레이터가 넣은 데이터의 우선순위를 보존한다.
+     *
+     * @param maxPerMovie 한 영화당 최대 몇 개 지역까지 AUTO 매핑할지 상한 (기본 3 권장)
+     * @return AUTO 매핑 생성 결과 요약
+     */
+    AutoMappingReport runAutoMapping(int maxPerMovie);
+
+    /** {@link #runAutoMapping(int)} 결과 요약 DTO. */
+    record AutoMappingReport(
+            int scannedMovies,
+            int moviesWithMatch,
+            int generatedMappings,
+            int skippedDueToManual,
+            long totalMappingsAfter
+    ) {}
 }
