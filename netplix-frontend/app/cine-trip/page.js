@@ -1,8 +1,19 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MapPin, Film, TrendingUp, Sparkles, Share2 } from 'lucide-react';
+import {
+  MapPin,
+  Film,
+  TrendingUp,
+  Sparkles,
+  Share2,
+  X,
+  Compass,
+  Plane,
+  ChevronDown,
+} from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import axios from '@/lib/axiosConfig';
 import { shareContent, shareResultMessage } from '@/lib/shareUtils';
 import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
@@ -111,6 +122,369 @@ function EmptyState() {
         아직 연결된 영화가 없어요
       </h3>
       <p style={{ fontSize: 16, color: '#888' }}>다른 지역을 골라보거나 잠시 뒤에 다시 오세요.</p>
+    </motion.div>
+  );
+}
+
+/**
+ * "이 영화로 여행가기" 진입 시 최상단에 렌더링되는 스포트라이트 배너.
+ *
+ * - `/api/v1/cine-trip/movie?name=<movieName>` 로 해당 영화의
+ *   mappings / regionIndices / 영화 메타를 불러와 한눈에 요약.
+ * - 사용자가 길을 잃지 않도록 두 가지 명확한 진입점을 제공:
+ *   1) "여행 코스 바로 보기" → `TravelCourseModal` 즉시 오픈
+ *   2) "이 영화의 장소 모아보기" → 지역 필터 자동 활성 + 카드 영역 스크롤
+ * - 로컬 CineTrip DB 에 매핑이 없는 영화(예: 런닝맨: 라이트&쉐도우)는
+ *   매핑 없음 안내와 함께 전체 CineTrip 둘러보기 CTA 만 노출.
+ */
+function MovieSpotlightBanner({ movieName, onFocusRegion, onDismiss }) {
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(null);
+  const [courseOpen, setCourseOpen] = useState(false);
+
+  useEffect(() => {
+    if (!movieName) return;
+    let alive = true;
+    setLoading(true);
+    axios
+      .get(`/api/v1/cine-trip/movie?name=${encodeURIComponent(movieName)}`)
+      .then((res) => {
+        if (!alive) return;
+        const list = res?.data?.data ?? [];
+        setData(Array.isArray(list) && list.length > 0 ? list[0] : null);
+      })
+      .catch(() => {
+        if (alive) setData(null);
+      })
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [movieName]);
+
+  if (loading) return null;
+
+  const movie = data?.movie || { movieName };
+  const mappings = data?.mappings || [];
+  const regionIndices = data?.regionIndices || [];
+  const uniqueRegions = new Map();
+  mappings.forEach((m) => {
+    if (m?.areaCode && !uniqueRegions.has(m.areaCode)) {
+      uniqueRegions.set(m.areaCode, {
+        areaCode: m.areaCode,
+        regionName: m.regionName,
+        mappingType: m.mappingType,
+      });
+    }
+  });
+  const regionChips = Array.from(uniqueRegions.values());
+  const primaryAreaCode = regionChips[0]?.areaCode;
+  const hasMapping = regionChips.length > 0;
+  const poster = posterSrc(movie.posterPath);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      style={{
+        position: 'relative',
+        maxWidth: 1100,
+        margin: '20px auto 0',
+        padding: '18px 18px 20px',
+        borderRadius: 18,
+        background:
+          'linear-gradient(135deg, rgba(59,130,246,0.22) 0%, rgba(139,92,246,0.22) 50%, rgba(236,72,153,0.22) 100%)',
+        border: '1px solid rgba(255,255,255,0.14)',
+        boxShadow:
+          '0 20px 50px -18px rgba(139,92,246,0.55), inset 0 1px 0 rgba(255,255,255,0.12)',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 3,
+          background: 'linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899)',
+        }}
+      />
+
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="스포트라이트 닫기"
+        style={{
+          position: 'absolute',
+          top: 10,
+          right: 10,
+          width: 30,
+          height: 30,
+          borderRadius: '50%',
+          border: '1px solid rgba(255,255,255,0.18)',
+          background: 'rgba(0,0,0,0.35)',
+          color: '#fff',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <X size={15} />
+      </button>
+
+      <div
+        style={{
+          display: 'flex',
+          gap: 18,
+          alignItems: 'stretch',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div
+          style={{
+            flex: '0 0 120px',
+            width: 120,
+            height: 170,
+            borderRadius: 12,
+            overflow: 'hidden',
+            background: '#0a0a0a',
+            border: '1px solid rgba(255,255,255,0.12)',
+            boxShadow: '0 10px 28px rgba(0,0,0,0.55)',
+          }}
+        >
+          <img
+            src={poster}
+            alt={movie.movieName || 'movie'}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            onError={(e) => {
+              if (!e.target.src.endsWith(NO_POSTER_PLACEHOLDER)) {
+                e.target.src = NO_POSTER_PLACEHOLDER;
+              }
+            }}
+          />
+        </div>
+
+        <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '4px 10px',
+              borderRadius: 999,
+              background: 'rgba(251,191,36,0.15)',
+              border: '1px solid rgba(251,191,36,0.35)',
+              color: '#fde68a',
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: '0.04em',
+              marginBottom: 8,
+            }}
+          >
+            <Sparkles size={12} />
+            CineTrip Spotlight
+          </div>
+
+          <h2
+            style={{
+              fontSize: 22,
+              fontWeight: 900,
+              color: '#fff',
+              margin: '0 0 6px 0',
+              letterSpacing: '-0.3px',
+              lineHeight: 1.25,
+            }}
+          >
+            『{movie.movieName || movieName}』의 발자취를 따라
+          </h2>
+          <p
+            style={{
+              fontSize: 13.5,
+              color: 'rgba(255,255,255,0.78)',
+              margin: '0 0 12px 0',
+              lineHeight: 1.55,
+            }}
+          >
+            {hasMapping
+              ? '아래 버튼 중 하나를 선택해 이 작품과 연결된 여행지를 바로 확인해 보세요.'
+              : '이 작품은 아직 촬영지 매핑이 준비되지 않았어요. 대신 전국 CineTrip 큐레이션을 둘러보세요.'}
+          </p>
+
+          {regionChips.length > 0 && (
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 6,
+                marginBottom: 14,
+              }}
+            >
+              {regionChips.slice(0, 6).map((r) => {
+                const color = MAPPING_TYPE_COLORS[r.mappingType] || '#333';
+                const label = MAPPING_TYPE_LABEL[r.mappingType] || r.mappingType;
+                return (
+                  <button
+                    key={r.areaCode}
+                    type="button"
+                    onClick={() => onFocusRegion?.(r.areaCode)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '5px 10px',
+                      background: 'rgba(0,0,0,0.35)',
+                      border: '1px solid rgba(255,255,255,0.18)',
+                      borderRadius: 999,
+                      color: '#fff',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <MapPin size={11} />
+                    {r.regionName}
+                    <span
+                      style={{
+                        padding: '1px 7px',
+                        borderRadius: 6,
+                        background: color,
+                        fontSize: 10,
+                        fontWeight: 800,
+                        color: '#fff',
+                      }}
+                    >
+                      {label}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 10,
+              alignItems: 'center',
+            }}
+          >
+            {hasMapping && (
+              <button
+                type="button"
+                onClick={() => setCourseOpen(true)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '12px 20px',
+                  border: 'none',
+                  borderRadius: 999,
+                  cursor: 'pointer',
+                  background:
+                    'linear-gradient(135deg, #f59e0b 0%, #ef4444 50%, #ec4899 100%)',
+                  color: '#fff',
+                  fontSize: 14.5,
+                  fontWeight: 800,
+                  letterSpacing: '0.1px',
+                  boxShadow: '0 10px 26px -8px rgba(236,72,153,0.6)',
+                }}
+              >
+                <Plane size={15} />
+                여행 코스 바로 보기
+              </button>
+            )}
+
+            {hasMapping && primaryAreaCode && (
+              <button
+                type="button"
+                onClick={() => onFocusRegion?.(primaryAreaCode)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '11px 16px',
+                  borderRadius: 999,
+                  border: '1px solid rgba(255,255,255,0.22)',
+                  background: 'rgba(255,255,255,0.08)',
+                  color: '#fff',
+                  fontSize: 13.5,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                <Compass size={14} />
+                이 영화의 장소 모아보기
+                <ChevronDown size={14} style={{ opacity: 0.85 }} />
+              </button>
+            )}
+
+            {!hasMapping && (
+              <button
+                type="button"
+                onClick={() => onFocusRegion?.(null)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '11px 18px',
+                  borderRadius: 999,
+                  border: 'none',
+                  background:
+                    'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)',
+                  color: '#fff',
+                  fontSize: 14,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  boxShadow: '0 10px 26px -8px rgba(139,92,246,0.55)',
+                }}
+              >
+                <Compass size={15} />
+                전체 CineTrip 둘러보기
+              </button>
+            )}
+
+            {regionIndices.length > 0 && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '7px 12px',
+                  borderRadius: 10,
+                  background: 'rgba(0,0,0,0.35)',
+                  color: 'rgba(251,191,36,0.95)',
+                  fontSize: 12.5,
+                  fontWeight: 700,
+                }}
+              >
+                <TrendingUp size={13} />
+                관심도{' '}
+                {regionIndices
+                  .reduce((s, r) => s + Number(r?.searchVolume || 0), 0)
+                  .toLocaleString()}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {courseOpen && (
+          <TravelCourseModal
+            movie={movie}
+            mappings={mappings}
+            regionIndices={regionIndices}
+            score={data?.trendingScore || 0}
+            onClose={() => setCourseOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -428,13 +802,31 @@ function MovieCard({ item, index }) {
 }
 
 
-export default function CineTripPage() {
+function CineTripPageInner() {
+  const searchParams = useSearchParams();
+  const movieParam = searchParams.get('movie');
+  const areaParam = searchParams.get('area');
+
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedAreaCode, setSelectedAreaCode] = useState(null);
+  const [selectedAreaCode, setSelectedAreaCode] = useState(areaParam || null);
+  // URL 의 movie= 로 진입한 경우에만 스포트라이트 배너를 렌더.
+  // 사용자가 닫으면 다시 나타나지 않음.
+  const [spotlightMovie, setSpotlightMovie] = useState(movieParam || null);
   const pageRef = useRef(null);
-  // 드래그/스와이프 스크롤을 cine-trip 내부의 모든 .cinetrip-scroll-row / .dashboard-scroll-row 에 적용.
+  const cardsRef = useRef(null);
   useDragScrollAll(pageRef);
+
+  /**
+   * 스포트라이트 배너 → "이 영화의 장소 모아보기" 버튼 콜백.
+   * 지역 필터를 활성화하고 영화 카드 영역으로 부드럽게 스크롤.
+   */
+  const focusRegion = (areaCode) => {
+    setSelectedAreaCode(areaCode ?? null);
+    requestAnimationFrame(() => {
+      cardsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  };
 
   useEffect(() => {
     let alive = true;
@@ -479,6 +871,14 @@ export default function CineTripPage() {
           100% { background-position: 200% 0; }
         }
       `}</style>
+
+      {spotlightMovie && (
+        <MovieSpotlightBanner
+          movieName={spotlightMovie}
+          onFocusRegion={focusRegion}
+          onDismiss={() => setSpotlightMovie(null)}
+        />
+      )}
 
       <CineTripCinematicHero
         posters={items
@@ -593,7 +993,12 @@ export default function CineTripPage() {
          * - 마우스 드래그/터치 스와이프로 좌우 이동(useDragScrollAll 로 바인딩)
          * - 스크롤바(수평/수직) 는 .cinetrip-page / .cinetrip-scroll-row 전역 규칙으로 숨김.
          */}
-        <div className="cinetrip-scroll-row" role="list" aria-label="영화 카드">
+        <div
+          ref={cardsRef}
+          className="cinetrip-scroll-row"
+          role="list"
+          aria-label="영화 카드"
+        >
           {loading ? (
             Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)
           ) : items.length === 0 ? (
@@ -606,5 +1011,14 @@ export default function CineTripPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function CineTripPage() {
+  // useSearchParams 는 Suspense 경계 내부에서 사용해야 Next.js 빌드 경고가 없음.
+  return (
+    <Suspense fallback={null}>
+      <CineTripPageInner />
+    </Suspense>
   );
 }

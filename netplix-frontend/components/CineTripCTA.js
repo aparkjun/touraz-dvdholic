@@ -197,7 +197,12 @@ export default function CineTripCTA({ movieName, posterUrl, contentType }) {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Link
-          href={primaryArea ? `/cine-trip?area=${primaryArea}` : '/cine-trip'}
+          href={(() => {
+            const qp = new URLSearchParams();
+            if (movieName) qp.set('movie', movieName);
+            if (primaryArea) qp.set('area', primaryArea);
+            return `/cine-trip${qp.toString() ? `?${qp.toString()}` : ''}`;
+          })()}
           className="cinetrip-cta-primary"
           style={{
             display: 'inline-flex',
