@@ -12,6 +12,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -193,7 +194,10 @@ public class VisitKoreaGalleryHttpClient implements TourGalleryPort {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.add(HttpHeaders.ACCEPT, "application/json");
-            raw = httpClient.request(sb.toString(), HttpMethod.GET, headers, Map.of());
+            // RestTemplate 의 String uri 오버로드는 URI 템플릿으로 해석되어
+            // 이미 %-인코딩된 한글 keyword 가 이중 인코딩된다. URI 로 감싸 재인코딩 차단.
+            URI uri = URI.create(sb.toString());
+            raw = httpClient.requestUri(uri, HttpMethod.GET, headers);
         } catch (Exception ex) {
             log.error("[GALLERY] 호출 실패 page={} url={} err={}", pageNo, urlForLog, ex.getMessage());
             return null;
