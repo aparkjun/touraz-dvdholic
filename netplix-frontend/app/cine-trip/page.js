@@ -8,6 +8,7 @@ import { shareContent, shareResultMessage } from '@/lib/shareUtils';
 import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
 import ConcentrationForecastStrip from '@/components/ConcentrationForecastStrip';
 import TravelCourseModal from '@/components/TravelCourseModal';
+import CineTripCinematicHero from '@/components/CineTripCinematicHero';
 import useDragScrollAll from '@/lib/useDragScroll';
 
 const REGION_FILTERS = [
@@ -479,97 +480,94 @@ export default function CineTripPage() {
         }
       `}</style>
 
+      <CineTripCinematicHero
+        posters={items
+          .map((it) => posterSrc(it?.posterPath))
+          .filter((u) => u && !u.includes('no-poster-placeholder'))
+          .slice(0, 16)}
+        ctas={[
+          {
+            label: 'Explore Scenes',
+            primary: true,
+            onClick: () => {
+              if (typeof window !== 'undefined') {
+                document
+                  .querySelector('.cinetrip-scroll-row')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            },
+          },
+          {
+            label: 'Find Locations',
+            onClick: () => {
+              if (typeof window !== 'undefined') {
+                document
+                  .getElementById('cinetrip-region-filter')
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            },
+          },
+        ]}
+      />
+
+      {/* 지역 필터 (마퀴 하단, 영화관 좌석 라인처럼 배치) */}
       <div
+        id="cinetrip-region-filter"
         style={{
-          background: 'linear-gradient(180deg, #0a0a0a 0%, #1a0a2e 50%, #0a0a0a 100%)',
-          padding: '72px 20px 52px',
-          textAlign: 'center',
-          position: 'relative',
-          overflow: 'hidden',
+          position: 'sticky',
+          top: 0,
+          zIndex: 20,
+          background:
+            'linear-gradient(180deg, rgba(10, 10, 26, 0.92) 0%, rgba(10, 10, 26, 0.88) 100%)',
+          backdropFilter: 'blur(14px)',
+          borderBottom: '1px solid rgba(212, 175, 55, 0.18)',
+          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)',
+          padding: '14px 20px',
         }}
       >
         <div
           style={{
-            position: 'absolute',
-            inset: 0,
-            background:
-              'radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.18) 0%, transparent 70%)',
-            pointerEvents: 'none',
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 8,
+            justifyContent: 'center',
+            maxWidth: 1100,
+            margin: '0 auto',
           }}
-        />
-        <motion.div
-          initial={{ opacity: 0, y: -16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          style={{ position: 'relative', zIndex: 1 }}
         >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 12,
-              marginBottom: 14,
-            }}
-          >
-            <Sparkles size={28} style={{ color: '#a855f7' }} />
-            <h1
-              style={{
-                fontSize: 44,
-                fontWeight: 800,
-                background: 'linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #3b82f6 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                margin: 0,
-              }}
-            >
-              CineTrip
-            </h1>
-          </div>
-          <p style={{ fontSize: 18, color: '#bfbfbf', marginBottom: 32 }}>
-            영화로 떠나는 한국 여행
-          </p>
-
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 10,
-              justifyContent: 'center',
-              maxWidth: 880,
-              margin: '0 auto',
-            }}
-          >
-            {REGION_FILTERS.map((region) => {
-              const active = selectedAreaCode === region.areaCode;
-              return (
-                <motion.button
-                  key={region.label}
-                  onClick={() => setSelectedAreaCode(region.areaCode)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  style={{
-                    padding: '9px 20px',
-                    borderRadius: 24,
-                    border: active ? '2px solid #a855f7' : '1px solid rgba(255,255,255,0.1)',
-                    background: active
-                      ? 'linear-gradient(135deg, #a855f7 0%, #ec4899 100%)'
-                      : 'rgba(255,255,255,0.05)',
-                    color: '#fff',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.25s ease',
-                    backdropFilter: 'blur(10px)',
-                  }}
-                >
-                  {region.label}
-                </motion.button>
-              );
-            })}
-          </div>
-        </motion.div>
+          {REGION_FILTERS.map((region) => {
+            const active = selectedAreaCode === region.areaCode;
+            return (
+              <motion.button
+                key={region.label}
+                onClick={() => setSelectedAreaCode(region.areaCode)}
+                whileHover={{ scale: 1.05, y: -1 }}
+                whileTap={{ scale: 0.96 }}
+                style={{
+                  padding: '7px 16px',
+                  borderRadius: 2,
+                  border: active
+                    ? '1px solid #d4af37'
+                    : '1px solid rgba(212, 175, 55, 0.22)',
+                  background: active
+                    ? 'linear-gradient(135deg, #c41e3a 0%, #9b162d 100%)'
+                    : 'rgba(10, 10, 26, 0.6)',
+                  color: active ? '#fef3c7' : 'rgba(245, 245, 220, 0.78)',
+                  fontSize: 12.5,
+                  fontWeight: 800,
+                  letterSpacing: '0.06em',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  boxShadow: active
+                    ? '0 6px 20px -8px rgba(196, 30, 58, 0.7)'
+                    : 'none',
+                }}
+              >
+                {region.label}
+              </motion.button>
+            );
+          })}
+        </div>
       </div>
 
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '40px 20px' }}>
