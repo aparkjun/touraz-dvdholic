@@ -350,6 +350,7 @@ export default function CineTripCinematicHero({
   posters = [],
   tagline = 'Your favorite scene is a real place.',
   korean = '좋아하는 그 장면이, 실제로 존재하는 장소입니다.',
+  topLabel = 'Cinematic Journeys · 영화로 떠나는 여행',
   ctas = [],
 }) {
   // 스트립에 쓸 포스터. 부족하면 반복해서 채움.
@@ -432,7 +433,7 @@ export default function CineTripCinematicHero({
               textTransform: 'uppercase',
             }}
           >
-            Cinematic Journeys · 영화로 떠나는 여행
+            {topLabel}
           </span>
           <Film size={18} style={{ color: '#d4af37', transform: 'scaleX(-1)' }} />
         </motion.div>
@@ -538,16 +539,18 @@ export default function CineTripCinematicHero({
           >
             {tagline}
           </p>
-          <p
-            style={{
-              fontSize: 14.5,
-              color: 'rgba(245, 245, 220, 0.62)',
-              margin: 0,
-              letterSpacing: '-0.005em',
-            }}
-          >
-            {korean}
-          </p>
+          {korean && (
+            <p
+              style={{
+                fontSize: 14.5,
+                color: 'rgba(245, 245, 220, 0.62)',
+                margin: 0,
+                letterSpacing: '-0.005em',
+              }}
+            >
+              {korean}
+            </p>
+          )}
           <span
             aria-hidden
             style={{

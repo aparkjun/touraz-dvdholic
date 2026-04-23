@@ -430,5 +430,28 @@
     "message": "Ad tracking is currently blocked.\nPlease enable tracking in Settings for personalized ads.",
     "goToSettings": "Go to Settings",
     "later": "Later"
+  },
+  "cineTrip": {
+    "hero": {
+      "topLabel": "Cinematic Journeys · Travel with the Movies",
+      "tagline": "Your favorite scene is a real place.",
+      "taglineEn": "Travel the Korea you saw on screen.",
+      "subcopy": "",
+      "cta": {
+        "explore": "Explore Scenes",
+        "findLocations": "Find Locations"
+      }
+    },
+    "engSpots": {
+      "title": "Travel Spots Around This Film",
+      "subtitle": "Handpicked places in {{region}}",
+      "tab": {
+        "attractions": "Attractions",
+        "restaurants": "Restaurants",
+        "accommodations": "Stays"
+      },
+      "openMap": "Open in Maps",
+      "website": "Website"
+    }
   }
 }

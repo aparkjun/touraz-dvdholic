@@ -17,6 +17,7 @@ import {
   Landmark,
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
+import { useTranslation } from 'react-i18next';
 
 /**
  * CineTrip 상세 모달용 "이 지역 무장애 스팟" 스트립.
@@ -46,6 +47,9 @@ const BUCKET_ORDER = [
 ];
 
 export default function AccessibleSpotsStrip({ areaCode, regionLabel = '' }) {
+  const { i18n } = useTranslation();
+  const isEn = i18n.language && i18n.language.startsWith('en');
+
   const [buckets, setBuckets] = useState({});
   const [activeBucket, setActiveBucket] = useState('attractions');
   const [loading, setLoading] = useState(true);
@@ -92,6 +96,8 @@ export default function AccessibleSpotsStrip({ areaCode, regionLabel = '' }) {
   if (!loading && totalCount === 0) {
     return null;
   }
+  // 무장애 관광(KorWithService2) 국내 전용 데이터셋 → 영어 모드에서는 섹션 전체 숨김.
+  if (isEn) return null;
 
   const activeList = buckets?.[activeBucket] || [];
 

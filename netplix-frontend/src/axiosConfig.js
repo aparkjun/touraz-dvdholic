@@ -1,6 +1,14 @@
 import axios from "axios";
 import { getApiBaseUrl } from "./apiConfig";
 
+// i18next 현재 언어 감지(브라우저 전용). Capacitor WebView 에서도 동일하게 동작.
+function getAcceptLanguage() {
+  if (typeof window === "undefined") return "ko-KR,ko;q=0.9";
+  const lang = (window.localStorage?.getItem("i18nextLng") || "ko").toLowerCase();
+  if (lang.startsWith("en")) return "en-US,en;q=0.9";
+  return "ko-KR,ko;q=0.9";
+}
+
 // 매 요청마다 baseURL 갱신 (Capacitor WebView 초기화 타이밍 이슈 회피)
 axios.defaults.baseURL = getApiBaseUrl();
 
@@ -30,6 +38,7 @@ axios.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
     }
+    config.headers["Accept-Language"] = getAcceptLanguage();
     return config;
   },
   (error) => {
@@ -80,6 +89,7 @@ export const publicAxios = axios.create({
 });
 publicAxios.interceptors.request.use((config) => {
   config.baseURL = getApiBaseUrl();
+  config.headers["Accept-Language"] = getAcceptLanguage();
   return config;
 });
 

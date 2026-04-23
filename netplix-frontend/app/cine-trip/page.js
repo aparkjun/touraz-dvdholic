@@ -15,9 +15,11 @@ import {
 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import axios from '@/lib/axiosConfig';
+import { useTranslation } from 'react-i18next';
 import { shareContent, shareResultMessage } from '@/lib/shareUtils';
 import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
 import ConcentrationForecastStrip from '@/components/ConcentrationForecastStrip';
+import EngTourSpotsStrip from '@/components/EngTourSpotsStrip';
 import TravelCourseModal from '@/components/TravelCourseModal';
 import CineTripCinematicHero from '@/components/CineTripCinematicHero';
 import useDragScrollAll from '@/lib/useDragScroll';
@@ -803,6 +805,9 @@ function MovieCard({ item, index }) {
 
 
 function CineTripPageInner() {
+  const { t, i18n } = useTranslation();
+  const isEn = i18n.language && i18n.language.startsWith('en');
+
   const searchParams = useSearchParams();
   const movieParam = searchParams.get('movie');
   const areaParam = searchParams.get('area');
@@ -885,9 +890,20 @@ function CineTripPageInner() {
           .map((it) => posterSrc(it?.posterPath))
           .filter((u) => u && !u.includes('no-poster-placeholder'))
           .slice(0, 16)}
+        topLabel={t('cineTrip.hero.topLabel', 'Cinematic Journeys · 영화로 떠나는 여행')}
+        tagline={
+          isEn
+            ? t('cineTrip.hero.taglineEn', 'Travel the Korea you saw on screen.')
+            : t('cineTrip.hero.tagline', 'Your favorite scene is a real place.')
+        }
+        korean={
+          isEn
+            ? ''
+            : t('cineTrip.hero.subcopy', '좋아하는 그 장면이, 실제로 존재하는 장소입니다.')
+        }
         ctas={[
           {
-            label: 'Explore Scenes',
+            label: t('cineTrip.hero.cta.explore', 'Explore Scenes'),
             primary: true,
             onClick: () => {
               if (typeof window !== 'undefined') {
@@ -898,7 +914,7 @@ function CineTripPageInner() {
             },
           },
           {
-            label: 'Find Locations',
+            label: t('cineTrip.hero.cta.findLocations', 'Find Locations'),
             onClick: () => {
               if (typeof window !== 'undefined') {
                 document
@@ -985,6 +1001,19 @@ function CineTripPageInner() {
             selectedAreaCode
               ? `${REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''} 수상작 포토스팟`
               : '전국 수상작 포토스팟'
+          }
+        />
+
+        {/*
+         * 영어 모드 전용 "Travel Spots Around This Film" 스트립.
+         * - 컴포넌트 내부에서 isEn / areaCode / 0건 fallback 을 모두 처리하므로
+         *   조건부 렌더링 없이 그대로 렌더해도 국문 모드에서는 null 반환.
+         * - 사용자가 제시한 키워드(관광지·미식산업·숙박) 3 버킷 탭으로 구성.
+         */}
+        <EngTourSpotsStrip
+          areaCode={selectedAreaCode}
+          regionLabel={
+            REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''
           }
         />
 

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Activity, MapPin } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
+import { useTranslation } from 'react-i18next';
 
 /**
  * 관광지 7일 혼잡도 예측 스트립.
@@ -18,6 +19,9 @@ import axios from '@/lib/axiosConfig';
  *     >= 85 : 매우 혼잡 (빨강)
  */
 export default function ConcentrationForecastStrip({ areaCode = null, regionLabel = '' }) {
+  const { i18n } = useTranslation();
+  const isEn = i18n.language && i18n.language.startsWith('en');
+
   const [predictions, setPredictions] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -49,6 +53,8 @@ export default function ConcentrationForecastStrip({ areaCode = null, regionLabe
 
   if (!areaCode) return null;
   if (!loading && predictions.length === 0) return null;
+  // 혼잡도 예측(KorService2 국내 관광지 한정) 영어판 미제공 → 영어 모드에서는 섹션 자체 숨김.
+  if (isEn) return null;
 
   const spotName = predictions[0]?.spotName;
   const signguName = predictions[0]?.signguName;

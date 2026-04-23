@@ -494,5 +494,28 @@
     "toggleOn": "Travel mode",
     "toggleOff": "Normal mode",
     "hint": "Travel mode: recommendations are enriched with regional tourism data and film mappings."
+  },
+  "cineTrip": {
+    "hero": {
+      "topLabel": "Cinematic Journeys · Travel with the Movies",
+      "tagline": "Your favorite scene is a real place.",
+      "taglineEn": "Travel the Korea you saw on screen.",
+      "subcopy": "",
+      "cta": {
+        "explore": "Explore Scenes",
+        "findLocations": "Find Locations"
+      }
+    },
+    "engSpots": {
+      "title": "Travel Spots Around This Film",
+      "subtitle": "Handpicked places in {{region}}",
+      "tab": {
+        "attractions": "Attractions",
+        "restaurants": "Restaurants",
+        "accommodations": "Stays"
+      },
+      "openMap": "Open in Maps",
+      "website": "Website"
+    }
   }
 }

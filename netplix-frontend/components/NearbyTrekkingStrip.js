@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Footprints, Mountain, Timer, Download, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 import axios from '@/lib/axiosConfig';
+import { useTranslation } from 'react-i18next';
 
 /**
  * CineTrip 영화 모달의 각 Stop(지역) 섹션 하단에 노출되는
@@ -26,6 +27,9 @@ export default function NearbyTrekkingStrip({
   badgeLabel = 'CineWalk',
   subtitle,
 }) {
+  const { i18n } = useTranslation();
+  const isEn = i18n.language && i18n.language.startsWith('en');
+
   const isLight = theme === 'light';
   const headerBadgeBg = isLight
     ? 'linear-gradient(135deg, #059669 0%, #0ea5e9 100%)'
@@ -70,6 +74,8 @@ export default function NearbyTrekkingStrip({
   }, [areaCode, limit]);
 
   if (!loading && !error && courses.length === 0) return null;
+  // 두루누비(한국관광공사 코리아둘레길) 국내 전용 트래킹 코스 → 영어 모드에서는 섹션 숨김.
+  if (isEn) return null;
 
   return (
     <section style={{ marginTop: 18 }}>

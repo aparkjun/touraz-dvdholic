@@ -1,6 +1,19 @@
 import axios from "axios";
 import { getApiBaseUrl } from "@/lib/apiConfig";
 
+// i18next 현재 언어 감지 — 브라우저 환경에서만 동작.
+// SSR/빌드타임에는 기본값 "ko" 를 사용해 백엔드와 합치(한국어 우선) 를 유지.
+// Accept-Language 는 관광 POI(EngService2 vs KorService2) / TMDB(ko-KR vs en-US)
+// 라우팅의 단일 진실 공급원(Single Source of Truth) 이 된다.
+function getAcceptLanguage() {
+  if (typeof window === "undefined") return "ko-KR,ko;q=0.9";
+  const lang = (window.localStorage?.getItem("i18nextLng") || "ko").toLowerCase();
+  // i18next 는 "en-US" 같은 full code 또는 "ko" 같은 short code 를 둘 다 쓴다.
+  // HTTP Accept-Language 포맷으로 정규화.
+  if (lang.startsWith("en")) return "en-US,en;q=0.9";
+  return "ko-KR,ko;q=0.9";
+}
+
 function getAnonId() {
   if (typeof window === "undefined") return null;
   let id = localStorage.getItem("anon_uid");
@@ -44,6 +57,9 @@ axios.interceptors.request.use(
     if (anonId) {
       config.headers["X-Anon-Id"] = anonId;
     }
+    // i18next locale 기반 Accept-Language 자동 주입.
+    // 백엔드 LocaleResolver / 영문 POI 컴포넌트가 이 헤더로 국·영문 분기한다.
+    config.headers["Accept-Language"] = getAcceptLanguage();
     return config;
   },
   (error) => {
@@ -93,6 +109,7 @@ export const publicAxios = axios.create({
 });
 publicAxios.interceptors.request.use((config) => {
   config.baseURL = getApiBaseUrl();
+  config.headers["Accept-Language"] = getAcceptLanguage();
   return config;
 });
 

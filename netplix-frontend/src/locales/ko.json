@@ -494,5 +494,28 @@
     "toggleOn": "여행 모드",
     "toggleOff": "일반 모드",
     "hint": "여행 모드: 관광데이터와 작품 매핑을 반영해 지역 기반 추천을 받아요."
+  },
+  "cineTrip": {
+    "hero": {
+      "topLabel": "Cinematic Journeys · 영화로 떠나는 여행",
+      "tagline": "Your favorite scene is a real place.",
+      "taglineEn": "Travel the Korea you saw on screen.",
+      "subcopy": "좋아하는 그 장면이, 실제로 존재하는 장소입니다.",
+      "cta": {
+        "explore": "장면 탐색",
+        "findLocations": "촬영지 찾기"
+      }
+    },
+    "engSpots": {
+      "title": "영화 속 장소 주변 관광지",
+      "subtitle": "{{region}}의 엄선된 장소",
+      "tab": {
+        "attractions": "관광지",
+        "restaurants": "맛집",
+        "accommodations": "숙소"
+      },
+      "openMap": "지도에서 보기",
+      "website": "공식 홈페이지"
+    }
   }
 }

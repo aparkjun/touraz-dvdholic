@@ -18,6 +18,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
+import { useTranslation } from 'react-i18next';
 
 /**
  * CineTrip 상세 모달 / 반려동물 전용 페이지에서 공용으로 쓰는 "반려동물 친화 스팟" 스트립.
@@ -51,6 +52,9 @@ const BUCKET_ORDER = [
 ];
 
 export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '' }) {
+  const { i18n } = useTranslation();
+  const isEn = i18n.language && i18n.language.startsWith('en');
+
   const [buckets, setBuckets] = useState({});
   const [activeBucket, setActiveBucket] = useState('attractions');
   const [loading, setLoading] = useState(true);
@@ -93,6 +97,8 @@ export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '' }) {
     0
   );
   if (!loading && totalCount === 0) return null;
+  // 반려동물 친화 관광(KorPetTourService) 국내 전용 → 영어 모드에서는 섹션 숨김.
+  if (isEn) return null;
 
   const activeList = buckets?.[activeBucket] || [];
 
