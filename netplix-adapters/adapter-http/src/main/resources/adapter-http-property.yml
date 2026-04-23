@@ -36,6 +36,22 @@ tmdb:
 visitkorea:
   auth:
     service-key: ${VISITKOREA_SERVICE_KEY:}
+  # 영문 관광정보 서비스 (한국관광공사_영문_관광정보서비스_GW, 공공데이터 Base URL: apis.data.go.kr/B551011/EngService2)
+  # 국문 KorService2 와 오퍼레이션 스펙이 거의 동일하며(areaCode/contentTypeId/contentId 공통 키),
+  # 응답 메타(title/addr1/overview 등) 만 영문으로 내려온다. 외국인 사용자(영어 모드)가 선택한
+  # 촬영지·배경지·주변 여행 POI 를 영문으로 탐색할 수 있게 연결한다.
+  # - 서비스 키는 일반적으로 국문과 동일한 일반인증키로도 동작하지만, 일부 발급 이력은 별도 키라
+  #   기본 전략은 VISITKOREA_ENG_SERVICE_KEY 를 우선 사용하고 미설정 시 공용 VISITKOREA_SERVICE_KEY 로 fallback.
+  # - 지원 오퍼레이션(Phase 1 에서 사용): areaBasedList2 / locationBasedList2 / searchKeyword2 / detailCommon2
+  eng:
+    auth:
+      service-key: ${VISITKOREA_ENG_SERVICE_KEY:${VISITKOREA_SERVICE_KEY:}}
+    base-url: https://apis.data.go.kr/B551011/EngService2
+    area-based: ${visitkorea.eng.base-url}/areaBasedList2
+    location-based: ${visitkorea.eng.base-url}/locationBasedList2
+    search-keyword: ${visitkorea.eng.base-url}/searchKeyword2
+    detail-common: ${visitkorea.eng.base-url}/detailCommon2
+    cache-minutes: 360
   api:
     base-url: https://apis.data.go.kr/B551011/DataLabService
     # 광역 지자체 방문자수 (metcoRegnVisitrDDList) - 활성. 응답의 areaCode 는 11,26,... 이며
