@@ -6,6 +6,7 @@ import { Sparkles, TrendingUp, PawPrint, Plane, PlaneTakeoff } from 'lucide-reac
 import Link from 'next/link';
 import axios from '@/lib/axiosConfig';
 import TravelPortalButton from '@/components/TravelPortalButton';
+import TrekkingPortalButton from '@/components/TrekkingPortalButton';
 
 const RANK_COLORS = [
   'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
@@ -291,7 +292,7 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
         style={{
           marginTop: 20,
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
           gap: 14,
         }}
       >
@@ -313,6 +314,14 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
           cta="반려동물 여행 전체 보기"
           Icon={PawPrint}
           theme="outdoor"
+          fullWidth
+        />
+        <TrekkingPortalButton
+          href="/trekking"
+          tag="Durunubi · Korea Trails"
+          title="코스로 떠나는 걷기여행"
+          desc="코리아둘레길 284개 코스, 숲길·바닷길·마을길을 따라 산뜻하게 걸어봐요."
+          cta="걷기여행 코스 둘러보기"
           fullWidth
         />
       </div>

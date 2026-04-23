@@ -132,3 +132,16 @@ visitkorea:
     detail-pet-tour: ${visitkorea.pet.base-url}/detailPetTour2
     cache-minutes: 360
     warmer-enabled: true
+  # 두루누비 정보 서비스 GW (공공데이터 15101974, TourAPI Guide v4.1)
+  # Base URL: apis.data.go.kr/B551011/Durunubi
+  # 공식 오퍼레이션 2종:
+  #   - courseList : 코스 목록 정보 조회 (코리아둘레길 284개 코스. GPX·지역·난이도·거리·주변 관광지 포함)
+  #   - routeList  : 길 목록 정보 조회 (해파랑길/남파랑길/서해랑길/DMZ 평화의 길 등 상위 브랜드)
+  # 필수 파라미터: serviceKey, MobileOS=ETC, MobileApp, numOfRows, pageNo
+  # courseList 선택 필터: brdDiv(DNWW/DNBW/DNHW/DNJJ 등), routeIdx, crsKorNm(코스명 부분검색)
+  # 단일 VISITKOREA_SERVICE_KEY 를 다른 KTO 서비스와 공유하므로 어댑터 내부에서 6시간 TTL 캐시 유지.
+  durunubi:
+    base-url: https://apis.data.go.kr/B551011/Durunubi
+    course-list: ${visitkorea.durunubi.base-url}/courseList
+    route-list: ${visitkorea.durunubi.base-url}/routeList
+    cache-minutes: 360
