@@ -241,10 +241,11 @@ public class VisitKoreaGalleryHttpClient implements TourGalleryPort {
                 .filter(i -> i.getGalWebImageUrl() != null && !i.getGalWebImageUrl().isBlank())
                 .map(VisitKoreaGalleryHttpClient::toDomain)
                 .collect(Collectors.toList());
-        if (list.isEmpty() && totalCount == 0 && !extraParams.isEmpty()) {
-            // 키워드 검색이 0건일 때 실제 API 가 돌려준 raw 를 80자만 찍어 원인 추적
-            String preview = trimmed.length() > 240 ? trimmed.substring(0, 240) : trimmed;
-            log.warn("[GALLERY] 0건 응답 page={} url={} raw-prefix={}", pageNo, urlForLog, preview);
+        if (list.isEmpty() && !extraParams.isEmpty()) {
+            // 키워드 검색이 0건일 때 실제 API 가 돌려준 raw 를 찍어 원인 추적
+            String preview = trimmed.length() > 320 ? trimmed.substring(0, 320) : trimmed;
+            log.warn("[GALLERY] 0건 응답 page={} totalCount={} url={} raw-prefix={}",
+                    pageNo, totalCount, urlForLog, preview);
         }
         return new PageResult(list, totalCount);
     }
