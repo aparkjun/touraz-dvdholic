@@ -14,10 +14,10 @@
     "logoutFailed": "Logout failed"
   },
   "main": {
-    "tagline": "Everything About Movies",
-    "subtitle": "Check OTT info, ratings, and recommendations in one place",
+    "tagline": "Everything for Movie Trips",
+    "subtitle": "From film locations to travel courses, all in one place",
     "browseWithoutLogin": "Browse Without Login",
-    "browseDesc": "Movie details, ratings & OTT info",
+    "browseDesc": "Browse movies, locations & travel courses",
     "login": "Login",
     "signup": "Sign Up",
     "ottInfo": "OTT Info",

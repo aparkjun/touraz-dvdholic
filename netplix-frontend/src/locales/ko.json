@@ -16,10 +16,10 @@
     "logoutFailed": "로그아웃 실패"
   },
   "main": {
-    "tagline": "영화 정보의 모든 것",
-    "subtitle": "OTT 정보, 평점, 추천까지 한 곳에서 확인하세요",
+    "tagline": "영화 여행의 모든 것",
+    "subtitle": "영화의 배경지부터 여행 코스까지 한 곳에서",
     "browseWithoutLogin": "로그인 없이 둘러보기",
-    "browseDesc": "영화 상세·평점·OTT 확인",
+    "browseDesc": "영화 · 촬영지 · 여행 코스 둘러보기",
     "login": "로그인",
     "signup": "회원가입",
     "ottInfo": "OTT 정보",
