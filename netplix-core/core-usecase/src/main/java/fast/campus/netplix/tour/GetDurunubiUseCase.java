@@ -7,7 +7,7 @@ import java.util.List;
  */
 public interface GetDurunubiUseCase {
 
-    List<DurunubiCourse> courses(String brdDiv, String routeIdx, String keyword, int limit);
+    List<DurunubiCourse> courses(String brdDiv, String routeIdx, String keyword, String areaCode, int limit);
 
     List<DurunubiRoute> routes(int limit);
 

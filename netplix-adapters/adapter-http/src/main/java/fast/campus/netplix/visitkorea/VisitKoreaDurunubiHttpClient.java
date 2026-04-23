@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -71,17 +72,21 @@ public class VisitKoreaDurunubiHttpClient implements DurunubiPort {
     }
 
     @Override
-    public List<DurunubiCourse> fetchCourses(String brdDiv, String routeIdx, String keyword, int limit) {
+    public List<DurunubiCourse> fetchCourses(String brdDiv, String routeIdx, String keyword, String areaCode, int limit) {
         if (!isConfigured()) return List.of();
+        // areaCode 는 캐시 키에 포함하지 않는다: 업스트림 호출은 (brdDiv|routeIdx|keyword) 단위로만 하고
+        // areaCode 는 메모리 내 후필터 — 호출량을 늘리지 않으면서 지역 브릿지 기능을 제공한다.
         String key = nullSafe(brdDiv) + "|" + nullSafe(routeIdx) + "|" + nullSafe(keyword);
         long now = Instant.now().toEpochMilli();
         CacheEntry<DurunubiCourse> cached = courseCache.get(key);
+        List<DurunubiCourse> source;
         if (cached != null && (now - cached.loadedAtMs) < Duration.ofMinutes(cacheMinutes).toMillis()) {
-            return take(cached.items, limit);
+            source = cached.items;
+        } else {
+            source = callCourseListApi(brdDiv, routeIdx, keyword);
+            courseCache.put(key, new CacheEntry<>(source, now));
         }
-        List<DurunubiCourse> items = callCourseListApi(brdDiv, routeIdx, keyword);
-        courseCache.put(key, new CacheEntry<>(items, now));
-        return take(items, limit);
+        return take(filterByAreaCode(source, areaCode), limit);
     }
 
     @Override
@@ -207,6 +212,51 @@ public class VisitKoreaDurunubiHttpClient implements DurunubiPort {
     }
 
     private static String nullSafe(String v) { return v == null ? "" : v; }
+
+    /**
+     * 한국관광공사 광역시도 areaCode(1~39) 를 두루누비 {@code sigun} 필드의 광역 접두어로 매핑.
+     * 두루누비 응답의 {@code sigun} 은 "부산 남구", "경남 창원시" 와 같이 "광역 약칭 + 공백 + 시군구"
+     * 형태이므로 접두어(또는 contains) 매칭만으로 99% 정확한 광역 필터가 가능하다.
+     */
+    private static final Map<String, String[]> AREA_CODE_TO_SIGUN_PREFIX = Map.ofEntries(
+            Map.entry("1",  new String[]{"서울"}),
+            Map.entry("2",  new String[]{"인천"}),
+            Map.entry("3",  new String[]{"대전"}),
+            Map.entry("4",  new String[]{"대구"}),
+            Map.entry("5",  new String[]{"광주"}),
+            Map.entry("6",  new String[]{"부산"}),
+            Map.entry("7",  new String[]{"울산"}),
+            Map.entry("8",  new String[]{"세종"}),
+            Map.entry("31", new String[]{"경기"}),
+            Map.entry("32", new String[]{"강원"}),
+            Map.entry("33", new String[]{"충북", "충청북도"}),
+            Map.entry("34", new String[]{"충남", "충청남도"}),
+            Map.entry("35", new String[]{"전북", "전라북도"}),
+            Map.entry("36", new String[]{"전남", "전라남도"}),
+            Map.entry("37", new String[]{"경북", "경상북도"}),
+            Map.entry("38", new String[]{"경남", "경상남도"}),
+            Map.entry("39", new String[]{"제주"})
+    );
+
+    private static List<DurunubiCourse> filterByAreaCode(List<DurunubiCourse> src, String areaCode) {
+        if (src == null || src.isEmpty()) return List.of();
+        if (areaCode == null || areaCode.isBlank()) return src;
+        String[] prefixes = AREA_CODE_TO_SIGUN_PREFIX.get(areaCode.trim());
+        if (prefixes == null || prefixes.length == 0) return src;
+        List<DurunubiCourse> out = new ArrayList<>();
+        for (DurunubiCourse c : src) {
+            String sigun = c.getSigun();
+            if (sigun == null || sigun.isBlank()) continue;
+            String norm = sigun.trim().toLowerCase(Locale.ROOT);
+            for (String p : prefixes) {
+                if (norm.startsWith(p.toLowerCase(Locale.ROOT)) || norm.contains(p.toLowerCase(Locale.ROOT))) {
+                    out.add(c);
+                    break;
+                }
+            }
+        }
+        return out;
+    }
 
     private static <T> List<T> take(List<T> list, int limit) {
         if (list == null || list.isEmpty()) return List.of();

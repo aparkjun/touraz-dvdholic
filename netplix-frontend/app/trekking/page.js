@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
@@ -16,8 +16,14 @@ import {
   Gauge,
   Download,
   Compass,
+  Film,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
+import NearbyCineTripStrip from '@/components/NearbyCineTripStrip';
+import { sigunToAreaCode, areaCodeToLabel } from '@/lib/regionMap';
+import useDragScrollAll from '@/lib/useDragScroll';
 
 /**
  * 코스로 떠나는 걷기여행 (코리아둘레길 · 두루누비) 페이지.
@@ -86,6 +92,10 @@ const labelForRoute = (routeIdx) =>
   ROUTE_FILTERS.find((f) => f.routeIdx === routeIdx)?.label || '기타';
 
 export default function TrekkingPage() {
+  const pageRef = useRef(null);
+  // 동적으로 펼쳐지는 NearbyCineTripStrip(.js-drag-scroll) 도 자동 바인딩
+  useDragScrollAll(pageRef);
+
   const [routes, setRoutes] = useState([]);
   const [routesLoading, setRoutesLoading] = useState(true);
   const [routesError, setRoutesError] = useState(null);
@@ -140,6 +150,7 @@ export default function TrekkingPage() {
 
   return (
     <div
+      ref={pageRef}
       style={{
         minHeight: '100vh',
         background:
@@ -442,6 +453,9 @@ function CourseCard({ course }) {
   const acc = accentForRoute(course.routeIdx);
   const routeLabel = labelForRoute(course.routeIdx);
   const [open, setOpen] = useState(false);
+  const [cineOpen, setCineOpen] = useState(false);
+  const courseAreaCode = sigunToAreaCode(course.sigun);
+  const courseAreaLabel = areaCodeToLabel(courseAreaCode);
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
@@ -525,21 +539,60 @@ function CourseCard({ course }) {
         </>
       )}
 
-      {course.gpxpath && (
-        <a
-          href={`/api/v1/tour/trekking/gpx?url=${encodeURIComponent(course.gpxpath)}&name=${encodeURIComponent(course.crsKorNm || course.crsIdx || 'durunubi-course')}`}
-          rel="noopener noreferrer"
-          download
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+        {course.gpxpath && (
+          <a
+            href={`/api/v1/tour/trekking/gpx?url=${encodeURIComponent(course.gpxpath)}&name=${encodeURIComponent(course.crsKorNm || course.crsIdx || 'durunubi-course')}`}
+            rel="noopener noreferrer"
+            download
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '7px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700,
+              background: acc.chipBg, color: acc.chip, textDecoration: 'none',
+              border: `1px solid ${acc.chip}55`,
+            }}
+          >
+            <Download size={12} />
+            GPX 다운로드
+          </a>
+        )}
+        {courseAreaCode && (
+          <button
+            type="button"
+            onClick={() => setCineOpen((v) => !v)}
+            aria-expanded={cineOpen}
+            aria-label={`${courseAreaLabel} 배경 영화 ${cineOpen ? '접기' : '펼치기'}`}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '7px 12px', borderRadius: 999, fontSize: 12, fontWeight: 800,
+              background:
+                'linear-gradient(135deg, rgba(168,85,247,0.18) 0%, rgba(236,72,153,0.18) 100%)',
+              color: '#f5d0fe',
+              border: '1px solid rgba(168,85,247,0.45)',
+              cursor: 'pointer',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            <Film size={12} />
+            이 길의 영화 {courseAreaLabel && `(${courseAreaLabel})`}
+            {cineOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+        )}
+      </div>
+
+      {cineOpen && courseAreaCode && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          transition={{ duration: 0.25 }}
           style={{
-            marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '7px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700,
-            background: acc.chipBg, color: acc.chip, textDecoration: 'none',
-            border: `1px solid ${acc.chip}55`,
+            marginTop: 14,
+            paddingTop: 14,
+            borderTop: '1px dashed rgba(168,85,247,0.3)',
           }}
         >
-          <Download size={12} />
-          GPX 다운로드
-        </a>
+          <NearbyCineTripStrip areaCode={courseAreaCode} sigun={course.sigun} limit={8} />
+        </motion.div>
       )}
     </motion.div>
   );

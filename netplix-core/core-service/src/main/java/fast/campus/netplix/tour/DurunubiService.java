@@ -20,8 +20,8 @@ public class DurunubiService implements GetDurunubiUseCase {
     private final DurunubiPort port;
 
     @Override
-    public List<DurunubiCourse> courses(String brdDiv, String routeIdx, String keyword, int limit) {
-        return port.fetchCourses(brdDiv, routeIdx, keyword, sanitize(limit));
+    public List<DurunubiCourse> courses(String brdDiv, String routeIdx, String keyword, String areaCode, int limit) {
+        return port.fetchCourses(brdDiv, routeIdx, keyword, areaCode, sanitize(limit));
     }
 
     @Override

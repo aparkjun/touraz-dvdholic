@@ -22,9 +22,11 @@ public interface DurunubiPort {
      * @param brdDiv    길 구분 코드(예: DNWW/DNBW/DNHW/DNJJ). null/blank 이면 전체.
      * @param routeIdx  특정 길(route) 고유번호. null/blank 이면 전체 길.
      * @param keyword   코스명 부분 검색 키워드. null/blank 이면 미적용.
+     * @param areaCode  한국관광공사 광역시도 코드(1~39). null/blank 이면 전체.
+     *                  내부에서 {@code sigun} 필드(예: "부산 남구")의 광역 토큰과 대조해 필터링.
      * @param limit     최대 반환 개수.
      */
-    List<DurunubiCourse> fetchCourses(String brdDiv, String routeIdx, String keyword, int limit);
+    List<DurunubiCourse> fetchCourses(String brdDiv, String routeIdx, String keyword, String areaCode, int limit);
 
     /** 두루누비 길(route) 목록 조회. */
     List<DurunubiRoute> fetchRoutes(int limit);

@@ -17,6 +17,7 @@ import ConcentrationForecastStrip from '@/components/ConcentrationForecastStrip'
 import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
 import AccessibleSpotsStrip from '@/components/AccessibleSpotsStrip';
 import PetFriendlySpotsStrip from '@/components/PetFriendlySpotsStrip';
+import NearbyTrekkingStrip from '@/components/NearbyTrekkingStrip';
 
 /**
  * "여행 코스 보기" 버튼에서 열리는 영화 단위 여행 코스 모달.
@@ -610,6 +611,12 @@ export default function TravelCourseModal({
                   <PetFriendlySpotsStrip
                     areaCode={m.areaCode}
                     regionLabel={regionName}
+                  />
+
+                  <NearbyTrekkingStrip
+                    areaCode={m.areaCode}
+                    regionName={regionName}
+                    limit={6}
                   />
                 </section>
               );

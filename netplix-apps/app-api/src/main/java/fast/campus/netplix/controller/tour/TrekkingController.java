@@ -55,8 +55,9 @@ public class TrekkingController {
             @RequestParam(required = false) String brdDiv,
             @RequestParam(required = false) String routeIdx,
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String areaCode,
             @RequestParam(defaultValue = "24") int limit) {
-        List<DurunubiCourseResponse> body = useCase.courses(brdDiv, routeIdx, keyword, limit).stream()
+        List<DurunubiCourseResponse> body = useCase.courses(brdDiv, routeIdx, keyword, areaCode, limit).stream()
                 .map(DurunubiCourseResponse::from)
                 .toList();
         return NetplixApiResponse.ok(body);
