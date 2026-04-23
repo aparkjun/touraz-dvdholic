@@ -510,7 +510,9 @@ function CourseCard({ course }) {
 
       {course.gpxpath && (
         <a
-          href={course.gpxpath} target="_blank" rel="noopener noreferrer"
+          href={`/api/v1/tour/trekking/gpx?url=${encodeURIComponent(course.gpxpath)}&name=${encodeURIComponent(course.crsKorNm || course.crsIdx || 'durunubi-course')}`}
+          rel="noopener noreferrer"
+          download
           style={{
             marginTop: 12, display: 'inline-flex', alignItems: 'center', gap: 6,
             padding: '7px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700,
