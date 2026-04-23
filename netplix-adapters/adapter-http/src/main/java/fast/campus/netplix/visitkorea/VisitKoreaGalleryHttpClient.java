@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -103,17 +104,39 @@ public class VisitKoreaGalleryHttpClient implements TourGalleryPort {
         String key = keyword.trim().toLowerCase(Locale.ROOT);
 
         CacheSnapshot snap = cache.get(key);
-        if (snap == null || isStale(snap)) {
-            try {
-                refreshByKeyword(keyword.trim(), key);
-            } catch (Exception ex) {
-                log.warn("[GALLERY] 키워드 검색 실패 keyword={} err={}", keyword, ex.getMessage());
-                if (snap == null) return List.of();
-            }
-            snap = cache.getOrDefault(key, snap);
+
+        // 캐시 히트 & 완전 로드 & 아직 신선 → 즉시 반환
+        if (snap != null && !snap.partial && !isStale(snap)) {
+            return take(snap.photos, limit);
         }
-        if (snap == null) return List.of();
+
+        // 캐시가 전혀 없을 때: 1페이지만 동기 로드해서 즉시 응답 (Heroku 30s timeout 회피)
+        // + 나머지 페이지는 백그라운드로 적재 → 다음 호출에서 전체 반환.
+        if (snap == null) {
+            PageResult first = requestPage(searchUrl, Map.of("keyword", keyword.trim()), 1);
+            if (first == null) return List.of();
+            List<TourGallery> partial = Collections.unmodifiableList(new ArrayList<>(first.items));
+            boolean needMore = first.totalCount > partial.size();
+            cache.put(key, new CacheSnapshot(partial, Instant.now().toEpochMilli(), needMore));
+            if (needMore) {
+                scheduleKeywordRefresh(keyword.trim(), key);
+            }
+            return take(partial, limit);
+        }
+
+        // 캐시는 있으나 partial 이거나 stale → 일단 가진 것을 돌려주고 백그라운드 갱신 예약
+        scheduleKeywordRefresh(keyword.trim(), key);
         return take(snap.photos, limit);
+    }
+
+    private void scheduleKeywordRefresh(String keyword, String cacheKey) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                refreshByKeyword(keyword, cacheKey);
+            } catch (Exception ex) {
+                log.warn("[GALLERY] 백그라운드 키워드 갱신 실패 keyword={} err={}", keyword, ex.getMessage());
+            }
+        });
     }
 
     private synchronized void refreshAll() {
@@ -122,7 +145,7 @@ public class VisitKoreaGalleryHttpClient implements TourGalleryPort {
             log.warn("[GALLERY] 전체 로드 실패 - 캐시 유지(다음 요청에서 재시도)");
             return;
         }
-        cache.put(ALL_KEY, new CacheSnapshot(photos, Instant.now().toEpochMilli()));
+        cache.put(ALL_KEY, new CacheSnapshot(photos, Instant.now().toEpochMilli(), false));
         log.info("[GALLERY] 전체 캐시 갱신 - {} 건", photos.size());
     }
 
@@ -139,7 +162,7 @@ public class VisitKoreaGalleryHttpClient implements TourGalleryPort {
                     .min((a, b) -> Long.compare(a.getValue().loadedAtEpochMs, b.getValue().loadedAtEpochMs))
                     .ifPresent(e -> cache.remove(e.getKey()));
         }
-        cache.put(cacheKey, new CacheSnapshot(photos, Instant.now().toEpochMilli()));
+        cache.put(cacheKey, new CacheSnapshot(photos, Instant.now().toEpochMilli(), false));
         log.info("[GALLERY] 키워드={} 캐시 갱신 - {} 건", keyword, photos.size());
     }
 
@@ -287,8 +310,13 @@ public class VisitKoreaGalleryHttpClient implements TourGalleryPort {
         return list.subList(0, limit);
     }
 
-    private record CacheSnapshot(List<TourGallery> photos, long loadedAtEpochMs) {
-        static CacheSnapshot empty() { return new CacheSnapshot(List.of(), 0L); }
+    /**
+     * photos: 현재 캐시된 항목들
+     * loadedAtEpochMs: 캐시 적재 시각 (ms)
+     * partial: true 면 "첫 페이지만 실려있는 부분 캐시" 상태 → 다음 호출에서 백그라운드 풀 갱신.
+     */
+    private record CacheSnapshot(List<TourGallery> photos, long loadedAtEpochMs, boolean partial) {
+        static CacheSnapshot empty() { return new CacheSnapshot(List.of(), 0L, false); }
     }
 
     /** 단일 페이지 응답 묶음 (items + 서버 측 totalCount). */
