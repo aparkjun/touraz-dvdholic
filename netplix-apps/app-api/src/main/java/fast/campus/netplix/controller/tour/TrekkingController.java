@@ -4,8 +4,7 @@ import fast.campus.netplix.controller.NetplixApiResponse;
 import fast.campus.netplix.tour.GetDurunubiUseCase;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.io.ByteArrayResource;
-import org.springframework.core.io.Resource;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -80,7 +79,7 @@ public class TrekkingController {
      * <p>SSRF 방지를 위해 외부 호스트는 {@code www.durunubi.kr} 화이트리스트로만 허용한다.</p>
      */
     @GetMapping("/gpx")
-    public ResponseEntity<Resource> downloadGpx(
+    public ResponseEntity<byte[]> downloadGpx(
             @RequestParam("url") String url,
             @RequestParam(value = "name", required = false) String name) {
         if (url == null || url.isBlank()) {
@@ -120,15 +119,16 @@ public class TrekkingController {
 
             String safeBase = sanitizeFilename(name);
             String filename = (safeBase.isBlank() ? "durunubi-course" : safeBase) + ".gpx";
-            String encoded = URLEncoder.encode(filename, StandardCharsets.UTF_8)
-                    .replace("+", "%20");
-            return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType("application/gpx+xml"))
-                    .header(HttpHeaders.CONTENT_DISPOSITION,
-                            "attachment; filename=\"" + filename.replace("\"", "") + "\"; "
-                                    + "filename*=UTF-8''" + encoded)
-                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=3600")
-                    .body(new ByteArrayResource(bytes));
+            ContentDisposition disposition = ContentDisposition.attachment()
+                    .filename(filename, StandardCharsets.UTF_8)
+                    .build();
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentDisposition(disposition);
+            headers.setContentType(MediaType.parseMediaType("application/gpx+xml"));
+            headers.setCacheControl("public, max-age=3600");
+            headers.set("X-Suggested-Filename", URLEncoder.encode(filename, StandardCharsets.UTF_8));
+
+            return ResponseEntity.ok().headers(headers).body(bytes);
         } catch (Exception ex) {
             log.warn("[DURUNUBI-GPX] 프록시 실패 url={} err={}", url, ex.getMessage());
             return ResponseEntity.internalServerError().build();

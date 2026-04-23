@@ -110,6 +110,11 @@ public class SecurityConfig {
             config.setAllowedMethods(Collections.singletonList("*"));
             config.setAllowedOriginPatterns(Collections.singletonList("*")); // 허용할 origin
             config.setAllowCredentials(true);
+            config.setExposedHeaders(java.util.List.of(
+                    "Content-Disposition",
+                    "Content-Type",
+                    "Content-Length",
+                    "X-Suggested-Filename"));
             return config;
         };
     }
