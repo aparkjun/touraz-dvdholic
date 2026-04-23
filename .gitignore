@@ -104,3 +104,20 @@ build.gradle.twa
 test_dvd.zip
 test_dvd_csv/
 test_dvd_utf8.csv
+
+# DB 마이그레이션 임시 산출물 (backup.sql 은 운영 DB 덤프 → 절대 커밋 금지)
+backup.sql
+backup_*.sql
+dump_*.log
+dump_loop_err.log
+restore_err*.log
+reset_err.log
+reset_newdb.sql
+verify_*.sql
+
+# 세션별 임시 로그/응답 파일
+heroku_app*.txt
+heroku_logs.txt
+response*.txt
+r[0-9].txt
+ct_curate.txt
