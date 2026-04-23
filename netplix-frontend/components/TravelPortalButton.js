@@ -1,328 +1,332 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import React, { useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { ArrowRight } from 'lucide-react';
 
 /**
- * TravelPortalButton
- * ------------------
- * "방에만 있다가 당장 떠나고 싶은" 느낌을 주는 프리미엄 여행 CTA 버튼.
+ * TravelPortalButton (Card variant)
+ * ---------------------------------
+ * "방에만 있다가 당장 떠나고 싶은" 느낌을 주는 프리미엄 여행 CTA 카드 버튼.
  *
- * 디자인 기반: 21st.dev "Shiny Button" 패턴 (Magic MCP).
- *  - 회전하는 conic-gradient 테두리 (보딩패스/포털 느낌)
- *  - 내부 shimmer + 도트 패턴
- *  - hover 시 번쩍이는 호흡 글로우 + 아이콘 살짝 튀어오름
- *  - 화살표가 오른쪽으로 미끄러져 이동
+ * 디자인 기반: 21st.dev Magic MCP Premium CTA pair.
+ *  - 회전하는 3-color conic-gradient 테두리 (보딩패스/텔레포트 포털)
+ *  - 가로 shimmer 스트라이프
+ *  - hover 시 카드 리프트 + 아이콘 흔들림/스케일 + 화살표 슬라이드
+ *  - 테마별 보조 장식 (CineTrip: 보딩패스 라인 / Pet Travel: 자연 원형 패턴)
  *
- * 두 가지 테마:
- *  - "cinema"   : 시네틱 바다 · 일몰(orange ↔ teal ↔ deep-blue)
- *  - "outdoor"  : 아침 햇살 · 숲 (gold ↔ teal ↔ emerald)
- *
- * 사용 예:
- *   <TravelPortalButton href="/cine-trip" theme="cinema" icon={Film} tag="CineTrip" label="영화로 떠나는 여행" />
+ * 테마:
+ *  - cinema   : 시네틱 스카이 (teal ↔ violet ↔ sunset-orange)
+ *  - outdoor  : 아침 햇살 야외 (amber ↔ teal ↔ ocean-blue)
  */
 const THEMES = {
   cinema: {
-    bg: '#0b1220',
-    bgSubtle: '#142036',
-    fg: '#f8fafc',
-    highlight: '#38bdf8',
-    highlightSoft: '#fb923c',
-    ring: 'linear-gradient(135deg, #38bdf8 0%, #a78bfa 50%, #fb923c 100%)',
-    tagColor: '#7dd3fc',
-    subColor: 'rgba(226, 232, 240, 0.72)',
-    glow: '0 20px 46px -18px rgba(56, 189, 248, 0.55), 0 0 0 1px rgba(56, 189, 248, 0.08) inset',
+    gradient: 'conic-gradient(from 0deg, #14b8a6, #8b5cf6, #f97316, #14b8a6)',
+    iconBg: 'linear-gradient(135deg, #14b8a6 0%, #8b5cf6 55%, #f97316 100%)',
+    textGrad: 'linear-gradient(90deg, #5eead4 0%, #c4b5fd 50%, #fdba74 100%)',
+    accentColor: '#5eead4',
+    glow: '0 24px 64px -20px rgba(139, 92, 246, 0.55)',
+    hoverGlow: '0 36px 80px -20px rgba(20, 184, 166, 0.65)',
+    tagColor: '#99f6e4',
   },
   outdoor: {
-    bg: '#06231f',
-    bgSubtle: '#0e3a33',
-    fg: '#f8fafc',
-    highlight: '#2dd4bf',
-    highlightSoft: '#fde047',
-    ring: 'linear-gradient(135deg, #fde047 0%, #2dd4bf 50%, #0ea5e9 100%)',
-    tagColor: '#a7f3d0',
-    subColor: 'rgba(209, 250, 229, 0.78)',
-    glow: '0 20px 46px -18px rgba(45, 212, 191, 0.55), 0 0 0 1px rgba(45, 212, 191, 0.08) inset',
+    gradient: 'conic-gradient(from 0deg, #f59e0b, #14b8a6, #0ea5e9, #f59e0b)',
+    iconBg: 'linear-gradient(135deg, #f59e0b 0%, #14b8a6 55%, #0ea5e9 100%)',
+    textGrad: 'linear-gradient(90deg, #fcd34d 0%, #5eead4 50%, #7dd3fc 100%)',
+    accentColor: '#fcd34d',
+    glow: '0 24px 64px -20px rgba(14, 165, 233, 0.55)',
+    hoverGlow: '0 36px 80px -20px rgba(245, 158, 11, 0.6)',
+    tagColor: '#fde68a',
   },
 };
 
-// CSS @property는 한 번만 선언.
-let propertyRegistered = false;
-function useRegisterGradientProperty() {
-  useEffect(() => {
-    if (propertyRegistered) return;
-    if (typeof CSS === 'undefined' || !CSS.registerProperty) return;
-    try {
-      CSS.registerProperty({
-        name: '--portal-angle',
-        syntax: '<angle>',
-        initialValue: '0deg',
-        inherits: false,
-      });
-      propertyRegistered = true;
-    } catch {
-      /* 이미 등록된 경우 무시 */
-    }
-  }, []);
+/** CineTrip용 보딩패스 사이드 라인 장식. */
+function BoardingPassLines({ color = '#ffffff' }) {
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: 'absolute',
+        top: 14,
+        right: 14,
+        bottom: 14,
+        width: 56,
+        opacity: 0.12,
+        pointerEvents: 'none',
+      }}
+    >
+      {Array.from({ length: 14 }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            height: 2,
+            marginBottom: 6,
+            background: `linear-gradient(90deg, transparent, ${color}, transparent)`,
+            transform: `translateX(${i * 2}px)`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Pet Travel용 자연 원형 패턴 장식. */
+function NaturePattern({ theme }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 100 100"
+      style={{
+        position: 'absolute',
+        right: 10,
+        bottom: 10,
+        width: 110,
+        height: 110,
+        opacity: 0.09,
+        pointerEvents: 'none',
+      }}
+    >
+      <circle cx="20" cy="22" r="15" fill="#fcd34d" />
+      <circle cx="60" cy="42" r="20" fill="#2dd4bf" />
+      <circle cx="40" cy="72" r="18" fill="#0ea5e9" />
+      <circle cx="82" cy="80" r="10" fill="#fb923c" />
+    </svg>
+  );
 }
 
 export default function TravelPortalButton({
   href,
   tag = 'Travel',
-  label = 'Go adventure',
-  sub = '',
+  title = 'Go adventure',
+  desc = '',
+  cta = 'Start Journey',
   Icon,
-  ArrowIcon,
   theme = 'cinema',
-  fullWidth = false,
+  fullWidth = true,
 }) {
-  useRegisterGradientProperty();
   const t = THEMES[theme] || THEMES.cinema;
-  const [hovered, setHovered] = useState(false);
+  const router = useRouter();
   const uidRef = useRef(`tpb-${Math.random().toString(36).slice(2, 9)}`);
   const uid = uidRef.current;
+
+  const handleClick = (e) => {
+    // motion.a 가 useRouter 의 soft-nav 보다 나은 경우가 있어, 수동 push 로 전환.
+    e.preventDefault();
+    router.push(href);
+  };
 
   return (
     <>
       <style>{`
         @keyframes ${uid}-spin {
-          to { --portal-angle: 360deg; }
-        }
-        @keyframes ${uid}-breathe {
-          0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
-          50%      { transform: translate(-50%, -50%) scale(1.25); opacity: 0.55; }
+          from { transform: rotate(0deg); }
+          to   { transform: rotate(360deg); }
         }
         @keyframes ${uid}-shimmer {
-          0%   { transform: translateX(-120%) skewX(-12deg); }
-          60%  { transform: translateX(220%)  skewX(-12deg); }
-          100% { transform: translateX(220%)  skewX(-12deg); }
+          0%   { transform: translateX(-120%) skewX(-16deg); }
+          60%  { transform: translateX(260%)  skewX(-16deg); }
+          100% { transform: translateX(260%)  skewX(-16deg); }
         }
-        @keyframes ${uid}-floaty {
-          0%, 100% { transform: translateY(0); }
-          50%      { transform: translateY(-2px); }
-        }
-        .${uid}-root {
-          --portal-angle: 0deg;
+        .${uid}-card {
           position: relative;
-          display: inline-flex;
-          align-items: stretch;
+          display: block;
+          border-radius: 22px;
+          padding: 2px;
+          overflow: hidden;
           text-decoration: none;
           isolation: isolate;
-          border-radius: 18px;
-          padding: 2px;
-          background:
-            linear-gradient(${t.bg}, ${t.bg}) padding-box,
-            conic-gradient(from var(--portal-angle),
-              transparent 0deg,
-              ${t.highlight} 70deg,
-              #ffffff 95deg,
-              ${t.highlightSoft} 130deg,
-              transparent 200deg,
-              ${t.highlight} 280deg,
-              transparent 360deg) border-box;
-          border: 1px solid transparent;
+          cursor: pointer;
           box-shadow: ${t.glow};
+          transition: transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+                      box-shadow 280ms cubic-bezier(0.22, 1, 0.36, 1);
+          width: ${fullWidth ? '100%' : 'auto'};
+        }
+        .${uid}-card:hover {
+          transform: translateY(-8px) scale(1.015);
+          box-shadow: ${t.hoverGlow};
+        }
+        .${uid}-card:active { transform: translateY(-3px) scale(1.0); }
+        .${uid}-border {
+          position: absolute;
+          inset: -40%;
+          background: ${t.gradient};
           animation: ${uid}-spin 6s linear infinite;
-          transition: transform 220ms cubic-bezier(0.25, 1, 0.5, 1),
-                      box-shadow 220ms cubic-bezier(0.25, 1, 0.5, 1);
+          z-index: 0;
         }
-        .${uid}-root:hover {
-          transform: translateY(-3px);
-          box-shadow:
-            0 26px 60px -16px ${t.highlight}66,
-            0 0 0 1px ${t.highlight}33 inset;
-        }
-        .${uid}-root:active { transform: translateY(-1px); }
-
         .${uid}-surface {
           position: relative;
-          display: inline-flex;
-          align-items: center;
+          z-index: 1;
+          display: flex;
+          flex-direction: column;
           gap: 14px;
-          padding: 14px 20px 14px 16px;
-          border-radius: 16px;
+          padding: 22px 22px 20px;
+          border-radius: 20px;
           background:
-            radial-gradient(120% 180% at 0% 0%, ${t.highlight}22 0%, transparent 55%),
-            radial-gradient(140% 180% at 100% 100%, ${t.highlightSoft}1f 0%, transparent 60%),
-            linear-gradient(180deg, ${t.bgSubtle} 0%, ${t.bg} 100%);
-          color: ${t.fg};
+            radial-gradient(130% 160% at 0% 0%, rgba(255,255,255,0.04) 0%, transparent 55%),
+            linear-gradient(160deg, #0b1220 0%, #0f172a 55%, #0b1220 100%);
+          color: #f8fafc;
           overflow: hidden;
-          width: ${fullWidth ? '100%' : 'auto'};
-          min-width: 260px;
+          min-height: 178px;
         }
-        /* 도트 패턴 (은은하게) */
-        .${uid}-dots {
-          position: absolute;
-          inset: 0;
-          opacity: 0.18;
-          pointer-events: none;
-          background-image: radial-gradient(
-            circle at 2px 2px, ${t.fg} 0.8px, transparent 1.1px
-          );
-          background-size: 14px 14px;
-          mask-image: linear-gradient(to right, black, transparent 85%);
-          -webkit-mask-image: linear-gradient(to right, black, transparent 85%);
-        }
-        /* 내부 대각선 Shimmer */
         .${uid}-shine {
           position: absolute;
-          top: -20%;
+          top: -30%;
           left: 0;
-          width: 45%;
-          height: 140%;
+          width: 40%;
+          height: 160%;
           pointer-events: none;
           background: linear-gradient(
             100deg,
             transparent 0%,
-            ${t.fg}00 30%,
-            ${t.fg}38 50%,
-            ${t.fg}00 70%,
+            rgba(255,255,255,0) 25%,
+            rgba(255,255,255,0.16) 50%,
+            rgba(255,255,255,0) 75%,
             transparent 100%
           );
           filter: blur(2px);
           animation: ${uid}-shimmer 3.6s ease-in-out infinite;
+          z-index: 2;
         }
-        /* hover 시 중앙에서 번쩍이는 호흡 글로우 */
-        .${uid}-breathe {
-          position: absolute;
-          left: 50%;
-          top: 50%;
-          width: 70%;
-          height: 240%;
-          pointer-events: none;
-          border-radius: 50%;
-          background: radial-gradient(circle, ${t.highlight}55 0%, transparent 65%);
-          opacity: 0;
-        }
-        .${uid}-root:hover .${uid}-breathe {
-          animation: ${uid}-breathe 2.4s ease-in-out infinite;
-        }
-        .${uid}-iconwrap {
+        .${uid}-icon {
           position: relative;
-          width: 44px;
-          height: 44px;
-          border-radius: 12px;
+          z-index: 3;
+          width: 56px;
+          height: 56px;
+          border-radius: 16px;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          flex-shrink: 0;
-          background:
-            linear-gradient(135deg, ${t.highlight}2a 0%, ${t.highlightSoft}26 100%);
-          border: 1px solid ${t.highlight}40;
-          box-shadow: 0 6px 18px ${t.highlight}26, inset 0 1px 0 rgba(255,255,255,0.08);
-        }
-        .${uid}-root:hover .${uid}-iconwrap {
-          animation: ${uid}-floaty 1.6s ease-in-out infinite;
-        }
-        .${uid}-labelwrap {
-          display: inline-flex;
-          flex-direction: column;
-          gap: 2px;
-          min-width: 0;
+          background: ${t.iconBg};
+          box-shadow: 0 12px 30px -8px rgba(0,0,0,0.55),
+                      inset 0 1px 0 rgba(255,255,255,0.18);
         }
         .${uid}-tag {
+          position: relative;
+          z-index: 3;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
           font-size: 11px;
           font-weight: 800;
-          letter-spacing: 0.14em;
+          letter-spacing: 0.18em;
           text-transform: uppercase;
           color: ${t.tagColor};
-          opacity: 0.95;
         }
-        .${uid}-label {
-          font-size: 15.5px;
-          font-weight: 800;
+        .${uid}-title {
+          position: relative;
+          z-index: 3;
+          margin: 0;
+          font-size: 22px;
+          font-weight: 900;
           letter-spacing: -0.01em;
-          color: ${t.fg};
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+          line-height: 1.15;
+          background: ${t.textGrad};
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          color: transparent;
         }
-        .${uid}-sub {
-          font-size: 11.5px;
-          font-weight: 500;
-          color: ${t.subColor};
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
+        .${uid}-desc {
+          position: relative;
+          z-index: 3;
+          margin: 0;
+          font-size: 13px;
+          color: rgba(226, 232, 240, 0.72);
+          line-height: 1.5;
+        }
+        .${uid}-cta {
+          position: relative;
+          z-index: 3;
+          margin-top: auto;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13.5px;
+          font-weight: 800;
+          background: ${t.textGrad};
+          -webkit-background-clip: text;
+          background-clip: text;
+          -webkit-text-fill-color: transparent;
+          color: transparent;
         }
         .${uid}-arrow {
-          margin-left: auto;
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          width: 34px;
-          height: 34px;
+          width: 28px;
+          height: 28px;
           border-radius: 50%;
-          background: ${t.fg}14;
-          border: 1px solid ${t.fg}22;
-          color: ${t.fg};
-          transition: transform 260ms cubic-bezier(0.25, 1, 0.5, 1),
-                      background 220ms ease, border-color 220ms ease;
-          flex-shrink: 0;
+          color: ${t.accentColor};
+          background: ${t.accentColor}22;
+          border: 1px solid ${t.accentColor}55;
+          transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+                      background 220ms ease;
         }
-        .${uid}-root:hover .${uid}-arrow {
-          transform: translateX(6px) rotate(-8deg);
-          background: ${t.highlight}30;
-          border-color: ${t.highlight}66;
+        .${uid}-card:hover .${uid}-arrow {
+          transform: translateX(6px) rotate(-6deg);
+          background: ${t.accentColor}3a;
         }
-        @media (max-width: 520px) {
-          .${uid}-surface { min-width: 0; width: 100%; gap: 10px; padding: 12px 14px; }
-          .${uid}-iconwrap { width: 38px; height: 38px; border-radius: 10px; }
-          .${uid}-label { font-size: 14px; }
-          .${uid}-sub { display: none; }
-          .${uid}-arrow { width: 30px; height: 30px; }
+        @media (max-width: 480px) {
+          .${uid}-surface { padding: 18px 18px 16px; min-height: 158px; }
+          .${uid}-title   { font-size: 19px; }
+          .${uid}-icon    { width: 48px; height: 48px; border-radius: 14px; }
         }
       `}</style>
 
-      <Link
+      <motion.a
         href={href}
-        className={`${uid}-root`}
-        aria-label={`${tag}: ${label}`}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        style={{ width: fullWidth ? '100%' : undefined }}
+        onClick={handleClick}
+        className={`${uid}-card`}
+        aria-label={`${tag}: ${title}`}
+        whileHover="hover"
+        initial="rest"
+        animate="rest"
       >
+        <span className={`${uid}-border`} aria-hidden />
         <span className={`${uid}-surface`}>
-          <span className={`${uid}-dots`} aria-hidden />
           <span className={`${uid}-shine`} aria-hidden />
-          <span className={`${uid}-breathe`} aria-hidden />
+          {theme === 'cinema' ? (
+            <BoardingPassLines color="#a7f3d0" />
+          ) : (
+            <NaturePattern theme={t} />
+          )}
 
           <motion.span
-            className={`${uid}-iconwrap`}
-            animate={hovered ? { rotate: [0, -8, 8, 0] } : { rotate: 0 }}
-            transition={{ duration: 0.9, ease: 'easeInOut' }}
+            className={`${uid}-icon`}
+            variants={{
+              rest: { rotate: 0, scale: 1 },
+              hover: {
+                rotate: [0, -10, 10, -10, 0],
+                scale: [1, 1.12, 1.12, 1.12, 1],
+                transition: { duration: 0.55, times: [0, 0.2, 0.4, 0.6, 1] },
+              },
+            }}
           >
-            {Icon ? <Icon size={20} color={t.fg} strokeWidth={2.1} /> : null}
+            {Icon ? <Icon size={26} color="#ffffff" strokeWidth={2.2} /> : null}
           </motion.span>
 
-          <span className={`${uid}-labelwrap`}>
-            <span className={`${uid}-tag`}>{tag}</span>
-            <span className={`${uid}-label`}>{label}</span>
-            {sub ? <span className={`${uid}-sub`}>{sub}</span> : null}
-          </span>
+          <span className={`${uid}-tag`}>{tag}</span>
+          <h3 className={`${uid}-title`}>{title}</h3>
+          {desc ? <p className={`${uid}-desc`}>{desc}</p> : null}
 
-          <span className={`${uid}-arrow`}>
-            {ArrowIcon ? (
-              <ArrowIcon size={16} strokeWidth={2.2} />
-            ) : (
-              <svg
-                viewBox="0 0 24 24"
-                width="16"
-                height="16"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M5 12h14" />
-                <path d="M13 5l7 7-7 7" />
-              </svg>
-            )}
-          </span>
+          <motion.span
+            className={`${uid}-cta`}
+            variants={{
+              rest: { x: 0 },
+              hover: {
+                x: 4,
+                transition: { type: 'spring', stiffness: 400, damping: 12 },
+              },
+            }}
+          >
+            <span>{cta}</span>
+            <span className={`${uid}-arrow`}>
+              <ArrowRight size={14} strokeWidth={2.4} />
+            </span>
+          </motion.span>
         </span>
-      </Link>
+      </motion.a>
     </>
   );
 }

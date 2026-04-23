@@ -297,18 +297,20 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
       >
         <TravelPortalButton
           href="/cine-trip"
-          tag="CineTrip"
-          label="영화로 떠나는 여행"
-          sub="촬영지·배경을 따라 체크인"
+          tag="CineTrip · Boarding Pass"
+          title="영화로 떠나는 여행"
+          desc="촬영지·배경·OST가 살아있는 큐레이션 카드로 체크인하세요."
+          cta="CineTrip 전체 카드 보기"
           Icon={PlaneTakeoff}
           theme="cinema"
           fullWidth
         />
         <TravelPortalButton
           href="/pet-travel"
-          tag="Pet Travel"
-          label="반려동물과 함께 떠나요"
-          sub="햇살 가득, 네 발로 봄바람"
+          tag="Pet Travel · Fresh Air"
+          title="반려동물과 함께 떠나요"
+          desc="햇살 가득, 네 발로 봄바람. 동반 가능 장소를 지도처럼 펼쳐요."
+          cta="반려동물 여행 전체 보기"
           Icon={PawPrint}
           theme="outdoor"
           fullWidth
