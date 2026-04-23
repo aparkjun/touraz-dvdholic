@@ -53,6 +53,9 @@ public class CineTripAutoMappingService {
     /** AUTO 매핑 타입 태그. */
     public static final String MAPPING_TYPE_AUTO = "AUTO";
 
+    /** 한국 영화 기본 지역(서울) areaCode. originalLanguage=ko / 제작국=KR 이면 서울에 기본 매핑. */
+    private static final String DEFAULT_KOREAN_AREA_CODE = "1";
+
     private final PersistenceMoviePort moviePort;
     private final MovieRegionMappingPort mappingPort;
     private final AutoMappingProgressHolder progress;
@@ -216,7 +219,35 @@ public class CineTripAutoMappingService {
 
             if (s > 0) scores.put(e.getKey(), s);
         }
+
+        // 한국 영화 기본 매핑: originalLanguage=ko 또는 제작국에 한국이 포함된 영화는
+        // 텍스트에 지명이 없어도 서울(areaCode=1)에 기본 점수 +5 를 부여해 AUTO 매핑 대상으로 편입.
+        // 서울이 이미 텍스트 매칭된 경우엔 점수가 합산되어 우선순위가 더 올라간다.
+        if (isKoreanMovie(movie)) {
+            scores.merge(DEFAULT_KOREAN_AREA_CODE, 5, Integer::sum);
+        }
+
         return scores;
+    }
+
+    /**
+     * TMDB 메타 기준 "한국 영화" 판별.
+     * <ul>
+     *   <li>originalLanguage == "ko"</li>
+     *   <li>productionCountries 에 "South Korea", "Korea, Republic of", "대한민국", "한국" 포함</li>
+     * </ul>
+     */
+    private boolean isKoreanMovie(NetplixMovie movie) {
+        if (movie == null) return false;
+        String lang = movie.getOriginalLanguage();
+        if (lang != null && "ko".equalsIgnoreCase(lang.trim())) return true;
+        String pc = movie.getProductionCountries();
+        if (pc == null || pc.isBlank()) return false;
+        String lower = pc.toLowerCase();
+        return lower.contains("south korea")
+                || lower.contains("korea, republic")
+                || pc.contains("대한민국")
+                || pc.contains("한국");
     }
 
     /** 한글 aliases contains OR 영문 aliases \b 경계 매칭 — 하나라도 있으면 true. */
