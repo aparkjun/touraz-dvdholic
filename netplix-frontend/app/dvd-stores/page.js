@@ -4,49 +4,10 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import { Search, MapPin, Phone, Clock, Package, ChevronLeft, ChevronRight, Store, LocateFixed, Navigation, X, Building2, Briefcase, CalendarClock, PauseCircle, Ruler, Map, List, Layers } from "lucide-react";
-import CultureMapLayer from "@/components/CultureMapLayer";
-let L, MapContainer, TileLayer, Marker, Popup, useMap;
-let greenIcon, redIcon, blueIcon;
-
-if (typeof window !== "undefined") {
-  L = require("leaflet");
-  const rl = require("react-leaflet");
-  MapContainer = rl.MapContainer;
-  TileLayer = rl.TileLayer;
-  Marker = rl.Marker;
-  Popup = rl.Popup;
-  useMap = rl.useMap;
-
-  delete L.Icon.Default.prototype._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-  });
-
-  greenIcon = new L.Icon({
-    iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-    iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-  });
-
-  redIcon = new L.Icon({
-    iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-    iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-  });
-
-  blueIcon = new L.Icon({
-    iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-    iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-  });
-}
+import KakaoStoreMap from "@/components/KakaoStoreMap";
 
 const PAGE_SIZE = 20;
 const RADIUS_OPTIONS = [3, 5, 10, 20, 50, 100];
-const KOREA_CENTER = [36.5, 127.5];
-const DEFAULT_ZOOM = 7;
 
 function DvdStoresContent() {
   const { t } = useTranslation();
@@ -464,7 +425,7 @@ function DvdStoresContent() {
               : t("dvdStores.noData")}
         </div>
       ) : viewMode === "map" ? (
-        mounted ? <StoreMap stores={filtered} userPos={userPos} nearbyMode={nearbyMode} cultureLayer={cultureLayer} /> : <div style={{ textAlign: "center", padding: 60, color: "rgba(255,255,255,0.4)" }}>{t("dvdStores.loading")}</div>
+        mounted ? <KakaoStoreMap stores={filtered} userPos={userPos} nearbyMode={nearbyMode} cultureLayer={cultureLayer} /> : <div style={{ textAlign: "center", padding: 60, color: "rgba(255,255,255,0.4)" }}>{t("dvdStores.loading")}</div>
       ) : (
         <>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -506,10 +467,6 @@ function DvdStoresContent() {
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        .leaflet-container img { max-width: none !important; max-height: none !important; height: auto; }
-        .leaflet-container { font-size: inherit; }
-        .leaflet-tile-pane img { max-width: none !important; }
-        .leaflet-control-zoom a { color: #333 !important; background: #fff !important; }
       `}</style>
     </div>
   );
@@ -666,106 +623,6 @@ function InfoChip({ icon, text }) {
     <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
       <span style={{ color: "rgba(255,255,255,0.3)", display: "flex" }}>{icon}</span>
       <span style={{ fontSize: "0.78rem", color: "rgba(255,255,255,0.5)" }}>{text}</span>
-    </div>
-  );
-}
-
-function FitBounds({ stores, userPos }) {
-  const map = useMap();
-  useEffect(() => {
-    setTimeout(() => map.invalidateSize(), 100);
-    const pts = stores
-      .filter((s) => s.latitude && s.longitude)
-      .map((s) => [s.latitude, s.longitude]);
-    if (userPos) pts.push([userPos.lat, userPos.lon]);
-    if (pts.length > 0) {
-      map.fitBounds(pts, { padding: [40, 40], maxZoom: 14 });
-    }
-  }, [stores, userPos, map]);
-  return null;
-}
-
-function StoreMap({ stores, userPos, nearbyMode, cultureLayer = "off" }) {
-  const { t } = useTranslation();
-  const mappable = useMemo(
-    () => stores.filter((s) => s.latitude && s.longitude),
-    [stores]
-  );
-
-  const center = userPos
-    ? [userPos.lat, userPos.lon]
-    : mappable.length > 0
-      ? [mappable[0].latitude, mappable[0].longitude]
-      : KOREA_CENTER;
-
-  return (
-    <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid rgba(255,255,255,0.1)" }}>
-      <MapContainer
-        center={center}
-        zoom={nearbyMode ? 12 : DEFAULT_ZOOM}
-        style={{ height: 520, width: "100%", background: "#f0ede6" }}
-        scrollWheelZoom={true}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <FitBounds stores={mappable} userPos={userPos} />
-
-        {cultureLayer !== "off" && <CultureMapLayer layer={cultureLayer} />}
-
-        {userPos && (
-          <Marker position={[userPos.lat, userPos.lon]} icon={blueIcon}>
-            <Popup>
-              <strong>{t("dvdStores.myLocation")}</strong>
-            </Popup>
-          </Marker>
-        )}
-
-        {mappable.map((store, idx) => {
-          const isOpen = store.statusCode === "01";
-          const addr = store.roadAddress || store.jibunAddress || "";
-          return (
-            <Marker
-              key={`${store.areaCode}-${store.managementNo}-${idx}`}
-              position={[store.latitude, store.longitude]}
-              icon={isOpen ? greenIcon : redIcon}
-            >
-              <Popup>
-                <div style={{ minWidth: 180, maxWidth: 260 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 4 }}>
-                    {store.businessName || t("dvdStores.unregistered")}
-                  </div>
-                  <div style={{ fontSize: 12, color: isOpen ? "#d97706" : "#dc2626", fontWeight: 600, marginBottom: 4 }}>
-                    {store.statusName || (isOpen ? t("dvdStores.operating") : t("dvdStores.closed"))}
-                    {store.distance != null && (
-                      <span style={{ color: "#ea580c", marginLeft: 6 }}>
-                        {store.distance < 1 ? `${Math.round(store.distance * 1000)}m` : `${store.distance.toFixed(1)}km`}
-                      </span>
-                    )}
-                  </div>
-                  {addr && <div style={{ fontSize: 11, color: "#555", marginBottom: 2 }}>{addr}</div>}
-                  {store.phone && <div style={{ fontSize: 11, color: "#555" }}>Tel: {store.phone}</div>}
-                  {store.productInfo && <div style={{ fontSize: 11, color: "#555" }}>{t("dvdStores.productsLabel")}: {store.productInfo}</div>}
-                  {store.businessType && <div style={{ fontSize: 11, color: "#555" }}>{t("dvdStores.businessType")}: {store.businessType}</div>}
-                </div>
-              </Popup>
-            </Marker>
-          );
-        })}
-      </MapContainer>
-
-      {mappable.length < stores.length && (
-        <div style={{
-          padding: "6px 12px",
-          background: "rgba(255,255,255,0.04)",
-          fontSize: "0.75rem",
-          color: "rgba(255,255,255,0.35)",
-          textAlign: "center",
-        }}>
-          {t("dvdStores.mapCoordInfo", { shown: mappable.length, total: stores.length })}
-        </div>
-      )}
     </div>
   );
 }
