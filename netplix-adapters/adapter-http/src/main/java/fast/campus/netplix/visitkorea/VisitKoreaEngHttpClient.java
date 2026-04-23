@@ -65,6 +65,24 @@ public class VisitKoreaEngHttpClient implements EngTourPort {
     /** key = areaCode|contentTypeId, value = (loadedAt, list) */
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
 
+    /**
+     * KorService2 → EngService2 contentTypeId 치환 테이블.
+     *
+     * <p>KTO 영문 서비스는 국문과 별도의 타입 체계를 사용한다. 프론트엔드가 locale 토글만으로
+     * 같은 파라미터(type=12 등) 를 재사용할 수 있도록, 어댑터에서 국문 코드가 들어오면 영문 코드로
+     * 선제 변환한다. 값이 이미 영문 코드(또는 알 수 없는 코드) 면 그대로 전달한다.
+     */
+    private static final Map<String, String> KOR_TO_ENG_CONTENT_TYPE = Map.of(
+            "12", "76", // Tourist Attractions
+            "14", "78", // Cultural Facilities
+            "15", "85", // Festivals & Events
+            "25", "75", // Travel Courses
+            "28", "77", // Leisure & Sports
+            "32", "80", // Accommodations
+            "38", "79", // Shopping
+            "39", "82"  // Restaurants
+    );
+
     @Override
     public boolean isConfigured() {
         return serviceKey != null && !serviceKey.isBlank()
@@ -74,7 +92,8 @@ public class VisitKoreaEngHttpClient implements EngTourPort {
     @Override
     public List<EngTourPoi> fetchByArea(String areaCode, String contentTypeId, int limit) {
         if (!isConfigured()) return List.of();
-        String key = (areaCode == null ? "_" : areaCode) + "|" + (contentTypeId == null ? "_" : contentTypeId);
+        String engType = toEngContentType(contentTypeId);
+        String key = (areaCode == null ? "_" : areaCode) + "|" + (engType == null ? "_" : engType);
         CacheEntry cached = cache.get(key);
         long now = Instant.now().toEpochMilli();
         if (cached != null && (now - cached.loadedAtMs) < Duration.ofMinutes(cacheMinutes).toMillis()) {
@@ -82,7 +101,7 @@ public class VisitKoreaEngHttpClient implements EngTourPort {
         }
         List<EngTourPoi> items = callListApi(areaBasedUrl, Map.of(
                 "areaCode", nullSafe(areaCode),
-                "contentTypeId", nullSafe(contentTypeId),
+                "contentTypeId", nullSafe(engType),
                 "arrange", "Q" // 이미지가 있는 데이터 우선
         ));
         cache.put(key, new CacheEntry(items, now));
@@ -98,7 +117,7 @@ public class VisitKoreaEngHttpClient implements EngTourPort {
                 "mapX", String.valueOf(mapX),
                 "mapY", String.valueOf(mapY),
                 "radius", String.valueOf(Math.max(100, Math.min(radius, 20000))),
-                "contentTypeId", nullSafe(contentTypeId),
+                "contentTypeId", nullSafe(toEngContentType(contentTypeId)),
                 "arrange", "E" // 거리순
         ));
         return take(items, limit);
@@ -110,7 +129,7 @@ public class VisitKoreaEngHttpClient implements EngTourPort {
         if (searchKeywordUrl == null || searchKeywordUrl.isBlank()) return List.of();
         List<EngTourPoi> items = callListApi(searchKeywordUrl, Map.of(
                 "keyword", keyword,
-                "contentTypeId", nullSafe(contentTypeId)
+                "contentTypeId", nullSafe(toEngContentType(contentTypeId))
         ));
         return take(items, limit);
     }
@@ -121,9 +140,19 @@ public class VisitKoreaEngHttpClient implements EngTourPort {
         if (detailCommonUrl == null || detailCommonUrl.isBlank()) return Optional.empty();
         List<EngTourPoi> items = callListApi(detailCommonUrl, Map.of(
                 "contentId", contentId,
-                "contentTypeId", nullSafe(contentTypeId)
+                "contentTypeId", nullSafe(toEngContentType(contentTypeId))
         ));
         return items.stream().findFirst();
+    }
+
+    /**
+     * 국문 KorService2 의 contentTypeId 가 들어오면 EngService2 체계로 변환.
+     * 이미 영문 체계 값이거나 매핑되지 않는 값은 원문 그대로 반환.
+     */
+    private static String toEngContentType(String korOrEng) {
+        if (korOrEng == null || korOrEng.isBlank()) return korOrEng;
+        String trimmed = korOrEng.trim();
+        return KOR_TO_ENG_CONTENT_TYPE.getOrDefault(trimmed, trimmed);
     }
 
     // -----------------------------

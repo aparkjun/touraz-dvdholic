@@ -14,17 +14,21 @@ import lombok.Getter;
  * <p>areaCode / contentTypeId / contentId 는 KorService2 와 동일한 KTO 마스터 키를
  * 공유하므로, 같은 contentId 로 국/영문 메타를 스왑하는 2-locale 렌더링이 가능하다.
  *
- * <p>contentTypeId (KorService2/EngService2 공통):
- * <ul>
- *   <li>12 Tourist Attractions (관광지)</li>
- *   <li>14 Cultural Facilities (문화시설)</li>
- *   <li>15 Festivals & Events (축제공연)</li>
- *   <li>25 Travel Courses (여행코스)</li>
- *   <li>28 Leisure & Sports (레포츠)</li>
- *   <li>32 Accommodations (숙박)</li>
- *   <li>38 Shopping (쇼핑)</li>
- *   <li>39 Restaurants (음식점)</li>
- * </ul>
+ * <p>contentTypeId 주의: KorService2 와 EngService2 는 동일한 의미에 다른 코드를 쓴다.
+ * 어댑터({@code VisitKoreaEngHttpClient}) 내부에서 국문 코드가 들어오면 영문 코드로 자동 치환되므로,
+ * 이 도메인을 소비하는 코드는 어떤 체계든 한 번만 결정해 사용하면 된다.
+ *
+ * <table>
+ *   <tr><th>의미</th><th>KorService2</th><th>EngService2</th></tr>
+ *   <tr><td>Tourist Attractions</td><td>12</td><td>76</td></tr>
+ *   <tr><td>Cultural Facilities</td><td>14</td><td>78</td></tr>
+ *   <tr><td>Festivals &amp; Events</td><td>15</td><td>85</td></tr>
+ *   <tr><td>Travel Courses</td><td>25</td><td>75</td></tr>
+ *   <tr><td>Leisure &amp; Sports</td><td>28</td><td>77</td></tr>
+ *   <tr><td>Accommodations</td><td>32</td><td>80</td></tr>
+ *   <tr><td>Shopping</td><td>38</td><td>79</td></tr>
+ *   <tr><td>Restaurants</td><td>39</td><td>82</td></tr>
+ * </table>
  */
 @Getter
 @Builder(toBuilder = true)
