@@ -496,7 +496,11 @@ function Dashboard({ onLogout }) {
 
   const fetchPendingMappings = React.useCallback(async () => {
     const token = localStorage.getItem("adminToken");
-    if (!token) return;
+    if (!token) {
+      setPendingMappingsLoading(false);
+      setPendingMappingsError(null);
+      return;
+    }
     setPendingMappingsLoading(true);
     setPendingMappingsError(null);
     try {
@@ -524,8 +528,11 @@ function Dashboard({ onLogout }) {
   useEffect(() => {
     if (activeTab !== "pending") return;
     if (pendingMappings.length > 0 || pendingMappingsLoading) return;
+    // 에러 상태이면 사용자가 새로고침/자동매핑 버튼으로 명시적으로 재시도할 때까지
+    // 자동 재호출하지 않는다. (이 조건이 없으면 서버 느림/오류 시 무한 루프)
+    if (pendingMappingsError) return;
     fetchPendingMappings();
-  }, [activeTab, pendingMappings.length, pendingMappingsLoading, fetchPendingMappings]);
+  }, [activeTab, pendingMappings.length, pendingMappingsLoading, pendingMappingsError, fetchPendingMappings]);
 
   const approvePendingMapping = async (id) => {
     try {
@@ -1275,7 +1282,7 @@ function PendingMappingsPanel({ rows, total, loading, error, onApprove, onReject
           {onRunAutoMap && (
             <button
               onClick={onRunAutoMap}
-              disabled={loading || autoMapRunning}
+              disabled={autoMapRunning}
               title="TMDB 메타에서 한국 지역 자동 매핑(AUTO) 생성 — MANUAL 은 보존"
               style={{
                 padding: "8px 14px",
@@ -1287,8 +1294,8 @@ function PendingMappingsPanel({ rows, total, loading, error, onApprove, onReject
                 color: autoMapRunning ? "#3730a3" : "#fff",
                 fontSize: 13,
                 fontWeight: 700,
-                cursor: loading || autoMapRunning ? "not-allowed" : "pointer",
-                opacity: loading ? 0.6 : 1,
+                cursor: autoMapRunning ? "not-allowed" : "pointer",
+                opacity: 1,
                 boxShadow: autoMapRunning ? "none" : "0 4px 12px -4px rgba(99,102,241,0.4)",
               }}
             >
