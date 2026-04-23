@@ -41,4 +41,27 @@ public interface CineTripUseCase {
             int skippedDueToManual,
             long totalMappingsAfter
     ) {}
+
+    /**
+     * Heroku H12(30초) 라우터 타임아웃을 피하기 위한 비동기 진입점.
+     * 이미 실행 중이면 무시(no-op)하고 {@code false} 를 반환하며, 새 실행을 시작한 경우 {@code true}.
+     */
+    boolean startAutoMappingAsync(int maxPerMovie);
+
+    /** 자동 매핑 진행 상황 스냅샷. 프론트는 이걸 폴링하여 UI 갱신. */
+    AutoMappingProgress getAutoMappingProgress();
+
+    enum AutoMappingPhase { IDLE, RUNNING, COMPLETED, FAILED }
+
+    record AutoMappingProgress(
+            AutoMappingPhase phase,
+            int scannedMovies,
+            int moviesWithMatch,
+            int generatedMappings,
+            int skippedDueToManual,
+            long totalMappingsAfter,
+            String startedAt,
+            String finishedAt,
+            String errorMessage
+    ) {}
 }

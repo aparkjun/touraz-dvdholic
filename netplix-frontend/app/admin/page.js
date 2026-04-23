@@ -547,40 +547,91 @@ function Dashboard({ onLogout }) {
     }
   };
 
+  const [autoMapRunning, setAutoMapRunning] = React.useState(false);
+  const [autoMapProgress, setAutoMapProgress] = React.useState(null);
+
   /**
    * TMDB 영화 메타에서 한국 지역을 자동 추출해 AUTO 매핑을 일괄 생성한다.
-   * 결과는 즉시 DB 에 upsert 되며, MANUAL 매핑은 그대로 보존된다.
-   * 대량 스캔이라 10~60초 정도 소요될 수 있다.
+   *
+   * <p>Heroku 라우터의 30초 요청 타임아웃을 피하기 위해 백엔드는 즉시 202 반환 후
+   * 백그라운드에서 실행한다. 프론트는 2초 간격으로 /auto-map/status 를 폴링해
+   * phase 가 COMPLETED/FAILED 가 되면 결과를 alert 로 표시한다.
    */
   const runAutoMapping = async () => {
     const token = localStorage.getItem("adminToken");
     if (!token) return;
-    if (!confirm("TMDB 전체 영화를 스캔해 한국 지역 자동 매핑을 생성합니다.\n수십 초~1분 정도 걸릴 수 있어요. 진행할까요?")) {
+    if (autoMapRunning) {
+      alert("이미 자동 매핑이 진행 중입니다. 완료까지 기다려주세요.");
       return;
     }
+    if (!confirm("TMDB 전체 영화를 스캔해 한국 지역 자동 매핑을 생성합니다.\n완료까지 30초~2분 걸릴 수 있어요. 진행 중에는 이 창을 닫지 마세요. 진행할까요?")) {
+      return;
+    }
+
+    setAutoMapRunning(true);
+    setAutoMapProgress({ phase: "STARTING" });
+
     try {
-      const res = await axios.post(
+      const startRes = await axios.post(
         "/api/v1/cine-trip/auto-map?maxPerMovie=3",
         null,
-        { timeout: 120000 }
+        { timeout: 15000 }
       );
-      const data = res?.data?.data;
-      if (data) {
-        alert(
-          "TMDB 자동 매핑 완료\n\n" +
-          `스캔: ${data.scannedMovies} 편\n` +
-          `매칭된 영화: ${data.moviesWithMatch} 편\n` +
-          `신규 매핑: ${data.generatedMappings} 건\n` +
-          `MANUAL 보존(스킵): ${data.skippedDueToManual} 건\n` +
-          `총 매핑: ${data.totalMappingsAfter} 건`
-        );
-      } else {
-        alert("응답 형식이 예상과 달라요. 콘솔을 확인해주세요.");
-      }
+      if (!startRes?.data?.success) throw new Error("시작 실패");
     } catch (e) {
-      console.error("자동 매핑 실행 실패:", e);
-      alert("자동 매핑 실행 실패: " + (e?.response?.data?.message || e.message));
+      console.error("자동 매핑 시작 실패:", e);
+      alert("자동 매핑 시작 실패: " + (e?.response?.data?.message || e.message));
+      setAutoMapRunning(false);
+      setAutoMapProgress(null);
+      return;
     }
+
+    const maxPolls = 180; // 2초 간격 × 180 = 최대 6분
+    let polls = 0;
+    const poll = async () => {
+      polls += 1;
+      try {
+        const statusRes = await axios.get("/api/v1/cine-trip/auto-map/status", {
+          timeout: 10000,
+        });
+        const s = statusRes?.data?.data;
+        if (!s) throw new Error("상태 응답 없음");
+        setAutoMapProgress(s);
+
+        if (s.phase === "COMPLETED") {
+          setAutoMapRunning(false);
+          alert(
+            "TMDB 자동 매핑 완료\n\n" +
+            `스캔: ${s.scannedMovies} 편\n` +
+            `매칭된 영화: ${s.moviesWithMatch} 편\n` +
+            `신규 매핑: ${s.generatedMappings} 건\n` +
+            `MANUAL 보존(스킵): ${s.skippedDueToManual} 건\n` +
+            `총 매핑: ${s.totalMappingsAfter} 건`
+          );
+          return;
+        }
+        if (s.phase === "FAILED") {
+          setAutoMapRunning(false);
+          alert("자동 매핑 실패: " + (s.errorMessage || "알 수 없는 오류"));
+          return;
+        }
+        if (polls >= maxPolls) {
+          setAutoMapRunning(false);
+          alert("자동 매핑이 너무 오래 걸려 폴링을 중단합니다. 서버 로그를 확인해주세요.");
+          return;
+        }
+        setTimeout(poll, 2000);
+      } catch (e) {
+        console.error("자동 매핑 상태 조회 실패:", e);
+        if (polls >= maxPolls) {
+          setAutoMapRunning(false);
+          alert("자동 매핑 상태 조회 반복 실패. 잠시 후 /admin 새로고침 후 상태를 확인해주세요.");
+          return;
+        }
+        setTimeout(poll, 3000);
+      }
+    };
+    setTimeout(poll, 2000);
   };
 
   const downloadInsightsCsv = async () => {
@@ -918,6 +969,8 @@ function Dashboard({ onLogout }) {
                       onReject={rejectPendingMapping}
                       onRefresh={fetchPendingMappings}
                       onRunAutoMap={runAutoMapping}
+                      autoMapRunning={autoMapRunning}
+                      autoMapProgress={autoMapProgress}
                     />
                   )}
                 </motion.div>
@@ -1171,7 +1224,7 @@ function CultureVsTourPanel({ rows, loading, error, onRetry, onDownloadCsv }) {
   );
 }
 
-function PendingMappingsPanel({ rows, total, loading, error, onApprove, onReject, onRefresh, onRunAutoMap }) {
+function PendingMappingsPanel({ rows, total, loading, error, onApprove, onReject, onRefresh, onRunAutoMap, autoMapRunning, autoMapProgress }) {
   const { t } = useTranslation();
 
   const typeColor = (type) => {
@@ -1222,22 +1275,26 @@ function PendingMappingsPanel({ rows, total, loading, error, onApprove, onReject
           {onRunAutoMap && (
             <button
               onClick={onRunAutoMap}
-              disabled={loading}
+              disabled={loading || autoMapRunning}
               title="TMDB 메타에서 한국 지역 자동 매핑(AUTO) 생성 — MANUAL 은 보존"
               style={{
                 padding: "8px 14px",
                 borderRadius: 8,
                 border: "2px solid #6366f1",
-                background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)",
-                color: "#fff",
+                background: autoMapRunning
+                  ? "#c7d2fe"
+                  : "linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)",
+                color: autoMapRunning ? "#3730a3" : "#fff",
                 fontSize: 13,
                 fontWeight: 700,
-                cursor: loading ? "not-allowed" : "pointer",
+                cursor: loading || autoMapRunning ? "not-allowed" : "pointer",
                 opacity: loading ? 0.6 : 1,
-                boxShadow: "0 4px 12px -4px rgba(99,102,241,0.4)",
+                boxShadow: autoMapRunning ? "none" : "0 4px 12px -4px rgba(99,102,241,0.4)",
               }}
             >
-              ⚡ {t("admin.runAutoMap", "TMDB 자동 매핑 실행")}
+              {autoMapRunning
+                ? `⏳ 자동 매핑 진행 중… (${autoMapProgress?.scannedMovies ?? 0}편 스캔)`
+                : `⚡ ${t("admin.runAutoMap", "TMDB 자동 매핑 실행")}`}
             </button>
           )}
           <button

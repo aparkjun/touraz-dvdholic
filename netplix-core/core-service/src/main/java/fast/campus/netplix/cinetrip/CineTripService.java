@@ -262,6 +262,16 @@ public class CineTripService implements CineTripUseCase {
         return autoMappingService.run(maxPerMovie);
     }
 
+    @Override
+    public boolean startAutoMappingAsync(int maxPerMovie) {
+        return autoMappingService.startAsync(maxPerMovie);
+    }
+
+    @Override
+    public CineTripUseCase.AutoMappingProgress getAutoMappingProgress() {
+        return autoMappingService.progressSnapshot();
+    }
+
     private int clampLimit(int limit) {
         if (limit <= 0) return 12;
         return Math.min(limit, MAX_LIMIT);

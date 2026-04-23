@@ -110,16 +110,45 @@ public class CineTripController {
 
     /**
      * TMDB 영화 메타에서 한국 지역명을 regex 매칭해 AUTO 매핑을 일괄 생성한다. (관리자 전용)
-     * 기존 MANUAL 매핑은 보존된다(동일 movie-area 조합은 스킵).
+     *
+     * <p>Heroku H12(30초) 타임아웃을 피하기 위해 즉시 반환하고 실제 스캔은 {@code @Async} 로
+     * 백그라운드에서 실행한다. 진행 상황은 {@code GET /auto-map/status} 로 폴링한다.
      *
      * @param maxPerMovie 한 영화당 상위 매칭 지역 N개까지 저장 (기본 3, 최대 5)
+     * @return 시작 여부와 현재 스냅샷. 이미 실행 중이면 started=false 로 반환.
      */
     @PostMapping("/auto-map")
-    public NetplixApiResponse<CineTripUseCase.AutoMappingReport> autoMap(
+    public NetplixApiResponse<Map<String, Object>> autoMap(
             @RequestParam(defaultValue = "3") int maxPerMovie) {
-        CineTripUseCase.AutoMappingReport report = cineTripUseCase.runAutoMapping(maxPerMovie);
-        log.info("[CINE-TRIP] /auto-map 트리거 결과: {}", report);
-        return NetplixApiResponse.ok(report);
+        boolean started = cineTripUseCase.startAutoMappingAsync(maxPerMovie);
+        log.info("[CINE-TRIP] /auto-map started={} maxPerMovie={}", started, maxPerMovie);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("started", started);
+        body.put("status", serialize(cineTripUseCase.getAutoMappingProgress()));
+        return NetplixApiResponse.ok(body);
+    }
+
+    /**
+     * 자동 매핑 진행 상태 조회 — 프론트는 이 엔드포인트를 1~2초 간격으로 폴링한다.
+     * COMPLETED / FAILED 가 되면 폴링을 중단하고 리포트를 표시한다.
+     */
+    @GetMapping("/auto-map/status")
+    public NetplixApiResponse<Map<String, Object>> autoMapStatus() {
+        return NetplixApiResponse.ok(serialize(cineTripUseCase.getAutoMappingProgress()));
+    }
+
+    private Map<String, Object> serialize(CineTripUseCase.AutoMappingProgress s) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("phase", s.phase().name());
+        out.put("scannedMovies", s.scannedMovies());
+        out.put("moviesWithMatch", s.moviesWithMatch());
+        out.put("generatedMappings", s.generatedMappings());
+        out.put("skippedDueToManual", s.skippedDueToManual());
+        out.put("totalMappingsAfter", s.totalMappingsAfter());
+        out.put("startedAt", s.startedAt());
+        out.put("finishedAt", s.finishedAt());
+        out.put("errorMessage", s.errorMessage());
+        return out;
     }
 
     /**

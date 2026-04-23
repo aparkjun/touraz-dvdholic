@@ -4,6 +4,7 @@ import fast.campus.netplix.movie.NetplixMovie;
 import fast.campus.netplix.movie.PersistenceMoviePort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -54,6 +55,61 @@ public class CineTripAutoMappingService {
 
     private final PersistenceMoviePort moviePort;
     private final MovieRegionMappingPort mappingPort;
+    private final AutoMappingProgressHolder progress;
+
+    /**
+     * UseCase 에서 호출하는 비동기 진입점.
+     * tryStart() 성공 시에만 @Async 백그라운드 실행을 예약하고 true 반환, 이미 실행 중이면 false.
+     */
+    public boolean startAsync(int maxPerMovie) {
+        if (!progress.tryStart()) {
+            log.warn("[CINE-TRIP-AUTO] 이미 실행 중이라 새 요청을 무시합니다.");
+            return false;
+        }
+        runAsyncInternal(maxPerMovie);
+        return true;
+    }
+
+    /** 현재 진행 상태를 UseCase 레벨 DTO 로 변환해 반환. */
+    public CineTripUseCase.AutoMappingProgress progressSnapshot() {
+        AutoMappingProgressHolder.Snapshot s = progress.snapshot();
+        return new CineTripUseCase.AutoMappingProgress(
+                toUseCasePhase(s.phase),
+                s.scannedMovies,
+                s.moviesWithMatch,
+                s.generatedMappings,
+                s.skippedDueToManual,
+                s.totalMappingsAfter,
+                s.startedAt != null ? s.startedAt.toString() : null,
+                s.finishedAt != null ? s.finishedAt.toString() : null,
+                s.errorMessage
+        );
+    }
+
+    private static CineTripUseCase.AutoMappingPhase toUseCasePhase(AutoMappingProgressHolder.Phase p) {
+        switch (p) {
+            case RUNNING: return CineTripUseCase.AutoMappingPhase.RUNNING;
+            case COMPLETED: return CineTripUseCase.AutoMappingPhase.COMPLETED;
+            case FAILED: return CineTripUseCase.AutoMappingPhase.FAILED;
+            case IDLE:
+            default: return CineTripUseCase.AutoMappingPhase.IDLE;
+        }
+    }
+
+    /**
+     * 실제 @Async 실행 본체. 외부 호출 대신 {@link #startAsync(int)} 를 통해 진입해야
+     * tryStart() 락을 우회해 중복 실행되지 않는다. (@Async 는 self-invocation 에서 동작하지 않으므로
+     * 외부에서 Spring-managed 빈으로 호출될 때만 프록시가 작동한다.)
+     */
+    @Async
+    public void runAsyncInternal(int maxPerMovie) {
+        try {
+            run(maxPerMovie);
+        } catch (RuntimeException e) {
+            log.error("[CINE-TRIP-AUTO] 실행 실패", e);
+            progress.markFailed(e.getClass().getSimpleName() + ": " + e.getMessage());
+        }
+    }
 
     /**
      * 전체 영화를 스캔해 AUTO 매핑을 생성/업서트한다.
@@ -118,6 +174,8 @@ public class CineTripAutoMappingService {
                 }
             }
 
+            progress.updateProgress(scanned, withMatch, generated, skipped);
+
             if (movies.size() < PAGE_SIZE) break; // 마지막 페이지
         }
 
@@ -127,6 +185,7 @@ public class CineTripAutoMappingService {
         }
 
         long total = mappingPort.count();
+        progress.markCompleted(scanned, withMatch, generated, skipped, total);
         CineTripUseCase.AutoMappingReport report = new CineTripUseCase.AutoMappingReport(
                 scanned, withMatch, generated, skipped, total);
         log.info("[CINE-TRIP-AUTO] 완료 scanned={} matched={} generated={} skippedManual={} total={}",
