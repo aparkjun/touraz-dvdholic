@@ -13,6 +13,9 @@ import {
   Sparkles,
 } from 'lucide-react';
 import PetFriendlySpotsStrip from '@/components/PetFriendlySpotsStrip';
+import NearbyCineTripStrip from '@/components/NearbyCineTripStrip';
+import NearbyTrekkingStrip from '@/components/NearbyTrekkingStrip';
+import PetCinemaCurationStrip from '@/components/PetCinemaCurationStrip';
 import useDragScrollAll from '@/lib/useDragScroll';
 
 /**
@@ -625,6 +628,9 @@ export default function PetTravelPage() {
           />
         </motion.div>
 
+        {/* 옵션 2: Pet-Cinema 큐레이션 — 반려와 함께 보기 좋은 영화 */}
+        <PetCinemaCurationStrip />
+
         {selected == null ? (
           NATIONAL_FEATURED.map((code, idx) => (
             <motion.section
@@ -648,6 +654,28 @@ export default function PetTravelPage() {
                 areaCode={code}
                 regionLabel={AREA_LABEL[code]}
               />
+
+              <div style={{ height: 14 }} />
+              {/* 옵션 1: 이 동네 배경 영화 */}
+              <NearbyCineTripStrip
+                areaCode={code}
+                theme="light"
+                badgeLabel="PetCinema"
+                title={`${AREA_LABEL[code]} 배경, 반려와 돌아와 보면 좋은 영화`}
+                limit={8}
+              />
+
+              <div style={{ height: 14 }} />
+              {/* 옵션 3: 반려와 산책 삼아 걷기 좋은 코스 */}
+              <NearbyTrekkingStrip
+                areaCode={code}
+                regionName={AREA_LABEL[code]}
+                theme="light"
+                badgeLabel="PetWalk"
+                title="반려와 산책 삼아 걷기 좋은 코스"
+                subtitle={`${AREA_LABEL[code]} 인근 두루누비 코스`}
+                limit={6}
+              />
             </motion.section>
           ))
         ) : (
@@ -669,6 +697,26 @@ export default function PetTravelPage() {
             <PetFriendlySpotsStrip
               areaCode={selected}
               regionLabel={AREA_LABEL[selected]}
+            />
+
+            <div style={{ height: 14 }} />
+            <NearbyCineTripStrip
+              areaCode={selected}
+              theme="light"
+              badgeLabel="PetCinema"
+              title={`${AREA_LABEL[selected]} 배경, 반려와 돌아와 보면 좋은 영화`}
+              limit={8}
+            />
+
+            <div style={{ height: 14 }} />
+            <NearbyTrekkingStrip
+              areaCode={selected}
+              regionName={AREA_LABEL[selected]}
+              theme="light"
+              badgeLabel="PetWalk"
+              title="반려와 산책 삼아 걷기 좋은 코스"
+              subtitle={`${AREA_LABEL[selected]} 인근 두루누비 코스`}
+              limit={6}
             />
           </motion.section>
         )}

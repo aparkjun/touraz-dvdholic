@@ -30,7 +30,23 @@ const posterSrc = (posterPath) => {
   return `https://image.tmdb.org/t/p/w500${posterPath}`;
 };
 
-export default function NearbyCineTripStrip({ sigun, areaCode: areaCodeProp, limit = 8 }) {
+export default function NearbyCineTripStrip({
+  sigun,
+  areaCode: areaCodeProp,
+  limit = 8,
+  theme = 'dark',
+  title,
+  badgeLabel = 'CineWalk',
+}) {
+  const isLight = theme === 'light';
+  const headerBadgeBg = isLight
+    ? 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)'
+    : 'linear-gradient(135deg, rgba(168,85,247,0.2) 0%, rgba(236,72,153,0.2) 100%)';
+  const headerBadgeBorder = isLight ? 'transparent' : 'rgba(168,85,247,0.45)';
+  const headerBadgeColor = isLight ? '#fff' : '#f5d0fe';
+  const headerTitleColor = isLight ? '#0f172a' : '#fff';
+  const headerLinkColor = isLight ? '#0ea5e9' : '#f5d0fe';
+  const emptyTextColor = isLight ? '#475569' : '#94a3b8';
   const areaCode = useMemo(() => {
     if (areaCodeProp != null) return Number(areaCodeProp);
     return sigunToAreaCode(sigun);
@@ -70,7 +86,7 @@ export default function NearbyCineTripStrip({ sigun, areaCode: areaCodeProp, lim
   if (!areaCode) return null;
   if (!loading && !error && items.length === 0) {
     return (
-      <div style={{ padding: '10px 2px', fontSize: 12.5, color: '#94a3b8' }}>
+      <div style={{ padding: '10px 2px', fontSize: 12.5, color: emptyTextColor }}>
         아직 이 지역과 연결된 영화 큐레이션이 없어요.
       </div>
     );
@@ -94,27 +110,27 @@ export default function NearbyCineTripStrip({ sigun, areaCode: areaCodeProp, lim
             gap: 6,
             padding: '3px 9px',
             borderRadius: 999,
-            background:
-              'linear-gradient(135deg, rgba(168,85,247,0.2) 0%, rgba(236,72,153,0.2) 100%)',
-            border: '1px solid rgba(168,85,247,0.45)',
-            color: '#f5d0fe',
+            background: headerBadgeBg,
+            border: `1px solid ${headerBadgeBorder}`,
+            color: headerBadgeColor,
             fontSize: 10.5,
             fontWeight: 800,
             letterSpacing: '0.1em',
             textTransform: 'uppercase',
+            boxShadow: isLight ? '0 6px 18px rgba(14,165,233,0.35)' : 'none',
           }}
         >
-          <Sparkles size={11} /> CineWalk
+          <Sparkles size={11} /> {badgeLabel}
         </span>
-        <span style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>
-          {regionLabel} 배경으로 한 영화들
+        <span style={{ fontSize: 13, fontWeight: 800, color: headerTitleColor }}>
+          {title || `${regionLabel} 배경으로 한 영화들`}
         </span>
         <Link
           href={`/cine-trip?area=${areaCode}`}
           style={{
             marginLeft: 'auto',
             fontSize: 12,
-            color: '#f5d0fe',
+            color: headerLinkColor,
             fontWeight: 700,
             textDecoration: 'none',
             display: 'inline-flex',
@@ -152,7 +168,7 @@ export default function NearbyCineTripStrip({ sigun, areaCode: areaCodeProp, lim
               />
             ))
           : error
-            ? <div style={{ color: '#94a3b8', fontSize: 13 }}>{error}</div>
+            ? <div style={{ color: emptyTextColor, fontSize: 13 }}>{error}</div>
             : items.map((it, i) => (
                 <MoviePosterCard key={`${it?.movie?.movieName || 'item'}-${i}`} item={it} index={i} />
               ))}

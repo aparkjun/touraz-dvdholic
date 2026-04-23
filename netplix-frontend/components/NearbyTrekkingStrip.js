@@ -17,7 +17,24 @@ import axios from '@/lib/axiosConfig';
  *   (useDragScroll 훅이 cine-trip 페이지 루트에 이미 바인딩되어 있어
  *    모달이 동적으로 마운트되어도 MutationObserver 가 자동 바인딩)
  */
-export default function NearbyTrekkingStrip({ areaCode, regionName, limit = 6 }) {
+export default function NearbyTrekkingStrip({
+  areaCode,
+  regionName,
+  limit = 6,
+  theme = 'dark',
+  title,
+  badgeLabel = 'CineWalk',
+  subtitle,
+}) {
+  const isLight = theme === 'light';
+  const headerBadgeBg = isLight
+    ? 'linear-gradient(135deg, #059669 0%, #0ea5e9 100%)'
+    : 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(56,189,248,0.18))';
+  const headerBadgeBorder = isLight ? 'transparent' : 'rgba(110,231,183,0.45)';
+  const headerBadgeColor = isLight ? '#fff' : '#a7f3d0';
+  const headerTitleColor = isLight ? '#0f172a' : '#fff';
+  const headerSubtitleColor = isLight ? '#475569' : '#94a3b8';
+  const headerLinkColor = isLight ? '#059669' : '#a7f3d0';
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -72,23 +89,24 @@ export default function NearbyTrekkingStrip({ areaCode, regionName, limit = 6 })
             gap: 6,
             padding: '4px 10px',
             borderRadius: 999,
-            background: 'linear-gradient(135deg, rgba(16,185,129,0.18), rgba(56,189,248,0.18))',
-            border: '1px solid rgba(110,231,183,0.45)',
-            color: '#a7f3d0',
+            background: headerBadgeBg,
+            border: `1px solid ${headerBadgeBorder}`,
+            color: headerBadgeColor,
             fontSize: 11,
             fontWeight: 800,
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
+            boxShadow: isLight ? '0 6px 18px rgba(16,185,129,0.3)' : 'none',
           }}
         >
-          <Footprints size={12} /> CineWalk
+          <Footprints size={12} /> {badgeLabel}
         </span>
-        <h4 style={{ fontSize: 15, fontWeight: 800, color: '#fff', margin: 0 }}>
-          이 영화 배경, 이렇게 걸어봐요
+        <h4 style={{ fontSize: 15, fontWeight: 800, color: headerTitleColor, margin: 0 }}>
+          {title || '이 영화 배경, 이렇게 걸어봐요'}
         </h4>
         {regionName && (
-          <span style={{ fontSize: 12, color: '#94a3b8' }}>
-            · {regionName} 인근 두루누비 코스
+          <span style={{ fontSize: 12, color: headerSubtitleColor }}>
+            · {subtitle || `${regionName} 인근 두루누비 코스`}
           </span>
         )}
         <Link
@@ -96,7 +114,7 @@ export default function NearbyTrekkingStrip({ areaCode, regionName, limit = 6 })
           style={{
             marginLeft: 'auto',
             fontSize: 12,
-            color: '#a7f3d0',
+            color: headerLinkColor,
             fontWeight: 700,
             textDecoration: 'none',
             display: 'inline-flex',
