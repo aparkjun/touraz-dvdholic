@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { MapPin, Compass, Sparkles, Share2 } from 'lucide-react';
+import { MapPin, Compass, Sparkles, Share2, Plane, Footprints } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import { shareContent, shareResultMessage } from '@/lib/shareUtils';
 
@@ -12,7 +12,17 @@ const MAPPING_BADGE = {
   THEME: { label: '테마', bg: 'rgba(139, 92, 246, 0.18)', color: '#a78bfa' },
 };
 
-export default function CineTripCTA({ movieName, posterUrl }) {
+/**
+ * DVD 상세 페이지에서는 "이 DVD로 여행가기",
+ * 영화(혹은 all) 상세 페이지에서는 "이 영화로 여행가기" 로 문구를 동적 결정.
+ */
+const resolveCtaLabel = (contentType) => {
+  const ct = String(contentType || '').toLowerCase();
+  if (ct === 'dvd') return '이 DVD로 여행가기';
+  return '이 영화로 여행가기';
+};
+
+export default function CineTripCTA({ movieName, posterUrl, contentType }) {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const [shareToast, setShareToast] = useState('');
@@ -39,10 +49,12 @@ export default function CineTripCTA({ movieName, posterUrl }) {
   }, [movieName]);
 
   if (loading) return null;
-  if (!items || items.length === 0) return null;
 
-  const mappings = items.flatMap((it) => it.mappings || []);
-  const regions = items.flatMap((it) => it.regionIndices || []);
+  const ctaLabel = resolveCtaLabel(contentType);
+  const hasItems = Array.isArray(items) && items.length > 0;
+
+  const mappings = hasItems ? items.flatMap((it) => it.mappings || []) : [];
+  const regions = hasItems ? items.flatMap((it) => it.regionIndices || []) : [];
   const uniqueRegions = new Map();
   mappings.forEach((m) => {
     if (m?.areaCode && !uniqueRegions.has(m.areaCode)) {
@@ -55,6 +67,7 @@ export default function CineTripCTA({ movieName, posterUrl }) {
   });
   const regionChips = Array.from(uniqueRegions.values()).slice(0, 6);
   const primaryArea = regionChips[0]?.areaCode;
+  const primaryRegionName = regionChips[0]?.regionName;
 
   return (
     <div
@@ -89,7 +102,7 @@ export default function CineTripCTA({ movieName, posterUrl }) {
             letterSpacing: '0.3px',
           }}
         >
-          이 영화로 떠나는 여행
+          {ctaLabel}
         </span>
       </div>
       <p
@@ -100,7 +113,9 @@ export default function CineTripCTA({ movieName, posterUrl }) {
           lineHeight: 1.5,
         }}
       >
-        이 작품과 연결된 지역의 실시간 관광 지표를 확인하고, 촬영지·배경을 따라 여행을 계획해 보세요.
+        {hasItems
+          ? '이 작품과 연결된 지역의 실시간 관광 지표를 확인하고, 촬영지·배경을 따라 여행을 계획해 보세요.'
+          : '스크린 속 풍경을 직접 걷고 싶다면 CineTrip 으로 떠나보세요. 전국 촬영지·배경 큐레이션이 준비되어 있어요.'}
       </p>
 
       {regionChips.length > 0 && (
@@ -183,38 +198,77 @@ export default function CineTripCTA({ movieName, posterUrl }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Link
           href={primaryArea ? `/cine-trip?area=${primaryArea}` : '/cine-trip'}
+          className="cinetrip-cta-primary"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: 8,
-            padding: '10px 18px',
-            background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)',
-            borderRadius: 10,
+            padding: '12px 22px',
+            background:
+              'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%)',
+            backgroundSize: '200% 200%',
+            borderRadius: 999,
             color: '#fff',
-            fontSize: 14,
-            fontWeight: 700,
+            fontSize: 15,
+            fontWeight: 800,
+            letterSpacing: '0.2px',
             textDecoration: 'none',
-            boxShadow: '0 4px 16px rgba(139, 92, 246, 0.35)',
+            boxShadow:
+              '0 6px 22px rgba(139, 92, 246, 0.45), inset 0 1px 0 rgba(255,255,255,0.25)',
+            position: 'relative',
+            overflow: 'hidden',
           }}
         >
-          <Compass size={15} />
-          여행 큐레이션 보기
+          <Plane size={16} />
+          {ctaLabel}
+          <Compass size={14} style={{ opacity: 0.9, marginLeft: 2 }} />
         </Link>
+
+        {primaryArea && (
+          <Link
+            href={`/trekking?area=${primaryArea}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '10px 14px',
+              background: 'rgba(34, 197, 94, 0.12)',
+              border: '1px solid rgba(34, 197, 94, 0.35)',
+              borderRadius: 999,
+              color: '#86efac',
+              fontSize: 13,
+              fontWeight: 700,
+              textDecoration: 'none',
+            }}
+          >
+            <Footprints size={14} />
+            이 길 따라 걷기
+            {primaryRegionName ? ` · ${primaryRegionName}` : ''}
+          </Link>
+        )}
+
         <button
           type="button"
           onClick={async () => {
-            const regionText = regionChips.length > 0
-              ? regionChips.map((r) => r.regionName).filter(Boolean).join(', ')
-              : '';
+            const regionText =
+              regionChips.length > 0
+                ? regionChips
+                    .map((r) => r.regionName)
+                    .filter(Boolean)
+                    .join(', ')
+                : '';
             const channel = await shareContent({
               title: `${movieName} · CineTrip`,
               description: regionText
-                ? `이 영화로 떠나는 여행: ${regionText}`
-                : '이 영화로 떠나는 여행 큐레이션을 확인해 보세요',
+                ? `${ctaLabel}: ${regionText}`
+                : `${ctaLabel} · CineTrip 큐레이션을 확인해 보세요`,
               imageUrl: posterUrl || '',
-              url: typeof window !== 'undefined'
-                ? `${window.location.origin}/cine-trip${primaryArea ? `?area=${primaryArea}` : ''}`
-                : undefined,
+              url:
+                typeof window !== 'undefined'
+                  ? `${window.location.origin}/cine-trip${
+                      primaryArea ? `?area=${primaryArea}` : ''
+                    }`
+                  : undefined,
             });
             setShareToast(shareResultMessage(channel));
             setTimeout(() => setShareToast(''), 2000);
@@ -226,7 +280,7 @@ export default function CineTripCTA({ movieName, posterUrl }) {
             padding: '10px 14px',
             background: 'rgba(255,255,255,0.08)',
             border: '1px solid rgba(255,255,255,0.15)',
-            borderRadius: 10,
+            borderRadius: 999,
             color: '#fff',
             fontSize: 13,
             fontWeight: 600,
@@ -242,6 +296,38 @@ export default function CineTripCTA({ movieName, posterUrl }) {
           </span>
         )}
       </div>
+
+      <style jsx>{`
+        .cinetrip-cta-primary {
+          animation: cinetripGradientShift 6s ease infinite,
+            cinetripPulse 2.6s ease-in-out infinite;
+        }
+        .cinetrip-cta-primary:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 10px 28px rgba(139, 92, 246, 0.6),
+            inset 0 1px 0 rgba(255, 255, 255, 0.35);
+        }
+        @keyframes cinetripGradientShift {
+          0%,
+          100% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+        }
+        @keyframes cinetripPulse {
+          0%,
+          100% {
+            box-shadow: 0 6px 22px rgba(139, 92, 246, 0.45),
+              inset 0 1px 0 rgba(255, 255, 255, 0.25);
+          }
+          50% {
+            box-shadow: 0 10px 30px rgba(236, 72, 153, 0.55),
+              inset 0 1px 0 rgba(255, 255, 255, 0.35);
+          }
+        }
+      `}</style>
     </div>
   );
 }

@@ -563,8 +563,12 @@ function MovieImagesContent() {
           )}
         </div>
 
-        {/* CineTrip CTA - 이 영화로 떠나는 여행 */}
-        <CineTripCTA movieName={movieName} posterUrl={posterPath || backdropPath || ""} />
+        {/* CineTrip CTA - 이 영화/DVD 로 여행가기 */}
+        <CineTripCTA
+          movieName={movieName}
+          posterUrl={posterPath || backdropPath || ""}
+          contentType={contentType}
+        />
 
         {/* 한국관광공사 수상작 포토 - 이 영화 키워드로 교차 검색 */}
         {movieName && (
