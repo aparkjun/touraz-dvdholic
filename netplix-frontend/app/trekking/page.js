@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
@@ -29,53 +29,72 @@ import axios from '@/lib/axiosConfig';
  * UI: 대시보드 "코스로 떠나는 걷기여행" CTA 와 동일한 mint·butter·sky·moss 팔레트.
  */
 
-// 대표 brdDiv 코드 → 한글 라벨(필터 칩). API 원문 brdNm 이 오면 덮어쓴다.
-const FALLBACK_BRD_LABEL = {
-  DNWW: '해파랑길',
-  DNBW: '남파랑길',
-  DNHW: '서해랑길',
-  DNJJ: 'DMZ 평화의 길',
-  DNKW: '강화 나들길',
+/**
+ * Durunubi API 실데이터 관찰 결과 (2026-04, courseList 전체 228건 스캔):
+ *  - 모든 코스의 `brdDiv` 가 `DNWW` 로 동일해 실질적 필터가 되지 않는다.
+ *  - 실제 둘레길 구분은 `routeIdx` 로 이뤄진다.
+ *    · T_THEME_MNG0000011235 → 해파랑길 (49개)
+ *    · T_ROUTE_MNG0000000001 → 남파랑길 (87개)
+ *    · T_ROUTE_MNG0000000043 → 서해랑길 (92개)
+ *  - DMZ 평화의 길은 해당 API 의 courseList 에 포함되지 않는다.
+ *
+ * 따라서 필터 칩은 routeIdx 기반으로 고정 매핑해 사용한다.
+ */
+const ROUTE_FILTERS = [
+  {
+    id: 'hae',
+    label: '해파랑길',
+    routeIdx: 'T_THEME_MNG0000011235',
+    accent: {
+      bg: 'linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%)',
+      chipBg: 'rgba(14,165,233,0.18)',
+      chip: '#7dd3fc',
+    },
+  },
+  {
+    id: 'nam',
+    label: '남파랑길',
+    routeIdx: 'T_ROUTE_MNG0000000001',
+    accent: {
+      bg: 'linear-gradient(135deg, #14b8a6 0%, #22c55e 100%)',
+      chipBg: 'rgba(20,184,166,0.18)',
+      chip: '#6ee7b7',
+    },
+  },
+  {
+    id: 'seo',
+    label: '서해랑길',
+    routeIdx: 'T_ROUTE_MNG0000000043',
+    accent: {
+      bg: 'linear-gradient(135deg, #f59e0b 0%, #fb923c 100%)',
+      chipBg: 'rgba(245,158,11,0.18)',
+      chip: '#fde68a',
+    },
+  },
+];
+
+const DEFAULT_ACCENT = {
+  bg: 'linear-gradient(135deg, #14b8a6 0%, #0ea5e9 100%)',
+  chipBg: 'rgba(110,231,183,0.18)',
+  chip: '#a7f3d0',
 };
 
-const BRD_ACCENT = {
-  DNWW: { bg: 'linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%)', chipBg: 'rgba(14,165,233,0.18)', chip: '#7dd3fc' },
-  DNBW: { bg: 'linear-gradient(135deg, #14b8a6 0%, #22c55e 100%)', chipBg: 'rgba(20,184,166,0.18)', chip: '#6ee7b7' },
-  DNHW: { bg: 'linear-gradient(135deg, #f59e0b 0%, #fb923c 100%)', chipBg: 'rgba(245,158,11,0.18)', chip: '#fde68a' },
-  DNJJ: { bg: 'linear-gradient(135deg, #a78bfa 0%, #38bdf8 100%)', chipBg: 'rgba(167,139,250,0.18)', chip: '#c4b5fd' },
-  _default: { bg: 'linear-gradient(135deg, #14b8a6 0%, #0ea5e9 100%)', chipBg: 'rgba(110,231,183,0.18)', chip: '#a7f3d0' },
-};
+const accentForRoute = (routeIdx) =>
+  ROUTE_FILTERS.find((f) => f.routeIdx === routeIdx)?.accent || DEFAULT_ACCENT;
 
-const accentFor = (code) => BRD_ACCENT[code] || BRD_ACCENT._default;
+const labelForRoute = (routeIdx) =>
+  ROUTE_FILTERS.find((f) => f.routeIdx === routeIdx)?.label || '기타';
 
 export default function TrekkingPage() {
   const [routes, setRoutes] = useState([]);
   const [routesLoading, setRoutesLoading] = useState(true);
   const [routesError, setRoutesError] = useState(null);
 
-  const [activeBrd, setActiveBrd] = useState(null);
+  // 선택된 필터: null = 전체, 그 외엔 ROUTE_FILTERS 의 routeIdx 중 하나
+  const [activeRouteIdx, setActiveRouteIdx] = useState(null);
   const [courses, setCourses] = useState([]);
   const [coursesLoading, setCoursesLoading] = useState(true);
   const [coursesError, setCoursesError] = useState(null);
-
-  // routeList 에서 추출한 brdDiv → brdNm 매핑
-  const brdLabel = useMemo(() => {
-    const map = { ...FALLBACK_BRD_LABEL };
-    routes.forEach((r) => {
-      if (r?.brdDiv) {
-        const label = r.brdNm || r.lnm || r.displayName;
-        if (label) map[r.brdDiv] = label;
-      }
-    });
-    return map;
-  }, [routes]);
-
-  // 필터 칩: API routes 에 포함된 brdDiv + fallback 상위 4종의 합집합
-  const brdFilters = useMemo(() => {
-    const set = new Set(routes.map((r) => r?.brdDiv).filter(Boolean));
-    ['DNWW', 'DNBW', 'DNHW', 'DNJJ'].forEach((b) => set.add(b));
-    return Array.from(set);
-  }, [routes]);
 
   useEffect(() => {
     let alive = true;
@@ -103,8 +122,8 @@ export default function TrekkingPage() {
       setCoursesLoading(true);
       setCoursesError(null);
       try {
-        const params = new URLSearchParams({ limit: '24' });
-        if (activeBrd) params.set('brdDiv', activeBrd);
+        const params = new URLSearchParams({ limit: '60' });
+        if (activeRouteIdx) params.set('routeIdx', activeRouteIdx);
         const res = await axios.get(`/api/v1/tour/trekking/courses?${params.toString()}`);
         const data = res?.data?.data ?? [];
         if (!alive) return;
@@ -117,7 +136,7 @@ export default function TrekkingPage() {
       }
     })();
     return () => { alive = false; };
-  }, [activeBrd]);
+  }, [activeRouteIdx]);
 
   return (
     <div
@@ -279,7 +298,7 @@ export default function TrekkingPage() {
             }}
           >
             {routes.slice(0, 8).map((r) => {
-              const acc = accentFor(r.brdDiv);
+              const acc = accentForRoute(r.routeIdx);
               return (
                 <div
                   key={r.routeIdx || r.displayName}
@@ -347,23 +366,20 @@ export default function TrekkingPage() {
           style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}
         >
           <ChipButton
-            active={activeBrd === null}
-            onClick={() => setActiveBrd(null)}
+            active={activeRouteIdx === null}
+            onClick={() => setActiveRouteIdx(null)}
             label="전체"
             color="#a7f3d0"
           />
-          {brdFilters.map((code) => {
-            const acc = accentFor(code);
-            return (
-              <ChipButton
-                key={code}
-                active={activeBrd === code}
-                onClick={() => setActiveBrd(code)}
-                label={brdLabel[code] || code}
-                color={acc.chip}
-              />
-            );
-          })}
+          {ROUTE_FILTERS.map((f) => (
+            <ChipButton
+              key={f.id}
+              active={activeRouteIdx === f.routeIdx}
+              onClick={() => setActiveRouteIdx(f.routeIdx)}
+              label={f.label}
+              color={f.accent.chip}
+            />
+          ))}
         </div>
 
         {coursesLoading ? (
@@ -423,7 +439,8 @@ function ChipButton({ active, onClick, label, color }) {
 }
 
 function CourseCard({ course }) {
-  const acc = accentFor(course.brdDiv);
+  const acc = accentForRoute(course.routeIdx);
+  const routeLabel = labelForRoute(course.routeIdx);
   const [open, setOpen] = useState(false);
   return (
     <motion.div
@@ -442,14 +459,14 @@ function CourseCard({ course }) {
         }}
       />
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-        {course.brdDiv && (
+        {routeLabel && (
           <span
             style={{
               padding: '3px 9px', borderRadius: 999, background: acc.chipBg, color: acc.chip,
-              fontSize: 10.5, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase',
+              fontSize: 10.5, fontWeight: 800, letterSpacing: '0.1em',
             }}
           >
-            {course.brdNm || course.brdDiv}
+            {routeLabel}
           </span>
         )}
         {course.sigun && (
