@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, TrendingUp, PawPrint } from 'lucide-react';
+import { Sparkles, TrendingUp, PawPrint, Plane, PlaneTakeoff } from 'lucide-react';
 import Link from 'next/link';
 import axios from '@/lib/axiosConfig';
+import TravelPortalButton from '@/components/TravelPortalButton';
 
 const RANK_COLORS = [
   'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
@@ -288,48 +289,30 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
 
       <div
         style={{
-          marginTop: 16,
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
+          marginTop: 20,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: 14,
         }}
       >
-        <Link
+        <TravelPortalButton
           href="/cine-trip"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            fontSize: 13,
-            fontWeight: 600,
-            color: '#c4b5fd',
-            textDecoration: 'none',
-          }}
-        >
-          <Sparkles size={14} />
-          CineTrip 카드 전체 보기 →
-        </Link>
-        <Link
+          tag="CineTrip"
+          label="영화로 떠나는 여행"
+          sub="촬영지·배경을 따라 체크인"
+          Icon={PlaneTakeoff}
+          theme="cinema"
+          fullWidth
+        />
+        <TravelPortalButton
           href="/pet-travel"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '6px 12px',
-            fontSize: 13,
-            fontWeight: 600,
-            color: '#fbcfe8',
-            textDecoration: 'none',
-            background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.18) 0%, rgba(139, 92, 246, 0.18) 100%)',
-            border: '1px solid rgba(236, 72, 153, 0.35)',
-            borderRadius: 999,
-          }}
-        >
-          <PawPrint size={14} />
-          반려동물 여행 전체 보기 →
-        </Link>
+          tag="Pet Travel"
+          label="반려동물과 함께 떠나요"
+          sub="햇살 가득, 네 발로 봄바람"
+          Icon={PawPrint}
+          theme="outdoor"
+          fullWidth
+        />
       </div>
     </div>
   );
