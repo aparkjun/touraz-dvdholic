@@ -219,98 +219,124 @@ export default function WellnessRecoveryCalendar() {
 
 function QuietDayCard({ r, rank, delay }) {
   const color = levelColor(r.concentrationRate);
+  // 웰니스 페이지 자체 내에서 바로 지역 필터를 걸어 스팟을 노출 — 회복 동선 즉답.
+  const dest = `/wellness?q=${encodeURIComponent(r.areaName || '')}`;
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -4, scale: 1.02 }}
       transition={{ duration: 0.32, delay }}
       style={{
         position: 'relative',
-        padding: 14,
         borderRadius: 14,
-        background:
-          'linear-gradient(180deg, rgba(10,20,30,0.7) 0%, rgba(10,20,30,0.45) 100%)',
-        border: '1px solid rgba(255,255,255,0.08)',
         overflow: 'hidden',
       }}
     >
-      <div
-        aria-hidden
+      <Link
+        href={dest}
+        title={`${r.areaName} 힐링 스팟으로 회복 시작`}
         style={{
-          position: 'absolute',
-          top: -40,
-          right: -40,
-          width: 120,
-          height: 120,
-          borderRadius: '50%',
-          background: `radial-gradient(circle, ${color}55, transparent 60%)`,
-          filter: 'blur(14px)',
-        }}
-      />
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: 6,
+          display: 'block',
+          position: 'relative',
+          padding: 14,
+          borderRadius: 14,
+          background:
+            'linear-gradient(180deg, rgba(10,20,30,0.7) 0%, rgba(10,20,30,0.45) 100%)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          textDecoration: 'none',
+          color: 'inherit',
+          overflow: 'hidden',
         }}
       >
-        <span
+        <div
+          aria-hidden
           style={{
-            display: 'inline-flex',
+            position: 'absolute',
+            top: -40,
+            right: -40,
+            width: 120,
+            height: 120,
+            borderRadius: '50%',
+            background: `radial-gradient(circle, ${color}55, transparent 60%)`,
+            filter: 'blur(14px)',
+          }}
+        />
+        <div
+          style={{
+            display: 'flex',
             alignItems: 'center',
-            gap: 4,
-            fontSize: 11,
-            fontWeight: 800,
-            color: '#fde68a',
+            justifyContent: 'space-between',
+            marginBottom: 6,
           }}
         >
-          <Sparkles size={12} /> #{rank}
-        </span>
-        <span
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: 11,
+              fontWeight: 800,
+              color: '#fde68a',
+            }}
+          >
+            <Sparkles size={12} /> #{rank}
+          </span>
+          <span
+            style={{
+              fontSize: 11,
+              padding: '3px 8px',
+              borderRadius: 999,
+              color,
+              background: `${color}22`,
+              border: `1px solid ${color}55`,
+              fontWeight: 700,
+            }}
+          >
+            혼잡도 {r.concentrationRate.toFixed(1)}
+          </span>
+        </div>
+        <div
           style={{
+            fontSize: 20,
+            fontWeight: 800,
+            color: '#fff',
+            lineHeight: 1.2,
+            letterSpacing: '-0.3px',
+          }}
+        >
+          {formatDateShort(r.baseDate)}
+        </div>
+        <div
+          style={{
+            marginTop: 6,
+            fontSize: 12,
+            color: '#a7f3d0',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          <Leaf size={12} />
+          {r.areaName || ''}
+          {r.signguName ? ` · ${r.signguName}` : ''}
+        </div>
+        {r.spotName && (
+          <div style={{ marginTop: 2, fontSize: 11, color: '#cbd5e1' }}>
+            대표 관광지 · {r.spotName}
+          </div>
+        )}
+        <div
+          style={{
+            marginTop: 10,
             fontSize: 11,
-            padding: '3px 8px',
-            borderRadius: 999,
-            color,
-            background: `${color}22`,
-            border: `1px solid ${color}55`,
+            color: '#6ee7b7',
             fontWeight: 700,
           }}
         >
-          혼잡도 {r.concentrationRate.toFixed(1)}
-        </span>
-      </div>
-      <div
-        style={{
-          fontSize: 20,
-          fontWeight: 800,
-          color: '#fff',
-          lineHeight: 1.2,
-          letterSpacing: '-0.3px',
-        }}
-      >
-        {formatDateShort(r.baseDate)}
-      </div>
-      <div
-        style={{
-          marginTop: 6,
-          fontSize: 12,
-          color: '#a7f3d0',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-        }}
-      >
-        <Leaf size={12} />
-        {r.areaName || ''}
-        {r.signguName ? ` · ${r.signguName}` : ''}
-      </div>
-      {r.spotName && (
-        <div style={{ marginTop: 2, fontSize: 11, color: '#cbd5e1' }}>
-          대표 관광지 · {r.spotName}
+          이 지역 힐링 스팟 열기 →
         </div>
-      )}
+      </Link>
     </motion.div>
   );
 }

@@ -3,9 +3,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Radar, Activity, MapPin, ArrowRight } from 'lucide-react';
+import { Radar, Activity, MapPin, ArrowRight, Image as ImageIcon, Leaf } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
+import { areaLabel } from '@/lib/regionAreaCode';
 
 /**
  * Quiet Set Radar · 영화 상세 페이지용 혼잡도 배지 스트립.
@@ -182,7 +183,9 @@ export default function MovieCrowdRadarStrip({ movieName }) {
             이번 주 촬영지 한가함
           </h3>
           {summary?.spotName && (
-            <span
+            <Link
+              href={`/cine-trip?area=${encodeURIComponent(mapping?.areaCode || '')}`}
+              title="이 촬영지를 Cine-Trip 페이지에서 열기"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -194,13 +197,21 @@ export default function MovieCrowdRadarStrip({ movieName }) {
                 color: '#cfe0ff',
                 fontSize: 11,
                 fontWeight: 600,
+                textDecoration: 'none',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(96,165,250,0.22)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(96,165,250,0.12)';
               }}
             >
               <MapPin size={11} />
               {summary.areaName || mapping?.regionName}
               {summary.signguName ? ` · ${summary.signguName}` : ''}
               {summary.spotName ? ` · ${summary.spotName}` : ''}
-            </span>
+            </Link>
           )}
           {level && (
             <span
@@ -264,25 +275,59 @@ export default function MovieCrowdRadarStrip({ movieName }) {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: 10,
+            gap: 8,
             marginTop: 10,
             flexWrap: 'wrap',
           }}
         >
           {summary?.best && (
-            <span
+            <Link
+              href={`/wellness?q=${encodeURIComponent(
+                summary.areaName || mapping?.regionName || areaLabel(mapping?.areaCode) || ''
+              )}`}
+              title="이 지역의 힐링 스팟으로 한산한 날 회복하기"
               style={{
                 fontSize: 12,
                 color: '#a7f3d0',
+                padding: '4px 10px',
+                borderRadius: 10,
+                background: 'rgba(52,211,153,0.10)',
+                border: '1px solid rgba(52,211,153,0.25)',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
               }}
             >
+              <Leaf size={12} />
               가장 한가한 날 · <b>{formatDateShort(summary.best.baseDate)}</b>
-              {' '}
-              ({summary.best.concentrationRate?.toFixed(1)})
-            </span>
+              {' '}({summary.best.concentrationRate?.toFixed(1)}) 에 힐링
+            </Link>
           )}
           <Link
-            href="/crowd-radar"
+            href={`/photo-gallery?q=${encodeURIComponent(
+              summary?.areaName || mapping?.regionName || areaLabel(mapping?.areaCode) || ''
+            )}`}
+            title="이 지역 촬영지 사진 갤러리"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 5,
+              padding: '6px 12px',
+              borderRadius: 999,
+              background: 'rgba(244,63,94,0.12)',
+              border: '1px solid rgba(244,63,94,0.3)',
+              color: '#fecdd3',
+              fontSize: 12,
+              fontWeight: 700,
+              textDecoration: 'none',
+            }}
+          >
+            <ImageIcon size={12} />
+            촬영지 사진
+          </Link>
+          <Link
+            href={`/crowd-radar?area=${encodeURIComponent(mapping?.areaCode || '')}&preset=all`}
             style={{
               marginLeft: 'auto',
               display: 'inline-flex',
@@ -298,7 +343,7 @@ export default function MovieCrowdRadarStrip({ movieName }) {
               boxShadow: '0 8px 24px -12px rgba(34,211,238,0.7)',
             }}
           >
-            레이더에서 한산한 촬영지 더 보기
+            이 지역 30일 레이더 보기
             <ArrowRight size={12} />
           </Link>
         </div>

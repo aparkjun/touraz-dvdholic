@@ -194,7 +194,12 @@ export default function DvdReturnQuietSpots({ keyword = '', lat, lng }) {
           }}
         >
           {topQuiet.map((s, i) => (
-            <QuietCard key={`${s.spotName}-${i}`} s={s} delay={i * 0.04} />
+            <QuietCard
+              key={`${s.spotName}-${i}`}
+              s={s}
+              delay={i * 0.04}
+              areaCode={areaCode}
+            />
           ))}
         </div>
       )}
@@ -212,7 +217,7 @@ export default function DvdReturnQuietSpots({ keyword = '', lat, lng }) {
           출처: 한국관광공사 관광지 집중률 방문자 추이 예측
         </span>
         <Link
-          href="/crowd-radar"
+          href={`/crowd-radar?area=${encodeURIComponent(areaCode)}&preset=all`}
           style={{
             marginLeft: 'auto',
             display: 'inline-flex',
@@ -228,7 +233,7 @@ export default function DvdReturnQuietSpots({ keyword = '', lat, lng }) {
             boxShadow: '0 8px 24px -12px rgba(34,211,238,0.7)',
           }}
         >
-          Quiet Set Radar 전체 보기
+          이 지역 30일 레이더 열기
           <ArrowRight size={12} />
         </Link>
       </div>
@@ -239,70 +244,100 @@ export default function DvdReturnQuietSpots({ keyword = '', lat, lng }) {
 
 function QuietCard({ s, delay }) {
   const color = levelColor(s.avg);
+  const name = s.spotName || '';
+  // 반납길 동선 본 취지: "DVD 반납 후 이어폰으로 이 관광지 해설 듣기" → 오디오 가이드 검색으로 이동.
+  const dest = `/audio-guide?q=${encodeURIComponent(name)}&type=theme`;
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -3, scale: 1.02 }}
       transition={{ duration: 0.3, delay }}
       style={{
         position: 'relative',
-        padding: 12,
         borderRadius: 12,
-        background:
-          'linear-gradient(180deg, rgba(15,23,42,0.65) 0%, rgba(15,23,42,0.35) 100%)',
-        border: '1px solid rgba(255,255,255,0.08)',
         overflow: 'hidden',
       }}
     >
-      <div
-        aria-hidden
+      <Link
+        href={dest}
+        title={`${name} — 이 관광지 오디오 가이드 찾기`}
         style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          width: 70,
-          height: 70,
-          borderRadius: '50%',
-          background: `radial-gradient(circle, ${color}44, transparent 70%)`,
-          filter: 'blur(8px)',
-        }}
-      />
-      <div
-        style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 4,
-          padding: '3px 8px',
-          borderRadius: 999,
-          background: `${color}22`,
-          border: `1px solid ${color}55`,
-          color,
-          fontSize: 10,
-          fontWeight: 700,
+          display: 'block',
+          padding: 12,
+          borderRadius: 12,
+          background:
+            'linear-gradient(180deg, rgba(15,23,42,0.65) 0%, rgba(15,23,42,0.35) 100%)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          textDecoration: 'none',
+          color: 'inherit',
+          position: 'relative',
+          overflow: 'hidden',
         }}
       >
-        <Radar size={10} />
-        평균 {s.avg.toFixed(1)}
-      </div>
-      <div
-        style={{
-          marginTop: 8,
-          fontSize: 14,
-          fontWeight: 800,
-          color: '#fff',
-          lineHeight: 1.3,
-        }}
-      >
-        {s.spotName || '관광지'}
-      </div>
-      <div style={{ marginTop: 2, fontSize: 11, color: '#93c5fd' }}>
-        {s.areaName} {s.signguName ? `· ${s.signguName}` : ''}
-      </div>
-      {s.best && (
-        <div style={{ marginTop: 8, fontSize: 11, color: '#a7f3d0' }}>
-          가장 한가한 날 · <b>{formatDateShort(s.best.date)}</b> ({s.best.rate.toFixed(1)})
+        <div
+          aria-hidden
+          style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: 70,
+            height: 70,
+            borderRadius: '50%',
+            background: `radial-gradient(circle, ${color}44, transparent 70%)`,
+            filter: 'blur(8px)',
+          }}
+        />
+        <div
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            padding: '3px 8px',
+            borderRadius: 999,
+            background: `${color}22`,
+            border: `1px solid ${color}55`,
+            color,
+            fontSize: 10,
+            fontWeight: 700,
+          }}
+        >
+          <Radar size={10} />
+          평균 {s.avg.toFixed(1)}
         </div>
-      )}
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 14,
+            fontWeight: 800,
+            color: '#fff',
+            lineHeight: 1.3,
+          }}
+        >
+          {name || '관광지'}
+        </div>
+        <div style={{ marginTop: 2, fontSize: 11, color: '#93c5fd' }}>
+          {s.areaName} {s.signguName ? `· ${s.signguName}` : ''}
+        </div>
+        {s.best && (
+          <div style={{ marginTop: 8, fontSize: 11, color: '#a7f3d0' }}>
+            가장 한가한 날 · <b>{formatDateShort(s.best.date)}</b> ({s.best.rate.toFixed(1)})
+          </div>
+        )}
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 11,
+            color: '#fcd34d',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+            opacity: 0.9,
+          }}
+        >
+          귀로 듣는 가이드 →
+        </div>
+      </Link>
     </motion.div>
   );
 }

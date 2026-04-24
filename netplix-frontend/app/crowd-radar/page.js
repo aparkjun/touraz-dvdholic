@@ -19,8 +19,8 @@
  *  - 관광지 카드 그리드 (30일 sparkline + 최저일 배지 + 영화 매칭 배지)
  */
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import axios from "@/lib/axiosConfig";
@@ -204,8 +204,9 @@ function rangeForPreset(id) {
   return null;
 }
 
-export default function CrowdRadarPage() {
+function CrowdRadarInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t, i18n } = useTranslation();
   const isEn = (i18n?.language || "ko").toLowerCase().startsWith("en");
 
@@ -213,9 +214,19 @@ export default function CrowdRadarPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const [preset, setPreset] = useState("weekend");
-  const [areaFilter, setAreaFilter] = useState("all");
-  const [sortMode, setSortMode] = useState("quiet"); // quiet | busy
+  // URL 쿼리 (`?area=1&preset=weekend&sort=quiet`) 로부터 초기 필터를 주입.
+  // 영화 상세/DVD/웰니스/히트맵 등 교차 링크에서 정확한 필터 상태로 도착하도록 한다.
+  const [preset, setPreset] = useState(() => {
+    const v = searchParams?.get("preset");
+    return v && ["today", "weekend", "nextweek", "all"].includes(v) ? v : "weekend";
+  });
+  const [areaFilter, setAreaFilter] = useState(
+    () => searchParams?.get("area") || "all"
+  );
+  const [sortMode, setSortMode] = useState(() => {
+    const v = searchParams?.get("sort");
+    return v === "busy" ? "busy" : "quiet";
+  });
 
   useEffect(() => {
     let alive = true;
@@ -902,3 +913,26 @@ const styles = {
     lineHeight: 1.6,
   },
 };
+
+/**
+ * Next.js App Router 에서 useSearchParams() 를 쓰는 클라이언트 컴포넌트는
+ * Suspense 경계 내부에 있어야 정적 프리렌더링 경고가 뜨지 않는다.
+ * 따라서 실제 페이지 본체를 Inner 로 두고 default export 에서 Suspense 로 감싼다.
+ */
+export default function CrowdRadarPage() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          style={{
+            minHeight: "100vh",
+            background:
+              "radial-gradient(1200px 600px at 20% -10%, rgba(34,211,238,0.08), transparent), radial-gradient(125% 125% at 50% 100%, #000 40%, #0b1220 100%)",
+          }}
+        />
+      }
+    >
+      <CrowdRadarInner />
+    </Suspense>
+  );
+}

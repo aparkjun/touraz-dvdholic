@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { CalendarRange, Radar, TrendingDown, TrendingUp } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
@@ -204,7 +205,12 @@ export default function ConcentrationHeatmap30({ areaCode = null, regionLabel = 
               <div key={`pad-${i}`} />
             ))}
             {cells.map((c, idx) => (
-              <HeatCell key={c.key} cell={c} delay={idx * 0.012} />
+              <HeatCell
+                key={c.key}
+                cell={c}
+                delay={idx * 0.012}
+                areaName={displayAreaName}
+              />
             ))}
           </div>
         </>
@@ -220,7 +226,9 @@ export default function ConcentrationHeatmap30({ areaCode = null, regionLabel = 
         }}
       >
         {bestDay && (
-          <span
+          <Link
+            href={`/wellness?q=${encodeURIComponent(displayAreaName || '')}`}
+            title="한산한 이 날에 이 지역 힐링 스팟 찾기"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -232,15 +240,18 @@ export default function ConcentrationHeatmap30({ areaCode = null, regionLabel = 
               color: '#6ee7b7',
               fontSize: 12,
               fontWeight: 700,
+              textDecoration: 'none',
             }}
           >
             <TrendingDown size={13} />
             가장 한가한 날 {formatDateShort(bestDay.baseDate)} ·{' '}
-            {bestDay.concentrationRate?.toFixed(1)}
-          </span>
+            {bestDay.concentrationRate?.toFixed(1)} → 힐링하러 가기
+          </Link>
         )}
         {worstDay && (
-          <span
+          <Link
+            href={`/crowd-radar?area=${encodeURIComponent(areaCode || '')}&sort=busy&preset=all`}
+            title="전국 혼잡한 순 랭킹으로 비교해보기"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -252,12 +263,13 @@ export default function ConcentrationHeatmap30({ areaCode = null, regionLabel = 
               color: '#fda4af',
               fontSize: 12,
               fontWeight: 700,
+              textDecoration: 'none',
             }}
           >
             <TrendingUp size={13} />
             가장 붐비는 날 {formatDateShort(worstDay.baseDate)} ·{' '}
             {worstDay.concentrationRate?.toFixed(1)}
-          </span>
+          </Link>
         )}
         {avg != null && (
           <span style={{ fontSize: 12, color: '#9ca3af' }}>
@@ -308,45 +320,94 @@ function levelColor(rate) {
   return '#ef4444';
 }
 
-function HeatCell({ cell, delay }) {
+function HeatCell({ cell, delay, areaName }) {
   const rate = cell.row?.concentrationRate;
   const hasData = typeof rate === 'number';
   const bg = hasData ? levelColor(rate) : 'rgba(255,255,255,0.04)';
   const isWeekend = cell.date.getDay() === 0 || cell.date.getDay() === 6;
+  // 한가함(<60)이면 힐링으로, 혼잡(>=60)이면 인증샷 갤러리로 유도
+  const dest = !hasData
+    ? null
+    : rate < 60
+    ? `/wellness?q=${encodeURIComponent(areaName || '')}`
+    : `/photo-gallery?q=${encodeURIComponent(areaName || '')}`;
+  const hint = !hasData
+    ? '데이터 없음'
+    : rate < 60
+    ? '한산 — 이 날 힐링 스팟 보기'
+    : '혼잡 — 이 지역 사진 갤러리 보기';
+
+  const cellStyle = {
+    aspectRatio: '1 / 1',
+    borderRadius: 6,
+    background: hasData
+      ? `linear-gradient(135deg, ${bg}ee, ${bg}99)`
+      : bg,
+    border: isWeekend
+      ? '1px solid rgba(147,197,253,0.18)'
+      : '1px solid rgba(255,255,255,0.05)',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: hasData ? '#0b1220' : '#6b7280',
+    fontWeight: 700,
+    fontSize: 11,
+    lineHeight: 1.1,
+    cursor: hasData && dest ? 'pointer' : 'default',
+    textDecoration: 'none',
+    transition: 'transform 0.15s',
+  };
+
+  const inner = (
+    <>
+      <div>{cell.date.getDate()}</div>
+      <div style={{ fontSize: 9, fontWeight: 600, opacity: 0.85 }}>
+        {hasData ? rate.toFixed(0) : '-'}
+      </div>
+    </>
+  );
+
+  const motionProps = {
+    initial: { opacity: 0, scale: 0.85 },
+    animate: { opacity: 1, scale: 1 },
+    transition: { duration: 0.24, delay: Math.min(delay, 0.35) },
+    whileHover: hasData && dest ? { scale: 1.06 } : undefined,
+  };
+
+  if (hasData && dest) {
+    return (
+      <motion.div {...motionProps} style={cellStyle}>
+        <Link
+          href={dest}
+          title={`${formatDateShort(cell.row.baseDate)} · ${rate.toFixed(1)} — ${hint}`}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '100%',
+            height: '100%',
+            textDecoration: 'none',
+            color: 'inherit',
+          }}
+        >
+          {inner}
+        </Link>
+      </motion.div>
+    );
+  }
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.85 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.24, delay: Math.min(delay, 0.35) }}
+      {...motionProps}
       title={
         hasData
           ? `${formatDateShort(cell.row.baseDate)} · ${rate.toFixed(1)}`
           : `${formatDateShort(isoDate(cell.date))} · 데이터 없음`
       }
-      style={{
-        aspectRatio: '1 / 1',
-        borderRadius: 6,
-        background: hasData
-          ? `linear-gradient(135deg, ${bg}ee, ${bg}99)`
-          : bg,
-        border: isWeekend
-          ? '1px solid rgba(147,197,253,0.18)'
-          : '1px solid rgba(255,255,255,0.05)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: hasData ? '#0b1220' : '#6b7280',
-        fontWeight: 700,
-        fontSize: 11,
-        lineHeight: 1.1,
-        cursor: hasData ? 'help' : 'default',
-      }}
+      style={cellStyle}
     >
-      <div>{cell.date.getDate()}</div>
-      <div style={{ fontSize: 9, fontWeight: 600, opacity: 0.85 }}>
-        {hasData ? rate.toFixed(0) : '-'}
-      </div>
+      {inner}
     </motion.div>
   );
 }
