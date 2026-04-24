@@ -9,6 +9,7 @@ import TourGallerySection from "@/components/TourGallerySection";
 import NearbyCampingStrip from "@/components/NearbyCampingStrip";
 import NearbyWellnessStrip from "@/components/NearbyWellnessStrip";
 import NearbyMedicalTourismStrip from "@/components/NearbyMedicalTourismStrip";
+import NearbyAudioGuideStrip from "@/components/NearbyAudioGuideStrip";
 let L, MapContainer, TileLayer, Marker, Popup, useMap;
 let greenIcon, redIcon, blueIcon;
 
@@ -576,6 +577,16 @@ function DvdStoresContent() {
             subtitle={t("nearbyMedicalTourism.poweredByDvd")}
             limit={6}
           />
+          {/* Cine Audio Trail · DVD 반납길 귀 여행 — 내 주변 관광지 해설을 이어폰으로 */}
+          <NearbyAudioGuideStrip
+            type="theme"
+            lat={userPos.lat}
+            lng={userPos.lon}
+            radiusM={20_000}
+            title={t("nearbyAudioGuide.dvdNearbySection")}
+            subtitle={t("nearbyAudioGuide.poweredByDvd")}
+            limit={6}
+          />
         </div>
       ) : galleryKeyword && (
         <div style={{ maxWidth: 1200, margin: "20px auto 0", padding: "0 4px" }}>
@@ -595,6 +606,14 @@ function DvdStoresContent() {
             keyword={galleryKeyword}
             title={t("nearbyMedicalTourism.dvdRegionSection")}
             subtitle={t("nearbyMedicalTourism.poweredByDvd")}
+            limit={6}
+          />
+          {/* Cine Audio Trail · DVD 지역 기반 오디오 해설 */}
+          <NearbyAudioGuideStrip
+            type="theme"
+            keyword={galleryKeyword}
+            title={t("nearbyAudioGuide.dvdRegionSection")}
+            subtitle={t("nearbyAudioGuide.poweredByDvd")}
             limit={6}
           />
         </div>

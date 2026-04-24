@@ -228,6 +228,30 @@ visitkorea:
     detail-common-url: ${visitkorea.medical-tourism.base-url}/detailCommon
     detail-mdcl-url: ${visitkorea.medical-tourism.base-url}/detailMdclTursm
     cache-minutes: 1440
+  # 관광지 오디오 가이드정보 서비스 (Odii) - 관광지 테마 + 이야기 + 오디오 파일(mp3) URL 제공
+  # Base URL: apis.data.go.kr/B551011/Odii
+  # 오퍼레이션:
+  #   - /themeBasedList          : 관광지 기본정보 목록 (전국/전체)
+  #   - /themeLocationBasedList  : 관광지 좌표 기반 (mapX/mapY/radius)
+  #   - /themeSearchList         : 관광지 키워드 검색
+  #   - /storyBasedList          : 이야기 기본정보 목록
+  #   - /storyLocationBasedList  : 이야기 좌표 기반
+  #   - /storySearchList         : 이야기 키워드 검색
+  #   - /themeBasedSyncList / /storyBasedSyncList : 동기화(추후 배치용)
+  # 필수 파라미터: serviceKey, MobileOS=ETC, MobileApp, numOfRows, pageNo, langDivCd(ko/en)
+  # 각 오퍼레이션 일일 1,000회 제한. type+lang 캐시 분리(24h TTL).
+  # 주의: 공공데이터포털에서 Odii 는 별도 활용신청이 필요할 수 있음. 미승인 상태에서는 403
+  #       Forbidden 이 반환되며 어댑터는 빈 리스트로 폴백 → UI 섹션 자연 숨김.
+  odii:
+    base-url: https://apis.data.go.kr/B551011/Odii
+    api-key: ${ODII_API_KEY:${VISITKOREA_SERVICE_KEY:}}
+    theme-based-url: ${visitkorea.odii.base-url}/themeBasedList
+    story-based-url: ${visitkorea.odii.base-url}/storyBasedList
+    theme-location-url: ${visitkorea.odii.base-url}/themeLocationBasedList
+    story-location-url: ${visitkorea.odii.base-url}/storyLocationBasedList
+    theme-search-url: ${visitkorea.odii.base-url}/themeSearchList
+    story-search-url: ${visitkorea.odii.base-url}/storySearchList
+    cache-minutes: 1440
   # 두루누비 정보 서비스 GW (공공데이터 15101974, TourAPI Guide v4.1)
   # Base URL: apis.data.go.kr/B551011/Durunubi
   # 공식 오퍼레이션 2종:

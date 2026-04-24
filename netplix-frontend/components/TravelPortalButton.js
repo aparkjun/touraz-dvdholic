@@ -79,6 +79,16 @@ const THEMES = {
     hoverGlow: '0 36px 80px -20px rgba(239, 68, 68, 0.55)',
     tagColor: '#bae6fd',
   },
+  // 오디오 가이드(Odii) 전용 — "Cine Audio Trail" 무드: 퍼플(스튜디오) → 앰버(따뜻한 내레이션) → 핑크(필름)
+  audio: {
+    gradient: 'conic-gradient(from 0deg, #a78bfa, #f59e0b, #ec4899, #c4b5fd, #a78bfa)',
+    iconBg: 'linear-gradient(135deg, #a78bfa 0%, #f59e0b 55%, #ec4899 100%)',
+    textGrad: 'linear-gradient(90deg, #c4b5fd 0%, #fde68a 50%, #f9a8d4 100%)',
+    accentColor: '#c4b5fd',
+    glow: '0 24px 64px -20px rgba(167, 139, 250, 0.6)',
+    hoverGlow: '0 36px 80px -20px rgba(245, 158, 11, 0.6)',
+    tagColor: '#ddd6fe',
+  },
 };
 
 /** CineTrip용 보딩패스 사이드 라인 장식. */

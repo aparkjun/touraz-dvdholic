@@ -11,6 +11,7 @@ import TourGallerySection from "@/components/TourGallerySection";
 import NearbyCampingStrip from "@/components/NearbyCampingStrip";
 import NearbyWellnessStrip from "@/components/NearbyWellnessStrip";
 import NearbyMedicalTourismStrip from "@/components/NearbyMedicalTourismStrip";
+import NearbyAudioGuideStrip from "@/components/NearbyAudioGuideStrip";
 
 const baseUrl = "https://image.tmdb.org/t/p/original";
 const palette = {
@@ -634,6 +635,25 @@ function MovieImagesContent() {
               keyword="K-의료"
               title={t("nearbyMedicalTourism.movieSection")}
               subtitle={t("nearbyMedicalTourism.poweredByMovie")}
+              limit={6}
+            />
+          </div>
+        )}
+
+        {/* Cine Audio Trail · 영화 배경지 오디오 해설 — 제목/장르 핵심 키워드로 Odii 검색 */}
+        {movie && (movieName || movie.genre) && (
+          <div style={{ padding: "0 15px", marginBottom: 12 }}>
+            <NearbyAudioGuideStrip
+              type="theme"
+              keyword={(() => {
+                // 1순위: 제목에서 한국어 고유명사 힌트가 있을 때 제목, 없으면 첫 장르 키워드 사용
+                const t1 = (movieName || "").toString().trim();
+                if (t1 && /[가-힣]/.test(t1)) return t1;
+                const g = movie.genre ? String(movie.genre).split(/[\s,·/|]+/).filter(Boolean)[0] : "";
+                return g || "영화";
+              })()}
+              title={t("nearbyAudioGuide.movieSection")}
+              subtitle={t("nearbyAudioGuide.poweredByMovie")}
               limit={6}
             />
           </div>

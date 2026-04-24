@@ -16,6 +16,7 @@
     "nearbyCamping": "Campsites Near Me",
     "nearbyWellness": "Healing Spots Near Me",
     "nearbyMedicalTourism": "Medical Tourism Near Me",
+    "nearbyAudioGuide": "Audio Guide Near Me",
     "logoutFailed": "Logout failed"
   },
   "main": {
@@ -432,6 +433,48 @@
     "poweredByMovie": "Source: KTO Medical Tourism · Multilingual KO/EN",
     "poweredByRegion": "Source: KTO Medical Tourism · Care around filming spots",
     "poweredByDvd": "Source: KTO Medical Tourism · International visitors welcome"
+  },
+  "audioGuide": {
+    "pageTitle": "Cine Audio Trail · KTO Audio Guide",
+    "hero": {
+      "badge": "Cine Audio Trail · Odii",
+      "title": "Films in theaters · Stories on location by ear",
+      "sub": "Rest your eyes and travel with your ears. Listen to site narration and hidden tales on location with KTO's audio guide."
+    },
+    "search": {
+      "placeholder": "Search spots, stories, keywords (e.g. Gyeongbokgung, folk, K-Drama)",
+      "aria": "Audio guide search",
+      "submit": "Search"
+    },
+    "nearby": {
+      "cta": "Audio Tour Near Me",
+      "locating": "Locating…",
+      "denied": "Location permission denied. Please enable it in browser settings.",
+      "unsupported": "This browser does not support geolocation."
+    },
+    "tab": { "theme": "Site Narration", "story": "Story Pieces" },
+    "chips": { "theme": "Theme", "region": "Region" },
+    "loading": "Loading audio guide…",
+    "count": "{{count}} results",
+    "error": "Something went wrong. Please try again in a moment.",
+    "empty": {
+      "title": "No audio guides match your filter",
+      "sub": "Try another keyword, theme, or region."
+    }
+  },
+  "nearbyAudioGuide": {
+    "title": "Audio Guide Nearby",
+    "movieSection": "Eye-Rest Binge Travel · Audio for this film's backdrop",
+    "regionSection": "Earphone Tour on Set · Site narration audio",
+    "dvdNearbySection": "DVD Return Trip by Ear · Guides around you",
+    "dvdRegionSection": "Audio Guide in this Region",
+    "viewAll": "View all",
+    "totalCount": "{{count}} tracks",
+    "play": "Play",
+    "pause": "Pause",
+    "poweredByMovie": "Source: KTO Audio Guide (Odii) · Live on-site by ear",
+    "poweredByRegion": "Source: KTO Audio Guide · Stories at filming spots",
+    "poweredByDvd": "Source: KTO Audio Guide · Optimized for travel routes"
   },
   "admin": {
     "loginTitle": "Admin Login",

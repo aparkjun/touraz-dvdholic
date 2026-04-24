@@ -14,6 +14,7 @@
     "nearbyCamping": "내 주변 야영장",
     "nearbyWellness": "내 주변 힐링 스팟",
     "nearbyMedicalTourism": "내 주변 의료관광",
+    "nearbyAudioGuide": "내 주변 오디오 가이드",
     "logoutFailed": "로그아웃 실패"
   },
   "main": {
@@ -461,6 +462,48 @@
     "poweredByMovie": "출처: 한국관광공사 의료관광 · ko/en 다국어 제공",
     "poweredByRegion": "출처: 한국관광공사 의료관광 · 촬영지 주변 케어",
     "poweredByDvd": "출처: 한국관광공사 의료관광 · 외국인 환영"
+  },
+  "audioGuide": {
+    "pageTitle": "Cine Audio Trail · 한국관광공사 오디오 가이드",
+    "hero": {
+      "badge": "Cine Audio Trail · Odii",
+      "title": "영화는 극장에서 · 이야기는 현지에서 귀로 듣기",
+      "sub": "눈은 쉬고 귀로 여행하세요. 한국관광공사 오디오 가이드로 관광지 해설과 숨은 이야기를 이어폰으로 현장에서 만날 수 있어요."
+    },
+    "search": {
+      "placeholder": "관광지·이야기·키워드 검색 (예: 경복궁, 민속, K-드라마)",
+      "aria": "오디오 가이드 검색",
+      "submit": "검색"
+    },
+    "nearby": {
+      "cta": "내 주변 오디오 투어",
+      "locating": "위치 확인 중…",
+      "denied": "위치 권한이 거부되었어요. 브라우저 설정에서 허용해주세요.",
+      "unsupported": "이 브라우저는 위치 기능을 지원하지 않아요."
+    },
+    "tab": { "theme": "관광지 해설", "story": "이야기 조각" },
+    "chips": { "theme": "테마", "region": "지역" },
+    "loading": "오디오 가이드를 불러오는 중…",
+    "count": "{{count}}개 결과",
+    "error": "일시적인 오류가 있었어요. 잠시 후 다시 시도해주세요.",
+    "empty": {
+      "title": "조건에 맞는 오디오 가이드가 없어요",
+      "sub": "검색어를 바꾸거나 다른 테마/지역을 눌러보세요."
+    }
+  },
+  "nearbyAudioGuide": {
+    "title": "근처 오디오 가이드",
+    "movieSection": "정주행 후 귀 여행 · 이 영화 배경 오디오",
+    "regionSection": "촬영지 이어폰 투어 · 현장 해설 오디오",
+    "dvdNearbySection": "DVD 반납길 귀 여행 · 내 주변 해설",
+    "dvdRegionSection": "이 동네 오디오 가이드",
+    "viewAll": "전체 보기",
+    "totalCount": "{{count}}편",
+    "play": "재생",
+    "pause": "일시정지",
+    "poweredByMovie": "출처: 한국관광공사 오디오 가이드(Odii) · 현장에서 귀로",
+    "poweredByRegion": "출처: 한국관광공사 오디오 가이드 · 촬영지 이야기",
+    "poweredByDvd": "출처: 한국관광공사 오디오 가이드 · 이동 동선 최적화"
   },
   "admin": {
     "loginTitle": "관리자 로그인",

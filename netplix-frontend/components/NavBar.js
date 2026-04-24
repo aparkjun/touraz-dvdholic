@@ -170,6 +170,16 @@ function AuthActions({ isLoggedIn, isAdmin, isAuthPage, pathname, onLogout }) {
       </li>
     );
   }
+  if (pathname !== '/audio-guide') {
+    // "내 주변 오디오 가이드" — 한국관광공사 Odii API 기반. 관광지 해설/이야기 오디오 재생.
+    navItems.push(
+      <li key="audio-guide">
+        <Link href="/audio-guide?nearby=true" className="app-chip app-chip-secondary" onClick={closeMenu}>
+          {t('nav.nearbyAudioGuide', '내 주변 오디오 가이드')}
+        </Link>
+      </li>
+    );
+  }
   if (pathname !== '/support') {
     navItems.push(
       <li key="support">

@@ -22,6 +22,7 @@ import TourGallerySection from '@/components/TourGallerySection';
 import NearbyCampingStrip from '@/components/NearbyCampingStrip';
 import NearbyWellnessStrip from '@/components/NearbyWellnessStrip';
 import NearbyMedicalTourismStrip from '@/components/NearbyMedicalTourismStrip';
+import NearbyAudioGuideStrip from '@/components/NearbyAudioGuideStrip';
 import ConcentrationForecastStrip from '@/components/ConcentrationForecastStrip';
 import EngTourSpotsStrip from '@/components/EngTourSpotsStrip';
 import TravelCourseModal from '@/components/TravelCourseModal';
@@ -1053,6 +1054,17 @@ function CineTripPageInner() {
             keyword={REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''}
             title={t('nearbyMedicalTourism.regionSection')}
             subtitle={t('nearbyMedicalTourism.poweredByRegion')}
+            limit={6}
+          />
+        )}
+
+        {/* Cine Audio Trail · 촬영지 현장 오디오 해설 — 영화 답사 동선에서 이어폰으로 듣는 이야기 */}
+        {selectedAreaCode && (
+          <NearbyAudioGuideStrip
+            type="theme"
+            keyword={REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''}
+            title={t('nearbyAudioGuide.regionSection')}
+            subtitle={t('nearbyAudioGuide.poweredByRegion')}
             limit={6}
           />
         )}
