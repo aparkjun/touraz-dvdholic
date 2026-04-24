@@ -792,6 +792,14 @@
       "busiest": "Busiest set",
       "avg": "Avg. concentration in range",
       "spotCount": " spots collected"
+    },
+    "spot": { "min": "Min", "max": "Max" },
+    "help": {
+      "summary": "Numbers are tourist-spot concentration on a 0–100% scale — lower means quieter",
+      "lvlQuiet": "0–30% Quiet",
+      "lvlNormal": "30–60% Moderate",
+      "lvlBusy": "60–85% Busy",
+      "lvlVeryBusy": "85%+ Very Busy"
     }
   }
 }

@@ -34,6 +34,10 @@ import {
   ArrowLeft,
   Loader2,
   ShieldCheck,
+  HelpCircle,
+  Info,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 const AREA_LABEL = {
@@ -111,6 +115,36 @@ function levelLabel(rate, t) {
   if (rate < 60) return t("crowdRadar.level.normal", "보통");
   if (rate < 85) return t("crowdRadar.level.busy", "혼잡");
   return t("crowdRadar.level.veryBusy", "매우 혼잡");
+}
+
+/**
+ * 숫자에 % 단위 부착. null/NaN 이면 "-" 반환.
+ * 사용자 피드백: "19.5" 단독 표기는 의미를 알기 어려움 → 모든 위치에서 % 부착.
+ */
+function formatRate(rate) {
+  if (rate == null || Number.isNaN(rate)) return "-";
+  return `${rate.toFixed(1)}%`;
+}
+
+/**
+ * 4단계 색상에 대응하는 컬러 도트(작은 원형 SVG 배지).
+ * 텍스트 옆에 두면 "이 숫자가 어느 구간(여유/보통/혼잡/매우혼잡)인지" 한 눈에 보인다.
+ */
+function ColorDot({ rate, size = 8 }) {
+  return (
+    <span
+      aria-hidden
+      style={{
+        display: "inline-block",
+        width: size,
+        height: size,
+        borderRadius: "50%",
+        background: levelColor(rate),
+        boxShadow: `0 0 0 2px ${levelColor(rate)}33`,
+        flexShrink: 0,
+      }}
+    />
+  );
 }
 
 function toLocalDate(d) {
@@ -227,6 +261,8 @@ function CrowdRadarInner() {
     const v = searchParams?.get("sort");
     return v === "busy" ? "busy" : "quiet";
   });
+  // "숫자 어떻게 읽나요?" 도움말 패널 펼침 상태. 기본은 접힘 — 화면을 차지하지 않게.
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -341,6 +377,44 @@ function CrowdRadarInner() {
           </div>
         </header>
 
+        {/*
+         * 사용자가 "이 숫자가 뭐야?" 라고 헷갈리지 않도록
+         * Hero 바로 아래에 작은 도움말 패널을 둔다.
+         * - 기본은 한 줄로 접혀 있어 시각적 부담이 없음
+         * - 클릭해 펼치면 4단계 색상·구간 가이드 한 줄이 추가로 노출
+         */}
+        <button
+          type="button"
+          onClick={() => setHelpOpen((v) => !v)}
+          style={styles.helpBar}
+          aria-expanded={helpOpen}
+        >
+          <Info size={13} color="#67e8f9" />
+          <span style={styles.helpLine}>
+            {t(
+              "crowdRadar.help.summary",
+              "숫자는 0~100% 사이 '관광지 집중률' — 낮을수록 한산해요"
+            )}
+          </span>
+          {helpOpen ? <ChevronUp size={13} color="#94a3b8" /> : <ChevronDown size={13} color="#94a3b8" />}
+        </button>
+        {helpOpen && (
+          <div style={styles.helpDetail}>
+            <span style={styles.helpItem}>
+              <ColorDot rate={10} /> {t("crowdRadar.help.lvlQuiet", "0–30% 여유")}
+            </span>
+            <span style={styles.helpItem}>
+              <ColorDot rate={45} /> {t("crowdRadar.help.lvlNormal", "30–60% 보통")}
+            </span>
+            <span style={styles.helpItem}>
+              <ColorDot rate={75} /> {t("crowdRadar.help.lvlBusy", "60–85% 혼잡")}
+            </span>
+            <span style={styles.helpItem}>
+              <ColorDot rate={95} /> {t("crowdRadar.help.lvlVeryBusy", "85%+ 매우 혼잡")}
+            </span>
+          </div>
+        )}
+
         {loading ? (
           <div style={styles.loadingBox}>
             <Loader2 size={28} className="cr-spin" color="#67e8f9" />
@@ -362,7 +436,7 @@ function CrowdRadarInner() {
                   value={stats.quietest?.spotName || "-"}
                   sub={
                     stats.quietest?.minInRange
-                      ? `${fmtMMDD(stats.quietest.minInRange.date)} · ${stats.quietest.minInRange.rate.toFixed(1)}`
+                      ? `${fmtMMDD(stats.quietest.minInRange.date)} · ${formatRate(stats.quietest.minInRange.rate)}`
                       : "-"
                   }
                   color="#10b981"
@@ -373,7 +447,7 @@ function CrowdRadarInner() {
                   value={stats.busiest?.spotName || "-"}
                   sub={
                     stats.busiest?.maxInRange
-                      ? `${fmtMMDD(stats.busiest.maxInRange.date)} · ${stats.busiest.maxInRange.rate.toFixed(1)}`
+                      ? `${fmtMMDD(stats.busiest.maxInRange.date)} · ${formatRate(stats.busiest.maxInRange.rate)}`
                       : "-"
                   }
                   color="#ef4444"
@@ -381,7 +455,7 @@ function CrowdRadarInner() {
                 <StatCard
                   icon={<CalendarDays size={18} color="#a5b4fc" />}
                   label={t("crowdRadar.stats.avg", "선택 구간 평균 집중률")}
-                  value={`${stats.avg.toFixed(1)}`}
+                  value={formatRate(stats.avg)}
                   sub={`${stats.total}${t("crowdRadar.stats.spotCount", "개 촬영지 수집")}`}
                   color="#a5b4fc"
                 />
@@ -535,6 +609,7 @@ function StatCard({ icon, label, value, sub, color }) {
 }
 
 function SpotCard({ spot, rank, preset }) {
+  const { t } = useTranslation();
   const series = spot.series;
   const color = levelColor(spot.scoreInRange);
   const maxRate = series.length ? Math.max(...series.map((x) => x.rate), 10) : 100;
@@ -571,7 +646,7 @@ function SpotCard({ spot, rank, preset }) {
             whiteSpace: "nowrap",
           }}
         >
-          #{rank} · {spot.scoreInRange != null ? spot.scoreInRange.toFixed(1) : "-"}
+          #{rank} · {formatRate(spot.scoreInRange)}
         </span>
         <div
           style={{
@@ -613,11 +688,11 @@ function SpotCard({ spot, rank, preset }) {
         <div style={{ display: "flex", gap: 10, fontSize: 11, flexWrap: "wrap" }}>
           <span style={{ color: "#34d399" }}>
             <TrendingDown size={11} style={{ verticalAlign: "text-top" }} />{" "}
-            {fmtMMDD(spot.minEntry.date)} · {spot.minEntry.rate.toFixed(1)}
+            {t("crowdRadar.spot.min", "최저")} {fmtMMDD(spot.minEntry.date)} · {formatRate(spot.minEntry.rate)}
           </span>
           <span style={{ color: "#f87171" }}>
             <TrendingUp size={11} style={{ verticalAlign: "text-top" }} />{" "}
-            {fmtMMDD(spot.maxEntry.date)} · {spot.maxEntry.rate.toFixed(1)}
+            {t("crowdRadar.spot.max", "최고")} {fmtMMDD(spot.maxEntry.date)} · {formatRate(spot.maxEntry.rate)}
           </span>
         </div>
       )}
@@ -827,6 +902,46 @@ const styles = {
     lineHeight: 1.2,
   },
   subtitle: { fontSize: 13.5, color: "#cbd5e1", lineHeight: 1.55, margin: 0 },
+  helpBar: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+    width: "100%",
+    padding: "9px 12px",
+    marginBottom: 8,
+    borderRadius: 10,
+    background: "rgba(15,23,42,0.55)",
+    border: "1px solid rgba(103,232,249,0.18)",
+    color: "#cbd5e1",
+    fontSize: 12.5,
+    cursor: "pointer",
+    textAlign: "left",
+  },
+  helpLine: {
+    flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  helpDetail: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "8px 14px",
+    padding: "8px 12px 12px",
+    marginTop: -4,
+    marginBottom: 14,
+    fontSize: 12,
+    color: "#cbd5e1",
+    borderRadius: 10,
+    background: "rgba(15,23,42,0.35)",
+    border: "1px dashed rgba(103,232,249,0.18)",
+  },
+  helpItem: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+  },
   loadingBox: {
     padding: 40,
     textAlign: "center",
