@@ -160,6 +160,16 @@ function AuthActions({ isLoggedIn, isAdmin, isAuthPage, pathname, onLogout }) {
       </li>
     );
   }
+  if (pathname !== '/medical-tourism') {
+    // "내 주변 의료관광" — K-의료관광 API(MdclTursmService) 기반. ko/en 다국어 자동 전환.
+    navItems.push(
+      <li key="medical-tourism">
+        <Link href="/medical-tourism?nearby=true" className="app-chip app-chip-secondary" onClick={closeMenu}>
+          {t('nav.nearbyMedicalTourism', '내 주변 의료관광')}
+        </Link>
+      </li>
+    );
+  }
   if (pathname !== '/support') {
     navItems.push(
       <li key="support">

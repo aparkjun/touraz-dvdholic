@@ -208,6 +208,26 @@ visitkorea:
     detail-common-url: ${visitkorea.wellness.base-url}/detailCommon
     detail-image-url: ${visitkorea.wellness.base-url}/detailImage
     cache-minutes: 1440
+  # 의료관광정보 서비스 (MdclTursmService) - 성형/한방/건강검진/재활/미용/K-의료
+  # Base URL: apis.data.go.kr/B551011/MdclTursmService
+  # 오퍼레이션:
+  #   - /areaBasedList     : 지역기반 의료관광 클러스터 목록
+  #   - /locationBasedList : 좌표 기반 주변 의료관광 (mapX/mapY/radius)
+  #   - /searchKeyword     : 키워드 검색 (예: 한방, 성형, 건강검진)
+  #   - /detailMdclTursm   : 진료과목/허가종류/언어서비스 등 의료관광 특화 상세
+  # 필수 파라미터 : serviceKey, MobileOS=ETC, MobileApp, numOfRows, pageNo, langDivCd(ko/en)
+  # 외국인 타깃 서비스로 langDivCd 동적 지원 — 프런트가 lang 쿼리로 전달.
+  # 주의: 공공데이터포털에서 "의료관광정보" 서비스는 별도 활용신청/심사가 필요. 미승인 상태에서는
+  #       403 Forbidden 이 반환되며 어댑터는 빈 리스트로 폴백 → UI 섹션 자연 숨김.
+  medical-tourism:
+    base-url: https://apis.data.go.kr/B551011/MdclTursmService
+    api-key: ${MEDICAL_TOURISM_API_KEY:${VISITKOREA_SERVICE_KEY:}}
+    area-url: ${visitkorea.medical-tourism.base-url}/areaBasedList
+    location-url: ${visitkorea.medical-tourism.base-url}/locationBasedList
+    search-url: ${visitkorea.medical-tourism.base-url}/searchKeyword
+    detail-common-url: ${visitkorea.medical-tourism.base-url}/detailCommon
+    detail-mdcl-url: ${visitkorea.medical-tourism.base-url}/detailMdclTursm
+    cache-minutes: 1440
   # 두루누비 정보 서비스 GW (공공데이터 15101974, TourAPI Guide v4.1)
   # Base URL: apis.data.go.kr/B551011/Durunubi
   # 공식 오퍼레이션 2종:

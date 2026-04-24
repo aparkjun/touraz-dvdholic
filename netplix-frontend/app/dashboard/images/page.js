@@ -10,6 +10,7 @@ import PhotoGalleryStrip from "@/components/PhotoGalleryStrip";
 import TourGallerySection from "@/components/TourGallerySection";
 import NearbyCampingStrip from "@/components/NearbyCampingStrip";
 import NearbyWellnessStrip from "@/components/NearbyWellnessStrip";
+import NearbyMedicalTourismStrip from "@/components/NearbyMedicalTourismStrip";
 
 const baseUrl = "https://image.tmdb.org/t/p/original";
 const palette = {
@@ -621,6 +622,18 @@ function MovieImagesContent() {
                 : undefined}
               title={t("nearbyWellness.movieSection")}
               subtitle={t("nearbyWellness.poweredBy")}
+              limit={6}
+            />
+          </div>
+        )}
+
+        {/* 외국인 타깃 K-의료관광 교차 스트립 — 영화 제목 기반 키워드로 전시 (대표 분야 "K-의료") */}
+        {movie && (
+          <div style={{ padding: "0 15px", marginBottom: 12 }}>
+            <NearbyMedicalTourismStrip
+              keyword="K-의료"
+              title={t("nearbyMedicalTourism.movieSection")}
+              subtitle={t("nearbyMedicalTourism.poweredByMovie")}
               limit={6}
             />
           </div>

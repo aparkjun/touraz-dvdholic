@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, TrendingUp, PawPrint, Plane, PlaneTakeoff, Camera, Tent, Leaf } from 'lucide-react';
+import { Sparkles, TrendingUp, PawPrint, Plane, PlaneTakeoff, Camera, Tent, Leaf, Stethoscope } from 'lucide-react';
 import Link from 'next/link';
 import axios from '@/lib/axiosConfig';
 import TravelPortalButton from '@/components/TravelPortalButton';
@@ -347,6 +347,18 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
           theme="wellness"
           fullWidth
         />
+        <div className="trw-cta-span-full">
+          <TravelPortalButton
+            href="/medical-tourism"
+            tag="K-Medical Tourism · Global · EN / KO"
+            title="K-의료관광 · 외국인 환영"
+            desc="성형·한방·건강검진·재활·미용·척추·치과 — 해외 여행객을 위한 검증된 한국 의료 스팟을 ko/en 양 언어로 탐색하세요."
+            cta="의료관광 스팟 둘러보기"
+            Icon={Stethoscope}
+            theme="medical"
+            fullWidth
+          />
+        </div>
       </div>
       <style jsx>{`
         .trw-cta-grid {
@@ -355,10 +367,14 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
           grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 14px;
         }
+        .trw-cta-span-full {
+          grid-column: 1 / -1;
+        }
         @media (max-width: 640px) {
           .trw-cta-grid {
             grid-template-columns: 1fr;
           }
+          .trw-cta-span-full { grid-column: auto; }
         }
       `}</style>
     </div>

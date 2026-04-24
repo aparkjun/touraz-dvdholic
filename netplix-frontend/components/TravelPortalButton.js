@@ -69,6 +69,16 @@ const THEMES = {
     hoverGlow: '0 36px 80px -20px rgba(244, 114, 182, 0.6)',
     tagColor: '#a7f3d0',
   },
+  // K-의료관광 전용 — "Global · Trusted" 무드: 스카이블루(신뢰) → 인디고(전문) → 레드(K-의료)
+  medical: {
+    gradient: 'conic-gradient(from 0deg, #0ea5e9, #6366f1, #ef4444, #38bdf8, #0ea5e9)',
+    iconBg: 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 55%, #ef4444 100%)',
+    textGrad: 'linear-gradient(90deg, #7dd3fc 0%, #a5b4fc 50%, #fca5a5 100%)',
+    accentColor: '#7dd3fc',
+    glow: '0 24px 64px -20px rgba(99, 102, 241, 0.55)',
+    hoverGlow: '0 36px 80px -20px rgba(239, 68, 68, 0.55)',
+    tagColor: '#bae6fd',
+  },
 };
 
 /** CineTrip용 보딩패스 사이드 라인 장식. */

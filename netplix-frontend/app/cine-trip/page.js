@@ -21,6 +21,7 @@ import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
 import TourGallerySection from '@/components/TourGallerySection';
 import NearbyCampingStrip from '@/components/NearbyCampingStrip';
 import NearbyWellnessStrip from '@/components/NearbyWellnessStrip';
+import NearbyMedicalTourismStrip from '@/components/NearbyMedicalTourismStrip';
 import ConcentrationForecastStrip from '@/components/ConcentrationForecastStrip';
 import EngTourSpotsStrip from '@/components/EngTourSpotsStrip';
 import TravelCourseModal from '@/components/TravelCourseModal';
@@ -1042,6 +1043,16 @@ function CineTripPageInner() {
             keyword={REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''}
             title={t('nearbyWellness.regionSection')}
             subtitle={t('nearbyWellness.poweredByRegion')}
+            limit={6}
+          />
+        )}
+
+        {/* 외국인 방문객 대상 K-의료관광 — 영화 촬영지 탐방 일정에 의료관광 클러스터 교차 노출 */}
+        {selectedAreaCode && (
+          <NearbyMedicalTourismStrip
+            keyword={REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''}
+            title={t('nearbyMedicalTourism.regionSection')}
+            subtitle={t('nearbyMedicalTourism.poweredByRegion')}
             limit={6}
           />
         )}
