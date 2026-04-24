@@ -121,8 +121,15 @@ function AudioGuidePageInner() {
    */
   const [autoplayArm, setAutoplayArm] = useState(false);
   const [activatedCourse, setActivatedCourse] = useState(null); // { title, sub }
-  const [courseToast, setCourseToast] = useState(null); // { kind: 'playing'|'empty'|'noaudio', title }
+  const [courseToast, setCourseToast] = useState(null); // { kind: 'playing'|'empty'|'noaudio'|'blocked', title }
   const resultsRef = useRef(null);
+
+  /*
+   * launchCourse 가 이미 items 를 채우고 재생까지 트리거한 경우,
+   * 직후 load useEffect 가 동일한 (type, keyword, lang) 조합으로 한 번 더 fetch 하는 것을
+   * 차단하기 위한 시그니처 마커. `type:lang:keyword` 또는 `nearby:radius:lat:lng` 포맷.
+   */
+  const skipNextLoadRef = useRef(null);
 
   // URL 동기화 helper
   const syncUrl = useCallback((next) => {
@@ -136,6 +143,17 @@ function AudioGuidePageInner() {
 
   // 데이터 로드
   const load = useCallback(async () => {
+    // launchCourse 가 이미 동일 조건으로 items 를 채웠다면 이 호출을 건너뛴다.
+    // (사용자의 Play 제스처 컨텍스트를 이미 소비했기 때문에 여기서 다시 덮어쓰면
+    //  Audio.play() 가 차단되거나 재생 중인 트랙이 중단될 수 있다.)
+    const currentSig = wantNearby && userCoords
+      ? `nearby:${radiusKm}:${userCoords.lat}:${userCoords.lng}:${type}:${activeLang}`
+      : `${type}:${activeLang}:${keyword.trim()}`;
+    if (skipNextLoadRef.current === currentSig) {
+      skipNextLoadRef.current = null;
+      return;
+    }
+
     setLoading(true);
     setErrored(false);
     try {
@@ -238,49 +256,101 @@ function AudioGuidePageInner() {
   };
 
   /*
-   * 4대 시그니처 코스 카드 트리거.
+   * 4대 시그니처 코스 카드 트리거 (키워드 체인 + 직접 재생).
    *
-   * 흐름:
-   *  1) 필요한 필터(키워드/nearby) 를 상태에 반영 → useEffect 가 /search 또는 /nearby 호출
-   *  2) autoplayArm=true 로 "다음 items 로드가 끝나면 첫 오디오를 바로 재생" 예약
-   *  3) 결과 섹션으로 부드러운 스크롤 (사용자가 필터 적용 사실을 즉각 인지)
-   *  4) 사용자에게 "{코스명} 재생 준비 중…" 토스트 노출
+   * 배경:
+   *  - Odii API 의 theme 탭은 "사찰"/"궁궐" 같은 일반명사로는 0건이 나오고,
+   *    매칭되어도 audioUrl 을 내려주지 않는다.
+   *  - story 탭은 대부분 audioUrl 이 살아있고 경복궁/창덕궁/불국사 등 구체 명으로
+   *    풍부하게 매칭된다.
+   *
+   * 그래서 각 코스 카드는 type='story' 로 고정하고, 키워드 후보를 순차 시도한다.
+   * 첫 번째로 결과가 나오는 쿼리를 화면에 세팅하고 사용자의 클릭 제스처 컨텍스트
+   * 안에서 바로 Audio.play() 를 호출해 재생을 시작한다.
    */
-  const launchCourse = ({ kind, title, sc }) => {
+  const launchCourse = async ({ kind, title, keywords }) => {
     stopPlayback();
-    // 이전 키워드 결과가 잔존한 상태에서 autoplayArm useEffect 가 즉시 발동하는 걸 막기 위해
-    // 결과를 일단 비우고 로딩 상태로 리셋. 새 필터에 의해 load() 가 다시 채워준다.
-    setItems([]);
-    setLoading(true);
+    // 이전 autoplay 경로가 실행되지 않도록 차단 (kind === 'nearby' 경로는 별도 취급)
+    setAutoplayArm(false);
     setActivatedCourse({ title });
     setCourseToast({ kind: "loading", title });
-    setAutoplayArm(true);
-    if (kind === "keyword") {
-      // theme 탭에서만 적용 (관광지 해설 쪽이 오디오 커버리지가 넓다)
-      if (type !== "theme") {
-        setType("theme");
-        syncUrl({ type: "theme", keyword: activeLang === "en" ? sc.en : sc.ko });
-      }
-      applyShortcutKeyword(sc);
-    } else if (kind === "nearby") {
-      requestNearby();
-    }
-    // 리스트 섹션으로 스크롤
+
+    // 결과 섹션으로 스크롤 (사용자 클릭 직후 즉각 피드백)
     setTimeout(() => {
       if (resultsRef.current) {
         resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }, 120);
+
+    if (kind === "nearby") {
+      // DVD 반납길 코스: geolocation 권한 → userCoords 세팅 → load useEffect 가 발동.
+      // autoplayArm 으로 첫 트랙 자동 재생 예약.
+      setItems([]);
+      setLoading(true);
+      setWantNearby(false); // 일단 false → requestNearby 가 true 로 승격 (상태 변화 보장)
+      setAutoplayArm(true);
+      requestNearby();
+      return;
+    }
+
+    // keyword 체인: story 탭 고정, 후보 키워드를 하나씩 시도
+    setType("story");
+    setWantNearby(false);
+    setItems([]);
+    setLoading(true);
+
+    const tryList = Array.isArray(keywords) ? keywords : [keywords];
+    try {
+      for (const q of tryList) {
+        if (!q) continue;
+        const res = await axios.get(`/api/v1/audio-guide/search`, {
+          params: { type: "story", lang: activeLang, q, limit: 0 },
+        });
+        const list = Array.isArray(res?.data?.data) ? res.data.data : [];
+        if (list.length === 0) continue;
+
+        // 이 쿼리를 최종 선택: 화면 상태에 반영
+        setItems(list);
+        setVisibleCount(PAGE_SIZE);
+        setKeywordInput(q);
+        setKeyword(q);
+        setLoading(false);
+        syncUrl({ type: "story", keyword: q });
+        // load useEffect 가 동일한 시그니처로 재fetch 하려는 걸 차단
+        skipNextLoadRef.current = `story:${activeLang}:${q}`;
+
+        // 첫 오디오 또는 대본 가진 트랙을 바로 재생
+        const firstPlayable = list.find((x) => !!x?.audioUrl);
+        if (firstPlayable) {
+          try {
+            togglePlay(firstPlayable);
+            setCourseToast({ kind: "playing", title, name: firstPlayable.title });
+          } catch (_) {
+            setCourseToast({ kind: "blocked", title });
+          }
+        } else {
+          setCourseToast({ kind: "noaudio", title, count: list.length });
+        }
+        return;
+      }
+      // 모든 후보 실패
+      setItems([]);
+      setLoading(false);
+      setCourseToast({ kind: "empty", title });
+    } catch (e) {
+      setLoading(false);
+      setErrored(true);
+      setCourseToast({ kind: "empty", title });
+    }
   };
 
   /*
-   * items 변경 감지: autoplayArm 이 켜져 있고 새 결과가 들어오면
-   * 첫 번째 유효 오디오 트랙을 바로 재생한다. 결과가 없거나 오디오가 전혀 없으면
-   * 토스트로 사용자에게 알려준다 (대체 조치 안내).
+   * DVD 반납길 코스 전용 자동재생: items 가 새로 로드되면 첫 audioUrl 을 재생.
+   * keyword 체인 경로는 launchCourse 내부에서 이미 재생을 시작하므로 여기선 제외.
    */
   useEffect(() => {
     if (!autoplayArm) return;
-    if (loading) return; // 로딩 완료까지 대기
+    if (loading) return;
     const firstPlayable = items.find((x) => !!x?.audioUrl);
     if (firstPlayable) {
       togglePlay(firstPlayable);
@@ -505,13 +575,16 @@ function AudioGuidePageInner() {
               "audioGuide.courses.film.desc",
               "영화·K-드라마 속 그 장면, 그 장소. 감독이 왜 이 배경을 골랐는지 현장에서 귀로 듣기."
             )}
-            active={!wantNearby && (keyword === "영화" || keyword === "드라마" || keyword === "K-드라마" || keyword === "Film Location" || keyword === "K-Drama")}
+            active={!wantNearby && type === "story" && ["드라마","영화","촬영","로케","명장면"].includes(keyword)}
             actionLabel={t("audioGuide.courses.film.cta", "바로 재생")}
             onClick={() =>
               launchCourse({
                 kind: "keyword",
                 title: t("audioGuide.courses.film.title", "촬영지 · Cine Set Trail"),
-                sc: { key: "드라마", ko: "드라마", en: "K-Drama" },
+                // Odii story 탭 키워드 커버리지에 맞춘 폴백 체인
+                keywords: activeLang === "en"
+                  ? ["drama", "film", "movie"]
+                  : ["드라마", "영화", "촬영", "로케", "명장면"],
               })
             }
           />
@@ -547,13 +620,15 @@ function AudioGuidePageInner() {
               "audioGuide.courses.palace.desc",
               "경복궁·창덕궁·덕수궁의 담장 너머 왕실 이야기. 걸으며 듣는 조선의 하루."
             )}
-            active={!wantNearby && (keyword === "궁궐" || keyword === "Palace")}
+            active={!wantNearby && type === "story" && ["궁궐","경복궁","창덕궁","덕수궁","종묘","조선"].includes(keyword)}
             actionLabel={t("audioGuide.courses.palace.cta", "바로 재생")}
             onClick={() =>
               launchCourse({
                 kind: "keyword",
                 title: t("audioGuide.courses.palace.title", "궁궐 · Royal Whisper"),
-                sc: { key: "궁궐", ko: "궁궐", en: "Palace" },
+                keywords: activeLang === "en"
+                  ? ["palace", "royal", "Gyeongbok", "Changdeok"]
+                  : ["경복궁", "창덕궁", "덕수궁", "종묘", "궁궐", "조선"],
               })
             }
           />
@@ -565,13 +640,15 @@ function AudioGuidePageInner() {
               "audioGuide.courses.temple.desc",
               "불국사·해인사·통도사… 스님의 발걸음을 따라가는 명상의 오디오 트레일."
             )}
-            active={!wantNearby && (keyword === "사찰" || keyword === "Temple")}
+            active={!wantNearby && type === "story" && ["사찰","불국사","해인사","통도사","석굴암","범어사"].includes(keyword)}
             actionLabel={t("audioGuide.courses.temple.cta", "바로 재생")}
             onClick={() =>
               launchCourse({
                 kind: "keyword",
                 title: t("audioGuide.courses.temple.title", "사찰 · Mindful Path"),
-                sc: { key: "사찰", ko: "사찰", en: "Temple" },
+                keywords: activeLang === "en"
+                  ? ["temple", "Bulguksa", "Haeinsa", "Tongdosa"]
+                  : ["불국사", "해인사", "통도사", "석굴암", "범어사", "사찰"],
               })
             }
           />
@@ -629,6 +706,17 @@ function AudioGuidePageInner() {
                   {t(
                     "audioGuide.toast.empty",
                     "검색 결과가 없어요. 다른 코스나 지역 칩을 시도해 보세요."
+                  )}
+                </span>
+              </>
+            )}
+            {courseToast.kind === "blocked" && (
+              <>
+                <b>{courseToast.title}</b>
+                <span>
+                  {t(
+                    "audioGuide.toast.blocked",
+                    "브라우저가 자동 재생을 차단했어요. 카드의 ▶ 를 눌러 시작해 주세요."
                   )}
                 </span>
               </>
