@@ -96,15 +96,20 @@ public class VisitKoreaOdiiResponse {
         @JsonAlias({"playTime", "storyPlayTime", "tPlayTime", "audioPlayTime", "playTm"})
         private String playTimeText;
 
-        /** 스토리 스크립트/설명. */
-        @JsonAlias({"storyDesc", "tDesc", "overview", "description", "scriptDesc"})
+        /** 스토리 스크립트/설명. storyBasedList 실제 응답에서는 "script" 로 내려옴. */
+        @JsonAlias({"script", "storyDesc", "tDesc", "overview", "description", "scriptDesc"})
         private String description;
 
-        @JsonAlias({"imgPath", "imageUrl", "image", "firstimage", "tImage", "storyImage", "thumbImage", "orgImage"})
+        @JsonAlias({"imgPath", "image", "firstimage", "tImage", "storyImage", "thumbImage", "orgImage"})
         private String imageUrl;
 
+        /** 1차 주소 (예: 충청남도). Odii 는 addr1 + addr2 분리 제공. */
         @JsonAlias({"basicAddress", "addr1", "baseAddr", "roadAddr", "tAddr"})
         private String baseAddr;
+
+        /** 2차 주소 (예: 부여군). 도메인 매핑 시 baseAddr 와 결합. */
+        @JsonAlias({"addr2", "detailAddr"})
+        private String detailAddr;
 
         @JsonAlias({"mapx", "mapX", "longitude", "lng"})
         private String mapX;

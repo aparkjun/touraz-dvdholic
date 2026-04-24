@@ -306,8 +306,10 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         sb.append("&MobileApp=touraz-dvdholic");
         sb.append("&numOfRows=").append(rows);
         sb.append("&pageNo=").append(pageNo);
-        // Odii 도 신규 KTO 패밀리로 추정되어 langDivCd 전송 (미사용 시 서버가 무시하도록 안전)
-        sb.append("&langDivCd=").append(lang);
+        // Odii 는 langCode 를 필수 파라미터로 요구 (확인된 스펙:
+        //   resultCode=11, NO_MANDATORY_REQUEST_PARAMETERS_ERROR1(langCode)).
+        // Wellness/MdclTursmService 와 달리 langDivCd 가 아닌 langCode 임에 주의.
+        sb.append("&langCode=").append(lang);
         extraParams.forEach((k, v) -> sb.append('&').append(k).append('=')
                 .append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
 
@@ -392,7 +394,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 .playTimeText(nullIfBlank(i.getPlayTimeText()))
                 .description(nullIfBlank(i.getDescription()))
                 .imageUrl(nullIfBlank(i.getImageUrl()))
-                .address(nullIfBlank(i.getBaseAddr()))
+                .address(combineAddress(i.getBaseAddr(), i.getDetailAddr()))
                 .latitude(lat)
                 .longitude(lng)
                 .themeCategory(nullIfBlank(i.getThemeCategory()))
@@ -440,6 +442,16 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     }
 
     private static String nullIfBlank(String s) { return (s == null || s.isBlank()) ? null : s; }
+
+    /** Odii 응답의 addr1 + addr2 를 공백으로 결합해 단일 주소 문자열로 만든다. */
+    private static String combineAddress(String addr1, String addr2) {
+        String a1 = nullIfBlank(addr1);
+        String a2 = nullIfBlank(addr2);
+        if (a1 == null && a2 == null) return null;
+        if (a1 == null) return a2;
+        if (a2 == null) return a1;
+        return a1 + " " + a2;
+    }
 
     private static String normalize(String lang) {
         if (lang == null) return "ko";
