@@ -8,6 +8,7 @@ import { getMovieTitle, getPosterPath, getBackdropPath, getOverview, getTagline 
 import CineTripCTA from "@/components/CineTripCTA";
 import PhotoGalleryStrip from "@/components/PhotoGalleryStrip";
 import TourGallerySection from "@/components/TourGallerySection";
+import NearbyCampingStrip from "@/components/NearbyCampingStrip";
 
 const baseUrl = "https://image.tmdb.org/t/p/original";
 const palette = {
@@ -590,6 +591,22 @@ function MovieImagesContent() {
               title={t("tourGallery.movieSection")}
               subtitle={t("tourGallery.poweredBy")}
               limit={24}
+            />
+          </div>
+        )}
+
+        {/*
+         * 근처 야영장(GoCamping) — 영화명 → 지역 키워드로 검색.
+         * 결과 0건 또는 키 미승인 상태면 섹션 자체가 null 반환되어 숨겨짐.
+         * "영화 본 그날 밤, 촬영지 근처에서 하루 더 묵기" 동선.
+         */}
+        {movieName && (
+          <div style={{ padding: "0 15px", marginBottom: 12 }}>
+            <NearbyCampingStrip
+              keyword={movieName}
+              title={t("nearbyCamping.movieSection")}
+              subtitle={t("nearbyCamping.poweredBy")}
+              limit={6}
             />
           </div>
         )}

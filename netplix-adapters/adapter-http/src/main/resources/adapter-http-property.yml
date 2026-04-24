@@ -164,6 +164,28 @@ visitkorea:
     list-url: ${visitkorea.gallery.base-url}/galleryList1
     search-url: ${visitkorea.gallery.base-url}/gallerySearchList1
     cache-minutes: 1440
+  # 고캠핑 정보 조회서비스 (GoCamping) - 공공데이터 기반 전국 야영장/글램핑/카라반 DB
+  # Base URL: apis.data.go.kr/B551011/GoCamping
+  # 오퍼레이션:
+  #   - /basedList         : 기본 목록 (전국 전체, 최신순)
+  #   - /locationBasedList : 좌표 기반 주변 조회 (mapX 경도, mapY 위도, radius 미터)
+  #   - /searchList        : 키워드 검색 (야영장명/지역명)
+  #   - /imageList         : contentId 별 이미지 목록 (추후 상세 페이지에서 사용)
+  # 필수: serviceKey, MobileOS=ETC, MobileApp, numOfRows, pageNo
+  # 선택(location): mapX / mapY / radius(m, 최대 20000)
+  # 선택(search)  : keyword
+  # 일일 트래픽 1,000회 상한 → 24h in-memory 캐시 + 1페이지 동기/잔여 백그라운드 적재 (PhotoGalleryService1 과 동일 전략).
+  # 주의: GoCamping 도 별도 활용신청이 필요. GOCAMPING_API_KEY 를 독립 env 로 분리 ·
+  #       미설정 시 VISITKOREA_SERVICE_KEY 로 fallback. 둘 다 비어 있으면 isConfigured=false 로
+  #       빈 리스트 반환 → UI 섹션/페이지가 섹션 자동 숨김.
+  camping:
+    base-url: https://apis.data.go.kr/B551011/GoCamping
+    api-key: ${GOCAMPING_API_KEY:${VISITKOREA_SERVICE_KEY:}}
+    based-url: ${visitkorea.camping.base-url}/basedList
+    location-url: ${visitkorea.camping.base-url}/locationBasedList
+    search-url: ${visitkorea.camping.base-url}/searchList
+    image-url: ${visitkorea.camping.base-url}/imageList
+    cache-minutes: 1440
   # 두루누비 정보 서비스 GW (공공데이터 15101974, TourAPI Guide v4.1)
   # Base URL: apis.data.go.kr/B551011/Durunubi
   # 공식 오퍼레이션 2종:

@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next';
 import { shareContent, shareResultMessage } from '@/lib/shareUtils';
 import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
 import TourGallerySection from '@/components/TourGallerySection';
+import NearbyCampingStrip from '@/components/NearbyCampingStrip';
 import ConcentrationForecastStrip from '@/components/ConcentrationForecastStrip';
 import EngTourSpotsStrip from '@/components/EngTourSpotsStrip';
 import TravelCourseModal from '@/components/TravelCourseModal';
@@ -1018,6 +1019,19 @@ function CineTripPageInner() {
             title={t('tourGallery.regionSection')}
             subtitle={t('tourGallery.poweredBy')}
             limit={24}
+          />
+        )}
+
+        {/*
+         * 이 지역의 야영장 (GoCamping) — CineTrip 촬영지 근처에서 하루 더 묵기.
+         * 지역이 선택되어 있을 때만 해당 지역명을 키워드로 조회, 0건이면 섹션 숨김.
+         */}
+        {selectedAreaCode && (
+          <NearbyCampingStrip
+            keyword={REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''}
+            title={t('nearbyCamping.regionSection')}
+            subtitle={t('nearbyCamping.poweredBy')}
+            limit={6}
           />
         )}
 

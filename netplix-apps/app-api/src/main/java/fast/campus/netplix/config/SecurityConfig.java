@@ -65,6 +65,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/support/**").permitAll()
                         .requestMatchers("/api/v1/tour/**").permitAll()
                         .requestMatchers("/api/v1/tour-gallery/**").permitAll()
+                        .requestMatchers("/api/v1/camping/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/cine-trip/import").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/cine-trip/auto-map").authenticated()
                         .requestMatchers("/api/v1/cine-trip/**").permitAll()

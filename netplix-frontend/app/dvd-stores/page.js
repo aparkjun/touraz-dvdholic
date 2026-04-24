@@ -6,6 +6,7 @@ import axios from "@/lib/axiosConfig";
 import { Search, MapPin, Phone, Clock, Package, ChevronLeft, ChevronRight, Store, LocateFixed, Navigation, X, Building2, Briefcase, CalendarClock, PauseCircle, Ruler, Map, List, Layers } from "lucide-react";
 import CultureMapLayer from "@/components/CultureMapLayer";
 import TourGallerySection from "@/components/TourGallerySection";
+import NearbyCampingStrip from "@/components/NearbyCampingStrip";
 let L, MapContainer, TileLayer, Marker, Popup, useMap;
 let greenIcon, redIcon, blueIcon;
 
@@ -540,6 +541,34 @@ function DvdStoresContent() {
           />
         </div>
       )}
+
+      {/*
+       * 근처 야영장 (GoCamping):
+       * - 주변 모드(userPos 있음)에서는 좌표 기반 20km 반경
+       * - 아니면 galleryKeyword(매장 시·도 또는 검색어) 기반
+       * 결과 0건이거나 지도 모드면 자동 숨김. "DVD 빌려 → 야영장에서 영화 보기" 동선.
+       */}
+      {viewMode !== "map" && (nearbyMode && userPos ? (
+        <div style={{ maxWidth: 1200, margin: "20px auto 0", padding: "0 4px" }}>
+          <NearbyCampingStrip
+            lat={userPos.lat}
+            lng={userPos.lon}
+            radiusM={20_000}
+            title={t("nearbyCamping.dvdNearbySection")}
+            subtitle={t("nearbyCamping.poweredBy")}
+            limit={6}
+          />
+        </div>
+      ) : galleryKeyword && (
+        <div style={{ maxWidth: 1200, margin: "20px auto 0", padding: "0 4px" }}>
+          <NearbyCampingStrip
+            keyword={galleryKeyword}
+            title={t("nearbyCamping.dvdRegionSection")}
+            subtitle={t("nearbyCamping.poweredBy")}
+            limit={6}
+          />
+        </div>
+      ))}
 
       <style>{`
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

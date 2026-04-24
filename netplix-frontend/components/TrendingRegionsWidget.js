@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, TrendingUp, PawPrint, Plane, PlaneTakeoff, Camera } from 'lucide-react';
+import { Sparkles, TrendingUp, PawPrint, Plane, PlaneTakeoff, Camera, Tent } from 'lucide-react';
 import Link from 'next/link';
 import axios from '@/lib/axiosConfig';
 import TravelPortalButton from '@/components/TravelPortalButton';
@@ -332,6 +332,16 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
           cta="사진첩 열어보기"
           Icon={Camera}
           theme="gallery"
+          fullWidth
+        />
+        <TravelPortalButton
+          href="/camping"
+          tag="GoCamping · Nature Stay"
+          title="전국 야영장 찾기"
+          desc="영화 본 그날 밤, 숲속 야영장에서 별을 보며 하루 더. 내 주변 야영장도 한 번에."
+          cta="야영장 전체 보기"
+          Icon={Tent}
+          theme="camping"
           fullWidth
         />
       </div>

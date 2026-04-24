@@ -140,6 +140,16 @@ function AuthActions({ isLoggedIn, isAdmin, isAuthPage, pathname, onLogout }) {
       </li>
     );
   }
+  if (pathname !== '/camping') {
+    // "내 주변 야영장" — 진입 시 자동으로 위치 권한 요청 (?nearby=true)
+    navItems.push(
+      <li key="camping">
+        <Link href="/camping?nearby=true" className="app-chip app-chip-secondary" onClick={closeMenu}>
+          {t('nav.nearbyCamping', '내 주변 야영장')}
+        </Link>
+      </li>
+    );
+  }
   if (pathname !== '/support') {
     navItems.push(
       <li key="support">

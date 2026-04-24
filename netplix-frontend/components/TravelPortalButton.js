@@ -49,6 +49,16 @@ const THEMES = {
     hoverGlow: '0 36px 80px -20px rgba(167, 139, 250, 0.6)',
     tagColor: '#fbcfe8',
   },
+  // 고캠핑 전용 — "숲속 캠프파이어/밤하늘" 무드: 그린(숲) → 앰버(모닥불) → 블루(밤하늘)
+  camping: {
+    gradient: 'conic-gradient(from 0deg, #16a34a, #f59e0b, #0ea5e9, #22c55e, #16a34a)',
+    iconBg: 'linear-gradient(135deg, #16a34a 0%, #f59e0b 55%, #0ea5e9 100%)',
+    textGrad: 'linear-gradient(90deg, #86efac 0%, #fde68a 50%, #bae6fd 100%)',
+    accentColor: '#86efac',
+    glow: '0 24px 64px -20px rgba(34, 197, 94, 0.55)',
+    hoverGlow: '0 36px 80px -20px rgba(14, 165, 233, 0.6)',
+    tagColor: '#bbf7d0',
+  },
 };
 
 /** CineTrip용 보딩패스 사이드 라인 장식. */
