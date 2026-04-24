@@ -30,6 +30,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
+import MedicalTourismDetailModal from "@/components/MedicalTourismDetailModal";
 import {
   Stethoscope,
   Globe2,
@@ -42,6 +43,7 @@ import {
   List as ListIcon,
   Map as MapIcon,
   Ruler,
+  ChevronRight,
 } from "lucide-react";
 
 // Leaflet SSR 이슈 방지: 클라이언트에서만 로딩.
@@ -122,6 +124,9 @@ function MedicalTourismInner() {
 
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef(null);
+
+  // 카드 클릭 시 열리는 상세 모달 대상. (1차 업그레이드: 보기 전용 → 인터랙티브 액션)
+  const [detailSpot, setDetailSpot] = useState(null);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -442,7 +447,7 @@ function MedicalTourismInner() {
                 {mappable.map((s) => (
                   <Marker key={s.id} position={[s.latitude, s.longitude]} icon={medIcon}>
                     <Popup>
-                      <MarkerPopup spot={s} />
+                      <MarkerPopup spot={s} onOpen={() => setDetailSpot(s)} />
                     </Popup>
                   </Marker>
                 ))}
@@ -476,7 +481,11 @@ function MedicalTourismInner() {
               <>
                 <div className="mt-grid">
                   {spots.slice(0, visibleCount).map((s) => (
-                    <MedicalTourismCard key={s.id} spot={s} />
+                    <MedicalTourismCard
+                      key={s.id}
+                      spot={s}
+                      onOpen={() => setDetailSpot(s)}
+                    />
                   ))}
                 </div>
                 {visibleCount < spots.length && (
@@ -496,6 +505,15 @@ function MedicalTourismInner() {
           </>
         )}
       </main>
+
+      {/* 카드/지도 마커 클릭 시 열리는 상세 모달 (1차 핵심 액션) */}
+      {detailSpot && (
+        <MedicalTourismDetailModal
+          spot={detailSpot}
+          userPos={userPos}
+          onClose={() => setDetailSpot(null)}
+        />
+      )}
     </div>
   );
 }
@@ -520,30 +538,63 @@ function FitBounds({ spots, userPos }) {
   return null;
 }
 
-function MarkerPopup({ spot }) {
+function MarkerPopup({ spot, onOpen }) {
   const { t } = useTranslation();
   return (
-    <div style={{ minWidth: 200, maxWidth: 260 }}>
+    <div style={{ minWidth: 220, maxWidth: 280 }}>
       <div style={{ fontWeight: 700, marginBottom: 4 }}>{spot.name}</div>
       {spot.address && (
         <div style={{ fontSize: 12, color: "#555", marginBottom: 4 }}>
           📍 {spot.address}
         </div>
       )}
-      <div style={{ fontSize: 12 }}>
+      <div style={{ fontSize: 12, marginBottom: 8 }}>
         📞 {spot.tel || t("medicalTourism.phoneNone")}
       </div>
+      {onOpen && (
+        <button
+          type="button"
+          onClick={onOpen}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 4,
+            padding: "5px 10px",
+            fontSize: 12,
+            fontWeight: 700,
+            border: "1px solid #dc2626",
+            background: "#dc2626",
+            color: "#fff",
+            borderRadius: 999,
+            cursor: "pointer",
+          }}
+        >
+          {t("medicalTourism.detail.openCta", "상세보기 · 전화 · 경로")}
+        </button>
+      )}
     </div>
   );
 }
 
-function MedicalTourismCard({ spot }) {
+function MedicalTourismCard({ spot, onOpen }) {
   const { t } = useTranslation();
-  const mapUrl = spot.address
-    ? `https://map.kakao.com/link/search/${encodeURIComponent(spot.address)}`
-    : null;
+  const handleKey = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onOpen?.();
+    }
+  };
   return (
-    <article className="mt-card">
+    // 카드 전체가 상세 모달 트리거. 카드 내부에 별도 링크를 두지 않아 클릭 충돌을 없앰.
+    // 접근성: role=button + tabIndex=0 + Enter/Space 키보드 지원.
+    <article
+      className="mt-card mt-card-clickable"
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={handleKey}
+      aria-label={t("medicalTourism.cardOpen", { name: spot.name || "" })}
+    >
       <div className="mt-img">
         {spot.imageUrl ? (
           <img
@@ -571,18 +622,17 @@ function MedicalTourismCard({ spot }) {
         {spot.address && (
           <div className="mt-meta">
             <MapPin size={12} />
-            {mapUrl ? (
-              <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="mt-addr-link">
-                {spot.address}
-              </a>
-            ) : (
-              <span>{spot.address}</span>
-            )}
+            <span>{spot.address}</span>
           </div>
         )}
         <div className="mt-meta mt-meta-sub">
           <Phone size={12} />
           <span>{spot.tel || t("medicalTourism.phoneNone")}</span>
+        </div>
+        {/* "상세 보기" 힌트 칩 — 카드가 클릭 가능하다는 어포던스 */}
+        <div className="mt-open-hint">
+          {t("medicalTourism.cardOpenHint", "상세보기 · 전화 · 경로 · 공유")}
+          <ChevronRight size={12} />
         </div>
       </div>
     </article>
@@ -807,6 +857,27 @@ const cssBlock = `
   border-color: rgba(14, 165, 233, 0.35);
   box-shadow: 0 10px 24px rgba(0,0,0,0.4);
 }
+.mt-card-clickable {
+  cursor: pointer;
+  appearance: none;
+  text-align: left;
+  font: inherit;
+  border-color: rgba(239, 68, 68, 0.18);
+}
+.mt-card-clickable:hover { border-color: rgba(239, 68, 68, 0.55); box-shadow: 0 14px 30px rgba(239,68,68,0.18); }
+.mt-card-clickable:focus-visible {
+  outline: 2px solid rgba(239, 68, 68, 0.7);
+  outline-offset: 2px;
+}
+.mt-open-hint {
+  margin-top: 4px;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.72rem; font-weight: 800;
+  color: #fca5a5;
+  letter-spacing: 0.02em;
+  transition: color 0.15s, gap 0.15s;
+}
+.mt-card-clickable:hover .mt-open-hint { color: #fff; gap: 6px; }
 .mt-img {
   position: relative; width: 100%; padding-top: 62%;
   background: #0e0e0e; overflow: hidden;

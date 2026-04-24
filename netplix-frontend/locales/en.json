@@ -448,7 +448,21 @@
     "emptyHint": "Try another specialty (plastic surgery / Korean medicine / checkup) or a different region. Data appears progressively after KTO approves the medical tourism API usage.",
     "error": "Please try again later",
     "errorHint": "Medical tourism data may require a separate API usage approval. Please check the OpenAPI status on data.go.kr.",
-    "phoneNone": "No phone"
+    "phoneNone": "No phone",
+    "cardOpen": "Open details for {{name}}",
+    "cardOpenHint": "Details · Call · Directions · Share",
+    "detail": {
+      "close": "Close",
+      "call": "Call",
+      "directions": "Directions",
+      "viewMap": "View on map",
+      "share": "Share",
+      "copied": "Copied",
+      "kakao": "Open in KakaoMap",
+      "openCta": "Details · Call · Directions",
+      "shareFail": "Couldn't share. Please copy the address manually.",
+      "hint": "For foreign-patient coordinator assistance, please contact the hospital's main number."
+    }
   },
   "nearbyMedicalTourism": {
     "title": "Nearby K-Medical Tourism",
