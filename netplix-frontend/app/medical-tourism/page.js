@@ -31,6 +31,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import MedicalTourismDetailModal from "@/components/MedicalTourismDetailModal";
+import MedicalTourismDailyPicks from "@/components/MedicalTourismDailyPicks";
+import { useMedicalFavorites } from "@/lib/useMedicalFavorites";
 import {
   Stethoscope,
   Globe2,
@@ -44,6 +46,8 @@ import {
   Map as MapIcon,
   Ruler,
   ChevronRight,
+  Heart,
+  HeartOff,
 } from "lucide-react";
 
 // Leaflet SSR 이슈 방지: 클라이언트에서만 로딩.
@@ -127,6 +131,16 @@ function MedicalTourismInner() {
 
   // 카드 클릭 시 열리는 상세 모달 대상. (1차 업그레이드: 보기 전용 → 인터랙티브 액션)
   const [detailSpot, setDetailSpot] = useState(null);
+
+  // 2차 업그레이드: 즐겨찾기(localStorage) + "내 저장 목록" 모드
+  const {
+    items: favItems,
+    count: favCount,
+    isSaved,
+    toggle: toggleFav,
+    hydrated: favHydrated,
+  } = useMedicalFavorites();
+  const [savedMode, setSavedMode] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -277,15 +291,31 @@ function MedicalTourismInner() {
     return () => io.disconnect();
   }, [viewMode, visibleCount, spots.length]);
 
+  /*
+   * visibleSpots = 렌더 대상 목록.
+   *   - savedMode 일 때는 API 결과가 아니라 localStorage 스냅샷(favItems) 으로 대체.
+   *   - savedMode 에서도 검색/주변 모드와 독립된 "내 저장" 뷰를 제공.
+   *   - API 결과는 state 로 그대로 보존 → 저장 모드 해제 시 즉시 복귀.
+   */
+  const visibleSpots = useMemo(() => {
+    if (savedMode) return favItems;
+    return spots;
+  }, [savedMode, favItems, spots]);
+
+  // 목록 원천이 바뀔 때마다 페이지 초기화(무한 스크롤 리셋).
+  useEffect(() => {
+    setVisibleCount(Math.min(PAGE_SIZE, visibleSpots.length));
+  }, [savedMode, visibleSpots.length]);
+
   const mappable = useMemo(
-    () => spots.filter((s) => s.latitude != null && s.longitude != null),
-    [spots]
+    () => visibleSpots.filter((s) => s.latitude != null && s.longitude != null),
+    [visibleSpots]
   );
 
   const headerCountLabel = useMemo(() => {
-    if (loading || nearbyLoading) return null;
-    return t("medicalTourism.totalCount", { count: spots.length });
-  }, [loading, nearbyLoading, spots.length, t]);
+    if (!savedMode && (loading || nearbyLoading)) return null;
+    return t("medicalTourism.totalCount", { count: visibleSpots.length });
+  }, [loading, nearbyLoading, visibleSpots.length, savedMode, t]);
 
   const lang = i18n?.language || "ko";
 
@@ -368,6 +398,11 @@ function MedicalTourismInner() {
         </div>
       </header>
 
+      {/* 2차 업그레이드: 기본 목록 화면(검색어·주변·저장 모드 모두 비활성)일 때만 큐레이션 노출 */}
+      {!savedMode && !keyword && !nearbyMode && !loading && spots.length > 0 && (
+        <MedicalTourismDailyPicks spots={spots} onOpen={(s) => setDetailSpot(s)} />
+      )}
+
       {nearbyMode && (
         <div className="mt-nearby-panel">
           <div className="mt-nearby-top">
@@ -402,6 +437,33 @@ function MedicalTourismInner() {
         <div className="mt-toolbar-left">
           {headerCountLabel && (
             <span className="mt-total">{headerCountLabel}</span>
+          )}
+          {/* 2차 업그레이드: "전체 / 내 저장 목록(N)" 토글.
+              favCount=0 일 때는 사용자가 기능 존재 자체를 모를 수 있으므로
+              힌트 배지와 함께 비활성 상태로 노출한다. */}
+          {favHydrated && (
+            <div className="mt-saved-toggle" role="group" aria-label={t("medicalTourism.savedToggleLabel", "저장 필터")}>
+              <button
+                type="button"
+                className={`mt-saved-btn ${!savedMode ? "mt-saved-btn-active" : ""}`}
+                onClick={() => setSavedMode(false)}
+                aria-pressed={!savedMode}
+              >
+                {t("medicalTourism.allSpots", "전체")}
+              </button>
+              <button
+                type="button"
+                className={`mt-saved-btn ${savedMode ? "mt-saved-btn-active" : ""}`}
+                onClick={() => setSavedMode(true)}
+                aria-pressed={savedMode}
+                disabled={favCount === 0}
+                title={favCount === 0 ? t("medicalTourism.savedEmptyHint", "") : ""}
+              >
+                <Heart size={12} fill={savedMode ? "currentColor" : "none"} />
+                {t("medicalTourism.savedList", "내 저장")}
+                {favCount > 0 && <span className="mt-saved-badge">{favCount}</span>}
+              </button>
+            </div>
           )}
         </div>
         <div className="mt-toolbar-right">
@@ -456,7 +518,9 @@ function MedicalTourismInner() {
           </div>
         ) : (
           <>
-            {loading || nearbyLoading ? (
+            {/* 저장 모드가 아닐 때만 로딩/에러를 따진다.
+                저장 모드는 localStorage 동기 읽기이므로 스켈레톤이 불필요. */}
+            {!savedMode && (loading || nearbyLoading) ? (
               <div className="mt-grid">
                 {Array.from({ length: 8 }).map((_, i) => (
                   <div key={`sk-${i}`} className="mt-card mt-skeleton">
@@ -469,34 +533,49 @@ function MedicalTourismInner() {
                   </div>
                 ))}
               </div>
-            ) : errored ? (
+            ) : !savedMode && errored ? (
               <EmptyState icon="⚠️" title={t("medicalTourism.error")} desc={t("medicalTourism.errorHint")} />
-            ) : spots.length === 0 ? (
+            ) : visibleSpots.length === 0 ? (
               <EmptyState
-                icon="🧘"
-                title={nearbyMode ? t("medicalTourism.nearbyEmpty") : t("medicalTourism.empty")}
-                desc={t("medicalTourism.emptyHint")}
+                icon={savedMode ? "❤️" : "🧘"}
+                title={
+                  savedMode
+                    ? t("medicalTourism.savedEmpty", "저장한 의료관광 스팟이 없어요")
+                    : nearbyMode
+                    ? t("medicalTourism.nearbyEmpty")
+                    : t("medicalTourism.empty")
+                }
+                desc={
+                  savedMode
+                    ? t(
+                        "medicalTourism.savedEmptyHint",
+                        "카드 우측 상단의 하트 버튼을 눌러 관심 의료기관을 저장해 보세요."
+                      )
+                    : t("medicalTourism.emptyHint")
+                }
               />
             ) : (
               <>
                 <div className="mt-grid">
-                  {spots.slice(0, visibleCount).map((s) => (
+                  {visibleSpots.slice(0, visibleCount).map((s) => (
                     <MedicalTourismCard
                       key={s.id}
                       spot={s}
                       onOpen={() => setDetailSpot(s)}
+                      isSaved={favHydrated ? isSaved(s.id) : false}
+                      onToggleFav={() => toggleFav(s)}
                     />
                   ))}
                 </div>
-                {visibleCount < spots.length && (
+                {visibleCount < visibleSpots.length && (
                   <div className="mt-more">
                     <div ref={sentinelRef} aria-hidden className="mt-sentinel" />
                     <button
                       type="button"
                       className="mt-more-btn"
-                      onClick={() => setVisibleCount((c) => Math.min(c + PAGE_SIZE, spots.length))}
+                      onClick={() => setVisibleCount((c) => Math.min(c + PAGE_SIZE, visibleSpots.length))}
                     >
-                      {t("medicalTourism.loadMore", { shown: visibleCount, total: spots.length })}
+                      {t("medicalTourism.loadMore", { shown: visibleCount, total: visibleSpots.length })}
                     </button>
                   </div>
                 )}
@@ -576,13 +655,19 @@ function MarkerPopup({ spot, onOpen }) {
   );
 }
 
-function MedicalTourismCard({ spot, onOpen }) {
+function MedicalTourismCard({ spot, onOpen, isSaved: savedProp, onToggleFav }) {
   const { t } = useTranslation();
   const handleKey = (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       onOpen?.();
     }
+  };
+  // 하트 버튼 클릭은 카드 클릭으로 전파되지 않아야 한다(모달이 열리면 안 됨).
+  const handleFavClick = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onToggleFav?.();
   };
   return (
     // 카드 전체가 상세 모달 트리거. 카드 내부에 별도 링크를 두지 않아 클릭 충돌을 없앰.
@@ -615,6 +700,23 @@ function MedicalTourismCard({ spot, onOpen }) {
               ? `${Math.round(spot.distanceKm * 1000)}m`
               : `${spot.distanceKm.toFixed(1)}km`}
           </span>
+        )}
+        {/* 즐겨찾기 토글: 이미지 우측 상단, 카드 클릭과 이벤트 분리 */}
+        {onToggleFav && (
+          <button
+            type="button"
+            className={`mt-fav ${savedProp ? "mt-fav-on" : ""}`}
+            onClick={handleFavClick}
+            onKeyDown={(e) => e.stopPropagation()}
+            aria-pressed={!!savedProp}
+            aria-label={
+              savedProp
+                ? t("medicalTourism.detail.unfav", "즐겨찾기 해제")
+                : t("medicalTourism.detail.fav", "즐겨찾기에 저장")
+            }
+          >
+            <Heart size={14} fill={savedProp ? "currentColor" : "none"} />
+          </button>
         )}
       </div>
       <div className="mt-body">
@@ -820,6 +922,41 @@ const cssBlock = `
   gap: 10px; flex-wrap: wrap;
 }
 .mt-total { color: #dc2626; font-weight: 800; font-size: 1rem; }
+.mt-toolbar-left { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.mt-saved-toggle {
+  display: inline-flex;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 999px;
+  padding: 3px;
+}
+.mt-saved-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.7);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 5px 11px;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
+  transition: background 0.2s, color 0.2s, transform 0.15s;
+}
+.mt-saved-btn:hover:not(:disabled) { color: #fff; }
+.mt-saved-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.mt-saved-btn-active {
+  background: linear-gradient(135deg, #dc2626, #f97316);
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(239,68,68,0.35);
+}
+.mt-saved-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; padding: 1px 5px;
+  border-radius: 999px;
+  font-size: 0.68rem; font-weight: 900;
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
 .mt-toolbar-right { display: inline-flex; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; padding: 3px; }
 .mt-view-btn {
   background: transparent; border: none; color: rgba(255,255,255,0.65);
@@ -900,6 +1037,26 @@ const cssBlock = `
   font-size: 0.72rem; font-weight: 800;
   padding: 4px 10px; border-radius: 999px;
   backdrop-filter: blur(6px);
+}
+.mt-fav {
+  position: absolute;
+  top: 10px; right: 10px;
+  width: 30px; height: 30px;
+  border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.55);
+  color: #fecaca;
+  border: 1px solid rgba(255,255,255,0.15);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: transform 0.15s, background 0.15s, color 0.15s;
+}
+.mt-fav:hover { transform: scale(1.1); background: rgba(239,68,68,0.4); }
+.mt-fav-on {
+  background: rgba(239,68,68,0.9);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.25);
 }
 
 .mt-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; }

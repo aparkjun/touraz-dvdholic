@@ -451,6 +451,17 @@
     "phoneNone": "전화번호 없음",
     "cardOpen": "{{name}} 상세보기 열기",
     "cardOpenHint": "상세보기 · 전화 · 경로 · 공유",
+    "allSpots": "전체",
+    "savedList": "내 저장",
+    "savedToggleLabel": "저장 필터",
+    "savedEmpty": "저장한 의료관광 스팟이 없어요",
+    "savedEmptyHint": "카드 우측 상단의 하트 버튼을 눌러 관심 의료기관을 저장해 보세요.",
+    "dailyPicks": {
+      "aria": "오늘의 K-메디컬 3선",
+      "title": "오늘의 K-메디컬 3선",
+      "sub": "매일 바뀌는 외국인 환영 의료관광 큐레이션",
+      "cta": "상세보기"
+    },
     "detail": {
       "close": "닫기",
       "call": "전화걸기",
@@ -461,7 +472,14 @@
       "kakao": "카카오맵으로 열기",
       "openCta": "상세보기 · 전화 · 경로",
       "shareFail": "공유에 실패했어요. 주소를 직접 복사해 주세요.",
-      "hint": "외국인 환자 코디네이터 연결은 해당 의료기관 대표번호로 문의해 주세요."
+      "hint": "외국인 환자 코디네이터 연결은 해당 의료기관 대표번호로 문의해 주세요.",
+      "fav": "즐겨찾기에 저장",
+      "unfav": "즐겨찾기 해제",
+      "crossHint": "시술 전후 시간, 이 지역을 다르게 즐겨 보세요",
+      "crossAudio": "이동길 오디오 가이드",
+      "crossWellness": "시술 전후 힐링",
+      "crossCine": "대기시간 촬영지 투어",
+      "crossCrowd": "한가한 날 고르기"
     }
   },
   "nearbyMedicalTourism": {

@@ -21,6 +21,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import Link from "next/link";
+import { useMedicalFavorites } from "@/lib/useMedicalFavorites";
+import { areaLabel, resolveAreaCode } from "@/lib/regionAreaCode";
 import {
   X,
   Phone,
@@ -34,6 +37,11 @@ import {
   Stethoscope,
   Ruler,
   Mail,
+  Heart,
+  Headphones,
+  Leaf,
+  Film,
+  Activity,
 } from "lucide-react";
 
 /**
@@ -94,6 +102,19 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
   const { t, i18n } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [shareError, setShareError] = useState("");
+
+  const { isSaved, toggle, hydrated: favHydrated } = useMedicalFavorites();
+  const saved = favHydrated && spot ? isSaved(spot.id) : false;
+
+  // 교차 네비게이션용 지역명 도출: spot.areaCode 우선, 없으면 address 파싱.
+  // 광역 시·도 레벨이 가장 넓게 매칭되므로 쿼리 적중률이 높다.
+  const regionInfo = useMemo(() => {
+    if (!spot) return { label: "", code: null };
+    let code = spot.areaCode != null ? String(spot.areaCode) : null;
+    if (!code && spot.address) code = resolveAreaCode(spot.address);
+    const label = code ? areaLabel(code) : (spot.address || "").split(/\s+/)[0] || "";
+    return { label, code };
+  }, [spot]);
 
   const intlPhone = useMemo(() => toIntlPhone(spot?.tel), [spot?.tel]);
   const directionsUrl = useMemo(
@@ -189,6 +210,21 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
           aria-label={t("medicalTourism.detail.close", "닫기")}
         >
           <X size={20} />
+        </button>
+
+        {/* 즐겨찾기 토글: 닫기 버튼 옆에 원형 하트 버튼으로 배치 */}
+        <button
+          type="button"
+          className={`mtd-fav ${saved ? "mtd-fav-on" : ""}`}
+          onClick={() => toggle(spot)}
+          aria-pressed={saved}
+          aria-label={
+            saved
+              ? t("medicalTourism.detail.unfav", "즐겨찾기 해제")
+              : t("medicalTourism.detail.fav", "즐겨찾기에 저장")
+          }
+        >
+          <Heart size={18} fill={saved ? "currentColor" : "none"} />
         </button>
 
         <div className="mtd-hero">
@@ -333,6 +369,65 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
 
           {shareError && <div className="mtd-error">{shareError}</div>}
 
+          {/*
+           * 4종 교차 네비게이션 칩: 같은 지역의 다른 여행 컨텍스트로 연결.
+           * K-의료관광 방문객이 "시술 전/후 시간 활용" 으로 즉시 이동할 수 있게 한다.
+           *   - 🎧 오디오가이드: 이동 시간에 귀로 듣는 도시 소개
+           *   - 🧘 웰니스: 시술 전후 회복 · 힐링 스팟
+           *   - 🎬 Cine-Trip: 대기 시간에 촬영지 투어
+           *   - 📊 혼잡도: 붐비지 않는 날짜 고르기
+           * 지역명을 얻지 못한 경우(드문 케이스)는 전역 페이지로 연결한다.
+           */}
+          {regionInfo.label && (
+            <div className="mtd-cross">
+              <div className="mtd-cross-head">
+                <span className="mtd-cross-region">{regionInfo.label}</span>
+                <span className="mtd-cross-sub">
+                  {t(
+                    "medicalTourism.detail.crossHint",
+                    "시술 전후 시간, 이 지역을 다르게 즐겨 보세요"
+                  )}
+                </span>
+              </div>
+              <div className="mtd-cross-chips">
+                <Link
+                  href={`/audio-guide?q=${encodeURIComponent(regionInfo.label)}`}
+                  className="mtd-chip mtd-chip-audio"
+                  onClick={onClose}
+                >
+                  <Headphones size={13} />
+                  <span>{t("medicalTourism.detail.crossAudio", "이동길 오디오 가이드")}</span>
+                </Link>
+                <Link
+                  href={`/wellness?q=${encodeURIComponent(regionInfo.label)}`}
+                  className="mtd-chip mtd-chip-wellness"
+                  onClick={onClose}
+                >
+                  <Leaf size={13} />
+                  <span>{t("medicalTourism.detail.crossWellness", "시술 전후 힐링")}</span>
+                </Link>
+                <Link
+                  href={`/cine-trip?q=${encodeURIComponent(regionInfo.label)}`}
+                  className="mtd-chip mtd-chip-cine"
+                  onClick={onClose}
+                >
+                  <Film size={13} />
+                  <span>{t("medicalTourism.detail.crossCine", "대기시간 촬영지 투어")}</span>
+                </Link>
+                {regionInfo.code && (
+                  <Link
+                    href={`/crowd-radar?area=${encodeURIComponent(regionInfo.code)}`}
+                    className="mtd-chip mtd-chip-crowd"
+                    onClick={onClose}
+                  >
+                    <Activity size={13} />
+                    <span>{t("medicalTourism.detail.crossCrowd", "한가한 날 고르기")}</span>
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="mtd-hint">
             <Mail size={12} />
             {t(
@@ -390,6 +485,28 @@ const cssBlock = `
   transition: background 0.15s;
 }
 .mtd-close:hover { background: rgba(239,68,68,0.8); border-color: transparent; }
+
+.mtd-fav {
+  position: absolute;
+  top: 12px; right: 56px;
+  z-index: 3;
+  width: 36px; height: 36px;
+  border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.55);
+  color: #fecaca;
+  border: 1px solid rgba(255,255,255,0.15);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+.mtd-fav:hover { transform: scale(1.08); background: rgba(239,68,68,0.35); }
+.mtd-fav-on {
+  background: rgba(239,68,68,0.9);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 0 0 3px rgba(239,68,68,0.2);
+}
 
 .mtd-hero {
   position: relative;
@@ -521,6 +638,54 @@ const cssBlock = `
   font-size: 0.78rem;
 }
 
+/* 4종 교차 네비게이션 칩: 모달 하단, 힌트 위 */
+.mtd-cross {
+  margin-top: 18px;
+  padding: 12px 12px 10px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015));
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.mtd-cross-head {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px;
+  margin-bottom: 8px;
+}
+.mtd-cross-region {
+  font-size: 0.82rem;
+  font-weight: 900;
+  color: #fff;
+  background: rgba(239,68,68,0.3);
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(252,165,165,0.4);
+}
+.mtd-cross-sub { font-size: 0.72rem; color: #94a3b8; }
+.mtd-cross-chips {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.mtd-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-decoration: none;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.05);
+  transition: transform 0.12s ease, background 0.15s, border-color 0.15s;
+  cursor: pointer;
+}
+.mtd-chip:hover { transform: translateY(-1px); }
+.mtd-chip-audio    { background: rgba(167,139,250,0.18); border-color: rgba(221,214,254,0.3); color: #ddd6fe; }
+.mtd-chip-audio:hover    { background: rgba(167,139,250,0.4); color: #fff; }
+.mtd-chip-wellness { background: rgba(45,212,191,0.18); border-color: rgba(153,246,228,0.3); color: #99f6e4; }
+.mtd-chip-wellness:hover { background: rgba(45,212,191,0.4); color: #fff; }
+.mtd-chip-cine     { background: rgba(251,191,36,0.18); border-color: rgba(253,224,71,0.3); color: #fde68a; }
+.mtd-chip-cine:hover     { background: rgba(251,191,36,0.4); color: #fff; }
+.mtd-chip-crowd    { background: rgba(244,114,182,0.18); border-color: rgba(249,168,212,0.3); color: #fbcfe8; }
+.mtd-chip-crowd:hover    { background: rgba(244,114,182,0.4); color: #fff; }
+
 .mtd-hint {
   margin-top: 14px;
   padding-top: 12px;
@@ -536,5 +701,7 @@ const cssBlock = `
   .mtd-hero { height: 180px; }
   .mtd-title { font-size: 1.2rem; }
   .mtd-actions { grid-template-columns: 1fr 1fr; }
+  .mtd-fav { right: 52px; width: 34px; height: 34px; }
+  .mtd-close { width: 34px; height: 34px; }
 }
 `;

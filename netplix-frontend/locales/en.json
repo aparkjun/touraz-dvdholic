@@ -451,6 +451,17 @@
     "phoneNone": "No phone",
     "cardOpen": "Open details for {{name}}",
     "cardOpenHint": "Details · Call · Directions · Share",
+    "allSpots": "All",
+    "savedList": "Saved",
+    "savedToggleLabel": "Saved filter",
+    "savedEmpty": "No saved medical tourism spots",
+    "savedEmptyHint": "Tap the heart on a card to save hospitals you're interested in.",
+    "dailyPicks": {
+      "aria": "Today's top 3 K-Medical picks",
+      "title": "Today's Top 3 K-Medical Picks",
+      "sub": "Daily-rotating foreigner-friendly medical tourism curation",
+      "cta": "View details"
+    },
     "detail": {
       "close": "Close",
       "call": "Call",
@@ -461,7 +472,14 @@
       "kakao": "Open in KakaoMap",
       "openCta": "Details · Call · Directions",
       "shareFail": "Couldn't share. Please copy the address manually.",
-      "hint": "For foreign-patient coordinator assistance, please contact the hospital's main number."
+      "hint": "For foreign-patient coordinator assistance, please contact the hospital's main number.",
+      "fav": "Save to favorites",
+      "unfav": "Remove from favorites",
+      "crossHint": "Enjoy this region differently before or after your treatment",
+      "crossAudio": "Audio guide on the way",
+      "crossWellness": "Healing before & after",
+      "crossCine": "Filming-location tour while you wait",
+      "crossCrowd": "Pick a less-crowded day"
     }
   },
   "nearbyMedicalTourism": {
