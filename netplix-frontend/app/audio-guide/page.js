@@ -635,6 +635,23 @@ function formatTime(sec) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+/**
+ * playTimeText 는 서버에서 "122"(초) · "02:03" · "2분 3초" 등 다양한 형식이 올 수 있다.
+ * - 순수 초 문자열이면 mm:ss 로 변환
+ * - 이미 포맷된 문자열이면 그대로 노출
+ * - 비어 있거나 파싱 실패 시 빈 문자열
+ */
+function formatMiniTime(raw) {
+  if (raw == null) return "";
+  const s = String(raw).trim();
+  if (!s) return "";
+  if (/^\d+$/.test(s)) {
+    const sec = parseInt(s, 10);
+    if (Number.isFinite(sec) && sec > 0) return formatTime(sec);
+  }
+  return s;
+}
+
 export default function AudioGuidePage() {
   return (
     <Suspense fallback={
