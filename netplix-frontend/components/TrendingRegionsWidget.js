@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, TrendingUp, PawPrint, Plane, PlaneTakeoff, Camera, Tent, Leaf, Stethoscope, Headphones } from 'lucide-react';
+import { Sparkles, TrendingUp, PawPrint, Plane, PlaneTakeoff, Camera, Tent, Leaf, Stethoscope, Headphones, Radar } from 'lucide-react';
 import Link from 'next/link';
 import axios from '@/lib/axiosConfig';
 import TravelPortalButton from '@/components/TravelPortalButton';
@@ -368,6 +368,18 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
             cta="오디오 가이드 들으러 가기"
             Icon={Headphones}
             theme="audio"
+            fullWidth
+          />
+        </div>
+        <div className="trw-cta-span-full">
+          <TravelPortalButton
+            href="/crowd-radar"
+            tag="Quiet Set Radar · 향후 30일 혼잡도 예측"
+            title="조용한 촬영지를 귀띔해 드려요"
+            desc="영화는 왁자지껄했지만, 촬영지는 한가할 때 가자. 한국관광공사 KT 빅데이터 기반 관광지 30일 집중률 예측으로 인파 없는 날 · 한산한 촬영지를 골라봐요."
+            cta="한산한 촬영지 레이더 열기"
+            Icon={Radar}
+            theme="radar"
             fullWidth
           />
         </div>

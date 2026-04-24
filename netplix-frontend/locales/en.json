@@ -680,5 +680,22 @@
       "openMap": "Open in Maps",
       "website": "Website"
     }
+  },
+  "crowdRadar": {
+    "title": "Quiet Set Radar",
+    "subtitle": "Films were noisy. Their sets don't have to be. Based on Korea Tourism Organization x KT mobility big data, preview the next-30-day concentration forecast for Korean tourist spots and plan your cine-trip on a quiet day.",
+    "loading": "Collecting 30-day concentration forecasts across Korea...",
+    "error": "Radar signal lost.",
+    "empty": "No forecast data matches your filters.",
+    "credit": "Data: Korea Tourism Organization · KT mobility big data concentration forecast (data.go.kr 15128555)",
+    "level": { "quiet": "Quiet", "normal": "Moderate", "busy": "Busy", "veryBusy": "Very Busy" },
+    "sort": { "quiet": "Quietest first", "busy": "Busiest first" },
+    "area": { "all": "All Korea" },
+    "stats": {
+      "quietest": "Quietest set",
+      "busiest": "Busiest set",
+      "avg": "Avg. concentration in range",
+      "spotCount": " spots collected"
+    }
   }
 }

@@ -51,4 +51,19 @@ public class TourConcentrationController {
         }
         return NetplixApiResponse.ok(body);
     }
+
+    /**
+     * "Quiet Set Radar" 전국 혼잡도 예측 오버뷰.
+     * 17개 광역 대표 시군구(큐레이션)의 30일 예측을 한 번에 반환한다.
+     * 프론트(/crowd-radar)에서 필터/정렬/날짜 프리셋에 사용.
+     *
+     * <p>예: GET /api/v1/cine-trip/concentration/overview
+     */
+    @GetMapping("/overview")
+    public NetplixApiResponse<List<TourConcentrationResponse>> overview() {
+        List<TourConcentrationResponse> body = getTourConcentrationUseCase.overview().stream()
+                .map(TourConcentrationResponse::from)
+                .toList();
+        return NetplixApiResponse.ok(body);
+    }
 }

@@ -4,8 +4,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 /**
  * 관광지 집중률 예측 서비스.
@@ -69,6 +73,46 @@ public class TourConcentrationService implements GetTourConcentrationUseCase {
             return List.of();
         }
         return tourConcentrationPort.fetchPredictions(areaCode.trim(), signguCode.trim(), spotName);
+    }
+
+    @Override
+    public List<TourConcentrationPrediction> overview() {
+        if (!tourConcentrationPort.isConfigured()) {
+            log.info("[CNCTR] overview - 포트 미설정, 빈 결과 반환");
+            return List.of();
+        }
+
+        // 광역별 병렬 호출. 어댑터 레벨 6h 캐시가 있어 첫 호출 이후에는 거의 즉시 반환.
+        List<CompletableFuture<List<TourConcentrationPrediction>>> futures = CURATED.entrySet().stream()
+                .map(e -> CompletableFuture.supplyAsync(() -> {
+                    try {
+                        return tourConcentrationPort.fetchPredictions(
+                                e.getKey(),
+                                e.getValue().signguCode(),
+                                null);
+                    } catch (Exception ex) {
+                        log.warn("[CNCTR] overview 광역={} 실패: {}", e.getKey(), ex.getMessage());
+                        return List.<TourConcentrationPrediction>of();
+                    }
+                }))
+                .collect(Collectors.toList());
+
+        List<TourConcentrationPrediction> merged = new ArrayList<>();
+        for (CompletableFuture<List<TourConcentrationPrediction>> f : futures) {
+            try {
+                merged.addAll(f.get());
+            } catch (Exception ex) {
+                log.warn("[CNCTR] overview future 수집 실패: {}", ex.getMessage());
+            }
+        }
+
+        merged.sort(Comparator
+                .comparing(TourConcentrationPrediction::getBaseDate,
+                        Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(TourConcentrationPrediction::getAreaCode,
+                        Comparator.nullsLast(Comparator.naturalOrder())));
+        log.info("[CNCTR] overview 수집 {}개 광역 → 총 {} 건", CURATED.size(), merged.size());
+        return merged;
     }
 
     private record CuratedSigngu(String signguCode, String signguName) {

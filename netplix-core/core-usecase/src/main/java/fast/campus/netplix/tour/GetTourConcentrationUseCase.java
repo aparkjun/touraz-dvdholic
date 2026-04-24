@@ -24,4 +24,12 @@ public interface GetTourConcentrationUseCase {
      * 시군구 코드 + 관광지명(선택) 기준 예측.
      */
     List<TourConcentrationPrediction> bySignguCode(String areaCode, String signguCode, String spotName);
+
+    /**
+     * 전국 17개 광역 대표 시군구(큐레이션) 의 관광지 30일 예측을 한 번에 수집.
+     *
+     * <p>"Quiet Set Radar" 전국 랭킹/달력 전용. 병렬 호출로 각 광역의 예측을 받아
+     * 날짜(오름차순) + 광역코드 순으로 합쳐 반환. 미설정/오류 광역은 건너뜀.
+     */
+    List<TourConcentrationPrediction> overview();
 }

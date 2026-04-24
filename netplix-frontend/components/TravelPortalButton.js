@@ -89,6 +89,16 @@ const THEMES = {
     hoverGlow: '0 36px 80px -20px rgba(245, 158, 11, 0.6)',
     tagColor: '#ddd6fe',
   },
+  // Quiet Set Radar(관광지 집중률) 전용 — "심야 레이더 스크린" 무드: 시그널 사이안/인디고 → 로즈(경고)
+  radar: {
+    gradient: 'conic-gradient(from 0deg, #22d3ee, #6366f1, #f43f5e, #34d399, #22d3ee)',
+    iconBg: 'linear-gradient(135deg, #22d3ee 0%, #6366f1 55%, #f43f5e 100%)',
+    textGrad: 'linear-gradient(90deg, #67e8f9 0%, #a5b4fc 50%, #fda4af 100%)',
+    accentColor: '#67e8f9',
+    glow: '0 24px 64px -20px rgba(34, 211, 238, 0.55)',
+    hoverGlow: '0 36px 80px -20px rgba(244, 63, 94, 0.55)',
+    tagColor: '#a7f3d0',
+  },
 };
 
 /** CineTrip용 보딩패스 사이드 라인 장식. */
