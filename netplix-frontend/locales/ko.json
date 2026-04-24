@@ -497,7 +497,16 @@
       "audioErr": "오디오를 재생할 수 없어요. 원본 링크에서 열어보세요.",
       "openAudio": "오디오 파일 열기",
       "openGoogleMap": "구글 지도에서 보기",
-      "openKakaoMap": "카카오맵에서 보기"
+      "openKakaoMap": "카카오맵에서 보기",
+      "tts": {
+        "title": "AI 음성으로 해설 듣기",
+        "sub": "Odii 공공 API 는 오디오 파일을 외부에 공개하지 않아요. 브라우저 음성 합성으로 해설 대본을 읽어 드려요.",
+        "start": "AI 음성으로 듣기",
+        "resume": "이어 듣기",
+        "pause": "일시정지",
+        "stop": "정지",
+        "note": "음성 품질은 사용 중인 브라우저/OS 에 따라 달라져요."
+      }
     }
   },
   "nearbyAudioGuide": {

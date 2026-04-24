@@ -468,7 +468,16 @@
       "audioErr": "Unable to play audio. Try opening the original file.",
       "openAudio": "Open audio file",
       "openGoogleMap": "Open in Google Maps",
-      "openKakaoMap": "Open in Kakao Map"
+      "openKakaoMap": "Open in Kakao Map",
+      "tts": {
+        "title": "Listen with AI voice",
+        "sub": "The Odii public API does not expose audio files. We read the narration script aloud using your browser's speech synthesis.",
+        "start": "Listen with AI voice",
+        "resume": "Resume",
+        "pause": "Pause",
+        "stop": "Stop",
+        "note": "Voice quality depends on your browser/OS."
+      }
     }
   },
   "nearbyAudioGuide": {

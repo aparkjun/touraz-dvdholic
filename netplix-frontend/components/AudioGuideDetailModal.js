@@ -14,7 +14,7 @@
  *  - onClose: 닫기 콜백 (필수)
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   X,
@@ -31,10 +31,12 @@ import {
   Tag,
   Radio,
   BookOpen,
+  Square,
+  Info,
 } from "lucide-react";
 
 export default function AudioGuideDetailModal({ item, onClose }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const audioRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -42,16 +44,37 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   const [duration, setDuration] = useState(0);
   const [audioError, setAudioError] = useState(false);
 
-  // 새 item 이 열릴 때마다 오디오 리셋
+  // --- TTS (Web Speech API) 상태 ---
+  // Odii 공공 OpenAPI 는 audioUrl 을 외부 공개하지 않고 script(대본)만 내려주므로,
+  // 오디오 파일이 없을 때 브라우저의 음성 합성(speechSynthesis)으로 스크립트를 읽어 준다.
+  const [ttsPlaying, setTtsPlaying] = useState(false);
+  const [ttsPaused, setTtsPaused] = useState(false);
+  const [ttsSupported, setTtsSupported] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      setTtsSupported(true);
+    }
+  }, []);
+
+  // 새 item 이 열릴 때마다 오디오/TTS 리셋
   useEffect(() => {
     setPlaying(false);
     setProgress(0);
     setDuration(0);
     setAudioError(false);
+    setTtsPlaying(false);
+    setTtsPaused(false);
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      try { window.speechSynthesis.cancel(); } catch (_) { /* noop */ }
+    }
     return () => {
       if (audioRef.current) {
         try { audioRef.current.pause(); } catch (_) { /* noop */ }
         audioRef.current = null;
+      }
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        try { window.speechSynthesis.cancel(); } catch (_) { /* noop */ }
       }
     };
   }, [item?.id]);
@@ -74,7 +97,47 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   if (!item) return null;
 
   const hasAudio = !!item.audioUrl;
+  const hasScript = !!(item.description && String(item.description).trim());
   const hasCoords = typeof item.latitude === "number" && typeof item.longitude === "number";
+
+  // TTS 에 사용할 텍스트: 스크립트 우선, 없으면 제목 + 카테고리.
+  const ttsText = hasScript
+    ? String(item.description)
+    : [item.title, item.audioTitle, item.themeCategory].filter(Boolean).join(". ");
+  const ttsLang = (() => {
+    const raw = (item.language || i18n?.language || "ko").toLowerCase();
+    return raw.startsWith("en") ? "en-US" : "ko-KR";
+  })();
+
+  const startTts = () => {
+    if (!ttsSupported || !ttsText) return;
+    try {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(ttsText);
+      utter.lang = ttsLang;
+      utter.rate = 1;
+      utter.pitch = 1;
+      utter.onend = () => { setTtsPlaying(false); setTtsPaused(false); };
+      utter.onerror = () => { setTtsPlaying(false); setTtsPaused(false); };
+      window.speechSynthesis.speak(utter);
+      setTtsPlaying(true);
+      setTtsPaused(false);
+    } catch (_) { /* noop */ }
+  };
+  const pauseTts = () => {
+    if (!ttsSupported) return;
+    try { window.speechSynthesis.pause(); setTtsPaused(true); } catch (_) { /* noop */ }
+  };
+  const resumeTts = () => {
+    if (!ttsSupported) return;
+    try { window.speechSynthesis.resume(); setTtsPaused(false); } catch (_) { /* noop */ }
+  };
+  const stopTts = () => {
+    if (!ttsSupported) return;
+    try { window.speechSynthesis.cancel(); } catch (_) { /* noop */ }
+    setTtsPlaying(false);
+    setTtsPaused(false);
+  };
 
   const togglePlay = () => {
     if (!hasAudio) return;
@@ -255,6 +318,49 @@ export default function AudioGuideDetailModal({ item, onClose }) {
                   </a>
                 </p>
               )}
+            </div>
+          ) : hasScript && ttsSupported ? (
+            // Odii 공공 OpenAPI 가 audioUrl 을 비공개로 제공하므로,
+            // 스크립트를 브라우저 내장 TTS 로 읽어 주는 fallback 플레이어.
+            <div className="agm-tts">
+              <div className="agm-tts-top">
+                {!ttsPlaying ? (
+                  <button type="button" className="agm-tts-main" onClick={startTts}
+                    aria-label={t("audioGuide.detail.tts.start", "AI 음성으로 듣기")}>
+                    <Play size={22} />
+                  </button>
+                ) : ttsPaused ? (
+                  <button type="button" className="agm-tts-main" onClick={resumeTts}
+                    aria-label={t("audioGuide.detail.tts.resume", "이어 듣기")}>
+                    <Play size={22} />
+                  </button>
+                ) : (
+                  <button type="button" className="agm-tts-main" onClick={pauseTts}
+                    aria-label={t("audioGuide.detail.tts.pause", "일시정지")}>
+                    <Pause size={22} />
+                  </button>
+                )}
+                <div className="agm-tts-texts">
+                  <div className="agm-tts-title">
+                    <Mic2 size={14} /> {t("audioGuide.detail.tts.title", "AI 음성으로 해설 듣기")}
+                  </div>
+                  <div className="agm-tts-sub">
+                    {t("audioGuide.detail.tts.sub", "Odii 는 오디오 파일을 외부에 공개하지 않아요. 브라우저 음성 합성으로 대본을 읽어 드려요.")}
+                  </div>
+                </div>
+                {ttsPlaying && (
+                  <button type="button" className="agm-tts-stop" onClick={stopTts}
+                    aria-label={t("audioGuide.detail.tts.stop", "정지")}>
+                    <Square size={14} />
+                  </button>
+                )}
+              </div>
+              <div className="agm-tts-meta">
+                <Info size={11} />
+                {t("audioGuide.detail.tts.note", "음성 품질은 사용 중인 브라우저/OS 에 따라 달라져요.")}
+                {" · "}
+                <span>{ttsLang}</span>
+              </div>
             </div>
           ) : (
             <div className="agm-noaudio">
@@ -439,6 +545,49 @@ const modalCss = `
   color: #bda6ff; font-size: 0.85rem;
   margin-bottom: 16px;
 }
+
+.agm-tts {
+  background: linear-gradient(135deg, rgba(167,139,250,0.15) 0%, rgba(251,191,36,0.1) 100%);
+  border: 1px solid rgba(167,139,250,0.35);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+}
+.agm-tts-top { display: flex; align-items: center; gap: 12px; }
+.agm-tts-main {
+  width: 50px; height: 50px; border-radius: 50%;
+  border: none; cursor: pointer; flex-shrink: 0;
+  background: linear-gradient(135deg, #a78bfa 0%, #f59e0b 100%);
+  color: #1b0a38;
+  display: inline-flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 16px rgba(167,139,250,0.4);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.agm-tts-main:hover { transform: scale(1.06); box-shadow: 0 10px 24px rgba(167,139,250,0.55); }
+.agm-tts-texts { flex: 1; min-width: 0; }
+.agm-tts-title {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.95rem; font-weight: 800; color: #fff;
+}
+.agm-tts-sub {
+  margin-top: 3px; font-size: 0.78rem; line-height: 1.45;
+  color: #d8c7fd;
+}
+.agm-tts-stop {
+  width: 32px; height: 32px; border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(0,0,0,0.35); color: #fff; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.agm-tts-stop:hover { background: rgba(239,68,68,0.85); border-color: transparent; }
+.agm-tts-meta {
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px dashed rgba(167,139,250,0.25);
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.72rem; color: #c4b5fd;
+}
+.agm-tts-meta span { color: #fde68a; font-weight: 700; }
 
 .agm-script {
   background: rgba(255,255,255,0.03);
