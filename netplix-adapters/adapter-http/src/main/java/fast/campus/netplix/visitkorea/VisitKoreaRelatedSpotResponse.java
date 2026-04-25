@@ -1,6 +1,7 @@
 package fast.campus.netplix.visitkorea;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -73,7 +74,12 @@ public class VisitKoreaRelatedSpotResponse {
         private String areaNm;
         private String signguCd;
         private String signguNm;
+
+        // 두 번째 글자가 대문자라 Jackson 기본 BeanIntrospector 는 getTAtsNm → "TAtsNm" 으로 해석한다.
+        // KTO 응답 JSON 키는 "tAtsNm" 이므로 명시적으로 매핑한다(불일치 시 null 로 깔끔히 떨어진다).
+        @JsonProperty("tAtsNm")
         private String tAtsNm;
+
         private String rlteTatsNm;
         private String rlteRegnCd;
         private String rlteRegnNm;

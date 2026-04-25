@@ -1,0 +1,1 @@
+fix(tour-related): KTO items empty-string 공백 케이스 정규식 매칭 + 키워드 모드 areaBasedList1 라우팅
