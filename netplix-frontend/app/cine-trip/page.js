@@ -66,11 +66,18 @@ const MAPPING_TYPE_LABEL = {
 // KTO/TMDB 모두 이미지가 없을 때 dashboard 와 동일한 로컬 NO IMAGE 플레이스홀더를 사용.
 const NO_POSTER_PLACEHOLDER = '/no-poster-placeholder.png';
 
+// w500 → w342 로 다운사이징(이미지 바이트 ~55% 감소).
+// 모바일(특히 iOS Safari) 에서 200+ 카드 동시 디코딩 시 메모리 한계로
+// 페이지가 강제 리로드(`이 페이지에서 문제가 반복적으로 발생했습니다`)되던 문제 완화.
 const posterSrc = (posterPath) => {
   if (!posterPath) return NO_POSTER_PLACEHOLDER;
   if (posterPath.startsWith('http')) return posterPath;
-  return `https://image.tmdb.org/t/p/w500${posterPath}`;
+  return `https://image.tmdb.org/t/p/w342${posterPath}`;
 };
+
+// 첫 화면에 즉시 렌더할 영화 카드 수. 나머지는 IntersectionObserver 로 점진 로드.
+const CARDS_INITIAL_BATCH = 24;
+const CARDS_BATCH_INCREMENT = 24;
 
 function SkeletonCard() {
   return (
@@ -268,6 +275,8 @@ function MovieSpotlightBanner({ movieName, onFocusRegion, onDismiss }) {
           <img
             src={poster}
             alt={movie.movieName || 'movie'}
+            loading="lazy"
+            decoding="async"
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             onError={(e) => {
               if (!e.target.src.endsWith(NO_POSTER_PLACEHOLDER)) {
@@ -497,7 +506,7 @@ function MovieSpotlightBanner({ movieName, onFocusRegion, onDismiss }) {
   );
 }
 
-function MovieCard({ item, index }) {
+function MovieCard({ item, index, eager = false }) {
   const [isHovered, setIsHovered] = useState(false);
   const [shareToast, setShareToast] = useState('');
   const [courseOpen, setCourseOpen] = useState(false);
@@ -543,9 +552,17 @@ function MovieCard({ item, index }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, delay: Math.min(index * 0.06, 0.5) }}
+      // 첫 배치(eager) 만 staggered fade-in 으로 시네마틱 인상을 주고,
+      // 이후 점진 로드 카드는 motion 초기 애니메이션을 끄는 것이 모바일 성능에 유리.
+      // (motion.div initial+animate 가 카드마다 GPU 합성 레이어 + transform 처리를
+      //  유발하므로 200+ 동시 마운트 시 iOS 메모리 폭주의 직접 원인.)
+      initial={eager ? { opacity: 0, y: 30 } : false}
+      animate={eager ? { opacity: 1, y: 0 } : false}
+      transition={
+        eager
+          ? { duration: 0.5, delay: Math.min(index * 0.06, 0.5) }
+          : undefined
+      }
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
@@ -567,6 +584,9 @@ function MovieCard({ item, index }) {
         <img
           src={posterSrc(movie.posterPath)}
           alt={movie.movieName || 'movie'}
+          // 첫 배치 외 카드는 lazy 디코딩 → iOS Safari 메모리 압박 완화.
+          loading={eager ? 'eager' : 'lazy'}
+          decoding="async"
           draggable={false}
           onDragStart={(e) => e.preventDefault()}
           style={{
@@ -824,9 +844,45 @@ function CineTripPageInner() {
   // URL 의 movie= 로 진입한 경우에만 스포트라이트 배너를 렌더.
   // 사용자가 닫으면 다시 나타나지 않음.
   const [spotlightMovie, setSpotlightMovie] = useState(movieParam || null);
+  // iOS Safari 메모리 보호: 영화 카드를 한 번에 200+ 마운트하면
+  // 페이지가 강제 리로드되므로 첫 24장만 즉시 렌더하고,
+  // 우측 가장자리 sentinel 이 화면에 보일 때마다 24장씩 추가 마운트.
+  const [visibleCount, setVisibleCount] = useState(CARDS_INITIAL_BATCH);
   const pageRef = useRef(null);
   const cardsRef = useRef(null);
+  const loadMoreSentinelRef = useRef(null);
   useDragScrollAll(pageRef);
+
+  // 필터/스포트라이트가 바뀌어 items 가 새로 들어오면 visibleCount 리셋.
+  useEffect(() => {
+    setVisibleCount(CARDS_INITIAL_BATCH);
+  }, [selectedAreaCode]);
+
+  // sentinel 이 가로 스크롤 컨테이너 안에서 보일 때 24장씩 추가.
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    const root = cardsRef.current;
+    if (!sentinel || !root) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      setVisibleCount(items.length);
+      return;
+    }
+    if (visibleCount >= items.length) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) {
+            setVisibleCount((prev) =>
+              Math.min(prev + CARDS_BATCH_INCREMENT, items.length)
+            );
+          }
+        }
+      },
+      { root, rootMargin: '0px 600px 0px 600px', threshold: 0.01 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [items.length, visibleCount]);
 
   /**
    * 스포트라이트 배너 → "이 영화의 장소 모아보기" 버튼 콜백.
@@ -1015,7 +1071,9 @@ function CineTripPageInner() {
 
         <PhotoGalleryStrip
           areaCode={selectedAreaCode}
-          limit={200}
+          // 200 → 36 으로 축소: 모바일에서 200 장 동시 디코딩 시 메모리 한계 직격.
+          // 라이트박스/드래그 스크롤 UX 는 36 장으로도 충분히 풍성.
+          limit={36}
           title={
             selectedAreaCode
               ? `${REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''} 수상작 포토스팟`
@@ -1133,9 +1191,31 @@ function CineTripPageInner() {
           ) : items.length === 0 ? (
             <EmptyState />
           ) : (
-            items.map((item, i) => (
-              <MovieCard key={`${item?.movie?.movieName || 'item'}-${i}`} item={item} index={i} />
-            ))
+            <>
+              {items.slice(0, visibleCount).map((item, i) => (
+                <MovieCard
+                  key={`${item?.movie?.movieName || 'item'}-${i}`}
+                  item={item}
+                  index={i}
+                  // 첫 배치만 staggered fade-in + 이미지 즉시 디코딩.
+                  eager={i < CARDS_INITIAL_BATCH}
+                />
+              ))}
+              {visibleCount < items.length && (
+                <div
+                  ref={loadMoreSentinelRef}
+                  aria-hidden="true"
+                  // sentinel 은 너비를 가져 가로 레일에서 IntersectionObserver 가
+                  // 정상 발화하도록 하고, 시각적 점유는 거의 없게 둔다.
+                  style={{
+                    flex: '0 0 auto',
+                    width: 1,
+                    height: 1,
+                    alignSelf: 'center',
+                  }}
+                />
+              )}
+            </>
           )}
         </div>
       </div>
