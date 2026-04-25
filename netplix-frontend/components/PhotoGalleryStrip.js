@@ -243,7 +243,14 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
                 src={activePhoto.imageUrl || activePhoto.thumbnailUrl}
                 alt={activePhoto.title || '관광 사진'}
                 onContextMenu={(e) => e.preventDefault()}
-                style={{ width: '100%', maxHeight: '70vh', objectFit: 'contain', background: '#000' }}
+                style={{
+                  width: '100%',
+                  maxHeight: '70vh',
+                  objectFit: 'contain',
+                  background: '#000',
+                  borderTopLeftRadius: 16,
+                  borderTopRightRadius: 16,
+                }}
               />
               <div style={{ padding: 20 }}>
                 <h4 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: '0 0 8px' }}>
