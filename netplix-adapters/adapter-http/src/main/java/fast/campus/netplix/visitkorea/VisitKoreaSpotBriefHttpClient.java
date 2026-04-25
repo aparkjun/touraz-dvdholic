@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 
+import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -121,7 +122,9 @@ public class VisitKoreaSpotBriefHttpClient implements TouristSpotBriefPort {
             String url = buildUrl(baseUrl, keyword, ktoAreaCode);
             HttpHeaders headers = new HttpHeaders();
             headers.add(HttpHeaders.ACCEPT, "application/json");
-            String raw = httpClient.request(url, HttpMethod.GET, headers, Map.of());
+            // RestTemplate#exchange(String, ...) 가 URI 템플릿으로 해석해 %-인코딩된 한글이 이중 인코딩되는
+            // 이슈를 피하려면 URI 객체로 감싸 호출해야 한다.
+            String raw = httpClient.requestUri(URI.create(url), HttpMethod.GET, headers);
             if (raw == null || raw.isBlank()) return Optional.empty();
 
             // totalCount=0 인 경우 KTO 가 items 를 빈 문자열("") 로 내려줌 → null 치환.

@@ -1,22 +1,9 @@
-feat(spot-brief): KTO 검색 폴백으로 모달에 이미지·주소·전화 보강
+fix(spot-brief): 한글 키워드 이중 URL 인코딩 차단
 
-related-spots 모달이 마운트되면 새로 추가된 GET /api/v1/tour/spot/brief
-엔드포인트를 비동기 호출해 이미지/주소/전화/좌표를 잔잔하게 추가 노출한다.
+httpClient.request(String, ...) 는 RestTemplate#exchange 의 URI 템플릿으로
+해석되어 %-인코딩된 한글 키워드의 % 가 %25 로 재인코딩됐다. 이로 인해 KTO
+searchKeyword2 가 키워드를 인식 못 하고 totalCount=0 을 반환, 모달의 brief
+가 항상 null 로 비어 있었다.
 
-KTO TarRlteTarService1 응답에는 좌표·이미지가 없어, 우리 키로 가용한
-KorWithService2 → KorPetTourService2 → EngService2 의 searchKeyword2 를
-폴백 체인으로 묶어 가장 먼저 매칭되는 결과를 채운다 (KorService2 는
-Forbidden 으로 별도 활용신청 필요). BJD 광역코드(11/46/...)는 어댑터에서
-KTO areaCode(1~8/31~39)로 사전 변환하며, (keyword + areaCode) 단위로
-6h TTL in-memory 캐시.
-
-추가/변경:
-- core-domain: TouristSpotBrief 도메인 (title/addr/firstImage/mapX-Y/tel/...)
-- core-port:   TouristSpotBriefPort (findFirstByKeyword)
-- core-usecase + service: GetTouristSpotBriefUseCase / TouristSpotBriefService
-- adapter-http: VisitKoreaSpotBriefHttpClient (3-스택 폴백 + BJD→KTO 변환 + 6h 캐시)
-                + VisitKoreaSpotBriefResponse DTO
-- app-api: TouristSpotBriefController (GET /api/v1/tour/spot/brief?q=&areaCode=)
-- RelatedTouristSpotResponse 에 relatedAreaCd / relatedSignguCd 노출
-- frontend: SpotDetailModal 이 brief 페치 후 이미지/주소/전화 카드를 자연스럽게
-            추가 렌더링. 결과 부재 시 기존 외부 링크 폴백 그대로.
+URI.create(url) 로 감싸 requestUri(URI, ...) 를 호출하도록 변경해 재인코딩을
+차단한다 (다른 KTO 어댑터들이 이미 사용 중인 패턴).
