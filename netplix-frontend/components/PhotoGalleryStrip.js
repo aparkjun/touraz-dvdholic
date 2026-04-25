@@ -208,7 +208,11 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
                 width: '100%',
                 maxHeight: '90vh',
                 background: '#0a0a0a',
-                borderRadius: 16,
+                // 모달 상단(좌·우)만 라운드 — 바텀시트 느낌으로 사진이 무대처럼 떠오르게.
+                borderTopLeftRadius: 20,
+                borderTopRightRadius: 20,
+                borderBottomLeftRadius: 0,
+                borderBottomRightRadius: 0,
                 overflow: 'hidden',
                 border: '1px solid rgba(255,255,255,0.08)',
                 cursor: 'default',
@@ -243,14 +247,7 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
                 src={activePhoto.imageUrl || activePhoto.thumbnailUrl}
                 alt={activePhoto.title || '관광 사진'}
                 onContextMenu={(e) => e.preventDefault()}
-                style={{
-                  width: '100%',
-                  maxHeight: '70vh',
-                  objectFit: 'contain',
-                  background: '#000',
-                  borderTopLeftRadius: 16,
-                  borderTopRightRadius: 16,
-                }}
+                style={{ width: '100%', maxHeight: '70vh', objectFit: 'contain', background: '#000' }}
               />
               <div style={{ padding: 20 }}>
                 <h4 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: '0 0 8px' }}>
