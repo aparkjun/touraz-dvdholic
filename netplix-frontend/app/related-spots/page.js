@@ -3,52 +3,39 @@
 import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, MapPin, Wind, Loader2, ArrowRight, Hash } from 'lucide-react';
+import { Sparkles, MapPin, Loader2, ArrowRight, Hash } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 
 // "조용한 명소 + 함께 가는 명소" — 잔잔한 데이터 산책 화면.
-// TarRlteTarService1 의 두 가지 모드를 한 화면에서 제공:
-//  1) 키워드 검색 (/api/v1/tour/related/grouped/keyword) — 사용자가 떠올린 작은 동네 이름
-//  2) 광역 빠른 선택 (/api/v1/tour/related/area)        — 무엇을 검색할지 모를 때의 길잡이
+// 단일 키워드 모드 + 인기 지역 칩.
+//
+// KTO TarRlteTarService1 는 (baseYm, areaCd, signguCd, keyword) 를 모두 필수로 요구하므로,
+// 백엔드 KoreanPlaceCodes 가 지명 키워드를 BJD (광역2자리, 시군구5자리) 쌍으로 해석한다.
+// 사전에 등록된 키워드만 동작 — 자유 입력은 사전 미등록 시 빈 결과를 받는다(안내 문구로 보완).
 
-const AREA_OPTIONS = [
-  { code: '1',  name: '서울' },
-  { code: '6',  name: '부산' },
-  { code: '4',  name: '대구' },
-  { code: '2',  name: '인천' },
-  { code: '5',  name: '광주' },
-  { code: '3',  name: '대전' },
-  { code: '7',  name: '울산' },
-  { code: '8',  name: '세종' },
-  { code: '31', name: '경기' },
-  { code: '32', name: '강원' },
-  { code: '33', name: '충북' },
-  { code: '34', name: '충남' },
-  { code: '35', name: '경북' },
-  { code: '36', name: '경남' },
-  { code: '37', name: '전북' },
-  { code: '38', name: '전남' },
-  { code: '39', name: '제주' },
+// 백엔드 KoreanPlaceCodes 와 동일하게 묶음. UI 칩 노출용.
+const POPULAR_PLACE_GROUPS = [
+  { region: '제주',     keywords: ['한라산', '제주시', '서귀포'] },
+  { region: '강원',     keywords: ['강릉', '속초', '양양', '춘천'] },
+  { region: '경상',     keywords: ['경주', '안동', '통영', '거제', '남해'] },
+  { region: '전라',     keywords: ['여수', '담양', '순천', '목포', '전주'] },
+  { region: '도시',     keywords: ['서울', '부산', '인천', '대구', '광주', '대전', '울산'] },
 ];
 
-const SUGGESTED_KEYWORDS = ['한라산', '경주', '강릉', '여수', '담양', '안동', '통영', '양양'];
+const REGISTERED_KEYWORDS = POPULAR_PLACE_GROUPS.flatMap((g) => g.keywords);
 
 function RelatedSpotsInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const initialKeyword = searchParams.get('q') || '';
-  const initialArea = searchParams.get('area') || '';
 
-  const [mode, setMode] = useState(initialKeyword ? 'keyword' : (initialArea ? 'area' : 'keyword'));
   const [keyword, setKeyword] = useState(initialKeyword);
-  const [areaCode, setAreaCode] = useState(initialArea);
-
   const [groups, setGroups] = useState([]);
-  const [areaItems, setAreaItems] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [touched, setTouched] = useState(Boolean(initialKeyword || initialArea));
+  const [touched, setTouched] = useState(Boolean(initialKeyword));
   const [error, setError] = useState(null);
+  const [unsupported, setUnsupported] = useState(false);
   const lastReqRef = useRef(0);
 
   const runKeywordSearch = async (q) => {
@@ -58,15 +45,23 @@ function RelatedSpotsInner() {
     setLoading(true);
     setError(null);
     setTouched(true);
-    setMode('keyword');
+    setUnsupported(false);
     try {
       const res = await axios.get(`/api/v1/tour/related/grouped/keyword`, {
         params: { q: trimmed, limit: 60 },
       });
       if (reqId !== lastReqRef.current) return;
       const data = res?.data?.data ?? [];
-      setGroups(Array.isArray(data) ? data : []);
-      setAreaItems([]);
+      const arr = Array.isArray(data) ? data : [];
+      setGroups(arr);
+      // 빈 결과인데 사전 미등록 키워드면 안내 토글
+      if (arr.length === 0) {
+        const norm = trimmed.replace(/\s+/g, '').toLowerCase();
+        const hit = REGISTERED_KEYWORDS.some(
+          (k) => k.replace(/\s+/g, '').toLowerCase() === norm
+        );
+        setUnsupported(!hit);
+      }
     } catch (e) {
       if (reqId !== lastReqRef.current) return;
       console.error('[related-spots] keyword failed', e?.message || e);
@@ -77,36 +72,10 @@ function RelatedSpotsInner() {
     }
   };
 
-  const runAreaSearch = async (code) => {
-    if (!code) return;
-    const reqId = ++lastReqRef.current;
-    setLoading(true);
-    setError(null);
-    setTouched(true);
-    setMode('area');
-    try {
-      const res = await axios.get(`/api/v1/tour/related/area`, {
-        params: { areaCode: code, limit: 40 },
-      });
-      if (reqId !== lastReqRef.current) return;
-      const data = res?.data?.data ?? [];
-      setAreaItems(Array.isArray(data) ? data : []);
-      setGroups([]);
-    } catch (e) {
-      if (reqId !== lastReqRef.current) return;
-      console.error('[related-spots] area failed', e?.message || e);
-      setError('데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
-      setAreaItems([]);
-    } finally {
-      if (reqId === lastReqRef.current) setLoading(false);
-    }
-  };
-
   useEffect(() => {
     if (initialKeyword) runKeywordSearch(initialKeyword);
-    else if (initialArea) runAreaSearch(initialArea);
-  // 초기 1회만 실행. 이후엔 사용자 액션으로 호출.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // 초기 1회만 실행. 이후엔 사용자 액션으로 호출.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const totalRelated = useMemo(
@@ -169,19 +138,8 @@ function RelatedSpotsInner() {
           </p>
         </motion.div>
 
-        {/* Mode tabs */}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginBottom: 14 }}>
-          <ModeTab active={mode === 'keyword'} onClick={() => setMode('keyword')}>
-            <Wind size={14} /> 한 곳에서 시작
-          </ModeTab>
-          <ModeTab active={mode === 'area'} onClick={() => setMode('area')}>
-            <MapPin size={14} /> 지역에서 시작
-          </ModeTab>
-        </div>
-
-        {/* Inputs */}
+        {/* 검색 입력 */}
         <motion.div
-          key={mode}
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.35 }}
@@ -193,97 +151,96 @@ function RelatedSpotsInner() {
             marginBottom: 18,
           }}
         >
-          {mode === 'keyword' ? (
-            <div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-                <input
-                  value={keyword}
-                  onChange={(e) => setKeyword(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') runKeywordSearch(keyword); }}
-                  placeholder="조용한 동네 이름이나 떠오르는 한 곳을 적어주세요"
+          <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+            <input
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') runKeywordSearch(keyword); }}
+              placeholder="여수 · 한라산 · 경주처럼 시·군·구 또는 명소를 적어주세요"
+              style={{
+                flex: 1,
+                minWidth: 0,
+                padding: '12px 14px',
+                borderRadius: 12,
+                border: '1px solid rgba(255,255,255,0.1)',
+                background: 'rgba(0,0,0,0.25)',
+                color: '#fff',
+                fontSize: 14,
+                outline: 'none',
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => runKeywordSearch(keyword)}
+              disabled={loading || !keyword.trim()}
+              style={{
+                padding: '0 18px',
+                borderRadius: 12,
+                border: 'none',
+                cursor: loading || !keyword.trim() ? 'not-allowed' : 'pointer',
+                background: keyword.trim()
+                  ? 'linear-gradient(135deg, #6366f1, #ec4899)'
+                  : 'rgba(255,255,255,0.06)',
+                color: keyword.trim() ? '#fff' : 'rgba(255,255,255,0.4)',
+                fontWeight: 700,
+                fontSize: 14,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {loading ? <Loader2 size={14} className="anim-spin" /> : '잔잔히 찾기'}
+            </button>
+          </div>
+
+          {/* 인기 지역 칩 — 그룹 단위 표시 */}
+          <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {POPULAR_PLACE_GROUPS.map((g) => (
+              <div key={g.region} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
+                <div
                   style={{
-                    flex: 1,
-                    minWidth: 0,
-                    padding: '12px 14px',
-                    borderRadius: 12,
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    background: 'rgba(0,0,0,0.25)',
-                    color: '#fff',
-                    fontSize: 14,
-                    outline: 'none',
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => runKeywordSearch(keyword)}
-                  disabled={loading || !keyword.trim()}
-                  style={{
-                    padding: '0 18px',
-                    borderRadius: 12,
-                    border: 'none',
-                    cursor: loading || !keyword.trim() ? 'not-allowed' : 'pointer',
-                    background: keyword.trim()
-                      ? 'linear-gradient(135deg, #6366f1, #ec4899)'
-                      : 'rgba(255,255,255,0.06)',
-                    color: keyword.trim() ? '#fff' : 'rgba(255,255,255,0.4)',
+                    fontSize: 11,
+                    color: '#94a3b8',
                     fontWeight: 700,
-                    fontSize: 14,
-                    whiteSpace: 'nowrap',
+                    letterSpacing: 0.5,
+                    minWidth: 36,
+                    paddingTop: 6,
                   }}
                 >
-                  {loading ? <Loader2 size={14} className="anim-spin" /> : '잔잔히 찾기'}
-                </button>
+                  {g.region}
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, flex: 1 }}>
+                  {g.keywords.map((k) => {
+                    const isActive = keyword.trim() === k;
+                    return (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => { setKeyword(k); runKeywordSearch(k); }}
+                        style={{
+                          fontSize: 12,
+                          padding: '6px 12px',
+                          borderRadius: 999,
+                          border: isActive
+                            ? '1px solid rgba(165,180,252,0.7)'
+                            : '1px solid rgba(255,255,255,0.1)',
+                          background: isActive
+                            ? 'linear-gradient(135deg, rgba(99,102,241,0.35), rgba(236,72,153,0.25))'
+                            : 'rgba(255,255,255,0.04)',
+                          color: isActive ? '#fff' : '#cbd5e1',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        <MapPin size={11} />
+                        {k}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
-                {SUGGESTED_KEYWORDS.map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => { setKeyword(k); runKeywordSearch(k); }}
-                    style={{
-                      fontSize: 12,
-                      padding: '4px 10px',
-                      borderRadius: 999,
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      background: 'rgba(255,255,255,0.04)',
-                      color: '#cbd5e1',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    # {k}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {AREA_OPTIONS.map((opt) => (
-                  <button
-                    key={opt.code}
-                    type="button"
-                    onClick={() => { setAreaCode(opt.code); runAreaSearch(opt.code); }}
-                    style={{
-                      fontSize: 12,
-                      padding: '6px 12px',
-                      borderRadius: 999,
-                      border: areaCode === opt.code
-                        ? '1px solid rgba(165,180,252,0.7)'
-                        : '1px solid rgba(255,255,255,0.1)',
-                      background: areaCode === opt.code
-                        ? 'linear-gradient(135deg, rgba(99,102,241,0.35), rgba(236,72,153,0.25))'
-                        : 'rgba(255,255,255,0.04)',
-                      color: areaCode === opt.code ? '#fff' : '#cbd5e1',
-                      cursor: 'pointer',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {opt.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+            ))}
+          </div>
         </motion.div>
 
         {/* Empty / loading / error */}
@@ -298,16 +255,17 @@ function RelatedSpotsInner() {
         {!loading && !error && !touched && (
           <EmptyHint />
         )}
-        {!loading && !error && touched && mode === 'keyword' && groups.length === 0 && (
-          <NoResult onFallback={() => router.push('/cine-trip')} />
-        )}
-        {!loading && !error && touched && mode === 'area' && areaItems.length === 0 && (
-          <NoResult onFallback={() => router.push('/cine-trip')} />
+        {!loading && !error && touched && groups.length === 0 && (
+          <NoResult
+            unsupported={unsupported}
+            onPickPlace={(k) => { setKeyword(k); runKeywordSearch(k); }}
+            onFallback={() => router.push('/cine-trip')}
+          />
         )}
 
         {/* Keyword groups */}
         <AnimatePresence>
-          {!loading && !error && mode === 'keyword' && groups.length > 0 && (
+          {!loading && !error && groups.length > 0 && (
             <motion.div
               key="kw-result"
               initial={{ opacity: 0 }}
@@ -320,23 +278,6 @@ function RelatedSpotsInner() {
               </div>
               {groups.map((g, idx) => (
                 <GroupCard key={`${g.baseSpot}-${idx}`} group={g} />
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Area items */}
-        <AnimatePresence>
-          {!loading && !error && mode === 'area' && areaItems.length > 0 && (
-            <motion.div
-              key="area-result"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}
-            >
-              {areaItems.map((item, idx) => (
-                <AreaCard key={`${item.baseSpot}-${item.relatedSpot}-${idx}`} item={item} />
               ))}
             </motion.div>
           )}
@@ -376,32 +317,6 @@ function RelatedSpotsInner() {
   );
 }
 
-function ModeTab({ active, onClick, children }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        padding: '8px 14px',
-        borderRadius: 999,
-        border: active ? '1px solid rgba(165,180,252,0.7)' : '1px solid rgba(255,255,255,0.1)',
-        background: active
-          ? 'linear-gradient(135deg, rgba(99,102,241,0.35), rgba(236,72,153,0.25))'
-          : 'rgba(255,255,255,0.04)',
-        color: active ? '#fff' : '#cbd5e1',
-        fontSize: 13,
-        fontWeight: 700,
-        cursor: 'pointer',
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
 function GroupCard({ group }) {
   const router = useRouter();
   const region = [group.areaName, group.signguName].filter(Boolean).join(' · ');
@@ -417,7 +332,7 @@ function GroupCard({ group }) {
         padding: 16,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 11, color: '#94a3b8', letterSpacing: 0.4 }}>여기서 출발</span>
         <span style={{ fontSize: 17, fontWeight: 800, color: '#fef3c7' }}>{group.baseSpot}</span>
         {region && <span style={{ fontSize: 11, color: '#a5b4fc' }}>· {region}</span>}
@@ -456,42 +371,6 @@ function GroupCard({ group }) {
           </div>
         ))}
       </div>
-    </motion.div>
-  );
-}
-
-function AreaCard({ item }) {
-  const router = useRouter();
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35 }}
-      onClick={() => router.push(`/related-spots?q=${encodeURIComponent(item.relatedSpot || item.baseSpot || '')}`)}
-      style={{
-        cursor: 'pointer',
-        padding: 14,
-        borderRadius: 14,
-        border: '1px solid rgba(255,255,255,0.08)',
-        background: 'linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-      }}
-    >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <RankBadge rank={item.rank} />
-        <span style={{ fontSize: 11, color: '#94a3b8' }}>{item.baseSpot} 와 함께</span>
-      </div>
-      <div style={{ fontSize: 16, fontWeight: 800, color: '#fef3c7' }}>{item.relatedSpot}</div>
-      <div style={{ fontSize: 12, color: '#a5b4fc' }}>
-        {[item.relatedAreaName, item.relatedSignguName].filter(Boolean).join(' · ') || [item.areaName, item.signguName].filter(Boolean).join(' · ')}
-      </div>
-      {item.category && (
-        <div style={{ fontSize: 11, color: '#fca5a5', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          <Hash size={10} /> {item.category}
-        </div>
-      )}
     </motion.div>
   );
 }
@@ -538,17 +417,55 @@ function EmptyHint() {
         lineHeight: 1.7,
       }}
     >
-      먼저 떠올린 한 곳을 입력하거나,<br />지역을 살짝 골라 보세요.
+      먼저 떠올린 한 곳을 입력하거나,<br />아래 인기 지역 중에서 살짝 골라 보세요.
     </div>
   );
 }
 
-function NoResult({ onFallback }) {
+function NoResult({ unsupported, onPickPlace, onFallback }) {
   return (
-    <div style={{ textAlign: 'center', padding: '20px 0' }}>
+    <div style={{ textAlign: 'center', padding: '20px 12px' }}>
       <p style={{ color: '#cbd5e1', fontSize: 13, marginBottom: 10 }}>
         그 자리에 대한 데이터는 아직 잠잠해요.
       </p>
+      {unsupported && (
+        <div
+          style={{
+            margin: '0 auto 14px',
+            maxWidth: 520,
+            padding: '12px 14px',
+            borderRadius: 12,
+            background: 'rgba(165,180,252,0.08)',
+            border: '1px solid rgba(165,180,252,0.18)',
+            color: '#cbd5e1',
+            fontSize: 12,
+            lineHeight: 1.7,
+          }}
+        >
+          한국관광공사 빅데이터는 시·군·구 단위로 모아져 있어요.<br />
+          아래 인기 지역 중에서 가까운 한 곳을 골라 보면, 그 동네에서 사람들이 함께 다닌 자리들이 살며시 이어서 보여집니다.
+          <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
+            {['여수', '담양', '경주', '강릉', '한라산', '안동'].map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => onPickPlace(k)}
+                style={{
+                  fontSize: 12,
+                  padding: '5px 11px',
+                  borderRadius: 999,
+                  border: '1px solid rgba(165,180,252,0.4)',
+                  background: 'rgba(99,102,241,0.18)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                }}
+              >
+                # {k}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <button
         type="button"
         onClick={onFallback}
