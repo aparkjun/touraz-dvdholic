@@ -41,6 +41,33 @@ export default function Providers({ children }) {
   }, []);
 
   useEffect(() => {
+    const hasHorizontalScrollAncestor = (target) => {
+      let el = target instanceof Element ? target : null;
+      while (el && el !== document.body && el !== document.documentElement) {
+        const style = window.getComputedStyle(el);
+        const ox = style.overflowX;
+        const canScrollX =
+          (ox === 'auto' || ox === 'scroll' || ox === 'overlay') &&
+          el.scrollWidth > el.clientWidth + 1;
+        if (canScrollX) return true;
+        el = el.parentElement;
+      }
+      return false;
+    };
+
+    const onWheel = (e) => {
+      const absX = Math.abs(e.deltaX);
+      const absY = Math.abs(e.deltaY);
+      if (absX <= absY || absX < 1) return;
+      if (hasHorizontalScrollAncestor(e.target)) return;
+      e.preventDefault();
+    };
+
+    window.addEventListener('wheel', onWheel, { passive: false });
+    return () => window.removeEventListener('wheel', onWheel);
+  }, []);
+
+  useEffect(() => {
     (async () => {
       try {
         const { Capacitor } = await import('@capacitor/core');
