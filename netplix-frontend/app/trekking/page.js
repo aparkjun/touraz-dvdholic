@@ -25,6 +25,7 @@ import {
 import axios from '@/lib/axiosConfig';
 import NearbyCineTripStrip from '@/components/NearbyCineTripStrip';
 import { sigunToAreaCode, areaCodeToLabel } from '@/lib/regionMap';
+import { getCuratedCourses } from '@/lib/curatedTrekkingCourses';
 import useDragScrollAll from '@/lib/useDragScroll';
 
 /**
@@ -184,6 +185,12 @@ function TrekkingPageInner() {
     const qs = next.toString();
     router.replace(qs ? `/trekking?${qs}` : '/trekking');
   };
+
+  // 두루누비(코리아둘레길) 가 커버하지 않는 내륙·도시 지역 보강용 큐레이션
+  const curatedCourses = useMemo(
+    () => getCuratedCourses(selectedAreaCode),
+    [selectedAreaCode]
+  );
 
   return (
     <div
@@ -370,6 +377,32 @@ function TrekkingPageInner() {
         </section>
       )}
 
+      {selectedAreaCode && curatedCourses.length > 0 && (
+        <section style={{ maxWidth: 1160, margin: '36px auto 0', padding: '0 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+            <Footprints size={18} color="#fde68a" />
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>
+              {selectedAreaLabel} 추천 도보 코스
+            </h2>
+            <span style={{ fontSize: 12, color: 'rgba(220,252,231,0.55)', marginLeft: 6 }}>
+              한양도성·둘레길·하천 산책로 큐레이션
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gap: 14,
+            }}
+          >
+            {curatedCourses.map((c) => (
+              <CuratedCourseCard key={c.id} course={c} areaCode={selectedAreaCode} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Routes (길) */}
       <section style={{ maxWidth: 1160, margin: '32px auto 0', padding: '0 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
@@ -500,7 +533,17 @@ function TrekkingPageInner() {
           <EmptyCard
             msg={
               selectedAreaCode
-                ? `${selectedAreaLabel || '선택하신 지역'}을(를) 지나는 코리아둘레길 코스가 두루누비 데이터에 없어요. 코리아둘레길은 해안선을 따라 이어져 있어 내륙 도시는 등록 코스가 적습니다. 위의 영화·촬영지 정보를 참고하거나, 아래 버튼으로 전체 코스를 둘러보세요.`
+                ? curatedCourses.length > 0
+                  ? `코리아둘레길(해파랑·남파랑·서해랑)은 해안선을 따라 이어져 있어 ${
+                      selectedAreaLabel || '선택하신 지역'
+                    }을(를) 지나지 않습니다. 대신 위의 “${
+                      selectedAreaLabel || '지역'
+                    } 추천 도보 코스” 섹션에서 ${
+                      selectedAreaLabel || '이 지역'
+                    }의 대표 산책·둘레길을 만나보세요.`
+                  : `${
+                      selectedAreaLabel || '선택하신 지역'
+                    }을(를) 지나는 코리아둘레길 코스가 두루누비 데이터에 없어요.`
                 : '선택하신 조건의 코스가 아직 없어요'
             }
             action={
@@ -691,6 +734,144 @@ function CourseCard({ course }) {
           }}
         >
           <NearbyCineTripStrip areaCode={courseAreaCode} sigun={course.sigun} limit={8} />
+        </motion.div>
+      )}
+    </motion.div>
+  );
+}
+
+function CuratedCourseCard({ course, areaCode }) {
+  const [cineOpen, setCineOpen] = useState(false);
+  const accent = {
+    bg: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
+    chipBg: 'rgba(253,224,71,0.18)',
+    chip: '#fde68a',
+  };
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
+      style={{
+        position: 'relative', borderRadius: 20, padding: 18, overflow: 'hidden',
+        background: 'linear-gradient(160deg, #1f1602 0%, #2a1d05 55%, #1c1304 100%)',
+        border: '1px solid rgba(253,224,71,0.18)',
+      }}
+    >
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute', top: -50, right: -50, width: 160, height: 160,
+          borderRadius: '50%', background: accent.bg, opacity: 0.15, filter: 'blur(8px)',
+        }}
+      />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+        <span
+          style={{
+            padding: '3px 9px', borderRadius: 999,
+            background: accent.chipBg, color: accent.chip,
+            fontSize: 10.5, fontWeight: 800, letterSpacing: '0.1em',
+          }}
+        >
+          추천 도보
+        </span>
+        {course.sigun && (
+          <span style={{ fontSize: 11.5, color: 'rgba(254,243,199,0.7)' }}>
+            <MapPin size={11} style={{ verticalAlign: -1, marginRight: 3 }} />
+            {course.sigun}
+          </span>
+        )}
+      </div>
+
+      <h3 style={{ margin: '0 0 10px', fontSize: 17.5, fontWeight: 900, color: '#fff7ed', lineHeight: 1.3 }}>
+        {course.name}
+      </h3>
+
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+        {course.distanceKm != null && (
+          <StatPill Icon={Route} text={`${course.distanceKm} km`} color="#7dd3fc" />
+        )}
+        {course.estimatedTimeLabel && (
+          <StatPill Icon={Clock} text={course.estimatedTimeLabel} color="#fde68a" />
+        )}
+        {course.levelLabel && (
+          <StatPill Icon={Gauge} text={course.levelLabel} color="#6ee7b7" />
+        )}
+      </div>
+
+      {course.summary && (
+        <p style={{
+          margin: 0, fontSize: 13, color: 'rgba(254,243,199,0.82)', lineHeight: 1.6,
+        }}>
+          {course.summary}
+        </p>
+      )}
+
+      {Array.isArray(course.tags) && course.tags.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+          {course.tags.map((t) => (
+            <span
+              key={t}
+              style={{
+                fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
+                background: 'rgba(253,224,71,0.08)', color: '#fde68a',
+                border: '1px solid rgba(253,224,71,0.2)',
+              }}
+            >
+              #{t}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
+        {course.detailUrl && (
+          <a
+            href={course.detailUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '7px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700,
+              background: accent.chipBg, color: accent.chip, textDecoration: 'none',
+              border: `1px solid ${accent.chip}55`,
+            }}
+          >
+            <Compass size={12} />
+            공식 안내 보기
+          </a>
+        )}
+        {areaCode && (
+          <button
+            type="button"
+            onClick={() => setCineOpen((v) => !v)}
+            aria-expanded={cineOpen}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '7px 12px', borderRadius: 999, fontSize: 12, fontWeight: 800,
+              background:
+                'linear-gradient(135deg, rgba(168,85,247,0.18) 0%, rgba(236,72,153,0.18) 100%)',
+              color: '#f5d0fe',
+              border: '1px solid rgba(168,85,247,0.45)',
+              cursor: 'pointer', letterSpacing: '-0.01em',
+            }}
+          >
+            <Film size={12} />
+            이 지역의 영화
+            {cineOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+        )}
+      </div>
+
+      {cineOpen && areaCode && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          transition={{ duration: 0.25 }}
+          style={{
+            marginTop: 14, paddingTop: 14,
+            borderTop: '1px dashed rgba(168,85,247,0.3)',
+          }}
+        >
+          <NearbyCineTripStrip areaCode={areaCode} limit={6} />
         </motion.div>
       )}
     </motion.div>
