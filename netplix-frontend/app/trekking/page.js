@@ -375,9 +375,6 @@ function TrekkingPageInner() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
           <Mountain size={18} color="#6ee7b7" />
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>코리아둘레길 · 주요 노선</h2>
-          <span style={{ fontSize: 12, color: 'rgba(220,252,231,0.55)', marginLeft: 6 }}>
-            두루누비 routeList
-          </span>
         </div>
         {routesLoading ? (
           <GridSkeleton count={4} height={128} />
@@ -452,14 +449,9 @@ function TrekkingPageInner() {
           <Route size={18} color="#7dd3fc" />
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>
             {selectedAreaCode && selectedAreaLabel
-              ? `${selectedAreaLabel} 지역 두루누비 코스`
-              : '두루누비 코스 둘러보기'}
+              ? `${selectedAreaLabel} 걷기 코스`
+              : '걷기 코스 둘러보기'}
           </h2>
-          <span style={{ fontSize: 12, color: 'rgba(220,252,231,0.55)', marginLeft: 6 }}>
-            {selectedAreaCode
-              ? `areaCode=${selectedAreaCode}`
-              : '두루누비 courseList'}
-          </span>
           {selectedAreaCode && (
             <button
               type="button"
@@ -531,17 +523,6 @@ function TrekkingPageInner() {
           </div>
         )}
 
-        <div
-          style={{
-            marginTop: 22, padding: '14px 16px', borderRadius: 14,
-            background: 'rgba(253,224,71,0.06)', border: '1px dashed rgba(253,224,71,0.4)',
-            color: 'rgba(253,224,71,0.9)', fontSize: 13, lineHeight: 1.6,
-          }}
-        >
-          데이터 소스: 공공데이터포털 &gt; 한국관광공사_두루누비 정보 서비스_GW
-          (TourAPI Guide v4.1, base: <code style={{ color: '#fde68a' }}>apis.data.go.kr/B551011/Durunubi</code>) ·
-          단일 VISITKOREA_SERVICE_KEY 를 다른 KTO 서비스와 공유하여 서버 측 6시간 TTL 캐시 적용.
-        </div>
       </section>
     </div>
   );
