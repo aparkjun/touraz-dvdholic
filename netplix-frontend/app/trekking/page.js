@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   Footprints,
@@ -19,6 +20,7 @@ import {
   Film,
   ChevronDown,
   ChevronUp,
+  X,
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import NearbyCineTripStrip from '@/components/NearbyCineTripStrip';
@@ -92,9 +94,27 @@ const labelForRoute = (routeIdx) =>
   ROUTE_FILTERS.find((f) => f.routeIdx === routeIdx)?.label || '기타';
 
 export default function TrekkingPage() {
+  return (
+    <Suspense fallback={null}>
+      <TrekkingPageInner />
+    </Suspense>
+  );
+}
+
+function TrekkingPageInner() {
   const pageRef = useRef(null);
   // 동적으로 펼쳐지는 NearbyCineTripStrip(.js-drag-scroll) 도 자동 바인딩
   useDragScrollAll(pageRef);
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const areaParamRaw = searchParams.get('area');
+  const selectedAreaCode = useMemo(() => {
+    if (!areaParamRaw) return null;
+    const n = Number(areaParamRaw);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [areaParamRaw]);
+  const selectedAreaLabel = areaCodeToLabel(selectedAreaCode);
 
   const [routes, setRoutes] = useState([]);
   const [routesLoading, setRoutesLoading] = useState(true);
@@ -134,10 +154,20 @@ export default function TrekkingPage() {
       try {
         const params = new URLSearchParams({ limit: '60' });
         if (activeRouteIdx) params.set('routeIdx', activeRouteIdx);
+        if (selectedAreaCode) params.set('areaCode', String(selectedAreaCode));
         const res = await axios.get(`/api/v1/tour/trekking/courses?${params.toString()}`);
         const data = res?.data?.data ?? [];
         if (!alive) return;
-        setCourses(Array.isArray(data) ? data : []);
+        let list = Array.isArray(data) ? data : [];
+        // 백엔드가 areaCode 를 무시/미지원하는 경우를 대비해 클라이언트에서도 한 번 더 필터링
+        if (selectedAreaCode) {
+          const filtered = list.filter(
+            (c) => sigunToAreaCode(c.sigun) === selectedAreaCode
+          );
+          // 서버 필터가 정상 동작했다면 그대로, 아니면 클라이언트 결과 사용
+          list = filtered.length > 0 || list.length === 0 ? filtered : filtered;
+        }
+        setCourses(list);
       } catch (e) {
         console.error('[trekking-courses] fetch failed:', e?.message || e);
         if (alive) setCoursesError('코스 목록을 불러올 수 없어요');
@@ -146,7 +176,14 @@ export default function TrekkingPage() {
       }
     })();
     return () => { alive = false; };
-  }, [activeRouteIdx]);
+  }, [activeRouteIdx, selectedAreaCode]);
+
+  const clearAreaFilter = () => {
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete('area');
+    const qs = next.toString();
+    router.replace(qs ? `/trekking?${qs}` : '/trekking');
+  };
 
   return (
     <div
@@ -282,8 +319,56 @@ export default function TrekkingPage() {
             의 GPX·지역·주변 관광정보를 따라, 영화 속 장소와 반려동물 동반 여행에
             <strong style={{ color: '#7dd3fc' }}> 산뜻한 걷기 코스 </strong>까지 한 번에 이어집니다.
           </p>
+
+          {selectedAreaCode && selectedAreaLabel && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8, marginTop: 18,
+                padding: '8px 14px', borderRadius: 999,
+                background: 'linear-gradient(135deg, rgba(168,85,247,0.22), rgba(236,72,153,0.22))',
+                border: '1px solid rgba(168,85,247,0.45)',
+                color: '#f5d0fe', fontSize: 13, fontWeight: 800,
+                letterSpacing: '-0.01em',
+              }}
+            >
+              <MapPin size={14} />
+              <span>{selectedAreaLabel} 지역 코스만 보기</span>
+              <button
+                type="button"
+                onClick={clearAreaFilter}
+                aria-label="지역 필터 해제"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: 22, height: 22, borderRadius: '50%',
+                  background: 'rgba(15,23,42,0.55)',
+                  border: '1px solid rgba(245,208,254,0.4)',
+                  color: '#f5d0fe', cursor: 'pointer', padding: 0,
+                }}
+              >
+                <X size={12} />
+              </button>
+            </motion.div>
+          )}
         </motion.div>
       </section>
+
+      {selectedAreaCode && (
+        <section style={{ maxWidth: 1160, margin: '24px auto 0', padding: '0 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <Film size={18} color="#f5d0fe" />
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>
+              {selectedAreaLabel} 배경 영화·촬영지
+            </h2>
+            <span style={{ fontSize: 12, color: 'rgba(220,252,231,0.55)', marginLeft: 6 }}>
+              CineTrip
+            </span>
+          </div>
+          <NearbyCineTripStrip areaCode={selectedAreaCode} limit={10} />
+        </section>
+      )}
 
       {/* Routes (길) */}
       <section style={{ maxWidth: 1160, margin: '32px auto 0', padding: '0 20px' }}>
@@ -365,10 +450,32 @@ export default function TrekkingPage() {
       <section style={{ maxWidth: 1160, margin: '36px auto 0', padding: '0 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
           <Route size={18} color="#7dd3fc" />
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>두루누비 코스 둘러보기</h2>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>
+            {selectedAreaCode && selectedAreaLabel
+              ? `${selectedAreaLabel} 지역 두루누비 코스`
+              : '두루누비 코스 둘러보기'}
+          </h2>
           <span style={{ fontSize: 12, color: 'rgba(220,252,231,0.55)', marginLeft: 6 }}>
-            두루누비 courseList
+            {selectedAreaCode
+              ? `areaCode=${selectedAreaCode}`
+              : '두루누비 courseList'}
           </span>
+          {selectedAreaCode && (
+            <button
+              type="button"
+              onClick={clearAreaFilter}
+              style={{
+                marginLeft: 'auto',
+                padding: '6px 12px', borderRadius: 999,
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: 'rgba(220,252,231,0.78)',
+                fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              }}
+            >
+              전체 지역 보기
+            </button>
+          )}
         </div>
 
         <div
@@ -398,7 +505,18 @@ export default function TrekkingPage() {
         ) : coursesError ? (
           <EmptyCard msg={coursesError} />
         ) : courses.length === 0 ? (
-          <EmptyCard msg="선택하신 조건의 코스가 아직 없어요" />
+          <EmptyCard
+            msg={
+              selectedAreaCode
+                ? `${selectedAreaLabel || '선택하신 지역'}을(를) 지나는 코리아둘레길 코스가 두루누비 데이터에 없어요. 코리아둘레길은 해안선을 따라 이어져 있어 내륙 도시는 등록 코스가 적습니다. 위의 영화·촬영지 정보를 참고하거나, 아래 버튼으로 전체 코스를 둘러보세요.`
+                : '선택하신 조건의 코스가 아직 없어요'
+            }
+            action={
+              selectedAreaCode
+                ? { label: '전체 코스 보기', onClick: clearAreaFilter }
+                : null
+            }
+          />
         ) : (
           <div
             style={{
@@ -638,18 +756,36 @@ function GridSkeleton({ count = 4, height = 128 }) {
   );
 }
 
-function EmptyCard({ msg }) {
+function EmptyCard({ msg, action }) {
   return (
     <div
       style={{
         padding: '28px 20px', borderRadius: 16, textAlign: 'center',
         background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(110,231,183,0.2)',
-        color: 'rgba(220,252,231,0.6)', fontSize: 13, display: 'flex',
-        alignItems: 'center', justifyContent: 'center', gap: 8,
+        color: 'rgba(220,252,231,0.7)', fontSize: 13,
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 12,
+        lineHeight: 1.65,
       }}
     >
-      <Compass size={14} />
-      {msg}
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, maxWidth: 640 }}>
+        <Compass size={14} />
+        <span>{msg}</span>
+      </div>
+      {action && (
+        <button
+          type="button"
+          onClick={action.onClick}
+          style={{
+            padding: '8px 16px', borderRadius: 999,
+            background: 'linear-gradient(135deg, rgba(20,184,166,0.22), rgba(14,165,233,0.22))',
+            border: '1px solid rgba(110,231,183,0.45)',
+            color: '#a7f3d0', fontSize: 12.5, fontWeight: 800, cursor: 'pointer',
+          }}
+        >
+          {action.label}
+        </button>
+      )}
     </div>
   );
 }
