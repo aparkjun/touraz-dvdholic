@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
   X,
@@ -71,6 +72,11 @@ export default function TravelCourseModal({
   onClose,
 }) {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -100,7 +106,9 @@ export default function TravelCourseModal({
     );
   };
 
-  return (
+  if (!mounted || typeof document === 'undefined') return null;
+
+  const modalContent = (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -219,34 +227,14 @@ export default function TravelCourseModal({
           letter-spacing: -0.01em;
           white-space: nowrap;
         }
-        @media (max-width: 768px) {
-          .tc-modal-overlay {
-            padding: 0 !important;
-            align-items: stretch !important;
-          }
+        @media (max-width: 600px) {
           .tc-modal {
-            width: 100vw;
-            max-width: 100vw;
-            height: 100vh;
-            height: 100dvh;
-            max-height: 100vh;
-            max-height: 100dvh;
-            border-radius: 0;
-            border-left: none;
-            border-right: none;
-            border-top: none;
-            border-bottom: none;
-          }
-          .tc-modal-close {
-            top: calc(env(safe-area-inset-top, 0px) + 12px);
-            right: calc(env(safe-area-inset-right, 0px) + 12px);
-          }
-          .tc-modal-scroll {
-            padding-bottom: env(safe-area-inset-bottom, 0px);
+            max-height: 90vh;
+            max-height: 90dvh;
           }
           .tc-modal-header {
             gap: 14px;
-            padding: calc(env(safe-area-inset-top, 0px) + 18px) 16px 16px;
+            padding: 20px 16px 16px;
             padding-right: 68px;
           }
           .tc-modal-poster { width: 92px; height: 132px; border-radius: 10px; }
@@ -271,11 +259,7 @@ export default function TravelCourseModal({
           }
         }
         @media (max-width: 380px) {
-          .tc-modal-header {
-            gap: 12px;
-            padding: calc(env(safe-area-inset-top, 0px) + 14px) 14px 14px;
-            padding-right: 64px;
-          }
+          .tc-modal-header { gap: 12px; padding: 16px 14px 14px; padding-right: 60px; }
           .tc-modal-poster { width: 78px; height: 112px; }
         }
       `}</style>
@@ -704,4 +688,6 @@ export default function TravelCourseModal({
       </motion.div>
     </motion.div>
   );
+
+  return createPortal(modalContent, document.body);
 }
