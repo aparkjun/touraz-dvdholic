@@ -106,6 +106,7 @@ export default function TravelCourseModal({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       onClick={onClose}
+      className="tc-modal-overlay"
       style={{
         position: 'fixed',
         inset: 0,
@@ -115,9 +116,141 @@ export default function TravelCourseModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 16,
+        padding: 'clamp(8px, 2vw, 16px)',
       }}
     >
+      <style>{`
+        .tc-modal {
+          width: 100%;
+          max-width: 960px;
+          max-height: 92vh;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
+          border-radius: 20px;
+          background: linear-gradient(180deg, #141419 0%, #0a0a0f 100%);
+          border: 1px solid rgba(168, 85, 247, 0.35);
+          box-shadow: 0 25px 60px rgba(168,85,247,0.25), 0 0 0 1px rgba(255,255,255,0.04);
+          position: relative;
+        }
+        .tc-modal-scroll {
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior: contain;
+        }
+        .tc-modal-close {
+          position: absolute;
+          top: 12px;
+          right: 12px;
+          width: 40px;
+          height: 40px;
+          border-radius: 20px;
+          border: 1px solid rgba(255,255,255,0.18);
+          background: rgba(10,10,15,0.85);
+          color: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          z-index: 5;
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+        }
+        .tc-modal-header {
+          display: flex;
+          gap: 20px;
+          padding: 24px 24px 18px;
+          padding-right: 64px;
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .tc-modal-poster {
+          width: 120px;
+          height: 170px;
+          object-fit: cover;
+          border-radius: 12px;
+          flex-shrink: 0;
+          border: 1px solid rgba(255,255,255,0.08);
+          pointer-events: none;
+          user-select: none;
+        }
+        .tc-modal-info { flex: 1; min-width: 0; }
+        .tc-modal-title {
+          font-size: clamp(20px, 5.5vw, 30px);
+          font-weight: 800;
+          margin: 0 0 6px;
+          word-break: keep-all;
+          overflow-wrap: anywhere;
+          line-height: 1.2;
+          background: linear-gradient(135deg, #ffffff 0%, #c4b5fd 55%, #f9a8d4 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          letter-spacing: -0.01em;
+        }
+        .tc-modal-action-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-top: 6px;
+          flex-wrap: wrap;
+        }
+        .tc-modal-detail-btn { margin-left: auto; }
+        .tc-modal-body { padding: 18px 22px 28px; }
+        .tc-stop-section { padding: 16px 16px 18px; }
+        .tc-link-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin: 6px 0 14px;
+        }
+        .tc-link-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 10px 14px;
+          border-radius: 12px;
+          font-size: 13px;
+          font-weight: 800;
+          text-decoration: none;
+          letter-spacing: -0.01em;
+          white-space: nowrap;
+        }
+        @media (max-width: 600px) {
+          .tc-modal-header {
+            gap: 14px;
+            padding: 20px 16px 16px;
+            padding-right: 56px;
+          }
+          .tc-modal-poster { width: 92px; height: 132px; border-radius: 10px; }
+          .tc-modal-body { padding: 14px 14px 24px; }
+          .tc-stop-section { padding: 14px 12px 16px; }
+          .tc-modal-detail-btn {
+            margin-left: 0;
+            width: 100%;
+            justify-content: center;
+          }
+          .tc-link-btn {
+            flex: 1 1 calc(50% - 8px);
+            min-width: 0;
+            font-size: 12px;
+            padding: 9px 10px;
+          }
+          .tc-link-btn span.tc-link-label {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+          }
+        }
+        @media (max-width: 380px) {
+          .tc-modal-header { gap: 12px; padding: 16px 14px 14px; padding-right: 52px; }
+          .tc-modal-poster { width: 78px; height: 112px; }
+        }
+      `}</style>
       <motion.div
         role="dialog"
         aria-modal="true"
@@ -126,74 +259,33 @@ export default function TravelCourseModal({
         exit={{ opacity: 0, y: 20, scale: 0.98 }}
         transition={{ type: 'spring', stiffness: 260, damping: 28 }}
         onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '100%',
-          maxWidth: 960,
-          maxHeight: '92vh',
-          overflowY: 'auto',
-          borderRadius: 20,
-          background: 'linear-gradient(180deg, #141419 0%, #0a0a0f 100%)',
-          border: '1px solid rgba(168, 85, 247, 0.35)',
-          boxShadow:
-            '0 25px 60px rgba(168,85,247,0.25), 0 0 0 1px rgba(255,255,255,0.04)',
-          position: 'relative',
-        }}
+        className="tc-modal"
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="닫기"
-          style={{
-            position: 'absolute',
-            top: 14,
-            right: 14,
-            width: 36,
-            height: 36,
-            borderRadius: 18,
-            border: '1px solid rgba(255,255,255,0.12)',
-            background: 'rgba(0,0,0,0.45)',
-            color: '#fff',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            zIndex: 2,
-          }}
+          className="tc-modal-close"
         >
-          <X size={18} />
+          <X size={20} />
         </button>
 
-        <div
-          style={{
-            display: 'flex',
-            gap: 20,
-            padding: '28px 28px 20px',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
-          }}
-        >
+        <div className="tc-modal-scroll">
+        <div className="tc-modal-header">
           <img
             src={posterSrc(movie.posterPath)}
             alt={movie.movieName || 'poster'}
             draggable={false}
             onDragStart={(e) => e.preventDefault()}
-            style={{
-              width: 120,
-              height: 170,
-              objectFit: 'cover',
-              borderRadius: 12,
-              flexShrink: 0,
-              border: '1px solid rgba(255,255,255,0.08)',
-              pointerEvents: 'none',
-              userSelect: 'none',
-              WebkitUserDrag: 'none',
-            }}
+            className="tc-modal-poster"
+            style={{ WebkitUserDrag: 'none' }}
             onError={(e) => {
               if (!e.target.src.endsWith(NO_POSTER_PLACEHOLDER)) {
                 e.target.src = NO_POSTER_PLACEHOLDER;
               }
             }}
           />
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="tc-modal-info">
             <div
               style={{
                 display: 'inline-flex',
@@ -211,22 +303,7 @@ export default function TravelCourseModal({
             >
               <Sparkles size={12} /> 이 영화로 떠나는 여행
             </div>
-            <h2
-              style={{
-                fontSize: 30,
-                fontWeight: 800,
-                margin: 0,
-                marginBottom: 6,
-                wordBreak: 'keep-all',
-                lineHeight: 1.2,
-                background:
-                  'linear-gradient(135deg, #ffffff 0%, #c4b5fd 55%, #f9a8d4 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                letterSpacing: '-0.01em',
-              }}
-            >
+            <h2 className="tc-modal-title">
               {movie.movieName || '제목 미상'}
             </h2>
             {(movie.tagline || movie.genre) && (
@@ -267,7 +344,7 @@ export default function TravelCourseModal({
               ))}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 6 }}>
+            <div className="tc-modal-action-row">
               <span
                 style={{
                   display: 'inline-flex',
@@ -291,8 +368,8 @@ export default function TravelCourseModal({
                 onClick={openMovieDetail}
                 whileHover={{ y: -2, scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
+                className="tc-modal-detail-btn"
                 style={{
-                  marginLeft: 'auto',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
@@ -316,7 +393,7 @@ export default function TravelCourseModal({
           </div>
         </div>
 
-        <div style={{ padding: '20px 28px 32px' }}>
+        <div className="tc-modal-body">
           {stops.length === 0 ? (
             <div style={{ color: '#888', fontSize: 14, textAlign: 'center', padding: '40px 0' }}>
               아직 연결된 지역 정보가 없어요. 다른 작품을 골라보세요.
@@ -331,8 +408,8 @@ export default function TravelCourseModal({
               return (
                 <section
                   key={m.areaCode}
+                  className="tc-stop-section"
                   style={{
-                    padding: '18px 18px 20px',
                     marginBottom: 16,
                     borderRadius: 18,
                     background:
@@ -451,14 +528,7 @@ export default function TravelCourseModal({
                    * - 각 서비스 브랜드 컬러를 반영
                    * - hover/tap 시 확대 + 그림자 강조 마이크로인터랙션
                    */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: 8,
-                      margin: '6px 0 14px',
-                    }}
-                  >
+                  <div className="tc-link-row">
                     {kakao && (
                       <motion.a
                         href={kakao}
@@ -467,25 +537,18 @@ export default function TravelCourseModal({
                         whileHover={{ y: -2, scale: 1.03 }}
                         whileTap={{ scale: 0.97 }}
                         title={`카카오맵에서 ${regionName} 보기`}
+                        className="tc-link-btn"
                         style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          padding: '10px 14px',
-                          borderRadius: 12,
-                          fontSize: 13,
-                          fontWeight: 800,
                           color: '#1a1a1a',
                           background:
                             'linear-gradient(180deg, #ffe94a 0%, #fee500 55%, #f7d900 100%)',
                           border: '1px solid rgba(0,0,0,0.08)',
-                          textDecoration: 'none',
                           boxShadow:
                             '0 6px 18px rgba(254,229,0,0.25), inset 0 1px 0 rgba(255,255,255,0.6)',
-                          letterSpacing: '-0.01em',
                         }}
                       >
-                        <MapIcon size={15} /> 카카오맵에서 보기
+                        <MapIcon size={15} />
+                        <span className="tc-link-label">카카오맵</span>
                         <ExternalLink size={12} style={{ opacity: 0.65 }} />
                       </motion.a>
                     )}
@@ -497,25 +560,18 @@ export default function TravelCourseModal({
                         whileHover={{ y: -2, scale: 1.03 }}
                         whileTap={{ scale: 0.97 }}
                         title={`네이버에서 ${regionName} 검색`}
+                        className="tc-link-btn"
                         style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          padding: '10px 14px',
-                          borderRadius: 12,
-                          fontSize: 13,
-                          fontWeight: 800,
                           color: '#fff',
                           background:
                             'linear-gradient(180deg, #14d96e 0%, #03c75a 55%, #03a94c 100%)',
                           border: '1px solid rgba(0,0,0,0.08)',
-                          textDecoration: 'none',
                           boxShadow:
                             '0 6px 18px rgba(3,199,90,0.3), inset 0 1px 0 rgba(255,255,255,0.25)',
-                          letterSpacing: '-0.01em',
                         }}
                       >
-                        <Search size={15} /> 네이버 검색
+                        <Search size={15} />
+                        <span className="tc-link-label">네이버</span>
                         <ExternalLink size={12} style={{ opacity: 0.85 }} />
                       </motion.a>
                     )}
@@ -527,26 +583,19 @@ export default function TravelCourseModal({
                         whileHover={{ y: -2, scale: 1.03 }}
                         whileTap={{ scale: 0.97 }}
                         title={`Google 에서 ${regionName} 촬영지 검색`}
+                        className="tc-link-btn"
                         style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 8,
-                          padding: '10px 14px',
-                          borderRadius: 12,
-                          fontSize: 13,
-                          fontWeight: 700,
                           color: '#fff',
                           background:
                             'linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 100%)',
                           border: '1px solid rgba(255,255,255,0.18)',
-                          textDecoration: 'none',
                           boxShadow:
                             '0 4px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-                          letterSpacing: '-0.01em',
                           backdropFilter: 'blur(6px)',
                         }}
                       >
-                        <Search size={15} /> Google 촬영지 검색
+                        <Search size={15} />
+                        <span className="tc-link-label">Google</span>
                         <ExternalLink size={12} style={{ opacity: 0.75 }} />
                       </motion.a>
                     )}
@@ -622,6 +671,7 @@ export default function TravelCourseModal({
               );
             })
           )}
+        </div>
         </div>
       </motion.div>
     </motion.div>
