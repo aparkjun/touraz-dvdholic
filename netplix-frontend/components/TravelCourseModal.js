@@ -144,26 +144,26 @@ export default function TravelCourseModal({
           position: absolute;
           top: 12px;
           right: 12px;
-          width: 40px;
-          height: 40px;
-          border-radius: 20px;
+          width: 44px;
+          height: 44px;
+          border-radius: 22px;
           border: 1px solid rgba(255,255,255,0.18);
-          background: rgba(10,10,15,0.85);
+          background: rgba(10,10,15,0.92);
           color: #fff;
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          z-index: 5;
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
-          box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+          z-index: 10;
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+          box-shadow: 0 6px 18px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
         }
         .tc-modal-header {
           display: flex;
           gap: 20px;
           padding: 24px 24px 18px;
-          padding-right: 64px;
+          padding-right: 72px;
           border-bottom: 1px solid rgba(255,255,255,0.06);
         }
         .tc-modal-poster {
@@ -219,11 +219,35 @@ export default function TravelCourseModal({
           letter-spacing: -0.01em;
           white-space: nowrap;
         }
-        @media (max-width: 600px) {
+        @media (max-width: 768px) {
+          .tc-modal-overlay {
+            padding: 0 !important;
+            align-items: stretch !important;
+          }
+          .tc-modal {
+            width: 100vw;
+            max-width: 100vw;
+            height: 100vh;
+            height: 100dvh;
+            max-height: 100vh;
+            max-height: 100dvh;
+            border-radius: 0;
+            border-left: none;
+            border-right: none;
+            border-top: none;
+            border-bottom: none;
+          }
+          .tc-modal-close {
+            top: calc(env(safe-area-inset-top, 0px) + 12px);
+            right: calc(env(safe-area-inset-right, 0px) + 12px);
+          }
+          .tc-modal-scroll {
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+          }
           .tc-modal-header {
             gap: 14px;
-            padding: 20px 16px 16px;
-            padding-right: 56px;
+            padding: calc(env(safe-area-inset-top, 0px) + 18px) 16px 16px;
+            padding-right: 68px;
           }
           .tc-modal-poster { width: 92px; height: 132px; border-radius: 10px; }
           .tc-modal-body { padding: 14px 14px 24px; }
@@ -247,7 +271,11 @@ export default function TravelCourseModal({
           }
         }
         @media (max-width: 380px) {
-          .tc-modal-header { gap: 12px; padding: 16px 14px 14px; padding-right: 52px; }
+          .tc-modal-header {
+            gap: 12px;
+            padding: calc(env(safe-area-inset-top, 0px) + 14px) 14px 14px;
+            padding-right: 64px;
+          }
           .tc-modal-poster { width: 78px; height: 112px; }
         }
       `}</style>
