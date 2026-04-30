@@ -184,7 +184,12 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setActivePhoto(null)}
+            onClick={(e) => {
+              // 부모 모달(TravelCourseModal) 의 오버레이로 클릭이 전파되어
+              // 두 모달이 동시에 닫히는 것을 차단한다.
+              e.stopPropagation();
+              setActivePhoto(null);
+            }}
             style={{
               position: 'fixed',
               inset: 0,
@@ -218,30 +223,37 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
                 cursor: 'default',
                 display: 'flex',
                 flexDirection: 'column',
+                position: 'relative',
               }}
             >
               <button
                 type="button"
-                onClick={() => setActivePhoto(null)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActivePhoto(null);
+                }}
                 aria-label="닫기"
                 style={{
                   position: 'absolute',
-                  top: 40,
-                  right: 40,
-                  width: 40,
-                  height: 40,
-                  borderRadius: 20,
-                  background: 'rgba(0,0,0,0.6)',
-                  border: '1px solid rgba(255,255,255,0.15)',
+                  top: 12,
+                  right: 12,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  background: 'rgba(10,10,15,0.92)',
+                  border: '1px solid rgba(255,255,255,0.18)',
                   color: '#fff',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   zIndex: 10,
+                  backdropFilter: 'blur(10px)',
+                  WebkitBackdropFilter: 'blur(10px)',
+                  boxShadow: '0 6px 18px rgba(0,0,0,0.6)',
                 }}
               >
-                <X size={18} />
+                <X size={20} />
               </button>
               <img
                 src={activePhoto.imageUrl || activePhoto.thumbnailUrl}
