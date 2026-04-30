@@ -3,6 +3,7 @@ import "leaflet/dist/leaflet.css";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
 import Providers from "@/components/Providers";
+import FloatingBackButton from "@/components/FloatingBackButton";
 
 export const metadata = {
   title: "Holic Store",
@@ -36,6 +37,7 @@ export default function RootLayout({ children }) {
             <div className="app-route-wrap">
               {children}
             </div>
+            <FloatingBackButton />
           </div>
         </Providers>
       </body>
