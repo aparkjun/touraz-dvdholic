@@ -107,6 +107,13 @@ button,
   -webkit-user-select: none;
 }
 
+/* CineTrip 본문: 가로 스와이프 레일(포토스팟 등)이 layout/paint contain 으로
+ * 모바일에서 세로 스크롤이 끊겨 “별도 창”처럼 느껴질 수 있어 contain 을 끈다. */
+.cinetrip-page .js-drag-scroll {
+  contain: none;
+  overscroll-behavior-y: auto;
+}
+
 /* ===== 스와이프 중 hover/pointer 토글 차단 =====
  * 드래그/관성 구간에 커서가 카드들을 지나가며 onMouseEnter/Leave 가 연쇄 발화되면
  * framer-motion 훅버 애니메이션(transform, box-shadow)이 카드마다 리페인트를 유발해

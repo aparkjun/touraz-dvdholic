@@ -1038,18 +1038,12 @@ function CineTripPageInner() {
         ]}
       />
 
-      {/* 지역 필터 — 밝고 경쾌한 팔레트:
-       *   - 컨테이너: 핑크→퍼플→블루 부드러운 그라데이션 + blur 로 페이지 검정 위에서 떠 보이도록
-       *   - 비활성 버튼: 흰색 글래스 (컨테이너 대비 강한 대조 → 무조건 보임)
-       *   - 활성 버튼: 핫핑크→앰버 비비드 그라데이션 + 글로우
-       *   - pill 모양 (border-radius 999) 으로 부드럽고 캔디 같은 느낌
-       */}
+      {/* 지역 필터 — 페이지와 같이 자연 스크롤(sticky 제거). 포토스팟 등 아래 콘텐츠와 한 덩어리로 쭉 내려가게 함. */}
       <div
         id="cinetrip-region-filter"
         style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 20,
+          position: 'relative',
+          zIndex: 2,
           background:
             'linear-gradient(135deg, rgba(244, 114, 182, 0.18) 0%, rgba(167, 139, 250, 0.18) 50%, rgba(96, 165, 250, 0.18) 100%), rgba(15, 15, 30, 0.7)',
           backdropFilter: 'blur(20px) saturate(1.4)',
@@ -1105,7 +1099,18 @@ function CineTripPageInner() {
         </div>
       </div>
 
-      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '40px 20px' }}>
+      <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 20px 40px' }}>
+        {/* 수상작 포토스팟을 필터 직후로 — 세로 스크롤 한 줄기로 이어지게 */}
+        <PhotoGalleryStrip
+          areaCode={selectedAreaCode}
+          limit={0}
+          title={
+            selectedAreaCode
+              ? `${REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''} 수상작 포토스팟`
+              : '전국 수상작 포토스팟'
+          }
+        />
+
         <ConcentrationForecastStrip
           areaCode={selectedAreaCode}
           regionLabel={
@@ -1122,19 +1127,6 @@ function CineTripPageInner() {
           areaCode={selectedAreaCode}
           regionLabel={
             REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''
-          }
-        />
-
-        <PhotoGalleryStrip
-          areaCode={selectedAreaCode}
-          // limit=0 → 백엔드 캐시 전량 반환 (KTO PhokoAwrdService totalCount 만큼).
-          // 카드 자체는 200x140 썸네일이고 <img loading="lazy"> 가 가로 스크롤 뷰포트 진입 시에만
-          // 디코딩하므로, 수백 건이라도 동시 메모리 부담은 화면에 보이는 ~10장 수준.
-          limit={0}
-          title={
-            selectedAreaCode
-              ? `${REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''} 수상작 포토스팟`
-              : '전국 수상작 포토스팟'
           }
         />
 
