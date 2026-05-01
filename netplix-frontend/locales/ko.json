@@ -701,9 +701,8 @@
         "findLocations": "촬영지 찾기"
       }
     },
-    "movieGridTotal": "실제 촬영지가 등록된 영화 · 총 {{count}}편",
-    "movieGridTotalNationwide": "실제 촬영지가 등록된 영화 · 총 {{count}}편 (DB 매핑 행 {{mappingCount}}건 — 한 영화에 여러 지역·유형이 붙으면 행이 더 많습니다)",
-    "movieGridTotalRegion": "이 광역 지역에 촬영지가 있는 영화 · 총 {{count}}편",
+    "movieGridTotal": "실제 촬영지가 등록된 영화 총 {{count}}편",
+    "movieGridTotalRegion": "이 광역 지역에 촬영지가 등록된 영화 총 {{count}}편",
     "engSpots": {
       "title": "영화 속 장소 주변 관광지",
       "subtitle": "{{region}}의 엄선된 장소",
