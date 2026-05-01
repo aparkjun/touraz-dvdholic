@@ -35,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>특징:
  * <ul>
  *   <li>(brdDiv|routeIdx|keyword) 키 단위로 in-memory TTL 캐시 (기본 6h)</li>
+ *   <li>courseList / routeList 는 {@code totalCount} 기준 전 페이지 누적 수집 (단일 페이지 100건 제한 제거)</li>
  *   <li>routeList 는 전국 단일 키로 캐시</li>
  *   <li>totalCount=0 시 {@code items:""} 응답을 {@code null} 로 치환해 파싱 실패 방지</li>
  *   <li>serviceKey 미설정 또는 URL 미설정 시 모든 조회가 빈 리스트 반환 (기동 계속)</li>
@@ -46,6 +47,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class VisitKoreaDurunubiHttpClient implements DurunubiPort {
 
     private static final int MAX_PAGE_SIZE = 100;
+    /** courseList 전 페이지 순회 시 안전 상한 (100페이지 × 100건). */
+    private static final int MAX_COURSE_LIST_PAGES = 100;
+    /** 코스 누적 상한 — 비정상 응답 루프 방지. */
+    private static final int HARD_COURSE_CAP = 10_000;
+    /** routeList 순회 상한. */
+    private static final int MAX_ROUTE_LIST_PAGES = 30;
+    private static final int HARD_ROUTE_CAP = 3_000;
 
     private final HttpClient httpClient;
 
@@ -83,8 +91,9 @@ public class VisitKoreaDurunubiHttpClient implements DurunubiPort {
         if (cached != null && (now - cached.loadedAtMs) < Duration.ofMinutes(cacheMinutes).toMillis()) {
             source = cached.items;
         } else {
-            source = callCourseListApi(brdDiv, routeIdx, keyword);
+            source = fetchAllCourseListPages(brdDiv, routeIdx, keyword);
             courseCache.put(key, new CacheEntry<>(source, now));
+            log.info("[DURUNUBI] courseList 캐시 갱신 key={} courses={}", key, source.size());
         }
         return take(filterByAreaCode(source, areaCode), limit);
     }
@@ -97,8 +106,9 @@ public class VisitKoreaDurunubiHttpClient implements DurunubiPort {
         if (cached != null && (now - cached.loadedAtMs) < Duration.ofMinutes(cacheMinutes).toMillis()) {
             return take(cached.items, limit);
         }
-        List<DurunubiRoute> items = callRouteListApi();
+        List<DurunubiRoute> items = fetchAllRouteListPages();
         routeCache.put("all", new CacheEntry<>(items, now));
+        log.info("[DURUNUBI] routeList 캐시 갱신 routes={}", items.size());
         return take(items, limit);
     }
 
@@ -106,34 +116,64 @@ public class VisitKoreaDurunubiHttpClient implements DurunubiPort {
     // internal
     // -----------------------------
 
-    private List<DurunubiCourse> callCourseListApi(String brdDiv, String routeIdx, String keyword) {
+    private List<DurunubiCourse> fetchAllCourseListPages(String brdDiv, String routeIdx, String keyword) {
         Map<String, String> extras = Map.of(
                 "brdDiv", nullSafe(brdDiv),
                 "routeIdx", nullSafe(routeIdx),
                 "crsKorNm", nullSafe(keyword)
         );
-        VisitKoreaDurunubiResponse parsed = callApi(courseListUrl, extras);
-        if (parsed == null) return List.of();
-
-        List<DurunubiCourse> result = new ArrayList<>();
-        for (VisitKoreaDurunubiResponse.Item i : safeItems(parsed)) {
-            result.add(toCourse(i));
+        List<DurunubiCourse> all = new ArrayList<>();
+        int pageNo = 1;
+        int totalCount = -1;
+        while (pageNo <= MAX_COURSE_LIST_PAGES) {
+            VisitKoreaDurunubiResponse parsed = callApi(courseListUrl, extras, pageNo);
+            if (parsed == null) break;
+            VisitKoreaDurunubiResponse.Body body = parsed.getResponse() != null ? parsed.getResponse().getBody() : null;
+            if (body == null) break;
+            if (totalCount < 0 && body.getTotalCount() != null) {
+                totalCount = body.getTotalCount();
+            }
+            List<VisitKoreaDurunubiResponse.Item> page = body.getItems() != null ? body.getItems().getItem() : null;
+            if (page == null || page.isEmpty()) break;
+            for (VisitKoreaDurunubiResponse.Item i : page) {
+                all.add(toCourse(i));
+                if (all.size() >= HARD_COURSE_CAP) break;
+            }
+            if (all.size() >= HARD_COURSE_CAP) break;
+            if (page.size() < MAX_PAGE_SIZE) break;
+            if (totalCount >= 0 && all.size() >= totalCount) break;
+            pageNo++;
         }
-        return Collections.unmodifiableList(result);
+        return Collections.unmodifiableList(all);
     }
 
-    private List<DurunubiRoute> callRouteListApi() {
-        VisitKoreaDurunubiResponse parsed = callApi(routeListUrl, Map.of());
-        if (parsed == null) return List.of();
-
-        List<DurunubiRoute> result = new ArrayList<>();
-        for (VisitKoreaDurunubiResponse.Item i : safeItems(parsed)) {
-            result.add(toRoute(i));
+    private List<DurunubiRoute> fetchAllRouteListPages() {
+        List<DurunubiRoute> all = new ArrayList<>();
+        int pageNo = 1;
+        int totalCount = -1;
+        while (pageNo <= MAX_ROUTE_LIST_PAGES) {
+            VisitKoreaDurunubiResponse parsed = callApi(routeListUrl, Map.of(), pageNo);
+            if (parsed == null) break;
+            VisitKoreaDurunubiResponse.Body body = parsed.getResponse() != null ? parsed.getResponse().getBody() : null;
+            if (body == null) break;
+            if (totalCount < 0 && body.getTotalCount() != null) {
+                totalCount = body.getTotalCount();
+            }
+            List<VisitKoreaDurunubiResponse.Item> page = body.getItems() != null ? body.getItems().getItem() : null;
+            if (page == null || page.isEmpty()) break;
+            for (VisitKoreaDurunubiResponse.Item i : page) {
+                all.add(toRoute(i));
+                if (all.size() >= HARD_ROUTE_CAP) break;
+            }
+            if (all.size() >= HARD_ROUTE_CAP) break;
+            if (page.size() < MAX_PAGE_SIZE) break;
+            if (totalCount >= 0 && all.size() >= totalCount) break;
+            pageNo++;
         }
-        return Collections.unmodifiableList(result);
+        return Collections.unmodifiableList(all);
     }
 
-    private VisitKoreaDurunubiResponse callApi(String baseUrl, Map<String, String> extraParams) {
+    private VisitKoreaDurunubiResponse callApi(String baseUrl, Map<String, String> extraParams, int pageNo) {
         StringBuilder url = new StringBuilder(baseUrl);
         url.append(baseUrl.contains("?") ? "&" : "?")
                 .append("serviceKey=").append(serviceKey)
@@ -141,7 +181,7 @@ public class VisitKoreaDurunubiHttpClient implements DurunubiPort {
                 .append("&MobileOS=ETC")
                 .append("&MobileApp=touraz-dvdholic")
                 .append("&numOfRows=").append(MAX_PAGE_SIZE)
-                .append("&pageNo=1");
+                .append("&pageNo=").append(Math.max(1, pageNo));
         for (Map.Entry<String, String> e : extraParams.entrySet()) {
             if (e.getValue() == null || e.getValue().isBlank()) continue;
             url.append("&").append(e.getKey()).append("=")
@@ -167,14 +207,6 @@ public class VisitKoreaDurunubiHttpClient implements DurunubiPort {
                     raw.length() > 200 ? raw.substring(0, 200) : raw);
             return null;
         }
-    }
-
-    private static List<VisitKoreaDurunubiResponse.Item> safeItems(VisitKoreaDurunubiResponse parsed) {
-        if (parsed.getResponse() == null) return List.of();
-        if (parsed.getResponse().getBody() == null) return List.of();
-        if (parsed.getResponse().getBody().getItems() == null) return List.of();
-        List<VisitKoreaDurunubiResponse.Item> item = parsed.getResponse().getBody().getItems().getItem();
-        return item == null ? List.of() : item;
     }
 
     private static DurunubiCourse toCourse(VisitKoreaDurunubiResponse.Item i) {

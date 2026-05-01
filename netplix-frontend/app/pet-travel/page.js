@@ -46,8 +46,10 @@ const AREA_CODES = [
   { code: '34', label: '충남' },
 ];
 
-const NATIONAL_FEATURED = ['1', '6', '31', '39', '32', '35'];
-const AREA_LABEL = Object.fromEntries(AREA_CODES.map((a) => [a.code, a.label]));
+/** 전국 탭: 모든 광역시·도(AREA_CODES 중 code 있음)를 각각 한 섹션으로 노출 */
+const NATIONAL_AREA_CODES = AREA_CODES.filter((a) => a.code != null).map((a) => a.code);
+/** PETWALK 가로 스트립에 보여 줄 두루누비 코스 수 (백엔드 상한 300) */
+const PETWALK_TREK_LIMIT = 48;
 
 /** 햇살 방사형 광선 한 줄. */
 function SunRay({ rotation = 0, delay = 0 }) {
@@ -631,7 +633,7 @@ export default function PetTravelPage() {
         <PetCinemaCurationStrip />
 
         {selected == null ? (
-          NATIONAL_FEATURED.map((code, idx) => (
+          NATIONAL_AREA_CODES.map((code, idx) => (
             <motion.section
               key={code}
               initial={{ opacity: 0, y: 20 }}
@@ -673,7 +675,7 @@ export default function PetTravelPage() {
                 badgeLabel="PetWalk"
                 title="반려와 산책 삼아 걷기 좋은 코스"
                 subtitle={`${AREA_LABEL[code]} 인근 두루누비 코스`}
-                limit={6}
+                limit={PETWALK_TREK_LIMIT}
               />
             </motion.section>
           ))
@@ -715,7 +717,7 @@ export default function PetTravelPage() {
               badgeLabel="PetWalk"
               title="반려와 산책 삼아 걷기 좋은 코스"
               subtitle={`${AREA_LABEL[selected]} 인근 두루누비 코스`}
-              limit={6}
+              limit={PETWALK_TREK_LIMIT}
             />
           </motion.section>
         )}

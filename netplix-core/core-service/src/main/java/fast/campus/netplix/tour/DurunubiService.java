@@ -15,7 +15,8 @@ import java.util.List;
 public class DurunubiService implements GetDurunubiUseCase {
 
     private static final int DEFAULT_LIMIT = 20;
-    private static final int MAX_LIMIT = 100;
+    /** courseList 전량 수집 후에도 클라이언트가 한 번에 많이 쓸 수 있도록 상향 */
+    private static final int MAX_LIMIT = 300;
 
     private final DurunubiPort port;
 

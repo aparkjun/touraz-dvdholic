@@ -703,7 +703,7 @@ export default function TravelCourseModal({
                   <NearbyTrekkingStrip
                     areaCode={m.areaCode}
                     regionName={regionName}
-                    limit={6}
+                    limit={18}
                   />
                 </section>
               );

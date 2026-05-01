@@ -26,7 +26,7 @@ import java.util.List;
  * <p>엔드포인트 (비로그인 노출 가능, SecurityConfig 의 {@code /api/v1/tour/**} permitAll 규칙 적용):
  * <ul>
  *   <li>GET /api/v1/tour/trekking/routes?limit=20 — 길(해파랑/남파랑/서해랑/DMZ 등) 목록</li>
- *   <li>GET /api/v1/tour/trekking/courses?brdDiv=DNWW&routeIdx=...&keyword=해운대&limit=30 — 코스 목록</li>
+ *   <li>GET /api/v1/tour/trekking/courses?brdDiv=DNWW&routeIdx=...&keyword=해운대&limit=48 — 코스 목록</li>
  *   <li>GET /api/v1/tour/trekking/status — serviceKey 및 URL 설정 여부</li>
  * </ul>
  *
@@ -56,7 +56,7 @@ public class TrekkingController {
             @RequestParam(required = false) String routeIdx,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String areaCode,
-            @RequestParam(defaultValue = "24") int limit) {
+            @RequestParam(defaultValue = "48") int limit) {
         List<DurunubiCourseResponse> body = useCase.courses(brdDiv, routeIdx, keyword, areaCode, limit).stream()
                 .map(DurunubiCourseResponse::from)
                 .toList();
