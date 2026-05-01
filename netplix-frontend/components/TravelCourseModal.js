@@ -155,17 +155,24 @@ export default function TravelCourseModal({
           width: 44px;
           height: 44px;
           border-radius: 22px;
-          border: 1px solid rgba(255,255,255,0.18);
-          background: rgba(10,10,15,0.92);
+          border: none;
+          background: transparent;
           color: #fff;
           display: flex;
           align-items: center;
           justify-content: center;
           cursor: pointer;
           z-index: 10;
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
-          box-shadow: 0 6px 18px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
+          box-shadow: none;
+          backdrop-filter: none;
+          -webkit-backdrop-filter: none;
+        }
+        .tc-modal-close:hover {
+          color: rgba(255, 255, 255, 0.92);
+        }
+        .tc-modal-close:focus-visible {
+          outline: 2px solid rgba(196, 181, 253, 0.7);
+          outline-offset: 2px;
         }
         .tc-modal-header {
           display: flex;
