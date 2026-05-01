@@ -112,6 +112,21 @@ public class CineTripController {
     }
 
     /**
+     * 매핑 행 수(mappingRowCount) vs 고유 영화 수(uniqueMovieCount).
+     * /count 는 전자만 반환해 “총 N편”과 숫자가 어긋나 보일 수 있어 본 API로 설명을 보완한다.
+     */
+    @GetMapping("/stats")
+    public NetplixApiResponse<CineTripUseCase.CineTripCatalogStats> catalogStats() {
+        return NetplixApiResponse.ok(cineTripUseCase.catalogStats());
+    }
+
+    /** DB에 촬영지·지역 매핑이 있는 고유 영화 제목 전체(가나다순). 검증·투명성용. */
+    @GetMapping("/movies")
+    public NetplixApiResponse<List<String>> allMappedMovieTitles() {
+        return NetplixApiResponse.ok(cineTripUseCase.listAllMappedMovieTitles());
+    }
+
+    /**
      * TMDB 영화 메타에서 한국 지역명을 regex 매칭해 AUTO 매핑을 일괄 생성한다. (관리자 전용)
      *
      * <p>Heroku H12(30초) 타임아웃을 피하기 위해 즉시 반환하고 실제 스캔은 {@code @Async} 로

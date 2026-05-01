@@ -51,6 +51,14 @@ public interface CineTripUseCase {
     /** 자동 매핑 진행 상황 스냅샷. 프론트는 이걸 폴링하여 UI 갱신. */
     AutoMappingProgress getAutoMappingProgress();
 
+    /** DB의 (영화·지역·유형) 매핑 행 수와 고유 영화 제목 수. 카드(편) 수는 후자와 같다. */
+    CineTripCatalogStats catalogStats();
+
+    /** 고유 영화 제목 전체 — 투명성/검증용(가나다순). */
+    List<String> listAllMappedMovieTitles();
+
+    record CineTripCatalogStats(long mappingRowCount, long uniqueMovieCount) {}
+
     enum AutoMappingPhase { IDLE, RUNNING, COMPLETED, FAILED }
 
     record AutoMappingProgress(

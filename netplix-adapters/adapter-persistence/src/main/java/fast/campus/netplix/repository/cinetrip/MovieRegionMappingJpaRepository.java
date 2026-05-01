@@ -22,4 +22,17 @@ public interface MovieRegionMappingJpaRepository extends JpaRepository<MovieRegi
             order by m.trendingScore desc, m.confidence desc, m.id asc
             """)
     List<MovieRegionMappingEntity> findTopTrending(Pageable pageable);
+
+    /** {@link #findTopTrending(Pageable)} 과 동일 정렬, 페이징 없이 전체 (큐레이션 전량 로드용). */
+    @Query("""
+            select m from MovieRegionMappingEntity m
+            order by m.trendingScore desc, m.confidence desc, m.id asc
+            """)
+    List<MovieRegionMappingEntity> findAllOrderByTrending();
+
+    @Query("select count(distinct m.movieName) from MovieRegionMappingEntity m where m.movieName is not null and m.movieName <> ''")
+    long countDistinctMovieNames();
+
+    @Query("select distinct m.movieName from MovieRegionMappingEntity m where m.movieName is not null and m.movieName <> '' order by m.movieName asc")
+    List<String> findDistinctMovieNamesOrdered();
 }

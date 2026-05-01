@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useRef, Suspense, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MapPin,
@@ -840,6 +840,8 @@ function CineTripPageInner() {
 
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  /** 전국 탭 전용: DB 매핑 행 수 vs 고유 영화 수 (/api/v1/cine-trip/stats). */
+  const [catalogStats, setCatalogStats] = useState(null);
   const [selectedAreaCode, setSelectedAreaCode] = useState(areaParam || null);
   // URL 의 movie= 로 진입한 경우에만 스포트라이트 배너를 렌더.
   // 사용자가 닫으면 다시 나타나지 않음.
@@ -856,6 +858,33 @@ function CineTripPageInner() {
   // 필터/스포트라이트가 바뀌어 items 가 새로 들어오면 visibleCount 리셋.
   useEffect(() => {
     setVisibleCount(CARDS_INITIAL_BATCH);
+  }, [selectedAreaCode]);
+
+  useEffect(() => {
+    if (selectedAreaCode != null) {
+      setCatalogStats(null);
+      return;
+    }
+    let alive = true;
+    (async () => {
+      try {
+        const res = await axios.get('/api/v1/cine-trip/stats');
+        const s = res?.data?.data;
+        if (
+          alive &&
+          s &&
+          typeof s.mappingRowCount === 'number' &&
+          typeof s.uniqueMovieCount === 'number'
+        ) {
+          setCatalogStats(s);
+        }
+      } catch {
+        if (alive) setCatalogStats(null);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, [selectedAreaCode]);
 
   // sentinel 이 가로 스크롤 컨테이너 안에서 보일 때 24장씩 추가.
@@ -921,6 +950,20 @@ function CineTripPageInner() {
       alive = false;
     };
   }, [selectedAreaCode]);
+
+  const gridTotalLabel = useMemo(() => {
+    if (loading || items.length === 0) return '';
+    if (selectedAreaCode) {
+      return t('cineTrip.movieGridTotalRegion', { count: items.length });
+    }
+    if (catalogStats && typeof catalogStats.mappingRowCount === 'number') {
+      return t('cineTrip.movieGridTotalNationwide', {
+        count: items.length,
+        mappingCount: catalogStats.mappingRowCount,
+      });
+    }
+    return t('cineTrip.movieGridTotal', { count: items.length });
+  }, [loading, items.length, selectedAreaCode, catalogStats, t]);
 
   return (
     <div
@@ -1183,9 +1226,9 @@ function CineTripPageInner() {
               textShadow: '0 2px 6px rgba(220, 38, 38, 0.25)',
             }}
             aria-live="polite"
-            aria-label={t('cineTrip.movieGridTotal', { count: items.length })}
+            aria-label={gridTotalLabel}
           >
-            {t('cineTrip.movieGridTotal', { count: items.length })}
+            {gridTotalLabel}
           </div>
         )}
 

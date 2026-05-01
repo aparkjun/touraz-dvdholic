@@ -38,9 +38,10 @@ public class CineTripService implements CineTripUseCase {
     @Cacheable(value = "cineTripCuration", key = "'default:' + #limit")
     public List<CineTripItem> curate(int limit) {
         int safe = clampLimit(limit);
-        // limit 이 전체(MAX_VALUE)면 곱셈 overflow 방지, 아니면 영화당 여러 지역 매핑을 고려해 3배수.
-        int queryLimit = (safe > Integer.MAX_VALUE / 3) ? Integer.MAX_VALUE : safe * 3;
-        List<MovieRegionMapping> top = mappingPort.findTopTrending(queryLimit);
+        // limit<=0(전체): JPA Pageable.MAX 를 쓰지 않고 전 행을 같은 정렬로 로드해 영화 단위 큐레이션을 빠짐없이 만든다.
+        List<MovieRegionMapping> top = (limit <= 0)
+                ? mappingPort.findAllOrderByTrending()
+                : mappingPort.findTopTrending((safe > Integer.MAX_VALUE / 3) ? Integer.MAX_VALUE : safe * 3);
         if (top.isEmpty()) return List.of();
 
         Map<String, List<MovieRegionMapping>> byMovie = groupByMovie(top);
@@ -268,6 +269,17 @@ public class CineTripService implements CineTripUseCase {
     @Override
     public CineTripUseCase.AutoMappingProgress getAutoMappingProgress() {
         return autoMappingService.progressSnapshot();
+    }
+
+    @Override
+    public CineTripUseCase.CineTripCatalogStats catalogStats() {
+        return new CineTripUseCase.CineTripCatalogStats(
+                mappingPort.count(), mappingPort.countDistinctMovieNames());
+    }
+
+    @Override
+    public List<String> listAllMappedMovieTitles() {
+        return mappingPort.findDistinctMovieNamesOrdered();
     }
 
     private int clampLimit(int limit) {

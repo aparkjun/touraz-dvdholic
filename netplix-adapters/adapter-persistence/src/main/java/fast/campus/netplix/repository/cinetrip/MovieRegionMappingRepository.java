@@ -59,6 +59,12 @@ public class MovieRegionMappingRepository implements MovieRegionMappingPort {
 
     @Override
     @Transactional(readOnly = true)
+    public List<MovieRegionMapping> findAllOrderByTrending() {
+        return jpa.findAllOrderByTrending().stream().map(MovieRegionMappingEntity::toDomain).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<MovieRegionMapping> findAll() {
         return jpa.findAll().stream().map(MovieRegionMappingEntity::toDomain).toList();
     }
@@ -67,5 +73,17 @@ public class MovieRegionMappingRepository implements MovieRegionMappingPort {
     @Transactional(readOnly = true)
     public long count() {
         return jpa.count();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countDistinctMovieNames() {
+        return jpa.countDistinctMovieNames();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<String> findDistinctMovieNamesOrdered() {
+        return jpa.findDistinctMovieNamesOrdered();
     }
 }

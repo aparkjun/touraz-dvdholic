@@ -16,7 +16,14 @@ public interface MovieRegionMappingPort {
      */
     List<MovieRegionMapping> findTopTrending(int limit);
 
+    /** 트렌딩 정렬 전체 행 — limit 없이 큐레이션할 때 사용. */
+    List<MovieRegionMapping> findAllOrderByTrending();
+
     List<MovieRegionMapping> findAll();
 
     long count();
+
+    long countDistinctMovieNames();
+
+    List<String> findDistinctMovieNamesOrdered();
 }
