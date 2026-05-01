@@ -928,7 +928,13 @@ function CineTripPageInner() {
       className="cinetrip-page"
       style={{
         minHeight: '100vh',
-        background: '#0a0a0a',
+        // 페이지 배경: 딥 인디고 + 핑크/앰버 글로우 → 사진/포스터는 어두운 캔버스 위에서
+        // 또렷하게 보이면서도 전체적으로 활기찬 톤. 하단으로 갈수록 살짝 어두워지도록.
+        background:
+          'radial-gradient(1200px 600px at 15% -10%, rgba(236, 72, 153, 0.10), transparent 60%),' +
+          'radial-gradient(1000px 500px at 100% -10%, rgba(251, 191, 36, 0.08), transparent 60%),' +
+          'radial-gradient(900px 500px at 50% 110%, rgba(96, 165, 250, 0.10), transparent 60%),' +
+          'linear-gradient(180deg, #11111e 0%, #0c0c18 60%, #08080f 100%)',
         color: '#fff',
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
       }}
@@ -989,7 +995,12 @@ function CineTripPageInner() {
         ]}
       />
 
-      {/* 지역 필터 (마퀴 하단, 영화관 좌석 라인처럼 배치) */}
+      {/* 지역 필터 — 밝고 경쾌한 팔레트:
+       *   - 컨테이너: 핑크→퍼플→블루 부드러운 그라데이션 + blur 로 페이지 검정 위에서 떠 보이도록
+       *   - 비활성 버튼: 흰색 글래스 (컨테이너 대비 강한 대조 → 무조건 보임)
+       *   - 활성 버튼: 핫핑크→앰버 비비드 그라데이션 + 글로우
+       *   - pill 모양 (border-radius 999) 으로 부드럽고 캔디 같은 느낌
+       */}
       <div
         id="cinetrip-region-filter"
         style={{
@@ -997,10 +1008,11 @@ function CineTripPageInner() {
           top: 0,
           zIndex: 20,
           background:
-            'linear-gradient(180deg, rgba(10, 10, 26, 0.92) 0%, rgba(10, 10, 26, 0.88) 100%)',
-          backdropFilter: 'blur(14px)',
-          borderBottom: '1px solid rgba(212, 175, 55, 0.18)',
-          boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)',
+            'linear-gradient(135deg, rgba(244, 114, 182, 0.18) 0%, rgba(167, 139, 250, 0.18) 50%, rgba(96, 165, 250, 0.18) 100%), rgba(15, 15, 30, 0.7)',
+          backdropFilter: 'blur(20px) saturate(1.4)',
+          WebkitBackdropFilter: 'blur(20px) saturate(1.4)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.14)',
+          boxShadow: '0 8px 24px rgba(167, 139, 250, 0.18)',
           padding: '14px 20px',
         }}
       >
@@ -1008,7 +1020,7 @@ function CineTripPageInner() {
           style={{
             display: 'flex',
             flexWrap: 'wrap',
-            gap: 8,
+            gap: 10,
             justifyContent: 'center',
             maxWidth: 1100,
             margin: '0 auto',
@@ -1020,26 +1032,27 @@ function CineTripPageInner() {
               <motion.button
                 key={region.label}
                 onClick={() => setSelectedAreaCode(region.areaCode)}
-                whileHover={{ scale: 1.05, y: -1 }}
-                whileTap={{ scale: 0.96 }}
+                whileHover={{ scale: 1.06, y: -2 }}
+                whileTap={{ scale: 0.95 }}
                 style={{
-                  padding: '7px 16px',
-                  borderRadius: 2,
+                  padding: '8px 18px',
+                  borderRadius: 999,
                   border: active
-                    ? '1px solid #d4af37'
-                    : '1px solid rgba(212, 175, 55, 0.22)',
+                    ? '1.5px solid rgba(255, 255, 255, 0.85)'
+                    : '1.5px solid rgba(255, 255, 255, 0.5)',
                   background: active
-                    ? 'linear-gradient(135deg, #c41e3a 0%, #9b162d 100%)'
-                    : 'rgba(10, 10, 26, 0.6)',
-                  color: active ? '#fef3c7' : 'rgba(245, 245, 220, 0.78)',
-                  fontSize: 12.5,
+                    ? 'linear-gradient(135deg, #ec4899 0%, #f97316 50%, #fbbf24 100%)'
+                    : 'rgba(255, 255, 255, 0.95)',
+                  color: active ? '#fff' : '#1f2937',
+                  fontSize: 13,
                   fontWeight: 800,
-                  letterSpacing: '0.06em',
+                  letterSpacing: '0.02em',
                   cursor: 'pointer',
-                  transition: 'all 0.2s ease',
+                  transition: 'all 0.25s ease',
                   boxShadow: active
-                    ? '0 6px 20px -8px rgba(196, 30, 58, 0.7)'
-                    : 'none',
+                    ? '0 8px 22px -4px rgba(236, 72, 153, 0.55), 0 0 0 4px rgba(251, 191, 36, 0.18)'
+                    : '0 2px 8px rgba(0, 0, 0, 0.25)',
+                  textShadow: active ? '0 1px 2px rgba(0, 0, 0, 0.2)' : 'none',
                 }}
               >
                 {region.label}
