@@ -58,10 +58,19 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
 
   return (
     <section style={{ marginTop: 32, marginBottom: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+          marginBottom: 8,
+        }}
+      >
         <Camera size={20} style={{ color: '#f59e0b' }} />
-        <h3 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: 0 }}>{title}</h3>
-        <span style={{ fontSize: 12, color: '#888' }}>한국관광공사 관광공모전 수상작</span>
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: '#fff', margin: 0, textAlign: 'center' }}>
+          {title}
+        </h3>
       </div>
 
       {!loading && photos.length > 0 && (
