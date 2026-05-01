@@ -100,7 +100,14 @@ export default function useDragScrollAll(containerRef) {
 
       const onDown = (e) => {
         if (e.pointerType === "mouse" && e.button !== 0) return;
-        if (e.cancelable) {
+
+        // 터치(pen 포함)에서는 pointerdown 에 preventDefault 를 걸지 않는다.
+        // - 일부 WebView 에서 자식 버튼/카드의 click 합성을 방해해
+        //   "한 번 탭이 안 먹는" 현상을 일으킨다.
+        // - 가로 스와이프 차단은 CSS `touch-action: pan-y` 가 처리한다.
+        // - 텍스트 선택 방지는 CSS `user-select: none` 가 처리한다.
+        // 마우스 드래그에서는 텍스트 선택을 막기 위해 그대로 preventDefault 한다.
+        if (e.pointerType === "mouse" && e.cancelable) {
           try { e.preventDefault(); } catch {}
         }
 

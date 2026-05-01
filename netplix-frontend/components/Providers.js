@@ -2,17 +2,17 @@
 import '@/lib/i18n';
 import { detectAndApplyLanguage } from '@/lib/i18n';
 import { useEffect } from 'react';
-import { initFastTap } from '@/lib/useFastTap';
 
 export default function Providers({ children }) {
   useEffect(() => {
     detectAndApplyLanguage();
   }, []);
 
-  useEffect(() => {
-    const cleanup = initFastTap();
-    return cleanup;
-  }, []);
+  // NOTE: 과거 initFastTap (touchend → manual click) 폴리필을 사용했으나,
+  // 모던 모바일 WebView (iOS WKWebView / Android WebView)에서는 globals.css 의
+  // `touch-action: manipulation` 만으로도 300ms 지연이 제거된다.
+  // 폴리필이 합성 click 을 추가로 발생시켜 한 번의 탭이 두 번의 click 으로
+  // 처리되는 더블탭/토글 무반응 버그가 발생하므로 제거함.
 
   useEffect(() => {
     const EDGE_PX = 30;

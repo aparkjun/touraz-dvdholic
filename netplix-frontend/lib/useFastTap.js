@@ -1,65 +1,23 @@
 /**
- * 전역 한 번 터치로 즉시 반응하도록 하는 polyfill.
- * iOS/Android에서 300ms 터치 지연을 제거하고, 탭 시 즉시 click 이벤트를 발생시킵니다.
+ * [Deprecated] FastTap 폴리필.
+ *
+ * 과거에는 iOS/Android 의 300ms 터치 지연(double-tap zoom 인식 대기)을
+ * 제거하기 위해 touchend 에서 수동으로 click() 을 합성했다.
+ *
+ * 그러나 globals.css 에서 모든 클릭 가능 요소(button, a, [role="button"],
+ * .js-fast-tap …)에 `touch-action: manipulation` 을 적용하고 있으며,
+ * 모던 모바일 브라우저(iOS WKWebView / Android WebView 포함)는 이 한 줄만으로
+ * 300ms 지연을 제거한다.
+ *
+ * 폴리필을 함께 사용하면 한 번의 탭에 대해
+ *   1) 우리가 합성한 click()
+ *   2) 브라우저가 발생시킨 native click
+ * 이 둘 다 실행되어 "두 번 탭한 것처럼" 동작하는 버그가 발생한다.
+ * (메뉴 열렸다 즉시 닫힘, 토글 버튼 무반응, 모달 깜빡임 등)
+ *
+ * 그래서 본 폴리필은 비활성화하였다. import 하는 곳에서 깨지지 않도록
+ * `initFastTap` 시그니처는 유지하되 아무 동작도 하지 않는다.
  */
-let touchStartX = 0;
-let touchStartY = 0;
-let touchStartT = 0;
-
-const TAP_THRESHOLD_PX = 30;
-const TAP_THRESHOLD_MS = 500;
-
-function isClickable(el) {
-  if (!el || !el.closest) return false;
-  const tag = el.tagName?.toLowerCase();
-  const role = el.getAttribute?.("role");
-  const clickable = el.closest?.(
-    "button, a[href], [role='button'], [onclick], .ds-btn, .app-chip, .tab-content, .js-fast-tap, [tabindex='0']"
-  );
-  return (
-    tag === "button" ||
-    tag === "a" ||
-    role === "button" ||
-    el.onclick != null ||
-    !!clickable
-  );
-}
-
-function handleTouchStart(e) {
-  if (e.touches?.length) {
-    touchStartX = e.touches[0].clientX;
-    touchStartY = e.touches[0].clientY;
-    touchStartT = Date.now();
-  }
-}
-
-function handleTouchEnd(e) {
-  const target = e.target;
-  if (!isClickable(target)) return;
-
-  const touch = e.changedTouches?.[0];
-  if (!touch) return;
-
-  const dx = Math.abs(touch.clientX - touchStartX);
-  const dy = Math.abs(touch.clientY - touchStartY);
-  const dt = Date.now() - touchStartT;
-
-  if (dx <= TAP_THRESHOLD_PX && dy <= TAP_THRESHOLD_PX && dt <= TAP_THRESHOLD_MS) {
-    const clickable = target.closest?.(
-      "button, a[href], [role='button'], [onclick], .ds-btn, .app-chip, .tab-content, .js-fast-tap, [tabindex='0']"
-    ) || target;
-    if (clickable && !clickable.disabled) {
-      e.preventDefault();
-      clickable.click();
-    }
-  }
-}
-
 export function initFastTap() {
-  document.addEventListener("touchstart", handleTouchStart, { passive: true });
-  document.addEventListener("touchend", handleTouchEnd, { passive: false });
-  return () => {
-    document.removeEventListener("touchstart", handleTouchStart);
-    document.removeEventListener("touchend", handleTouchEnd);
-  };
+  return () => {};
 }
