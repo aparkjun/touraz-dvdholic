@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --font-app: "D2Coding", "D2 Coding", monospace;
+}
+
 * {
   margin: 0;
   padding: 0;
@@ -216,6 +220,7 @@ html {
   overscroll-behavior-x: none;
   overscroll-behavior-y: none;
   -webkit-overflow-scrolling: touch;
+  font-family: var(--font-app);
 }
 
 body {
@@ -229,7 +234,7 @@ body {
 }
 
 body {
-  font-family: "D2Coding", "D2 Coding", monospace;
+  font-family: var(--font-app);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background: #09090b;
@@ -237,7 +242,16 @@ body {
 }
 
 code {
-  font-family: "D2Coding", "D2 Coding", monospace;
+  font-family: var(--font-app);
+}
+
+/* 서드파티·폼 컨트롤이 body 폰트를 덮지 않도록 */
+button,
+input,
+textarea,
+select,
+optgroup {
+  font-family: inherit;
 }
 
 :root {

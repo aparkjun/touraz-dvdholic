@@ -8,6 +8,10 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
+      fontFamily: {
+        sans: ['"D2Coding"', '"D2 Coding"', 'monospace'],
+        mono: ['"D2Coding"', '"D2 Coding"', 'monospace'],
+      },
       colors: {
         background: 'var(--background)',
         foreground: 'var(--foreground)',

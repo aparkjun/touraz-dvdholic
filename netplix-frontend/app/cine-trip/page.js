@@ -936,7 +936,7 @@ function CineTripPageInner() {
           'radial-gradient(900px 500px at 50% 110%, rgba(96, 165, 250, 0.10), transparent 60%),' +
           'linear-gradient(180deg, #11111e 0%, #0c0c18 60%, #08080f 100%)',
         color: '#fff',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontFamily: 'var(--font-app)',
       }}
     >
       <style>{`

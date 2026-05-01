@@ -363,6 +363,8 @@ export default function CineTripCinematicHero({
     return [...result, ...result]; // 무한 스크롤을 위해 2배 복제
   }, [posters]);
 
+  const D2_FONT = '"D2Coding", "D2 Coding", monospace';
+
   return (
     <section
       style={{
@@ -374,8 +376,7 @@ export default function CineTripCinematicHero({
           'linear-gradient(180deg, #080814 0%, #0a0a1a 45%, #05050e 100%)',
         overflow: 'hidden',
         color: '#f5f5dc',
-        fontFamily:
-          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Apple SD Gothic Neo", sans-serif',
+        fontFamily: D2_FONT,
       }}
     >
       <Scanlines />
@@ -522,7 +523,7 @@ export default function CineTripCinematicHero({
               top: -18,
               fontSize: 64,
               color: 'rgba(196, 30, 58, 0.28)',
-              fontFamily: 'Georgia, "Times New Roman", serif',
+              fontFamily: D2_FONT,
               lineHeight: 1,
             }}
           >
@@ -559,7 +560,7 @@ export default function CineTripCinematicHero({
               bottom: -38,
               fontSize: 64,
               color: 'rgba(196, 30, 58, 0.28)',
-              fontFamily: 'Georgia, "Times New Roman", serif',
+              fontFamily: D2_FONT,
               lineHeight: 1,
             }}
           >

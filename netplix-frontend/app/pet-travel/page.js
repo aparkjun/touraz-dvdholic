@@ -149,8 +149,7 @@ export default function PetTravelPage() {
       style={{
         minHeight: '100vh',
         color: '#0f172a',
-        fontFamily:
-          '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        fontFamily: 'var(--font-app)',
         position: 'relative',
         overflow: 'hidden',
         background:

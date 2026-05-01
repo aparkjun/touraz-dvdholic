@@ -238,6 +238,7 @@ export default function TravelPortalButton({
           color: #f8fafc;
           overflow: hidden;
           min-height: 178px;
+          font-family: var(--font-app);
         }
         .${uid}-shine {
           position: absolute;

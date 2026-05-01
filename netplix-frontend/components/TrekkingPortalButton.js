@@ -298,6 +298,7 @@ export default function TrekkingPortalButton({
           color: #f0fdf4;
           overflow: hidden;
           min-height: 178px;
+          font-family: var(--font-app);
         }
         .${uid}-shine {
           position: absolute;
