@@ -69,6 +69,9 @@ export default function ConcentrationForecastStrip({ areaCode = null, regionLabe
         borderRadius: 16,
         background: 'linear-gradient(135deg, rgba(59,130,246,0.10) 0%, rgba(139,92,246,0.08) 100%)',
         border: '1px solid rgba(139,92,246,0.22)',
+        overflow: 'hidden',
+        boxSizing: 'border-box',
+        maxWidth: '100%',
       }}
     >
       <div
@@ -108,38 +111,65 @@ export default function ConcentrationForecastStrip({ areaCode = null, regionLabe
         </span>
       </div>
 
+      {/* 모달 등 좁은 폭에서 그리드 min-content 합이 넘치지 않도록 minWidth:0 + 오른쪽 여백 */}
       {loading ? (
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(7, 1fr)',
-            gap: 8,
-            height: 120,
+            width: '100%',
+            maxWidth: '100%',
+            minWidth: 0,
+            boxSizing: 'border-box',
+            paddingLeft: 0,
+            paddingRight: 20,
           }}
         >
-          {Array.from({ length: 7 }).map((_, i) => (
-            <div
-              key={i}
-              style={{
-                borderRadius: 8,
-                background: 'linear-gradient(90deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%)',
-                backgroundSize: '200% 100%',
-                animation: 'cinetrip-shimmer 1.5s infinite',
-              }}
-            />
-          ))}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
+              gap: 6,
+              height: 120,
+              minWidth: 0,
+            }}
+          >
+            {Array.from({ length: 7 }).map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  minWidth: 0,
+                  borderRadius: 8,
+                  background:
+                    'linear-gradient(90deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%)',
+                  backgroundSize: '200% 100%',
+                  animation: 'cinetrip-shimmer 1.5s infinite',
+                }}
+              />
+            ))}
+          </div>
         </div>
       ) : (
         <div
           style={{
-            display: 'grid',
-            gridTemplateColumns: `repeat(${Math.min(predictions.length, 7)}, 1fr)`,
-            gap: 8,
+            width: '100%',
+            maxWidth: '100%',
+            minWidth: 0,
+            boxSizing: 'border-box',
+            paddingLeft: 0,
+            paddingRight: 20,
           }}
         >
-          {predictions.slice(0, 7).map((p, idx) => (
-            <ForecastBar key={p.baseDate || idx} prediction={p} index={idx} />
-          ))}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${Math.min(predictions.length, 7)}, minmax(0, 1fr))`,
+              gap: 6,
+              minWidth: 0,
+            }}
+          >
+            {predictions.slice(0, 7).map((p, idx) => (
+              <ForecastBar key={p.baseDate || idx} prediction={p} index={idx} />
+            ))}
+          </div>
         </div>
       )}
 
@@ -214,14 +244,21 @@ function ForecastBar({ prediction, index }) {
         flexDirection: 'column',
         alignItems: 'center',
         gap: 6,
+        minWidth: 0,
+        width: '100%',
+        maxWidth: '100%',
       }}
     >
       <div
         style={{
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: 700,
           color: '#fff',
-          textShadow: `0 0 10px ${color}66`,
+          textShadow: `0 0 8px ${color}55`,
+          maxWidth: '100%',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
         }}
       >
         {rate != null ? rate.toFixed(1) : '-'}
@@ -248,9 +285,26 @@ function ForecastBar({ prediction, index }) {
           }}
         />
       </div>
-      <div style={{ textAlign: 'center', lineHeight: 1.1 }}>
-        <div style={{ fontSize: 11, color: '#cfcfcf' }}>{fmt?.label || '-'}</div>
-        <div style={{ fontSize: 10, color: '#888' }}>{fmt?.dow || ''}</div>
+      <div
+        style={{
+          textAlign: 'center',
+          lineHeight: 1.1,
+          width: '100%',
+          minWidth: 0,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 10,
+            color: '#cfcfcf',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {fmt?.label || '-'}
+        </div>
+        <div style={{ fontSize: 9, color: '#888' }}>{fmt?.dow || ''}</div>
       </div>
     </motion.div>
   );
