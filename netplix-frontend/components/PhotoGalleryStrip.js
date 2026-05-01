@@ -364,8 +364,8 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
                 aria-label="닫기"
                 style={{
                   position: 'absolute',
-                  // 이미지 영역과 겹침 완화: 상단 라운드 코너에 더 붙이기 (safe area 반영)
-                  top: 'max(6px, env(safe-area-inset-top, 0px))',
+                  // 이미지 영역과 겹침 완화: 상단·코너에 더 붙임 (safe area 유지, 인셋 없을 때 최소 2px)
+                  top: 'max(2px, env(safe-area-inset-top, 0px))',
                   right: 12,
                   width: 44,
                   height: 44,
