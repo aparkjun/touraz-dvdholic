@@ -432,26 +432,6 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
                     willChange: 'transform',
                   }}
                 />
-                {zoom > 1 && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 12,
-                      left: 12,
-                      padding: '4px 10px',
-                      borderRadius: 999,
-                      background: 'rgba(10, 10, 15, 0.7)',
-                      color: '#fef3c7',
-                      fontSize: 12,
-                      fontWeight: 700,
-                      backdropFilter: 'blur(6px)',
-                      WebkitBackdropFilter: 'blur(6px)',
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    {`${zoom.toFixed(1)}x`}
-                  </div>
-                )}
               </div>
               <div style={{ padding: 20 }}>
                 <h4 style={{ fontSize: 20, fontWeight: 700, color: '#fff', margin: '0 0 8px' }}>
