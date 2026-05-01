@@ -9,7 +9,6 @@ import {
   Sparkles,
   TrendingUp,
   ArrowRight,
-  ExternalLink,
   Search,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -587,7 +586,6 @@ export default function TravelCourseModal({
                         }}
                       >
                         <KakaoMapLogo size={22} dark />
-                        <ExternalLink size={12} style={{ opacity: 0.65 }} />
                       </motion.a>
                     )}
                     {naver && (
@@ -610,7 +608,6 @@ export default function TravelCourseModal({
                         }}
                       >
                         <NaverNLogo size={22} />
-                        <ExternalLink size={12} style={{ opacity: 0.85 }} />
                       </motion.a>
                     )}
                     {google && (
@@ -634,7 +631,6 @@ export default function TravelCourseModal({
                         }}
                       >
                         <GoogleGLogo size={22} />
-                        <ExternalLink size={12} style={{ opacity: 0.75 }} />
                       </motion.a>
                     )}
                   </div>

@@ -12,7 +12,6 @@ import {
   Ear,
   Baby,
   X,
-  ExternalLink,
   Navigation,
   Landmark,
 } from 'lucide-react';

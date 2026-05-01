@@ -12,7 +12,6 @@ import {
   Landmark,
   Trees,
   X,
-  ExternalLink,
   AlertTriangle,
   CheckCircle2,
 } from 'lucide-react';
