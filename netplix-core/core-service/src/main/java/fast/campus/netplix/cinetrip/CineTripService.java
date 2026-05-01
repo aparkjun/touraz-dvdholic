@@ -12,8 +12,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +39,7 @@ public class CineTripService implements CineTripUseCase {
     private TourPhotoPort tourPhotoPort;
 
     @Override
-    @Cacheable(value = "cineTripCuration", key = "'default:' + #limit")
+    @Cacheable(value = "cineTripCuration", key = "'releaseDesc:' + #limit")
     public List<CineTripItem> curate(int limit) {
         int safe = clampLimit(limit);
         // limit<=0(전체): JPA Pageable.MAX 를 쓰지 않고 전 행을 같은 정렬로 로드해 영화 단위 큐레이션을 빠짐없이 만든다.
@@ -72,10 +76,8 @@ public class CineTripService implements CineTripUseCase {
                     .build());
             if (result.size() >= safe) break;
         }
-        result.sort((a, b) -> Double.compare(
-                b.getTrendingScore() == null ? 0.0 : b.getTrendingScore(),
-                a.getTrendingScore() == null ? 0.0 : a.getTrendingScore()));
-        log.info("[CINE-TRIP] curate limit={} -> {}건", safe, result.size());
+        sortCineTripItemsNewestFirst(result);
+        log.info("[CINE-TRIP] curate limit={} -> {}건 (개봉일 최신순)", safe, result.size());
         return result;
     }
 
@@ -111,11 +113,8 @@ public class CineTripService implements CineTripUseCase {
                     .build());
             if (result.size() >= safe) break;
         }
-        // 트렌딩 스코어 내림차순 정렬 (스텁 포함 전체 결과)
-        result.sort((a, b) -> Double.compare(
-                b.getTrendingScore() == null ? 0.0 : b.getTrendingScore(),
-                a.getTrendingScore() == null ? 0.0 : a.getTrendingScore()));
-        log.info("[CINE-TRIP] curateByRegion area={} -> {}건 (매핑 {}건, 포스터폴백 {}장)",
+        sortCineTripItemsNewestFirst(result);
+        log.info("[CINE-TRIP] curateByRegion area={} -> {}건 (매핑 {}건, 포스터폴백 {}장, 개봉일 최신순)",
                 areaCode, result.size(), regional.size(), fallbackPosters.size());
         return result;
     }
@@ -344,5 +343,60 @@ public class CineTripService implements CineTripUseCase {
     private double parseDouble(String s, double fallback) {
         if (s == null || s.isBlank()) return fallback;
         try { return Double.parseDouble(s); } catch (Exception e) { return fallback; }
+    }
+
+    /**
+     * 카드 목록을 TMDB/카탈로그 {@link NetplixMovie#getReleaseDate()} 기준 최신순.
+     * 개봉일 없음(스텁·미동기화)은 맨 뒤, 동순위는 트렌딩 점수·제목.
+     */
+    private static void sortCineTripItemsNewestFirst(List<CineTripItem> result) {
+        Comparator<CineTripItem> cmp = Comparator
+                .comparing(CineTripService::releaseDateForSort, Comparator.nullsLast(Comparator.naturalOrder()))
+                .reversed()
+                .thenComparing(it -> it.getTrendingScore() != null ? it.getTrendingScore() : 0.0,
+                        Comparator.reverseOrder())
+                .thenComparing(it -> it.getMovie() != null && it.getMovie().getMovieName() != null
+                        ? it.getMovie().getMovieName() : "", Comparator.naturalOrder());
+        result.sort(cmp);
+    }
+
+    private static LocalDate releaseDateForSort(CineTripItem item) {
+        if (item == null || item.getMovie() == null) return null;
+        NetplixMovie m = item.getMovie();
+        LocalDate d = parseFlexibleDate(m.getReleaseDate());
+        if (d != null) return d;
+        return parseFlexibleDate(m.getReleasedAt());
+    }
+
+    private static LocalDate parseFlexibleDate(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String s = raw.trim();
+        if (s.length() >= 10) {
+            try {
+                return LocalDate.parse(s.substring(0, 10));
+            } catch (DateTimeParseException ignored) {
+                // fall through
+            }
+        }
+        DateTimeFormatter[] formatters = {
+                DateTimeFormatter.ISO_LOCAL_DATE,
+                DateTimeFormatter.ofPattern("yyyy.MM.dd"),
+                DateTimeFormatter.ofPattern("yyyy/MM/dd"),
+        };
+        for (DateTimeFormatter f : formatters) {
+            try {
+                return LocalDate.parse(s, f);
+            } catch (DateTimeParseException ignored) {
+                // try next
+            }
+        }
+        if (s.length() == 4 && s.chars().allMatch(Character::isDigit)) {
+            try {
+                return LocalDate.of(Integer.parseInt(s), 1, 1);
+            } catch (Exception ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 }

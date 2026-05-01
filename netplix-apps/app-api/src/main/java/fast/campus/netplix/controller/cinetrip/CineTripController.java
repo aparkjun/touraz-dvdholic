@@ -19,8 +19,8 @@ import java.util.Map;
 
 /**
  * CineTrip 큐레이션 API.
- * - GET /curate: 전체 트렌딩 기반 큐레이션
- * - GET /region/{areaCode}: 특정 지자체의 영화 큐레이션
+ * - GET /curate: 전체 큐레이션 (영화 개봉일 최신순, 동순위 트렌딩)
+ * - GET /region/{areaCode}: 특정 지자체의 영화 큐레이션 (개봉일 최신순)
  * - GET /movie: 특정 영화의 연결 지역 카드
  * - POST /import (인증): CSV 업로드로 매핑 시드
  * - GET /count: 현재 매핑 수 (디버그/대시보드용)
