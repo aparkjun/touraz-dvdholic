@@ -254,7 +254,10 @@
       "horror-dvd": "👻 Horror DVDs",
       "sf-dvd": "🚀 Sci-Fi DVDs",
       "anime-dvd": "🎌 Anime DVDs"
-    }
+    },
+    "musicCategoryBridgeLine": "You watched it in the theater—when the music and concert scenes linger, the story continues on location: audio tours for your ears, CineTrip for real filming spots.",
+    "musicCategoryBridgeAudio": "Open audio guide",
+    "musicCategoryBridgeCineTrip": "CineTrip locations"
   },
   "dvdStores": {
     "title": "Find DVD Stores",

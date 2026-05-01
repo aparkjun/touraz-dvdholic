@@ -254,7 +254,10 @@
       "horror-dvd": "👻 공포 DVD",
       "sf-dvd": "🚀 SF DVD",
       "anime-dvd": "🎌 애니메이션 DVD"
-    }
+    },
+    "musicCategoryBridgeLine": "영화는 극장에서 감상하고, 뮤지컬·콘서트 장면이 생생했다면 이야기는 현지에서—오디오 가이드로 귀를 열고, 촬영·배경지는 CineTrip에서 이어 보세요.",
+    "musicCategoryBridgeAudio": "오디오 가이드 열기",
+    "musicCategoryBridgeCineTrip": "촬영지 CineTrip"
   },
   "dvdStores": {
     "title": "DVD매장 찾기",

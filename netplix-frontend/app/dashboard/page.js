@@ -1700,6 +1700,65 @@ function DashboardContent() {
                   </span>
                 )}
               </h3>
+              {cat.id === "music" && (
+                <div
+                  style={{
+                    marginBottom: "12px",
+                    padding: "12px 14px",
+                    borderRadius: "12px",
+                    background: "linear-gradient(135deg, rgba(139,92,246,0.14), rgba(245,158,11,0.09))",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: 0,
+                      marginBottom: "10px",
+                      fontSize: "13px",
+                      color: palette.textMuted,
+                      lineHeight: 1.55,
+                    }}
+                  >
+                    {t("dashboard.musicCategoryBridgeLine")}
+                  </p>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                    <button
+                      type="button"
+                      className="js-fast-tap"
+                      onClick={() => router.push("/audio-guide")}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: "10px",
+                        border: "1px solid rgba(167,139,250,0.45)",
+                        background: "rgba(99,102,241,0.2)",
+                        color: "#e9d5ff",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {t("dashboard.musicCategoryBridgeAudio")}
+                    </button>
+                    <button
+                      type="button"
+                      className="js-fast-tap"
+                      onClick={() => router.push("/cine-trip")}
+                      style={{
+                        padding: "8px 14px",
+                        borderRadius: "10px",
+                        border: "1px solid rgba(251,191,36,0.4)",
+                        background: "rgba(245,158,11,0.15)",
+                        color: "#fde68a",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {t("dashboard.musicCategoryBridgeCineTrip")}
+                    </button>
+                  </div>
+                </div>
+              )}
               <div
                 className="dashboard-scroll-row"
                 style={{
