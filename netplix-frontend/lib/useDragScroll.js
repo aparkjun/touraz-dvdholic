@@ -22,12 +22,14 @@ const SELECTOR = ".dashboard-scroll-row, .cinetrip-scroll-row, .js-drag-scroll";
 
 // 엔진 튜닝 파라미터(감각은 체감 기반)
 const DRAG_THRESHOLD_PX = 6;
-const MOMENTUM_DECAY = 0.93;          // 관성 감속(값이 작을수록 빨리 멈춤)
+/** 포인터 이동 1px당 스크롤 거리 배율(>1이면 같은 제스처로 더 빨리 넘김) */
+const DRAG_SCROLL_MULTIPLIER = 1.45;
+const MOMENTUM_DECAY = 0.945;         // 관성 감속(1에 가까울수록 멀리 미끄러짐)
 const MOMENTUM_CUTOFF = 0.4;          // 관성 종료 임계 속도(px/frame)
-const RELEASE_VELOCITY_BOOST = 1.15;  // 손 뗄 때 속도 부스트(튀는 느낌 방지)
-const MAX_VELOCITY_PX_PER_FRAME = 48; // 관성 상한
-const WHEEL_HORIZONTAL_RATIO = 1.0;   // 휠 델타를 수평 스크롤로 변환하는 비율
-const WHEEL_MOMENTUM_DECAY = 0.88;    // 휠 이후 관성 감속
+const RELEASE_VELOCITY_BOOST = 1.28;  // 손 뗄 때 관성 시작 속도
+const MAX_VELOCITY_PX_PER_FRAME = 72; // 관성 상한(px/frame)
+const WHEEL_HORIZONTAL_RATIO = 1.25; // 트랙패드/Shift휠 수평 스크롤 강도
+const WHEEL_MOMENTUM_DECAY = 0.9;     // 휠 이후 관성 감속
 
 export default function useDragScrollAll(containerRef) {
   useEffect(() => {
@@ -140,14 +142,15 @@ export default function useDragScrollAll(containerRef) {
         // 속도 측정 (지수 이동평균으로 지터 완화)
         const now = performance.now();
         const dt = Math.max(now - s.prevTime, 1);
-        const instantVel = ((s.prevX - e.clientX) / dt) * 16; // 16ms 기준 px/frame
+        const instantVel =
+          ((s.prevX - e.clientX) / dt) * 16 * DRAG_SCROLL_MULTIPLIER; // 관성이 화면 속도와 맞도록 동일 배율
         s.velX = s.velX * 0.5 + instantVel * 0.5;
         s.prevX = e.clientX;
         s.prevTime = now;
         s.currentX = e.clientX;
 
         // 목표 scrollLeft 만 갱신 — 실제 반영은 rAF 에서 한 번에
-        s.pendingTarget = s.startScrollLeft - dx;
+        s.pendingTarget = s.startScrollLeft - dx * DRAG_SCROLL_MULTIPLIER;
       };
 
       const onUp = () => {
