@@ -1168,9 +1168,8 @@ function CineTripPageInner() {
         />
 
         {/*
-         * 총 컨텐츠 수 카운터: 현재 필터/로케일 조합에서 화면에 노출되는 영화 카드 총 개수.
-         * - 자동 매핑(AUTO) 집계 반영을 즉시 체감할 수 있도록 그리드 바로 위 중앙에 빨간색 강조.
-         * - 로딩 중/빈 상태에서는 숨겨 UX 혼선을 막는다.
+         * 총 컨텐츠 수 카운터: 현재 지역 필터에서 실제 촬영지가 매칭된 영화(카드) 개수.
+         * 문구에 무엇을 세는지(영화·촬영지 등록)를 넣어 “총 N편” 단독 표시 혼선을 막는다.
          */}
         {!loading && items.length > 0 && (
           <div
@@ -1184,8 +1183,9 @@ function CineTripPageInner() {
               textShadow: '0 2px 6px rgba(220, 38, 38, 0.25)',
             }}
             aria-live="polite"
+            aria-label={t('cineTrip.movieGridTotal', { count: items.length })}
           >
-            {isEn ? `Total ${items.length} titles` : `총 ${items.length}편`}
+            {t('cineTrip.movieGridTotal', { count: items.length })}
           </div>
         )}
 

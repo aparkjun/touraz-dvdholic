@@ -701,6 +701,7 @@
         "findLocations": "Find Locations"
       }
     },
+    "movieGridTotal": "{{count}} films with real filming locations in Korea",
     "engSpots": {
       "title": "Travel Spots Around This Film",
       "subtitle": "Handpicked places in {{region}}",

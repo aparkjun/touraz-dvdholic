@@ -205,7 +205,7 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
           }}
           aria-live="polite"
         >
-          {`총 ${photos.length}편`}
+          {`관광공모전 수상 사진 · 총 ${photos.length}점`}
         </div>
       )}
 
