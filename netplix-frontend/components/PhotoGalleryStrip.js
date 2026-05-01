@@ -364,7 +364,8 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
                 aria-label="닫기"
                 style={{
                   position: 'absolute',
-                  top: 12,
+                  // 이미지 영역과 겹침 완화: 상단 라운드 코너에 더 붙이기 (safe area 반영)
+                  top: 'max(6px, env(safe-area-inset-top, 0px))',
                   right: 12,
                   width: 44,
                   height: 44,
@@ -376,7 +377,7 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  zIndex: 10,
+                  zIndex: 20,
                   backdropFilter: 'blur(10px)',
                   WebkitBackdropFilter: 'blur(10px)',
                   boxShadow: '0 6px 18px rgba(0,0,0,0.6)',
