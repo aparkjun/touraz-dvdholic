@@ -37,10 +37,11 @@ public class TourPhotoService implements GetTourPhotosUseCase {
         return tourPhotoPort.fetchAll(sanitizeLimit(limit));
     }
 
-    // 어댑터 캐시(MAX_PAGE_SIZE=200) 가 사실상 전체 데이터셋이므로 서비스 레벨에서
-    // 임의의 50 캡을 걸지 않는다. limit <= 0 이면 전체(=200 상한) 반환.
+    // 어댑터가 KTO totalCount 만큼 전 페이지를 메모리에 적재하므로 서비스 레벨의
+    // 인위적 캡(이전 200) 을 제거. limit <= 0 이면 어댑터에서 캐시 전량 반환.
+    // 양수가 들어오면 그대로 어댑터에 전달해 상위 limit 만 슬라이스.
     private int sanitizeLimit(int limit) {
-        if (limit <= 0) return 200;
-        return Math.min(limit, 200);
+        if (limit <= 0) return Integer.MAX_VALUE;
+        return limit;
     }
 }

@@ -13,6 +13,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -23,18 +24,26 @@ import java.util.stream.Collectors;
 /**
  * 한국관광공사 관광공모전(사진) 수상작 HTTP 어댑터.
  *
- * <p>전략: 원본 데이터셋이 100건 이하로 작아 페이지 1회 전량 로딩 후 메모리에서 필터링.
+ * <p>전략: KTO PhokoAwrdService 의 totalCount 만큼 모든 페이지를 순회해 메모리에 적재 후 필터링.
  * - 콜드 스타트 시 @PostConstruct 로 프리워밍(실패해도 기동 계속)
  * - {@code cache-minutes}(기본 1440 = 24h) 지나면 다음 호출 시 지연 재조회
  * - serviceKey 미설정 시 {@link #isConfigured()} false, 모든 조회가 빈 리스트 반환
+ *
+ * <p>과거에는 페이지 1회만 호출하고 numOfRows=200 으로 잘랐다. 그러나 KTO 가
+ * 매년 신규 수상작을 추가 적재하면서 200 건을 넘어서기 시작했고, 결과적으로
+ * 프런트의 "전국 수상작 포토스팟" 이 항상 같은 36~200 건만 보이는 문제가 발생.
+ * 이제 totalCount 를 신뢰해 전 페이지를 누적하되, 안전을 위해 최대 페이지 수
+ * 상한을 두어 무한 루프(잘못된 totalCount, 401, 한도 초과)를 차단한다.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class VisitKoreaPhokoHttpClient implements TourPhotoPort {
 
-    // 조회 1회에 받을 수 있는 상한. 데이터 총량이 작아 200 이면 충분.
-    private static final int MAX_PAGE_SIZE = 200;
+    // 페이지당 가져올 row 수. KTO 가 numOfRows 상한을 명시하지 않지만 200 정도가 안정 범위.
+    private static final int PAGE_SIZE = 200;
+    // 안전 상한 — 페이지 50 * 200 = 10,000 건이면 PhokoAwrdService 데이터셋을 충분히 덮는다.
+    private static final int MAX_PAGES = 50;
 
     // KorService2 areaCode → 법정동 광역코드(lDongRegnCd) 매핑.
     // 서비스 전반의 CineTrip UI 가 KorService2 체계(1~8/31~39) 를 쓰는 반면
@@ -148,55 +157,76 @@ public class VisitKoreaPhokoHttpClient implements TourPhotoPort {
             cache.set(CacheSnapshot.empty());
             return;
         }
-        String url = awardListUrl
-                + (awardListUrl.contains("?") ? "&" : "?")
-                + "serviceKey=" + serviceKey
-                + "&_type=json"
-                + "&MobileOS=ETC"
-                + "&MobileApp=touraz-dvdholic"
-                + "&numOfRows=" + MAX_PAGE_SIZE
-                + "&pageNo=1";
 
-        String raw;
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.add(HttpHeaders.ACCEPT, "application/json");
-            raw = httpClient.request(url, HttpMethod.GET, headers, Map.of());
-        } catch (Exception ex) {
-            log.error("[PHOKO] 호출 실패 err={}", ex.getMessage());
-            return;
+        List<TourPhoto> accumulated = new ArrayList<>();
+        Integer reportedTotal = null;
+
+        for (int pageNo = 1; pageNo <= MAX_PAGES; pageNo++) {
+            String url = awardListUrl
+                    + (awardListUrl.contains("?") ? "&" : "?")
+                    + "serviceKey=" + serviceKey
+                    + "&_type=json"
+                    + "&MobileOS=ETC"
+                    + "&MobileApp=touraz-dvdholic"
+                    + "&numOfRows=" + PAGE_SIZE
+                    + "&pageNo=" + pageNo;
+
+            String raw;
+            try {
+                HttpHeaders headers = new HttpHeaders();
+                headers.add(HttpHeaders.ACCEPT, "application/json");
+                raw = httpClient.request(url, HttpMethod.GET, headers, Map.of());
+            } catch (Exception ex) {
+                log.error("[PHOKO] 호출 실패 page={} err={}", pageNo, ex.getMessage());
+                break;
+            }
+
+            if (raw == null || raw.isBlank()) {
+                log.warn("[PHOKO] 빈 응답 page={}", pageNo);
+                break;
+            }
+
+            VisitKoreaPhokoResponse parsed;
+            try {
+                String safe = raw.replace("\"items\":\"\"", "\"items\":null");
+                parsed = ObjectMapperUtil.toObject(safe, VisitKoreaPhokoResponse.class);
+            } catch (Exception ex) {
+                log.error("[PHOKO] 파싱 실패 page={} err={}", pageNo, ex.getMessage());
+                break;
+            }
+
+            if (parsed == null || parsed.getResponse() == null
+                    || parsed.getResponse().getBody() == null
+                    || parsed.getResponse().getBody().getItems() == null
+                    || parsed.getResponse().getBody().getItems().getItem() == null) {
+                if (pageNo == 1) {
+                    log.info("[PHOKO] items 없음 - 캐시 비움");
+                    cache.set(CacheSnapshot.empty());
+                    return;
+                }
+                break;
+            }
+
+            List<TourPhoto> page = parsed.getResponse().getBody().getItems().getItem().stream()
+                    .filter(i -> i.getOrgImage() != null || i.getThumbImage() != null)
+                    .map(VisitKoreaPhokoHttpClient::toDomain)
+                    .collect(Collectors.toList());
+
+            if (page.isEmpty()) break;
+            accumulated.addAll(page);
+
+            if (reportedTotal == null) {
+                reportedTotal = parsed.getResponse().getBody().getTotalCount();
+            }
+
+            // 마지막 페이지 검출: ① totalCount 신뢰, ② 페이지가 PAGE_SIZE 미만이면 종료.
+            if (reportedTotal != null && accumulated.size() >= reportedTotal) break;
+            if (page.size() < PAGE_SIZE) break;
         }
 
-        if (raw == null || raw.isBlank()) {
-            log.warn("[PHOKO] 빈 응답");
-            return;
-        }
-
-        VisitKoreaPhokoResponse parsed;
-        try {
-            String safe = raw.replace("\"items\":\"\"", "\"items\":null");
-            parsed = ObjectMapperUtil.toObject(safe, VisitKoreaPhokoResponse.class);
-        } catch (Exception ex) {
-            log.error("[PHOKO] 파싱 실패 err={}", ex.getMessage());
-            return;
-        }
-
-        if (parsed == null || parsed.getResponse() == null
-                || parsed.getResponse().getBody() == null
-                || parsed.getResponse().getBody().getItems() == null
-                || parsed.getResponse().getBody().getItems().getItem() == null) {
-            log.info("[PHOKO] items 없음 - 캐시 비움");
-            cache.set(CacheSnapshot.empty());
-            return;
-        }
-
-        List<TourPhoto> photos = parsed.getResponse().getBody().getItems().getItem().stream()
-                .filter(i -> i.getOrgImage() != null || i.getThumbImage() != null)
-                .map(VisitKoreaPhokoHttpClient::toDomain)
-                .collect(Collectors.toList());
-
-        cache.set(new CacheSnapshot(Collections.unmodifiableList(photos), Instant.now().toEpochMilli()));
-        log.info("[PHOKO] 캐시 갱신 - {} 건", photos.size());
+        cache.set(new CacheSnapshot(Collections.unmodifiableList(accumulated), Instant.now().toEpochMilli()));
+        log.info("[PHOKO] 캐시 갱신 - {} 건 (KTO totalCount={})",
+                accumulated.size(), reportedTotal == null ? "?" : reportedTotal.toString());
     }
 
     private static TourPhoto toDomain(VisitKoreaPhokoResponse.Item i) {

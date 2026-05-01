@@ -1071,9 +1071,10 @@ function CineTripPageInner() {
 
         <PhotoGalleryStrip
           areaCode={selectedAreaCode}
-          // 200 → 36 으로 축소: 모바일에서 200 장 동시 디코딩 시 메모리 한계 직격.
-          // 라이트박스/드래그 스크롤 UX 는 36 장으로도 충분히 풍성.
-          limit={36}
+          // limit=0 → 백엔드 캐시 전량 반환 (KTO PhokoAwrdService totalCount 만큼).
+          // 카드 자체는 200x140 썸네일이고 <img loading="lazy"> 가 가로 스크롤 뷰포트 진입 시에만
+          // 디코딩하므로, 수백 건이라도 동시 메모리 부담은 화면에 보이는 ~10장 수준.
+          limit={0}
           title={
             selectedAreaCode
               ? `${REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''} 수상작 포토스팟`

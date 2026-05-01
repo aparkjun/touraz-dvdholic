@@ -16,7 +16,8 @@ import java.util.List;
  *
  * <p>퍼블릭 엔드포인트 (비로그인 노출 가능):
  * <ul>
- *   <li>GET /api/v1/cine-trip/photos?limit=12 - 전체</li>
+ *   <li>GET /api/v1/cine-trip/photos?limit=12 - 상위 12 건</li>
+ *   <li>GET /api/v1/cine-trip/photos?limit=0  - 캐시 전량 반환 (KTO totalCount 만큼)</li>
  *   <li>GET /api/v1/cine-trip/photos?areaCode=6 - KorService2 areaCode 필터</li>
  *   <li>GET /api/v1/cine-trip/photos?lDongRegnCd=26 - 법정동 광역코드 필터</li>
  *   <li>GET /api/v1/cine-trip/photos?q=가야산 - 키워드 검색</li>
