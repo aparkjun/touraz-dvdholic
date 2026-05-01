@@ -13,11 +13,14 @@ import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
@@ -81,6 +84,10 @@ public class VisitKoreaPhokoHttpClient implements TourPhotoPort {
 
     private final AtomicReference<CacheSnapshot> cache = new AtomicReference<>(CacheSnapshot.empty());
 
+    // 일자별 셔플 결과 캐시. 같은 날에는 모든 사용자가 같은 순서를 보고, 자정이 넘어가면
+    // KST 기준 epochDay 시드가 바뀌어 자동으로 새 순서가 만들어진다.
+    private final AtomicReference<DailyView> dailyView = new AtomicReference<>(null);
+
     @Override
     public boolean isConfigured() {
         return serviceKey != null && !serviceKey.isBlank()
@@ -103,14 +110,13 @@ public class VisitKoreaPhokoHttpClient implements TourPhotoPort {
 
     @Override
     public List<TourPhoto> fetchAll(int limit) {
-        List<TourPhoto> all = getCachedOrRefresh();
-        return take(all, limit);
+        return take(getDailyShuffled(), limit);
     }
 
     @Override
     public List<TourPhoto> fetchByLDongRegnCd(String lDongRegnCd, int limit) {
         if (lDongRegnCd == null || lDongRegnCd.isBlank()) return fetchAll(limit);
-        List<TourPhoto> filtered = getCachedOrRefresh().stream()
+        List<TourPhoto> filtered = getDailyShuffled().stream()
                 .filter(p -> lDongRegnCd.equals(p.getLDongRegnCd()))
                 .collect(Collectors.toList());
         return take(filtered, limit);
@@ -131,12 +137,35 @@ public class VisitKoreaPhokoHttpClient implements TourPhotoPort {
     public List<TourPhoto> fetchByKeyword(String keyword, int limit) {
         if (keyword == null || keyword.isBlank()) return fetchAll(limit);
         String needle = keyword.toLowerCase(Locale.ROOT);
-        List<TourPhoto> matched = getCachedOrRefresh().stream()
+        List<TourPhoto> matched = getDailyShuffled().stream()
                 .filter(p -> containsCI(p.getTitle(), needle)
                         || containsCI(p.getFilmSite(), needle)
                         || containsCI(p.getKeywords(), needle))
                 .collect(Collectors.toList());
         return take(matched, limit);
+    }
+
+    /**
+     * KTO 데이터셋이 1년에 한 번만 갱신되는 정적 컬렉션이라, 캐시를 그대로 내려주면
+     * 사용자가 매일 같은 사진을 같은 순서로 보게 된다. 그래서 KST 기준 오늘의 epochDay
+     * 를 시드로 한 결정적 셔플을 적용해 매일 첫 화면이 다르게 보이도록 한다.
+     *
+     * <p>같은 날 동안에는 모든 사용자가 같은 순서를 보고 새로고침해도 순서가 유지된다.
+     * 자정(KST) 이 지나면 자동으로 시드가 바뀌어 다음 호출 시 새 순서가 산출된다.
+     */
+    private List<TourPhoto> getDailyShuffled() {
+        List<TourPhoto> raw = getCachedOrRefresh();
+        if (raw.isEmpty()) return raw;
+        long today = LocalDate.now(ZoneId.of("Asia/Seoul")).toEpochDay();
+        DailyView dv = dailyView.get();
+        if (dv != null && dv.epochDay == today && dv.photos.size() == raw.size()) {
+            return dv.photos;
+        }
+        List<TourPhoto> shuffled = new ArrayList<>(raw);
+        Collections.shuffle(shuffled, new Random(today));
+        List<TourPhoto> immutable = Collections.unmodifiableList(shuffled);
+        dailyView.set(new DailyView(immutable, today));
+        return immutable;
     }
 
     private List<TourPhoto> getCachedOrRefresh() {
@@ -261,4 +290,9 @@ public class VisitKoreaPhokoHttpClient implements TourPhotoPort {
             return new CacheSnapshot(List.of(), 0L);
         }
     }
+
+    /**
+     * 일자별 셔플 결과 스냅샷. epochDay 가 오늘과 다르면 재셔플 후 교체.
+     */
+    private record DailyView(List<TourPhoto> photos, long epochDay) {}
 }
