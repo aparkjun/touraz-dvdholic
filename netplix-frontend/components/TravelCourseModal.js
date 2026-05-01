@@ -64,6 +64,22 @@ const googleSearchUrl = (movieName, regionName) => {
   return `https://www.google.com/search?q=${encodeURIComponent(keyword)}`;
 };
 
+/**
+ * CineTrip 스텁(매핑만 있고 TMDB/DB 카탈로그에 없음)은 /dashboard/images 가 비어
+ * "영화 정보를 찾을 수 없습니다"만 보인다. 카탈로그에 실제 행이 있을 때만 상세 CTA 노출.
+ */
+function hasCatalogMovieSummary(movie) {
+  if (!movie?.movieName) return false;
+  if (typeof movie.overview === 'string' && movie.overview.trim()) return true;
+  if (typeof movie.genre === 'string' && movie.genre.trim()) return true;
+  if (typeof movie.tagline === 'string' && movie.tagline.trim()) return true;
+  if (movie.voteAverage != null && Number.isFinite(Number(movie.voteAverage))) return true;
+  if (typeof movie.movieNameEn === 'string' && movie.movieNameEn.trim()) return true;
+  if (typeof movie.releasedAt === 'string' && movie.releasedAt.trim()) return true;
+  if (typeof movie.backdropPath === 'string' && movie.backdropPath.trim()) return true;
+  return false;
+}
+
 export default function TravelCourseModal({
   movie,
   mappings = [],
@@ -100,11 +116,12 @@ export default function TravelCourseModal({
   const indexByArea = new Map(regionIndices.map((r) => [r.areaCode, r]));
 
   const openMovieDetail = () => {
-    if (!movie?.movieName) return;
+    if (!hasCatalogMovieSummary(movie)) return;
     router.push(
       `/dashboard/images?movieName=${encodeURIComponent(movie.movieName)}&contentType=movie`
     );
   };
+  const showMovieDetailCta = hasCatalogMovieSummary(movie);
 
   if (!mounted || typeof document === 'undefined') return null;
 
@@ -382,32 +399,34 @@ export default function TravelCourseModal({
                 <TrendingUp size={12} style={{ color: '#c4b5fd' }} /> 트렌딩{' '}
                 <b style={{ color: '#fff', fontSize: 13 }}>{score.toFixed(1)}</b>
               </span>
-              <motion.button
-                type="button"
-                onClick={openMovieDetail}
-                whileHover={{ y: -2, scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                className="tc-modal-detail-btn"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '9px 14px',
-                  borderRadius: 12,
-                  border: '1px solid rgba(168,85,247,0.45)',
-                  background:
-                    'linear-gradient(135deg, rgba(168,85,247,0.25), rgba(236,72,153,0.25))',
-                  color: '#fff',
-                  fontSize: 13,
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  letterSpacing: '-0.01em',
-                  boxShadow:
-                    '0 8px 22px rgba(168,85,247,0.25), inset 0 1px 0 rgba(255,255,255,0.08)',
-                }}
-              >
-                영화 상세로 <ArrowRight size={14} />
-              </motion.button>
+              {showMovieDetailCta && (
+                <motion.button
+                  type="button"
+                  onClick={openMovieDetail}
+                  whileHover={{ y: -2, scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="tc-modal-detail-btn"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '9px 14px',
+                    borderRadius: 12,
+                    border: '1px solid rgba(168,85,247,0.45)',
+                    background:
+                      'linear-gradient(135deg, rgba(168,85,247,0.25), rgba(236,72,153,0.25))',
+                    color: '#fff',
+                    fontSize: 13,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    letterSpacing: '-0.01em',
+                    boxShadow:
+                      '0 8px 22px rgba(168,85,247,0.25), inset 0 1px 0 rgba(255,255,255,0.08)',
+                  }}
+                >
+                  영화 상세로 <ArrowRight size={14} />
+                </motion.button>
+              )}
             </div>
           </div>
         </div>
