@@ -48,6 +48,10 @@ const AREA_CODES = [
 
 /** 전국 탭: 모든 광역시·도(AREA_CODES 중 code 있음)를 각각 한 섹션으로 노출 */
 const NATIONAL_AREA_CODES = AREA_CODES.filter((a) => a.code != null).map((a) => a.code);
+/** 지역 코드 → 짧은 이름 (스트립 제목·라벨용) */
+const AREA_LABEL = Object.fromEntries(
+  AREA_CODES.filter((a) => a.code != null).map((a) => [a.code, a.label])
+);
 /** PETWALK 가로 스트립에 보여 줄 두루누비 코스 수 (백엔드 상한 300) */
 const PETWALK_TREK_LIMIT = 48;
 
