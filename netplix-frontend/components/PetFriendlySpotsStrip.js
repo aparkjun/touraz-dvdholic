@@ -13,12 +13,12 @@ import {
   Trees,
   X,
   ExternalLink,
-  Navigation,
   AlertTriangle,
   CheckCircle2,
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
+import { KakaoMapLogo, NaverNLogo } from '@/components/BrandMapSearchIcons';
 
 /**
  * CineTrip 상세 모달 / 반려동물 전용 페이지에서 공용으로 쓰는 "반려동물 친화 스팟" 스트립.
@@ -660,9 +660,11 @@ function PetFriendlyPoiDetailModal({ summary, bucket, onClose }) {
                   href={kakaoMapUrl}
                   target="_blank"
                   rel="noreferrer"
+                  aria-label="카카오맵에서 열기"
+                  title="카카오맵"
                   style={extLinkStyle('#fbbf24')}
                 >
-                  <Navigation size={13} /> 카카오맵
+                  <KakaoMapLogo size={20} />
                 </a>
               )}
               {naverSearchUrl && (
@@ -670,9 +672,11 @@ function PetFriendlyPoiDetailModal({ summary, bucket, onClose }) {
                   href={naverSearchUrl}
                   target="_blank"
                   rel="noreferrer"
+                  aria-label="네이버에서 검색"
+                  title="네이버 검색"
                   style={extLinkStyle('#10b981')}
                 >
-                  <ExternalLink size={13} /> 네이버 검색
+                  <NaverNLogo size={20} />
                 </a>
               )}
             </div>

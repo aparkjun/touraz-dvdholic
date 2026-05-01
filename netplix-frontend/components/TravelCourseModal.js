@@ -11,9 +11,9 @@ import {
   ArrowRight,
   ExternalLink,
   Search,
-  Map as MapIcon,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { KakaoMapLogo, NaverNLogo, GoogleGLogo } from '@/components/BrandMapSearchIcons';
 import ConcentrationForecastStrip from '@/components/ConcentrationForecastStrip';
 import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
 import AccessibleSpotsStrip from '@/components/AccessibleSpotsStrip';
@@ -575,6 +575,7 @@ export default function TravelCourseModal({
                         whileHover={{ y: -2, scale: 1.03 }}
                         whileTap={{ scale: 0.97 }}
                         title={`카카오맵에서 ${regionName} 보기`}
+                        aria-label={`카카오맵에서 ${regionName} 보기`}
                         className="tc-link-btn"
                         style={{
                           color: '#1a1a1a',
@@ -585,8 +586,7 @@ export default function TravelCourseModal({
                             '0 6px 18px rgba(254,229,0,0.25), inset 0 1px 0 rgba(255,255,255,0.6)',
                         }}
                       >
-                        <MapIcon size={15} />
-                        <span className="tc-link-label">카카오맵</span>
+                        <KakaoMapLogo size={22} dark />
                         <ExternalLink size={12} style={{ opacity: 0.65 }} />
                       </motion.a>
                     )}
@@ -598,6 +598,7 @@ export default function TravelCourseModal({
                         whileHover={{ y: -2, scale: 1.03 }}
                         whileTap={{ scale: 0.97 }}
                         title={`네이버에서 ${regionName} 검색`}
+                        aria-label={`네이버에서 ${regionName} 검색`}
                         className="tc-link-btn"
                         style={{
                           color: '#fff',
@@ -608,8 +609,7 @@ export default function TravelCourseModal({
                             '0 6px 18px rgba(3,199,90,0.3), inset 0 1px 0 rgba(255,255,255,0.25)',
                         }}
                       >
-                        <Search size={15} />
-                        <span className="tc-link-label">네이버</span>
+                        <NaverNLogo size={22} />
                         <ExternalLink size={12} style={{ opacity: 0.85 }} />
                       </motion.a>
                     )}
@@ -620,7 +620,8 @@ export default function TravelCourseModal({
                         rel="noopener noreferrer"
                         whileHover={{ y: -2, scale: 1.03 }}
                         whileTap={{ scale: 0.97 }}
-                        title={`Google 에서 ${regionName} 촬영지 검색`}
+                        title={`Google에서 ${regionName} 촬영지 검색`}
+                        aria-label={`Google에서 ${regionName} 촬영지 검색`}
                         className="tc-link-btn"
                         style={{
                           color: '#fff',
@@ -632,8 +633,7 @@ export default function TravelCourseModal({
                           backdropFilter: 'blur(6px)',
                         }}
                       >
-                        <Search size={15} />
-                        <span className="tc-link-label">Google</span>
+                        <GoogleGLogo size={22} />
                         <ExternalLink size={12} style={{ opacity: 0.75 }} />
                       </motion.a>
                     )}

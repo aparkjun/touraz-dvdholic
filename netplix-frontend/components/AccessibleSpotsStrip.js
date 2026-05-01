@@ -17,6 +17,7 @@ import {
   Landmark,
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
+import { KakaoMapLogo, NaverNLogo } from '@/components/BrandMapSearchIcons';
 import { useTranslation } from 'react-i18next';
 
 /**
@@ -642,9 +643,11 @@ function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
                   href={kakaoMapUrl}
                   target="_blank"
                   rel="noreferrer"
+                  aria-label="카카오맵에서 열기"
+                  title="카카오맵"
                   style={extLinkStyle('#fbbf24')}
                 >
-                  <Navigation size={13} /> 카카오맵
+                  <KakaoMapLogo size={20} />
                 </a>
               )}
               {naverSearchUrl && (
@@ -652,9 +655,11 @@ function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
                   href={naverSearchUrl}
                   target="_blank"
                   rel="noreferrer"
+                  aria-label="네이버에서 검색"
+                  title="네이버 검색"
                   style={extLinkStyle('#10b981')}
                 >
-                  <ExternalLink size={13} /> 네이버 검색
+                  <NaverNLogo size={20} />
                 </a>
               )}
             </div>
