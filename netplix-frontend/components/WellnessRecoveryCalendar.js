@@ -219,7 +219,6 @@ export default function WellnessRecoveryCalendar() {
 
 function QuietDayCard({ r, rank, delay }) {
   const color = levelColor(r.concentrationRate);
-  // KorService areaCode + 법정동 시군구 → 백엔드 /wellness?korArea&korSigungu 로 areaBasedList (지명 q 검색보다 안정적).
   const qs = new URLSearchParams();
   if (r.areaCode != null && String(r.areaCode).trim() !== '') {
     qs.set('korArea', String(r.areaCode).trim());
@@ -228,38 +227,42 @@ function QuietDayCard({ r, rank, delay }) {
     qs.set('korSigungu', String(r.signguCode).trim());
   }
   if (r.areaName) qs.set('q', r.areaName);
-  const dest = qs.toString() ? `/wellness?${qs.toString()}` : `/wellness`;
+  const dest = qs.toString() ? `/wellness?${qs.toString()}` : '/wellness';
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -4, scale: 1.02 }}
-      transition={{ duration: 0.32, delay }}
+    <Link
+      href={dest}
+      prefetch={true}
+      scroll
+      title={`${r.areaName || ''} 힐링 스팟으로 회복 시작`}
       style={{
-        position: 'relative',
+        display: 'block',
         borderRadius: 14,
-        overflow: 'hidden',
+        textDecoration: 'none',
+        color: 'inherit',
+        cursor: 'pointer',
+        WebkitTapHighlightColor: 'transparent',
       }}
     >
-      <Link
-        href={dest}
-        title={`${r.areaName} 힐링 스팟으로 회복 시작`}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        whileHover={{ y: -4, scale: 1.02 }}
+        transition={{ duration: 0.32, delay }}
         style={{
-          display: 'block',
           position: 'relative',
-          padding: 14,
           borderRadius: 14,
+          overflow: 'hidden',
+          padding: 14,
           background:
             'linear-gradient(180deg, rgba(10,20,30,0.7) 0%, rgba(10,20,30,0.45) 100%)',
           border: '1px solid rgba(255,255,255,0.08)',
-          textDecoration: 'none',
-          color: 'inherit',
-          overflow: 'hidden',
         }}
       >
         <div
           aria-hidden
           style={{
+            pointerEvents: 'none',
             position: 'absolute',
             top: -40,
             right: -40,
@@ -344,8 +347,8 @@ function QuietDayCard({ r, rank, delay }) {
         >
           이 지역 힐링 스팟 열기 →
         </div>
-      </Link>
-    </motion.div>
+      </motion.div>
+    </Link>
   );
 }
 

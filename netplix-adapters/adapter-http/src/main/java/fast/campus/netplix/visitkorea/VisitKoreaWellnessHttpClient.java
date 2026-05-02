@@ -172,7 +172,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
     @Override
     public List<WellnessSpot> fetchByKorAdministrativeArea(String korAreaCode, String signguCodeOrNull, int limit) {
         if (!isConfigured()) return List.of();
-        String ldong = KorServiceToLdong.lDongRegnCd(korAreaCode).orElse(null);
+        String ldong = KorServiceToLdong.ldongRegnForWellnessAreaParam(korAreaCode).orElse(null);
         if (ldong == null) {
             log.warn("[WELLNESS] 알 수 없는 korAreaCode={}", korAreaCode);
             return List.of();

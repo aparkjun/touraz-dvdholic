@@ -39,4 +39,22 @@ public final class KorServiceToLdong {
         String v = korServiceAreaCode.trim();
         return Optional.ofNullable(KOR_AREA_TO_LDONG_REGN.get(v));
     }
+
+    /**
+     * 웰니스 등에서 쿼리로 넘어온 값이 Kor 코드(1·31)이거나, 이미 법정동 광역 2자리(11·41)인 경우 모두 수용.
+     */
+    public static Optional<String> ldongRegnForWellnessAreaParam(String korOrLdongTwoDigit) {
+        if (korOrLdongTwoDigit == null || korOrLdongTwoDigit.isBlank()) {
+            return Optional.empty();
+        }
+        String v = korOrLdongTwoDigit.trim();
+        Optional<String> fromKor = lDongRegnCd(v);
+        if (fromKor.isPresent()) {
+            return fromKor;
+        }
+        if (v.matches("\\d{2}")) {
+            return Optional.of(v);
+        }
+        return Optional.empty();
+    }
 }
