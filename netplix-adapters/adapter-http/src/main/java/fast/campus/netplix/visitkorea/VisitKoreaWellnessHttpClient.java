@@ -216,13 +216,32 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
         return filterAllByAdministrative(ldong, signguCodeOrNull, limit, first == null ? "areaBasedList 실패(null)" : "areaBasedList 0건");
     }
 
-    /** KTO 행정 필터가 0건·실패할 때 전국 캐시에서 lDongRegnCd(+시군구) 로 맞춘다. */
+    /** KTO 행정 필터가 0건·실패할 때 전국 캐시에서 lDongRegnCd 로 맞춘다.
+     *
+     * <p>집중률 CTA 등은 「대표 시군구」코드(KTO 관광지 API)와 동일하게 넘기지만,
+     * 웰니스 목록에는 {@code sigunguCode}가 비어 있는 항목이 많아 시군구까지 걸면 0건이 되는 경우가 있다.
+     * 그럴 때는 같은 광역(lDong) 전체를 보여 준다.
+     */
     private List<WellnessSpot> filterAllByAdministrative(
             String ldongRegn, String signguOrNull, int limit, String reason) {
-        List<WellnessSpot> filtered = fetchAll(0).stream()
+        List<WellnessSpot> byLdong = fetchAll(0).stream()
                 .filter(s -> ldongRegn.equals(s.getAreaCode()))
-                .filter(s -> matchesSigungu(s.getSigunguCode(), signguOrNull))
                 .collect(Collectors.toList());
+
+        List<WellnessSpot> filtered;
+        if (signguOrNull == null || signguOrNull.isBlank()) {
+            filtered = byLdong;
+        } else {
+            filtered = byLdong.stream()
+                    .filter(s -> matchesSigungu(s.getSigunguCode(), signguOrNull))
+                    .collect(Collectors.toList());
+            if (filtered.isEmpty() && !byLdong.isEmpty()) {
+                log.info("[WELLNESS] 시군구={} 로 웰니스 POI 매칭 0건 → 광역 lDong={} 만으로 완화 ({}건)",
+                        signguOrNull.trim(), ldongRegn, byLdong.size());
+                filtered = byLdong;
+            }
+        }
+
         if (!filtered.isEmpty()) {
             log.info("[WELLNESS] {} → 전국 캐시 필터 폴백 ldong={} sigungu={} → {}건",
                     reason, ldongRegn, signguOrNull, filtered.size());
