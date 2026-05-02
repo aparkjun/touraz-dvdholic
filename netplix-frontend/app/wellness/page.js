@@ -115,15 +115,30 @@ function WellnessInner() {
   const [errored, setErrored] = useState(false);
   const [searchInput, setSearchInput] = useState(searchParams.get("q") || "");
   const [keyword, setKeyword] = useState(searchParams.get("q") || "");
-  /** 집중률 캘린더 CTA 등: KorService 광역코드 기반 목록 (/api/v1/wellness?korArea=&korSigungu=) */
-  const [korRegion, setKorRegion] = useState(null);
-
   const [nearbyMode, setNearbyMode] = useState(false);
   const [userPos, setUserPos] = useState(null);
   const [radiusKm, setRadiusKm] = useState(30);
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState("");
   const [locSource, setLocSource] = useState("");
+
+  /**
+   * 집중률 캘린더 CTA: URL 쿼리 korArea/korSigungu 를 즉시 반영 (useState+useEffect 는 한 틱 늦어
+   * 첫 요청이 limit=0 전체로 나가고 취소·재시도와 겹치며 errored 가 남는 경우가 있음).
+   */
+  const korRegionFromUrl = useMemo(() => {
+    if (nearbyMode) return null;
+    if (searchParams.get("nearby") === "true") return null;
+    const ka = searchParams.get("korArea");
+    const ks = searchParams.get("korSigungu");
+    if (ka != null && String(ka).trim() !== "") {
+      return {
+        area: String(ka).trim(),
+        sigungu: ks != null && String(ks).trim() !== "" ? String(ks).trim() : "",
+      };
+    }
+    return null;
+  }, [nearbyMode, searchParams]);
 
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef(null);
@@ -139,10 +154,10 @@ function WellnessInner() {
         setLoading(true);
         setErrored(false);
         const url =
-          korRegion && korRegion.area
+          korRegionFromUrl && korRegionFromUrl.area
             ? (() => {
-                const p = new URLSearchParams({ limit: "0", korArea: korRegion.area });
-                if (korRegion.sigungu) p.set("korSigungu", korRegion.sigungu);
+                const p = new URLSearchParams({ limit: "0", korArea: korRegionFromUrl.area });
+                if (korRegionFromUrl.sigungu) p.set("korSigungu", korRegionFromUrl.sigungu);
                 return `/api/v1/wellness?${p.toString()}`;
               })()
             : keyword.trim()
@@ -175,13 +190,12 @@ function WellnessInner() {
       }
     })();
     return () => { cancelled = true; };
-  }, [keyword, nearbyMode, korRegion]);
+  }, [keyword, nearbyMode, korRegionFromUrl]);
 
   const applyKeyword = useCallback((next) => {
     const v = (next || "").trim();
     setKeyword(v);
     setSearchInput(v);
-    setKorRegion(null);
     setNearbyMode(false);
     const qs = new URLSearchParams();
     if (v) qs.set("q", v);
@@ -246,7 +260,6 @@ function WellnessInner() {
     setLocSource("");
     setKeyword("");
     setSearchInput("");
-    setKorRegion(null);
     router.replace(`/wellness?nearby=true`);
 
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -280,23 +293,16 @@ function WellnessInner() {
     const qFromUrl = searchParams.get("q") ?? "";
     setKeyword(qFromUrl);
     setSearchInput(qFromUrl);
-    const ka = searchParams.get("korArea");
-    const ks = searchParams.get("korSigungu");
-    if (ka != null && String(ka).trim() !== "") {
-      setKorRegion({ area: String(ka).trim(), sigungu: ks != null && String(ks).trim() !== "" ? String(ks).trim() : "" });
-    } else {
-      setKorRegion(null);
-    }
   }, [mounted, searchParams]);
 
   /** 집중률 카드 선택 직후: 필터 결과(목록 영역)로 스크롤 — 새로고침처럼 느껴지는 것 완화 */
   useEffect(() => {
-    if (!korRegion) {
+    if (!korRegionFromUrl) {
       lastKorScrollKey.current = "";
       return;
     }
     if (!mounted || nearbyMode || loading) return;
-    const scrollKey = `kor|${korRegion.area}|${korRegion.sigungu || ""}`;
+    const scrollKey = `kor|${korRegionFromUrl.area}|${korRegionFromUrl.sigungu || ""}`;
     if (lastKorScrollKey.current === scrollKey) return;
     lastKorScrollKey.current = scrollKey;
     const t = window.setTimeout(() => {
@@ -306,7 +312,7 @@ function WellnessInner() {
       });
     }, 120);
     return () => window.clearTimeout(t);
-  }, [mounted, korRegion, loading, nearbyMode]);
+  }, [mounted, korRegionFromUrl, loading, nearbyMode]);
 
   const handleRadiusChange = (r) => {
     setRadiusKm(r);
@@ -321,7 +327,6 @@ function WellnessInner() {
     router.replace(`/wellness`);
     setKeyword("");
     setSearchInput("");
-    setKorRegion(null);
   };
 
   useEffect(() => {
@@ -413,7 +418,7 @@ function WellnessInner() {
           <div className="wel-chips" role="group" aria-label={t("wellness.shortcutsLabel")}>
             <button
               type="button"
-              className={`wel-chip ${keyword === "" && !nearbyMode && !korRegion ? "wel-chip-active" : ""}`}
+              className={`wel-chip ${keyword === "" && !nearbyMode && !korRegionFromUrl ? "wel-chip-active" : ""}`}
               onClick={() => applyKeyword("")}
             >
               {t("wellness.allRegions")}
@@ -499,7 +504,7 @@ function WellnessInner() {
         </div>
       </div>
 
-      {korRegion && !nearbyMode && (
+      {korRegionFromUrl && !nearbyMode && (
         <div className="wel-kor-banner" role="status">
           <MapPin size={16} aria-hidden />
           <p className="wel-kor-banner-text">

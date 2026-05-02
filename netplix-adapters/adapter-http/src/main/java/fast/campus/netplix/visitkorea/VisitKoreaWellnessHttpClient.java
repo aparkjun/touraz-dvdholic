@@ -180,7 +180,10 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
         String cacheKey = "__KOR__|" + ldong + "|" + (signguCodeOrNull == null ? "" : signguCodeOrNull.trim());
         CacheSnapshot snap = cache.get(cacheKey);
         if (snap != null && !snap.partial && !isStale(snap)) {
-            return take(snap.sites, limit);
+            if (!snap.sites.isEmpty()) {
+                return take(snap.sites, limit);
+            }
+            return filterAllByAdministrative(ldong, signguCodeOrNull, limit, "kor 캐시 0건");
         }
         Map<String, String> extras = new LinkedHashMap<>();
         extras.put("arrange", "C");
@@ -189,21 +192,55 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
             extras.put("lDongSignguCd", signguCodeOrNull.trim());
         }
         PageResult first = requestPage(areaUrl, extras, 1);
-        if (first == null) return List.of();
-        List<WellnessSpot> partial = Collections.unmodifiableList(new ArrayList<>(first.items));
-        boolean needMore = first.totalCount > partial.size();
-        cache.put(cacheKey, new CacheSnapshot(partial, Instant.now().toEpochMilli(), needMore));
-        if (needMore) {
-            String finalKey = cacheKey;
-            CompletableFuture.runAsync(() -> {
-                try {
-                    refreshKorArea(ldong, signguCodeOrNull, finalKey);
-                } catch (Exception ex) {
-                    log.warn("[WELLNESS] korArea 백그라운드 갱신 실패 ldong={} err={}", ldong, ex.getMessage());
-                }
-            });
+        List<WellnessSpot> partial = List.of();
+        boolean needMore = false;
+        if (first != null) {
+            partial = Collections.unmodifiableList(new ArrayList<>(first.items));
+            needMore = first.totalCount > partial.size();
+            cache.put(cacheKey, new CacheSnapshot(partial, Instant.now().toEpochMilli(), needMore));
+            if (needMore) {
+                String finalKey = cacheKey;
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        refreshKorArea(ldong, signguCodeOrNull, finalKey);
+                    } catch (Exception ex) {
+                        log.warn("[WELLNESS] korArea 백그라운드 갱신 실패 ldong={} err={}", ldong, ex.getMessage());
+                    }
+                });
+            }
         }
-        return take(partial, limit);
+        List<WellnessSpot> primary = take(partial, limit);
+        if (!primary.isEmpty()) {
+            return primary;
+        }
+        return filterAllByAdministrative(ldong, signguCodeOrNull, limit, first == null ? "areaBasedList 실패(null)" : "areaBasedList 0건");
+    }
+
+    /** KTO 행정 필터가 0건·실패할 때 전국 캐시에서 lDongRegnCd(+시군구) 로 맞춘다. */
+    private List<WellnessSpot> filterAllByAdministrative(
+            String ldongRegn, String signguOrNull, int limit, String reason) {
+        List<WellnessSpot> filtered = fetchAll(0).stream()
+                .filter(s -> ldongRegn.equals(s.getAreaCode()))
+                .filter(s -> matchesSigungu(s.getSigunguCode(), signguOrNull))
+                .collect(Collectors.toList());
+        if (!filtered.isEmpty()) {
+            log.info("[WELLNESS] {} → 전국 캐시 필터 폴백 ldong={} sigungu={} → {}건",
+                    reason, ldongRegn, signguOrNull, filtered.size());
+        }
+        return take(filtered, limit);
+    }
+
+    private static boolean matchesSigungu(String spotSigungu, String requestedOrNull) {
+        if (requestedOrNull == null || requestedOrNull.isBlank()) return true;
+        if (spotSigungu == null || spotSigungu.isBlank()) return false;
+        String req = requestedOrNull.trim();
+        String sc = spotSigungu.trim();
+        if (req.equals(sc)) return true;
+        try {
+            return Long.parseLong(req) == Long.parseLong(sc);
+        } catch (NumberFormatException e) {
+            return false;
+        }
     }
 
     private void refreshKorArea(String ldong, String signguCodeOrNull, String cacheKey) {
