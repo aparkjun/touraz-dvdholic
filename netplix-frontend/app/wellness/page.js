@@ -78,6 +78,8 @@ const KOREA_CENTER = [36.5, 127.5];
 const DEFAULT_ZOOM = 7;
 const RADIUS_OPTIONS = [10, 30, 50]; // km
 const PAGE_SIZE = 60;
+/** Heroku 웜업·공공 API(data.go.kr) 지연까지 고려해 넉넉히 둠. */
+const WELLNESS_FETCH_TIMEOUT_MS = 120_000;
 
 const REGION_SHORTCUTS = [
   "서울", "부산", "인천", "대구", "대전",
@@ -133,8 +135,20 @@ function WellnessInner() {
         const url = keyword.trim()
           ? `/api/v1/wellness/search?q=${encodeURIComponent(keyword.trim())}&limit=0`
           : `/api/v1/wellness?limit=0`;
-        const res = await axios.get(url);
+        const fetchOnce = () => axios.get(url, { timeout: WELLNESS_FETCH_TIMEOUT_MS });
+        let res;
+        try {
+          res = await fetchOnce();
+        } catch (_) {
+          await new Promise((r) => setTimeout(r, 600));
+          res = await fetchOnce();
+        }
         if (cancelled) return;
+        if (res?.data?.success === false) {
+          setErrored(true);
+          setSpots([]);
+          return;
+        }
         const data = Array.isArray(res?.data?.data) ? res.data.data : [];
         setSpots(data);
         setVisibleCount(Math.min(PAGE_SIZE, data.length));
@@ -169,9 +183,18 @@ function WellnessInner() {
     setNearbyError("");
     try {
       const rMeters = Math.round(rKm * 1000);
-      const res = await axios.get(`/api/v1/wellness/nearby`, {
-        params: { lat, lon, radius: rMeters, limit: 0 },
-      });
+      const nearbyOnce = () =>
+        axios.get(`/api/v1/wellness/nearby`, {
+          params: { lat, lon, radius: rMeters, limit: 0 },
+          timeout: WELLNESS_FETCH_TIMEOUT_MS,
+        });
+      let res;
+      try {
+        res = await nearbyOnce();
+      } catch (_) {
+        await new Promise((r) => setTimeout(r, 600));
+        res = await nearbyOnce();
+      }
       const data = Array.isArray(res?.data?.data) ? res.data.data : [];
       setSpots(data);
       setVisibleCount(Math.min(PAGE_SIZE, data.length));

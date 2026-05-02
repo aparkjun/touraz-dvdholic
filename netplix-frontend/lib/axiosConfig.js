@@ -44,6 +44,11 @@ axios.interceptors.request.use(
       // /api/v1/tour/** 를 permitAll 로 풀어두지만, 만료된 토큰이 첨부되면
       // JWT 필터가 permitAll 도달 전에 401 을 내버리는 케이스를 방어한다.
       full.includes("/api/v1/tour/") ||
+      // permitAll 관광·웰니스 계열: 만료 토큰이 붙으면 필터/게이트웨이에서 불필요하게 막히는 것을 방지
+      full.includes("/api/v1/wellness") ||
+      full.includes("/api/v1/camping") ||
+      full.includes("/api/v1/medical-tourism") ||
+      full.includes("/api/v1/audio-guide") ||
       full.includes("/api/v1/cine-trip/movie") ||
       full.includes("/api/v1/cine-trip/region") ||
       full.includes("/api/v1/cine-trip/photos") ||
