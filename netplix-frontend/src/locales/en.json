@@ -373,8 +373,8 @@
     "empty": "No wellness spots to show",
     "nearbyEmpty": "No wellness spots found in range",
     "emptyHint": "Try a theme (hot spring / spa / temple stay) or a different region.",
-    "error": "Please try again later",
-    "errorHint": "This can happen with slow networks, cold-server startup, or slow public API responses. Refresh or retry shortly. If it persists, verify WELLNESS_API_KEY or VISITKOREA_SERVICE_KEY on the server.",
+    "error": "We couldn\u2019t load the list",
+    "errorHint": "Slow or unstable connections can cause this. Refresh the page or try again in a moment.",
     "phoneNone": "No phone"
   },
   "nearbyWellness": {
