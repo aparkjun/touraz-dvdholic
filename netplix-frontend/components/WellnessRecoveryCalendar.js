@@ -234,7 +234,7 @@ function QuietDayCard({ r, rank, delay }) {
       href={dest}
       prefetch={true}
       scroll
-      title={`${r.areaName || ''} 힐링 스팟으로 회복 시작`}
+      title="아래 목록을 이 행정구역(지도·데이터 원본 코드)만 보이게 바꿉니다. 새로 고침(F5)과는 다른 동작입니다."
       style={{
         display: 'block',
         borderRadius: 14,
@@ -345,7 +345,7 @@ function QuietDayCard({ r, rank, delay }) {
             fontWeight: 700,
           }}
         >
-          이 지역 힐링 스팟 열기 →
+          이 행정구역 힐링 스팟만 아래 목록에 →
         </div>
       </motion.div>
     </Link>

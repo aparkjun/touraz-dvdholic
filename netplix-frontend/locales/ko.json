@@ -407,7 +407,11 @@
     "emptyHint": "테마(온천/스파/템플스테이)나 다른 지역으로 다시 시도해 보세요.",
     "error": "목록을 불러오지 못했어요",
     "errorHint": "연결이 느리거나 잠깐 불안정할 때 이렇게 보일 수 있어요. 새로고침하거나 잠시 후 다시 시도해 주세요.",
-    "phoneNone": "전화번호 없음"
+    "phoneNone": "전화번호 없음",
+    "thisRegionFallback": "선택한 구역",
+    "recoveryRegionFilterHint": "{{area}} 행정구역으로만 목록을 좁혀 불러왔어요 · {{count}}곳 (전체 새로고침이 아닙니다)",
+    "recoveryRegionFilterLoading": "{{area}} 기준 목록 불러오는 중…",
+    "regionFilterClearChip": "전국 목록으로"
   },
   "nearbyWellness": {
     "title": "근처 힐링 스팟",

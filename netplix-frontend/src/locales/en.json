@@ -375,7 +375,11 @@
     "emptyHint": "Try a theme (hot spring / spa / temple stay) or a different region.",
     "error": "We couldn\u2019t load the list",
     "errorHint": "Slow or unstable connections can cause this. Refresh the page or try again in a moment.",
-    "phoneNone": "No phone"
+    "phoneNone": "No phone",
+    "thisRegionFallback": "Selected area",
+    "recoveryRegionFilterHint": "Filtered list to {{area}} using KTO region codes · {{count}} spots (not a full page refresh)",
+    "recoveryRegionFilterLoading": "Loading listings for {{area}}…",
+    "regionFilterClearChip": "Show nationwide"
   },
   "nearbyWellness": {
     "title": "Nearby Wellness",

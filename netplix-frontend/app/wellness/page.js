@@ -8,6 +8,7 @@
  *
  * 데이터 소스:
  *  - GET /api/v1/wellness?limit=0              (areaBasedList, 전국 전체)
+ *  - GET /api/v1/wellness?korArea=&korSigungu= (areaBasedList 행정구역 필터, 회복 캘린더 CTA)
  *  - GET /api/v1/wellness/nearby?lat&lon&radius (locationBasedList)
  *  - GET /api/v1/wellness/search?q=<keyword>   (searchKeyword)
  *
@@ -21,6 +22,8 @@
  * 교차 접점:
  *  - 햄버거 메뉴의 "내 주변 힐링 스팟" → /wellness?nearby=true
  *  - 대시보드 CTA → /wellness
+ *  - 정주행 회복 캘린더 카드: 해당 날·지역의 「한산한」힐링 데이 정보 + 클릭 시 **같은 페이지에서
+ *    아래 스팟 목록만 그 행정구역(korArea/korSigungu)으로 API 필터** (브라우저 전체 새로고침과 무관)
  *  - 영화 상세(장르→자동키워드), DVD 매장(좌표), cine-trip(지역명) → NearbyWellnessStrip
  */
 
@@ -124,6 +127,7 @@ function WellnessInner() {
 
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef(null);
+  const lastKorScrollKey = useRef("");
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -284,6 +288,25 @@ function WellnessInner() {
       setKorRegion(null);
     }
   }, [mounted, searchParams]);
+
+  /** 집중률 카드 선택 직후: 필터 결과(목록 영역)로 스크롤 — 새로고침처럼 느껴지는 것 완화 */
+  useEffect(() => {
+    if (!korRegion) {
+      lastKorScrollKey.current = "";
+      return;
+    }
+    if (!mounted || nearbyMode || loading) return;
+    const scrollKey = `kor|${korRegion.area}|${korRegion.sigungu || ""}`;
+    if (lastKorScrollKey.current === scrollKey) return;
+    lastKorScrollKey.current = scrollKey;
+    const t = window.setTimeout(() => {
+      document.getElementById("wellness-spots-anchor")?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [mounted, korRegion, loading, nearbyMode]);
 
   const handleRadiusChange = (r) => {
     setRadiusKm(r);
@@ -476,7 +499,26 @@ function WellnessInner() {
         </div>
       </div>
 
-      <main className="wel-main">
+      {korRegion && !nearbyMode && (
+        <div className="wel-kor-banner" role="status">
+          <MapPin size={16} aria-hidden />
+          <p className="wel-kor-banner-text">
+            {loading
+              ? t("wellness.recoveryRegionFilterLoading", {
+                  area: (searchInput && searchInput.trim()) || t("wellness.thisRegionFallback"),
+                })
+              : t("wellness.recoveryRegionFilterHint", {
+                  area: (searchInput && searchInput.trim()) || t("wellness.thisRegionFallback"),
+                  count: spots.length,
+                })}
+          </p>
+          <button type="button" className="wel-kor-banner-clear" onClick={() => applyKeyword("")}>
+            {t("wellness.regionFilterClearChip")}
+          </button>
+        </div>
+      )}
+
+      <main id="wellness-spots-anchor" className="wel-main">
         {viewMode === "map" ? (
           <div className="wel-map-wrap">
             {mounted && MapContainer && (
@@ -829,7 +871,27 @@ const cssBlock = `
 }
 .wel-view-btn-active { background: linear-gradient(135deg, #10b981, #8b5cf6); color: #fff; }
 
-.wel-main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
+.wel-kor-banner {
+  box-sizing: border-box;
+  width: calc(100% - 32px);
+  max-width: 1200px; margin: 12px auto 0; padding: 10px 14px;
+  display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap;
+  background: rgba(16,185,129,0.12); border: 1px solid rgba(52,211,153,0.35);
+  border-radius: 12px; color: #d1fae5;
+  font-size: 0.84rem; line-height: 1.45;
+}
+.wel-kor-banner-text { margin: 0; flex: 1; min-width: 200px; }
+.wel-kor-banner-clear {
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: #ecfdf5;
+  font-size: 0.78rem; font-weight: 700;
+  padding: 6px 12px; border-radius: 999px; cursor: pointer;
+}
+.wel-kor-banner-clear:hover { background: rgba(255,255,255,0.14); }
+
+.wel-main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; scroll-margin-top: 72px; }
 .wel-map-wrap { border-radius: 12px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
 .wel-map-wrap .leaflet-container img { max-width: none !important; max-height: none !important; height: auto; }
 
