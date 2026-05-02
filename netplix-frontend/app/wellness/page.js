@@ -234,6 +234,15 @@ function WellnessInner() {
     }
   }, [mounted, searchParams, handleNearby]);
 
+  /** 같은 페이지(`/wellness` → `/wellness?q=…`) 클라이언트 이동 시 state가 갱신되지 않던 문제 수정 */
+  useEffect(() => {
+    if (!mounted) return;
+    if (searchParams.get("nearby") === "true") return;
+    const qFromUrl = searchParams.get("q") ?? "";
+    setKeyword(qFromUrl);
+    setSearchInput(qFromUrl);
+  }, [mounted, searchParams]);
+
   const handleRadiusChange = (r) => {
     setRadiusKm(r);
     if (nearbyMode && userPos) fetchNearby(userPos.lat, userPos.lon, r);
