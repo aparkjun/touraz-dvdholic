@@ -219,8 +219,16 @@ export default function WellnessRecoveryCalendar() {
 
 function QuietDayCard({ r, rank, delay }) {
   const color = levelColor(r.concentrationRate);
-  // 웰니스 페이지 자체 내에서 바로 지역 필터를 걸어 스팟을 노출 — 회복 동선 즉답.
-  const dest = `/wellness?q=${encodeURIComponent(r.areaName || '')}`;
+  // KorService areaCode + 법정동 시군구 → 백엔드 /wellness?korArea&korSigungu 로 areaBasedList (지명 q 검색보다 안정적).
+  const qs = new URLSearchParams();
+  if (r.areaCode != null && String(r.areaCode).trim() !== '') {
+    qs.set('korArea', String(r.areaCode).trim());
+  }
+  if (r.signguCode != null && String(r.signguCode).trim() !== '') {
+    qs.set('korSigungu', String(r.signguCode).trim());
+  }
+  if (r.areaName) qs.set('q', r.areaName);
+  const dest = qs.toString() ? `/wellness?${qs.toString()}` : `/wellness`;
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}

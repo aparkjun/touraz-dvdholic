@@ -17,6 +17,7 @@ import java.util.List;
  * <p>퍼블릭 엔드포인트 (비로그인 노출 가능):
  * <ul>
  *   <li>GET /api/v1/wellness?limit=0 - 전국 전체 목록 (limit 0 → 전체, 기본 24)</li>
+ *   <li>GET /api/v1/wellness?korArea=34&amp;korSigungu=110&amp;limit=0 - KorService 광역코드+시군구 기반 지역 목록</li>
  *   <li>GET /api/v1/wellness/nearby?lat=..&lon=..&radius=10000&limit=50 - 좌표 기반 주변</li>
  *   <li>GET /api/v1/wellness/search?q=온천&limit=24 - 키워드 검색</li>
  * </ul>
@@ -33,9 +34,19 @@ public class WellnessController {
 
     @GetMapping
     public NetplixApiResponse<List<WellnessSpotResponse>> list(
-            @RequestParam(defaultValue = "24") int limit) {
-        List<WellnessSpotResponse> body = useCase.all(limit).stream()
-                .map(WellnessSpotResponse::from).toList();
+            @RequestParam(defaultValue = "24") int limit,
+            @RequestParam(required = false) String korArea,
+            @RequestParam(required = false) String korSigungu) {
+        List<WellnessSpotResponse> body;
+        if (korArea != null && !korArea.isBlank()) {
+            body = useCase.byKorAdministrativeArea(
+                    korArea.trim(),
+                    korSigungu != null ? korSigungu.trim() : null,
+                    limit
+            ).stream().map(WellnessSpotResponse::from).toList();
+        } else {
+            body = useCase.all(limit).stream().map(WellnessSpotResponse::from).toList();
+        }
         return NetplixApiResponse.ok(body);
     }
 

@@ -41,6 +41,11 @@ public class WellnessSpotService implements GetWellnessSpotsUseCase {
         return wellnessSpotPort.fetchByKeyword(keyword, sanitize(limit));
     }
 
+    @Override
+    public List<WellnessSpot> byKorAdministrativeArea(String korAreaCode, String signguCodeOrNull, int limit) {
+        return wellnessSpotPort.fetchByKorAdministrativeArea(korAreaCode, signguCodeOrNull, sanitize(limit));
+    }
+
     private int sanitize(int limit) {
         if (limit <= 0) return 0;
         return Math.min(limit, MAX_LIMIT);

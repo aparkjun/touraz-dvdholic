@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -166,6 +167,59 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
 
         scheduleKeywordRefresh(keyword.trim(), key);
         return take(snap.sites, limit);
+    }
+
+    @Override
+    public List<WellnessSpot> fetchByKorAdministrativeArea(String korAreaCode, String signguCodeOrNull, int limit) {
+        if (!isConfigured()) return List.of();
+        String ldong = KorServiceToLdong.lDongRegnCd(korAreaCode).orElse(null);
+        if (ldong == null) {
+            log.warn("[WELLNESS] 알 수 없는 korAreaCode={}", korAreaCode);
+            return List.of();
+        }
+        String cacheKey = "__KOR__|" + ldong + "|" + (signguCodeOrNull == null ? "" : signguCodeOrNull.trim());
+        CacheSnapshot snap = cache.get(cacheKey);
+        if (snap != null && !snap.partial && !isStale(snap)) {
+            return take(snap.sites, limit);
+        }
+        Map<String, String> extras = new LinkedHashMap<>();
+        extras.put("arrange", "C");
+        extras.put("lDongRegnCd", ldong);
+        if (signguCodeOrNull != null && !signguCodeOrNull.isBlank()) {
+            extras.put("lDongSignguCd", signguCodeOrNull.trim());
+        }
+        PageResult first = requestPage(areaUrl, extras, 1);
+        if (first == null) return List.of();
+        List<WellnessSpot> partial = Collections.unmodifiableList(new ArrayList<>(first.items));
+        boolean needMore = first.totalCount > partial.size();
+        cache.put(cacheKey, new CacheSnapshot(partial, Instant.now().toEpochMilli(), needMore));
+        if (needMore) {
+            String finalKey = cacheKey;
+            CompletableFuture.runAsync(() -> {
+                try {
+                    refreshKorArea(ldong, signguCodeOrNull, finalKey);
+                } catch (Exception ex) {
+                    log.warn("[WELLNESS] korArea 백그라운드 갱신 실패 ldong={} err={}", ldong, ex.getMessage());
+                }
+            });
+        }
+        return take(partial, limit);
+    }
+
+    private void refreshKorArea(String ldong, String signguCodeOrNull, String cacheKey) {
+        Map<String, String> extras = new LinkedHashMap<>();
+        extras.put("arrange", "C");
+        extras.put("lDongRegnCd", ldong);
+        if (signguCodeOrNull != null && !signguCodeOrNull.isBlank()) {
+            extras.put("lDongSignguCd", signguCodeOrNull.trim());
+        }
+        List<WellnessSpot> sites = requestAllPages(areaUrl, extras, MAX_PAGES_ALL);
+        if (sites == null) {
+            log.warn("[WELLNESS] korArea 전체 페이지 로드 실패 ldong={}", ldong);
+            return;
+        }
+        cache.put(cacheKey, new CacheSnapshot(sites, Instant.now().toEpochMilli(), false));
+        log.info("[WELLNESS] korArea 캐시 갱신 key={} 건={}", cacheKey, sites.size());
     }
 
     private void scheduleAllRefresh() {

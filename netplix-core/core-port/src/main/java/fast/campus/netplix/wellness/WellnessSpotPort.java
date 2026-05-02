@@ -33,6 +33,12 @@ public interface WellnessSpotPort {
     /** 키워드 검색 (관광지명/지역명/테마 부분일치). */
     List<WellnessSpot> fetchByKeyword(String keyword, int limit);
 
+    /**
+     * KorService2 광역 {@code areaCode}(1~8·31~39) + 선택 법정동 시군구코드 로 /areaBasedList 조회.
+     * 집중률 캘린더 등에서 넘어온 행정코드와 동일 스키마를 받는다.
+     */
+    List<WellnessSpot> fetchByKorAdministrativeArea(String korAreaCode, String signguCodeOrNull, int limit);
+
     /** 어댑터 호출 가능 여부 (serviceKey 설정 여부). */
     boolean isConfigured();
 }

@@ -13,4 +13,6 @@ public interface GetWellnessSpotsUseCase {
     List<WellnessSpot> nearby(double latitude, double longitude, int radiusM, int limit);
 
     List<WellnessSpot> byKeyword(String keyword, int limit);
+
+    List<WellnessSpot> byKorAdministrativeArea(String korAreaCode, String signguCodeOrNull, int limit);
 }

@@ -112,6 +112,8 @@ function WellnessInner() {
   const [errored, setErrored] = useState(false);
   const [searchInput, setSearchInput] = useState(searchParams.get("q") || "");
   const [keyword, setKeyword] = useState(searchParams.get("q") || "");
+  /** 집중률 캘린더 CTA 등: KorService 광역코드 기반 목록 (/api/v1/wellness?korArea=&korSigungu=) */
+  const [korRegion, setKorRegion] = useState(null);
 
   const [nearbyMode, setNearbyMode] = useState(false);
   const [userPos, setUserPos] = useState(null);
@@ -132,9 +134,16 @@ function WellnessInner() {
       try {
         setLoading(true);
         setErrored(false);
-        const url = keyword.trim()
-          ? `/api/v1/wellness/search?q=${encodeURIComponent(keyword.trim())}&limit=0`
-          : `/api/v1/wellness?limit=0`;
+        const url =
+          korRegion && korRegion.area
+            ? (() => {
+                const p = new URLSearchParams({ limit: "0", korArea: korRegion.area });
+                if (korRegion.sigungu) p.set("korSigungu", korRegion.sigungu);
+                return `/api/v1/wellness?${p.toString()}`;
+              })()
+            : keyword.trim()
+              ? `/api/v1/wellness/search?q=${encodeURIComponent(keyword.trim())}&limit=0`
+              : `/api/v1/wellness?limit=0`;
         const fetchOnce = () => axios.get(url, { timeout: WELLNESS_FETCH_TIMEOUT_MS });
         let res;
         try {
@@ -162,15 +171,17 @@ function WellnessInner() {
       }
     })();
     return () => { cancelled = true; };
-  }, [keyword, nearbyMode]);
+  }, [keyword, nearbyMode, korRegion]);
 
   const applyKeyword = useCallback((next) => {
     const v = (next || "").trim();
     setKeyword(v);
     setSearchInput(v);
+    setKorRegion(null);
     setNearbyMode(false);
-    const qs = v ? `?q=${encodeURIComponent(v)}` : "";
-    router.replace(`/wellness${qs}`);
+    const qs = new URLSearchParams();
+    if (v) qs.set("q", v);
+    router.replace(`/wellness${qs.toString() ? `?${qs.toString()}` : ""}`);
   }, [router]);
 
   const onSubmit = (e) => {
@@ -231,6 +242,7 @@ function WellnessInner() {
     setLocSource("");
     setKeyword("");
     setSearchInput("");
+    setKorRegion(null);
     router.replace(`/wellness?nearby=true`);
 
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -257,13 +269,20 @@ function WellnessInner() {
     }
   }, [mounted, searchParams, handleNearby]);
 
-  /** 같은 페이지(`/wellness` → `/wellness?q=…`) 클라이언트 이동 시 state가 갱신되지 않던 문제 수정 */
+  /** 같은 페이지 내 클라이언트 이동 시 URL → state 동기화 */
   useEffect(() => {
     if (!mounted) return;
     if (searchParams.get("nearby") === "true") return;
     const qFromUrl = searchParams.get("q") ?? "";
     setKeyword(qFromUrl);
     setSearchInput(qFromUrl);
+    const ka = searchParams.get("korArea");
+    const ks = searchParams.get("korSigungu");
+    if (ka != null && String(ka).trim() !== "") {
+      setKorRegion({ area: String(ka).trim(), sigungu: ks != null && String(ks).trim() !== "" ? String(ks).trim() : "" });
+    } else {
+      setKorRegion(null);
+    }
   }, [mounted, searchParams]);
 
   const handleRadiusChange = (r) => {
@@ -278,6 +297,8 @@ function WellnessInner() {
     setLocSource("");
     router.replace(`/wellness`);
     setKeyword("");
+    setSearchInput("");
+    setKorRegion(null);
   };
 
   useEffect(() => {
@@ -369,7 +390,7 @@ function WellnessInner() {
           <div className="wel-chips" role="group" aria-label={t("wellness.shortcutsLabel")}>
             <button
               type="button"
-              className={`wel-chip ${keyword === "" && !nearbyMode ? "wel-chip-active" : ""}`}
+              className={`wel-chip ${keyword === "" && !nearbyMode && !korRegion ? "wel-chip-active" : ""}`}
               onClick={() => applyKeyword("")}
             >
               {t("wellness.allRegions")}
