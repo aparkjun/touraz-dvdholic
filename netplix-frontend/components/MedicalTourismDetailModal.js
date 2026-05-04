@@ -26,6 +26,7 @@ import { useMedicalFavorites } from "@/lib/useMedicalFavorites";
 import { areaLabel, resolveAreaCode } from "@/lib/regionAreaCode";
 import {
   X,
+  ChevronLeft,
   Phone,
   MapPin,
   Navigation,
@@ -203,6 +204,14 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
     >
       <style>{cssBlock}</style>
       <div className="mtd-modal">
+        <button
+          type="button"
+          className="mtd-back"
+          onClick={onClose}
+          aria-label={t("common.back", "뒤로")}
+        >
+          <ChevronLeft size={22} strokeWidth={2.5} />
+        </button>
         <button
           type="button"
           className="mtd-close"
@@ -443,7 +452,7 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
 
 const cssBlock = `
 .mtd-overlay {
-  position: fixed; inset: 0; z-index: 100;
+  position: fixed; inset: 0; z-index: 2400;
   background: rgba(10, 6, 20, 0.72);
   backdrop-filter: blur(6px);
   display: flex; align-items: center; justify-content: center;
@@ -470,9 +479,27 @@ const cssBlock = `
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* 기기 상단 뒤로(왼쪽) + 닫기(오른쪽): 전체화면 오버레이에서도 길잡이가 보이도록 고정 */
+.mtd-back {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 10px);
+  left: 12px;
+  z-index: 5;
+  width: 40px; height: 40px;
+  border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.55);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.2);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.15s;
+}
+.mtd-back:hover { background: rgba(59,130,246,0.85); border-color: transparent; }
+
 .mtd-close {
   position: absolute;
-  top: 12px; right: 12px;
+  top: calc(env(safe-area-inset-top, 0px) + 10px); right: 12px;
   z-index: 3;
   width: 36px; height: 36px;
   border-radius: 999px;
@@ -488,7 +515,7 @@ const cssBlock = `
 
 .mtd-fav {
   position: absolute;
-  top: 12px; right: 56px;
+  top: calc(env(safe-area-inset-top, 0px) + 10px); right: 56px;
   z-index: 3;
   width: 36px; height: 36px;
   border-radius: 999px;
@@ -701,6 +728,7 @@ const cssBlock = `
   .mtd-hero { height: 180px; }
   .mtd-title { font-size: 1.2rem; }
   .mtd-actions { grid-template-columns: 1fr 1fr; }
+  .mtd-back { width: 34px; height: 34px; }
   .mtd-fav { right: 52px; width: 34px; height: 34px; }
   .mtd-close { width: 34px; height: 34px; }
 }

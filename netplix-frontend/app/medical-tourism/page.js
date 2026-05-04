@@ -131,6 +131,20 @@ function MedicalTourismInner() {
 
   // 카드 클릭 시 열리는 상세 모달 대상. (1차 업그레이드: 보기 전용 → 인터랙티브 액션)
   const [detailSpot, setDetailSpot] = useState(null);
+  const detailSpotRef = useRef(null);
+  detailSpotRef.current = detailSpot;
+
+  // 네이티브(안드로이드) 하드웨어 뒤로: 상세 모달이 열려 있으면 목록으로 복귀
+  useEffect(() => {
+    const onAppBack = (e) => {
+      if (detailSpotRef.current) {
+        e.preventDefault();
+        setDetailSpot(null);
+      }
+    };
+    window.addEventListener("touraz-app-back", onAppBack);
+    return () => window.removeEventListener("touraz-app-back", onAppBack);
+  }, []);
 
   // 2차 업그레이드: 즐겨찾기(localStorage) + "내 저장 목록" 모드
   const {

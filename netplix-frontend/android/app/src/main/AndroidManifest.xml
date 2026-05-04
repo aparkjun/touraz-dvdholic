@@ -4,6 +4,12 @@
 
     <uses-sdk tools:overrideLibrary="org.apache.cordova" />
 
+    <!-- Play Console '광고 ID 사용' 선언과 일치시키기 위해 필수 (API 33+, AdMob) -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="merge" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -49,9 +55,4 @@
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
     </application>
-
-    <!-- Permissions -->
-
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 </manifest>

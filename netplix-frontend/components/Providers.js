@@ -68,10 +68,13 @@ export default function Providers({ children }) {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    const handles = [];
+
     (async () => {
       try {
         const { Capacitor } = await import('@capacitor/core');
-        if (!Capacitor.isNativePlatform()) return;
+        if (!Capacitor.isNativePlatform() || cancelled) return;
         const { App: CapacitorApp } = await import('@capacitor/app');
         const { Browser } = await import('@capacitor/browser');
 
@@ -92,9 +95,49 @@ export default function Providers({ children }) {
             console.error('[App] Error handling deep link:', e);
           }
         };
-        CapacitorApp.addListener('appUrlOpen', handleAppUrlOpen);
+
+        /** Android 하드웨어 뒤로: 오버레이(모달) 등이 먼저 닫히도록 DOM 이벤트로 위임 */
+        const handleHardwareBack = async (ev) => {
+          const e = new CustomEvent('touraz-app-back', { cancelable: true, detail: { canGoBack: ev.canGoBack } });
+          window.dispatchEvent(e);
+          if (e.defaultPrevented) return;
+          if (ev.canGoBack) {
+            window.history.back();
+          } else {
+            try {
+              await CapacitorApp.minimizeApp();
+            } catch (_) {}
+          }
+        };
+
+        const h1 = await CapacitorApp.addListener('appUrlOpen', handleAppUrlOpen);
+        if (cancelled) {
+          try {
+            h1.remove();
+          } catch (_) {}
+          return;
+        }
+        handles.push(h1);
+
+        const h2 = await CapacitorApp.addListener('backButton', handleHardwareBack);
+        if (cancelled) {
+          try {
+            h2.remove();
+          } catch (_) {}
+          return;
+        }
+        handles.push(h2);
       } catch (_) {}
     })();
+
+    return () => {
+      cancelled = true;
+      handles.forEach((h) => {
+        try {
+          h.remove();
+        } catch (_) {}
+      });
+    };
   }, []);
 
   return <>{children}</>;
