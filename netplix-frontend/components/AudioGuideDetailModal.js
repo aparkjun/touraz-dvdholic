@@ -17,6 +17,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
+import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import {
   X,
   Play,
@@ -40,6 +41,7 @@ import {
 export default function AudioGuideDetailModal({ item, onClose }) {
   const { t, i18n } = useTranslation();
   const audioRef = useRef(null);
+  const mediaSessionDetachRef = useRef(null);
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -85,6 +87,10 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       try { window.speechSynthesis.cancel(); } catch (_) { /* noop */ }
     }
     return () => {
+      if (mediaSessionDetachRef.current) {
+        try { mediaSessionDetachRef.current(); } catch (_) { /* noop */ }
+        mediaSessionDetachRef.current = null;
+      }
       if (audioRef.current) {
         try { audioRef.current.pause(); } catch (_) { /* noop */ }
         audioRef.current = null;
@@ -242,6 +248,14 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   const togglePlay = () => {
     if (!hasAudio) return;
     if (!audioRef.current) {
+      if (mediaSessionDetachRef.current) {
+        try {
+          mediaSessionDetachRef.current();
+        } catch (_) {
+          /* noop */
+        }
+        mediaSessionDetachRef.current = null;
+      }
       const audio = new Audio(item.audioUrl);
       audio.muted = muted;
       audio.addEventListener("ended", () => {
@@ -258,7 +272,13 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       audio.addEventListener("timeupdate", () => {
         setProgress(audio.currentTime || 0);
       });
+      audio.addEventListener("play", () => setPlaying(true));
+      audio.addEventListener("pause", () => setPlaying(false));
       audioRef.current = audio;
+      mediaSessionDetachRef.current = attachAudioMediaSession(audio, {
+        title: item.audioTitle || item.title,
+        artworkUrl: item.imageUrl,
+      });
     }
     if (playing) {
       audioRef.current.pause();

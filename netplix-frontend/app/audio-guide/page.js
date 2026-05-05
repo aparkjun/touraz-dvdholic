@@ -29,6 +29,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
+import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
 import {
   Headphones,
@@ -108,6 +109,7 @@ function AudioGuidePageInner() {
   const [playProgress, setPlayProgress] = useState(0);
   const [playDuration, setPlayDuration] = useState(0);
   const audioRef = useRef(null);
+  const mediaSessionDetachRef = useRef(null);
   const playingItemRef = useRef(null);
 
   // 카드 클릭 시 열리는 상세 모달 대상
@@ -388,6 +390,14 @@ function AudioGuidePageInner() {
 
   // === 재생 제어 ===
   const stopPlayback = () => {
+    if (mediaSessionDetachRef.current) {
+      try {
+        mediaSessionDetachRef.current();
+      } catch {
+        /* noop */
+      }
+      mediaSessionDetachRef.current = null;
+    }
     if (audioRef.current) {
       try { audioRef.current.pause(); } catch { /* noop */ }
       audioRef.current.src = "";
@@ -409,6 +419,14 @@ function AudioGuidePageInner() {
       try { audioRef.current.pause(); } catch { /* noop */ }
       audioRef.current = null;
     }
+    if (mediaSessionDetachRef.current) {
+      try {
+        mediaSessionDetachRef.current();
+      } catch {
+        /* noop */
+      }
+      mediaSessionDetachRef.current = null;
+    }
     const audio = new Audio(item.audioUrl);
     audio.muted = muted;
     audio.addEventListener("ended", () => {
@@ -427,6 +445,10 @@ function AudioGuidePageInner() {
     audioRef.current = audio;
     playingItemRef.current = item;
     setPlayingId(item.id);
+    mediaSessionDetachRef.current = attachAudioMediaSession(audio, {
+      title: item.audioTitle || item.title,
+      artworkUrl: item.imageUrl,
+    });
   };
 
   const toggleMute = () => {

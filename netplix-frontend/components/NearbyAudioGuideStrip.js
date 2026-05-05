@@ -25,6 +25,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import axios from "@/src/axiosConfig";
+import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
 import { Headphones, MapPin, Play, Pause, Clock, ArrowRight, Globe2, Mic2 } from "lucide-react";
 
@@ -45,6 +46,7 @@ export default function NearbyAudioGuideStrip({
   const [errored, setErrored] = useState(false);
   const [playingId, setPlayingId] = useState(null);
   const audioRef = useRef(null);
+  const mediaSessionDetachRef = useRef(null);
   // 미니카드 클릭 시 열리는 상세 모달 대상
   const [detailItem, setDetailItem] = useState(null);
 
@@ -88,7 +90,14 @@ export default function NearbyAudioGuideStrip({
   }, [useCoords, useKeyword, lat, lng, keyword, type, radiusM, limit, lang]);
 
   useEffect(() => () => {
-    // 언마운트 시 재생 중지
+    if (mediaSessionDetachRef.current) {
+      try {
+        mediaSessionDetachRef.current();
+      } catch {
+        /* noop */
+      }
+      mediaSessionDetachRef.current = null;
+    }
     if (audioRef.current) {
       try { audioRef.current.pause(); } catch { /* noop */ }
       audioRef.current = null;
@@ -102,26 +111,57 @@ export default function NearbyAudioGuideStrip({
     if (!item?.audioUrl) return;
     // 재생 중인 항목을 다시 누르면 정지
     if (playingId === item.id && audioRef.current) {
+      if (mediaSessionDetachRef.current) {
+        try {
+          mediaSessionDetachRef.current();
+        } catch {
+          /* noop */
+        }
+        mediaSessionDetachRef.current = null;
+      }
       audioRef.current.pause();
       audioRef.current = null;
       setPlayingId(null);
       return;
     }
-    // 다른 항목 재생 중이면 중지 후 새로 시작
     if (audioRef.current) {
       try { audioRef.current.pause(); } catch { /* noop */ }
       audioRef.current = null;
+    }
+    if (mediaSessionDetachRef.current) {
+      try {
+        mediaSessionDetachRef.current();
+      } catch {
+        /* noop */
+      }
+      mediaSessionDetachRef.current = null;
     }
     try {
       const audio = new Audio(item.audioUrl);
       audio.addEventListener("ended", () => {
         if (audioRef.current === audio) {
+          if (mediaSessionDetachRef.current) {
+            try {
+              mediaSessionDetachRef.current();
+            } catch {
+              /* noop */
+            }
+            mediaSessionDetachRef.current = null;
+          }
           audioRef.current = null;
           setPlayingId(null);
         }
       });
       audio.addEventListener("error", () => {
         if (audioRef.current === audio) {
+          if (mediaSessionDetachRef.current) {
+            try {
+              mediaSessionDetachRef.current();
+            } catch {
+              /* noop */
+            }
+            mediaSessionDetachRef.current = null;
+          }
           audioRef.current = null;
           setPlayingId(null);
         }
@@ -129,6 +169,10 @@ export default function NearbyAudioGuideStrip({
       audio.play().catch(() => { /* autoplay block 등 */ });
       audioRef.current = audio;
       setPlayingId(item.id);
+      mediaSessionDetachRef.current = attachAudioMediaSession(audio, {
+        title: item.audioTitle || item.title,
+        artworkUrl: item.imageUrl,
+      });
     } catch (_) { /* noop */ }
   };
 
