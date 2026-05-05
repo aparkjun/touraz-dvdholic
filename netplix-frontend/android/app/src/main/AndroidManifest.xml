@@ -6,9 +6,8 @@
 
     <!-- Play Console '광고 ID 사용' 선언과 일치시키기 위해 필수 (API 33+, AdMob) -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission
-        android:name="com.google.android.gms.permission.AD_ID"
-        tools:node="merge" />
+    <!-- Play 정책: 광고 ID 사용 선언 시 최종 매니페스트에 이 권한이 있어야 함 (AdMob / targetSdk 33+) -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 
     <application
         android:allowBackup="true"
