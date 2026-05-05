@@ -27,3 +27,20 @@ allprojects {
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
+
+// 로컬 JDK 17 환경: Capacitor/AdMob Kotlin JVM 타겟과 Java 소스 레벨을 17로 통일
+subprojects { subproject ->
+    subproject.afterEvaluate {
+        if (subproject.plugins.hasPlugin('com.android.library') || subproject.plugins.hasPlugin('com.android.application')) {
+            subproject.android.compileOptions {
+                sourceCompatibility JavaVersion.VERSION_17
+                targetCompatibility JavaVersion.VERSION_17
+            }
+        }
+        subproject.tasks.configureEach { task ->
+            if (task.class.name.contains('KotlinCompile')) {
+                task.kotlinOptions.jvmTarget = '17'
+            }
+        }
+    }
+}
