@@ -75,6 +75,55 @@ const DEFAULT_ZOOM = 7;
 const RADIUS_OPTIONS = [10, 30, 50]; // km
 const PAGE_SIZE = 60;
 
+/**
+ * 목록 페이지의 인메모리 + sessionStorage 캐시.
+ *
+ * <p>왜 필요한가: Next.js App Router 의 client component(`"use client"`) 는
+ * 페이지 이동 시 컴포넌트 트리가 unmount 되어 state 가 모두 초기화된다.
+ * 야영장 목록(전국 ~3,700개, ~3MB JSON)을 매번 다시 받아오면 뒤로가기 시
+ * 사용자에게 3-4 초간 빈 화면(또는 스켈레톤)이 노출되어 "검은 화면" 인상이 남는다.
+ *
+ * 전략:
+ *  - mount 시 sessionStorage 에서 같은 검색 컨텍스트(keyword/nearbyMode) 의 캐시가 있고
+ *    TTL(5분) 이내면 즉시 hydrate → skeleton 자체를 건너뛰고 직전 화면 그대로 복원.
+ *  - 카드 클릭 직전(상세로 이동 직전) 스크롤 위치를 캐시에 저장해 돌아왔을 때 복원.
+ *  - keyword 변경 / 주변 모드 진입 시 캐시는 무시(검색 컨텍스트 다름).
+ */
+const LIST_CACHE_KEY = "camping_list_cache_v1";
+const LIST_CACHE_TTL_MS = 5 * 60 * 1000;
+
+function readListCache() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(LIST_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") return null;
+    if (Date.now() - (parsed.ts || 0) > LIST_CACHE_TTL_MS) return null;
+    return parsed;
+  } catch (_) {
+    return null;
+  }
+}
+
+function writeListCache(payload) {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(
+      LIST_CACHE_KEY,
+      JSON.stringify({ ts: Date.now(), ...payload }),
+    );
+  } catch (_) {
+    // sessionStorage 쿼터 초과/iOS private mode 등 → 무시
+  }
+}
+
+function patchListCache(patch) {
+  const cur = readListCache();
+  if (!cur) return;
+  writeListCache({ ...cur, ...patch });
+}
+
 // 고캠핑 키워드 검색 히트율이 좋은 광역 축약형
 const REGION_SHORTCUTS = [
   "서울", "부산", "인천", "대구", "대전",
@@ -120,16 +169,30 @@ function CampingInner() {
   const searchParams = useSearchParams();
   const autoNearbyTriggered = useRef(false);
 
+  const initialKeyword = searchParams.get("q") || "";
+  const initialNearbyParam = searchParams.get("nearby") === "true";
+  // 같은 검색 컨텍스트(keyword + nearbyMode) 의 캐시가 있으면 즉시 hydrate.
+  // SSR/CSR 첫 렌더 일치를 위해 lazy initializer 안에서만 sessionStorage 접근.
+  const cacheHit = (() => {
+    const c = readListCache();
+    if (!c) return null;
+    if (c.keyword !== initialKeyword) return null;
+    // 주변 모드에서 hydration 은 캐시 keyword 는 비어있고 nearby 가 true 일 때만 의미가 있음.
+    if (initialNearbyParam !== !!c.nearbyMode) return null;
+    return c;
+  })();
+
   const [mounted, setMounted] = useState(false);
   const [viewMode, setViewMode] = useState("list"); // "list" | "map"
-  const [sites, setSites] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [sites, setSites] = useState(cacheHit?.sites || []);
+  // 캐시 hit 이면 loading=false 로 초기 진입(스켈레톤 우회), 그 외에는 평소대로 true.
+  const [loading, setLoading] = useState(!cacheHit);
   const [errored, setErrored] = useState(false);
-  const [searchInput, setSearchInput] = useState(searchParams.get("q") || "");
-  const [keyword, setKeyword] = useState(searchParams.get("q") || "");
+  const [searchInput, setSearchInput] = useState(initialKeyword);
+  const [keyword, setKeyword] = useState(initialKeyword);
 
-  // 주변 모드
-  const [nearbyMode, setNearbyMode] = useState(false);
+  // 주변 모드 — 캐시가 nearby 모드였다면 그 상태를 그대로 복원해 GPS 재요청을 회피.
+  const [nearbyMode, setNearbyMode] = useState(!!cacheHit?.nearbyMode);
   const [userPos, setUserPos] = useState(null);
   const [radiusKm, setRadiusKm] = useState(30);
   const [nearbyLoading, setNearbyLoading] = useState(false);
@@ -137,16 +200,56 @@ function CampingInner() {
   const [locSource, setLocSource] = useState("");
 
   // 무한스크롤
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [visibleCount, setVisibleCount] = useState(
+    cacheHit?.visibleCount && cacheHit.sites?.length
+      ? Math.min(cacheHit.visibleCount, cacheHit.sites.length)
+      : PAGE_SIZE,
+  );
   const sentinelRef = useRef(null);
+  // 캐시에서 복원해야 할 스크롤 Y. mount 후 1회 적용 후 null 처리.
+  const pendingScrollRestore = useRef(cacheHit?.scrollY ?? null);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  // 데이터 로딩: keyword 변경 시 재호출. 주변 모드에서는 별도 경로.
+  // 캐시 hydrate 직후 스크롤 위치 복원 (sites 가 DOM 에 그려진 다음 프레임).
+  // html[data-scroll-behavior="smooth"] 가 적용되어 있어 두 인자 형태도 부드럽게 보일 수 있어
+  // 일시적으로 scroll-behavior 를 auto 로 강제한 뒤 즉시 복원한다.
   useEffect(() => {
+    if (!mounted) return;
+    if (pendingScrollRestore.current == null) return;
+    const y = pendingScrollRestore.current;
+    pendingScrollRestore.current = null;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (typeof window === "undefined" || typeof document === "undefined") return;
+        const html = document.documentElement;
+        const prevBehavior = html.style.scrollBehavior;
+        html.style.scrollBehavior = "auto";
+        try {
+          window.scrollTo({ top: y, left: 0, behavior: "instant" });
+        } catch (_) {
+          window.scrollTo(0, y);
+        }
+        // 다음 프레임에 원복 (사용자 수동 스크롤은 다시 smooth 로 동작).
+        requestAnimationFrame(() => {
+          html.style.scrollBehavior = prevBehavior;
+        });
+      });
+    });
+  }, [mounted]);
+
+  // 데이터 로딩: keyword 변경 시 재호출. 주변 모드에서는 별도 경로.
+  // 캐시 hit 이면 첫 렌더에서는 fetch 를 건너뛰고, 사용자가 keyword 를 바꾸면 그때 호출.
+  const skipFetchOnceRef = useRef(!!cacheHit);
+  useEffect(() => {
+    // 첫 effect 실행에서 무조건 소비. nearbyMode bail 로 빠져도 다음 keyword 변경
+    // 때는 정상 fetch 가 일어나도록 보장.
+    const shouldSkip = skipFetchOnceRef.current;
+    skipFetchOnceRef.current = false;
     if (nearbyMode) return undefined;
+    if (shouldSkip) return undefined;
     let cancelled = false;
     (async () => {
       try {
@@ -160,6 +263,13 @@ function CampingInner() {
         const data = Array.isArray(res?.data?.data) ? res.data.data : [];
         setSites(data);
         setVisibleCount(Math.min(PAGE_SIZE, data.length));
+        writeListCache({
+          keyword,
+          nearbyMode: false,
+          sites: data,
+          visibleCount: Math.min(PAGE_SIZE, data.length),
+          scrollY: 0,
+        });
       } catch (e) {
         if (!cancelled) {
           setErrored(true);
@@ -200,6 +310,13 @@ function CampingInner() {
       if (data.length === 0) {
         setNearbyError(t("camping.noNearbyRadius", { radius: rKm }));
       }
+      writeListCache({
+        keyword: "",
+        nearbyMode: true,
+        sites: data,
+        visibleCount: Math.min(PAGE_SIZE, data.length),
+        scrollY: 0,
+      });
     } catch (e) {
       setNearbyError(t("camping.nearbyFetchFailed"));
     } finally {
@@ -250,10 +367,16 @@ function CampingInner() {
   }, [fallbackToIp, fetchNearby, radiusKm, router, t]);
 
   // URL ?nearby=true 자동 진입 (햄버거 메뉴 링크 대응)
+  // 캐시 hit + nearbyMode 인 경우 GPS/API 재요청을 생략하고 직전 결과를 그대로 보여준다.
+  const skipAutoNearbyRef = useRef(!!cacheHit?.nearbyMode);
   useEffect(() => {
     if (!mounted) return;
     if (searchParams.get("nearby") === "true" && !autoNearbyTriggered.current) {
       autoNearbyTriggered.current = true;
+      if (skipAutoNearbyRef.current) {
+        skipAutoNearbyRef.current = false;
+        return;
+      }
       handleNearby();
     }
   }, [mounted, searchParams, handleNearby]);
@@ -292,6 +415,11 @@ function CampingInner() {
     io.observe(el);
     return () => io.disconnect();
   }, [viewMode, visibleCount, sites.length]);
+
+  // visibleCount 변동 시 캐시 동기화 (사용자가 더 보기 / 무한스크롤로 늘려둔 상태도 복원).
+  useEffect(() => {
+    patchListCache({ visibleCount });
+  }, [visibleCount]);
 
   const mappable = useMemo(
     () => sites.filter((s) => s.latitude != null && s.longitude != null),
@@ -596,14 +724,21 @@ function CampingCard({ site }) {
         site.distanceKm != null ? `?d=${site.distanceKm}` : ""
       }`
     : null;
-  const onCardClick = () => {
-    if (detailHref) router.push(detailHref);
+  const goDetail = () => {
+    if (!detailHref) return;
+    // 상세로 떠나기 직전 현재 스크롤 위치를 캐시에 박아두면, 뒤로가기 진입 시
+    // useEffect 가 그 좌표로 윈도우를 복원해 사용자 시야가 점프하지 않는다.
+    if (typeof window !== "undefined") {
+      patchListCache({ scrollY: window.scrollY || window.pageYOffset || 0 });
+    }
+    router.push(detailHref);
   };
+  const onCardClick = () => goDetail();
   const onCardKeyDown = (e) => {
     if (!detailHref) return;
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
-      router.push(detailHref);
+      goDetail();
     }
   };
   const inner = (
@@ -708,9 +843,47 @@ function EmptyState({ icon, title, desc }) {
   );
 }
 
+/**
+ * Suspense fallback. 라우트 전환 도중(예: 상세 → 뒤로가기) Next.js 가 잠깐 노출하는
+ * 화면. 이전 fallback 은 plain "Loading…" 텍스트라 어두운 body 배경(#09090b) 위에
+ * "검은 화면" 처럼 보였음. 페이지 본문(.cmp-root) 과 동일한 그라데이션 + hero/스켈레톤
+ * 자리표시자를 그려 시각적 점프 없이 매끄럽게 전환되도록 한다.
+ */
+function CampingRouteFallback() {
+  return (
+    <div className="cmp-root">
+      <style>{cssBlock}</style>
+      <header className="cmp-hero">
+        <div className="cmp-hero-inner">
+          <div className="cmp-tag">
+            <Tent size={14} />
+            <span>Korea GoCamping</span>
+          </div>
+          <div className="cmp-fallback-title cmp-sk-line cmp-sk-line-lg" />
+          <div className="cmp-fallback-sub cmp-sk-line" />
+        </div>
+      </header>
+      <div className="cmp-main">
+        <div className="cmp-grid" aria-hidden>
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={`fb-${i}`} className="cmp-card cmp-skeleton">
+              <div className="cmp-img cmp-sk-img" />
+              <div className="cmp-body">
+                <div className="cmp-sk-line cmp-sk-line-lg" />
+                <div className="cmp-sk-line" />
+                <div className="cmp-sk-line cmp-sk-line-sm" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CampingPage() {
   return (
-    <Suspense fallback={<div style={{ padding: 40, color: "#aaa" }}>Loading…</div>}>
+    <Suspense fallback={<CampingRouteFallback />}>
       <CampingInner />
     </Suspense>
   );
@@ -989,6 +1162,9 @@ const cssBlock = `
 .cmp-sk-line { height: 10px; margin-top: 6px; width: 70%; }
 .cmp-sk-line-lg { height: 14px; width: 85%; }
 .cmp-sk-line-sm { width: 45%; }
+/* 라우트 전환 fallback 의 hero 자리표시자 (실제 hero 와 톤만 맞추는 dummy 라인) */
+.cmp-fallback-title { height: 32px; max-width: 480px; margin: 16px 0 10px; border-radius: 8px; }
+.cmp-fallback-sub { height: 14px; max-width: 360px; margin: 0; }
 
 .cmp-more {
   display: flex; flex-direction: column; align-items: center; gap: 12px;
