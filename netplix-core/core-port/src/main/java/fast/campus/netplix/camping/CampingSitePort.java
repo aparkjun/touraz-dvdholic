@@ -1,6 +1,7 @@
 package fast.campus.netplix.camping;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 한국관광공사 고캠핑(GoCamping) 조회 Port.
@@ -32,6 +33,22 @@ public interface CampingSitePort {
 
     /** 키워드 검색 (야영장명/지역명). */
     List<CampingSite> fetchByKeyword(String keyword, int limit);
+
+    /**
+     * 단일 야영장 상세 조회. contentId 기준.
+     *
+     * <p>구현 어댑터는 1차로 in-memory 캐시(__ALL__)에서 우선 탐색하고, 캐시 미스인 경우에만
+     * 추가 API 호출을 시도한다. 미존재 / 어댑터 미설정 시 {@link Optional#empty()} 반환.
+     */
+    Optional<CampingSite> findById(String contentId);
+
+    /**
+     * 야영장 이미지 갤러리 조회 (GoCamping {@code /imageList}).
+     *
+     * <p>contentId 별 등록된 이미지 URL 리스트. 등록 이미지가 없으면 빈 리스트.
+     * 어댑터 미설정 / 호출 실패 시 빈 리스트로 폴백 → UI 갤러리 섹션 자연 숨김.
+     */
+    List<String> fetchImages(String contentId);
 
     /** 어댑터 호출 가능 여부 (serviceKey 설정 여부). */
     boolean isConfigured();

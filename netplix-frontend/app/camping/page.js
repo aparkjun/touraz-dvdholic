@@ -22,6 +22,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import {
@@ -81,6 +82,36 @@ const REGION_SHORTCUTS = [
   "충북", "충남", "전북", "전남", "경북",
   "경남", "제주",
 ];
+
+/**
+ * GoCamping homepage 필드 정규화.
+ * - HTML 앵커(`<a href="...">..</a>`) 가 그대로 내려올 때 href 추출
+ * - 프로토콜 누락(`www.ezerpark.com`, `ezerpark.com`) 시 `https://` 보정
+ * - URL 이 아니면 null 반환(섹션 자연 숨김) → 상대 경로 404 방지
+ *
+ * 백엔드가 1차 정규화하지만, 캐시된 옛 응답/직접 호출에도 대비해 동일 로직을 둔다.
+ */
+function sanitizeHomepageUrl(raw) {
+  if (raw == null) return null;
+  let s = String(raw).trim();
+  if (!s) return null;
+
+  if (s.includes("<") && s.includes(">")) {
+    const m = s.match(/href\s*=\s*['"]([^'"]+)['"]/i);
+    if (m) s = m[1].trim();
+    else s = s.replace(/<[^>]+>/g, "").trim();
+  }
+  if (!s) return null;
+
+  const lower = s.toLowerCase();
+  if (lower.startsWith("http://") || lower.startsWith("https://")) return s;
+  if (lower.startsWith("www.") || s.includes(".")) {
+    if (/\s/.test(s)) return null;
+    if (!/^[A-Za-z0-9.\-_~:/?#@!$&'()*+,;=%]+$/.test(s)) return null;
+    return `https://${s}`;
+  }
+  return null;
+}
 
 function CampingInner() {
   const { t } = useTranslation();
@@ -505,9 +536,23 @@ function FitBounds({ sites, userPos }) {
 
 function MarkerPopup({ site }) {
   const { t } = useTranslation();
+  const homepageHref = sanitizeHomepageUrl(site.homepage);
+  const detailHref = site.id
+    ? `/camping/${encodeURIComponent(site.id)}${
+        site.distanceKm != null ? `?d=${site.distanceKm}` : ""
+      }`
+    : null;
   return (
     <div style={{ minWidth: 200, maxWidth: 260 }}>
-      <div style={{ fontWeight: 700, marginBottom: 4 }}>{site.name}</div>
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>
+        {detailHref ? (
+          <Link href={detailHref} style={{ color: "#0e7490", textDecoration: "none" }}>
+            {site.name}
+          </Link>
+        ) : (
+          site.name
+        )}
+      </div>
       {site.address && (
         <div style={{ fontSize: 12, color: "#555", marginBottom: 4 }}>
           📍 {site.address}
@@ -521,9 +566,9 @@ function MarkerPopup({ site }) {
       <div style={{ fontSize: 12 }}>
         📞 {site.tel || t("camping.phoneNone")}
       </div>
-      {site.homepage && (
+      {homepageHref && (
         <a
-          href={site.homepage}
+          href={homepageHref}
           target="_blank"
           rel="noopener noreferrer"
           style={{ fontSize: 12, color: "#0ea5e9", marginTop: 4, display: "inline-block" }}
@@ -537,11 +582,32 @@ function MarkerPopup({ site }) {
 
 function CampingCard({ site }) {
   const { t } = useTranslation();
+  const router = useRouter();
   const mapUrl = site.address
     ? `https://map.kakao.com/link/search/${encodeURIComponent(site.address)}`
     : null;
-  return (
-    <article className="cmp-card">
+  const homepageHref = sanitizeHomepageUrl(site.homepage);
+  // 카드 전체를 상세 페이지로 이동시키는 클릭 가능 영역으로 만든다.
+  // <Link>(=<a>) 로 감싸지 않는 이유: 카드 내부의 외부 링크(주소/홈페이지) 가 <a> 라서
+  // 중첩 anchor 가 되어 HTML 무효 → 일부 브라우저에서 풀어버려 동작이 깨질 수 있음.
+  // 대신 article + onClick + role/aria 로 접근성을 보강한다.
+  const detailHref = site.id
+    ? `/camping/${encodeURIComponent(site.id)}${
+        site.distanceKm != null ? `?d=${site.distanceKm}` : ""
+      }`
+    : null;
+  const onCardClick = () => {
+    if (detailHref) router.push(detailHref);
+  };
+  const onCardKeyDown = (e) => {
+    if (!detailHref) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      router.push(detailHref);
+    }
+  };
+  const inner = (
+    <>
       <div className="cmp-img">
         {site.imageUrl ? (
           <img
@@ -573,7 +639,13 @@ function CampingCard({ site }) {
           <div className="cmp-meta">
             <MapPin size={12} />
             {mapUrl ? (
-              <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="cmp-addr-link">
+              <a
+                href={mapUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="cmp-addr-link"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {site.address}
               </a>
             ) : (
@@ -586,14 +658,36 @@ function CampingCard({ site }) {
           <span>{site.tel || t("camping.phoneNone")}</span>
         </div>
         {site.shortIntro && <p className="cmp-intro">{site.shortIntro}</p>}
-        {site.homepage && (
-          <a href={site.homepage} target="_blank" rel="noopener noreferrer" className="cmp-home">
+        {homepageHref && (
+          <a
+            href={homepageHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="cmp-home"
+            onClick={(e) => e.stopPropagation()}
+          >
             {t("camping.homepage")} <ExternalLink size={11} />
           </a>
         )}
       </div>
-    </article>
+    </>
   );
+
+  if (detailHref) {
+    return (
+      <article
+        className="cmp-card cmp-card-link"
+        role="link"
+        tabIndex={0}
+        aria-label={site.name || ""}
+        onClick={onCardClick}
+        onKeyDown={onCardKeyDown}
+      >
+        {inner}
+      </article>
+    );
+  }
+  return <article className="cmp-card">{inner}</article>;
 }
 
 function renderBadges(induty) {
@@ -806,6 +900,14 @@ const cssBlock = `
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   box-shadow: 0 2px 8px rgba(0,0,0,0.25);
   display: flex; flex-direction: column;
+}
+.cmp-card-link {
+  text-decoration: none; color: inherit;
+  cursor: pointer;
+}
+.cmp-card-link:focus-visible {
+  outline: 2px solid #22c55e;
+  outline-offset: 2px;
 }
 .cmp-card:hover {
   transform: translateY(-3px);

@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 고캠핑 조회 서비스. 캐시/페이지네이션은 어댑터(GoCampingHttpClient)에서 관리.
@@ -39,6 +40,18 @@ public class CampingSiteService implements GetCampingSitesUseCase {
     @Override
     public List<CampingSite> byKeyword(String keyword, int limit) {
         return campingSitePort.fetchByKeyword(keyword, sanitize(limit));
+    }
+
+    @Override
+    public Optional<CampingSite> byId(String contentId) {
+        if (contentId == null || contentId.isBlank()) return Optional.empty();
+        return campingSitePort.findById(contentId.trim());
+    }
+
+    @Override
+    public List<String> images(String contentId) {
+        if (contentId == null || contentId.isBlank()) return List.of();
+        return campingSitePort.fetchImages(contentId.trim());
     }
 
     private int sanitize(int limit) {

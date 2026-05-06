@@ -18,11 +18,15 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -72,10 +76,16 @@ public class GoCampingHttpClient implements CampingSitePort {
     @Value("${visitkorea.camping.search-url:https://apis.data.go.kr/B551011/GoCamping/searchList}")
     private String searchUrl;
 
+    @Value("${visitkorea.camping.image-url:https://apis.data.go.kr/B551011/GoCamping/imageList}")
+    private String imageListUrl;
+
     @Value("${visitkorea.camping.cache-minutes:1440}")
     private long cacheMinutes;
 
     private final Map<String, CacheSnapshot> cache = new ConcurrentHashMap<>();
+    /** contentId → 이미지 URL 리스트 캐시 (24h TTL, 최대 256건 LRU 근사). */
+    private final Map<String, ImageSnapshot> imageCache = new ConcurrentHashMap<>();
+    private static final int MAX_IMAGE_CACHE = 256;
 
     @Override
     public boolean isConfigured() {
@@ -147,6 +157,149 @@ public class GoCampingHttpClient implements CampingSitePort {
                         b.getDistanceKm() == null ? Double.MAX_VALUE : b.getDistanceKm()))
                 .collect(Collectors.toList());
         return take(sorted, limit);
+    }
+
+    @Override
+    public Optional<CampingSite> findById(String contentId) {
+        if (!isConfigured() || contentId == null || contentId.isBlank()) return Optional.empty();
+        String id = contentId.trim();
+
+        // 1차: 전체 캐시(__ALL__) 에서 contentId 일치 항목 탐색.
+        Optional<CampingSite> hit = lookupInCache(ALL_KEY, id);
+        if (hit.isPresent()) return hit;
+
+        // 2차: 모든 키워드 캐시에서도 탐색 (CineTrip/지역 페이지에서 키워드 캐시만 데워졌을 수 있음).
+        for (Map.Entry<String, CacheSnapshot> e : cache.entrySet()) {
+            if (ALL_KEY.equals(e.getKey())) continue;
+            Optional<CampingSite> sub = lookupInSnapshot(e.getValue(), id);
+            if (sub.isPresent()) return sub;
+        }
+
+        // 3차: 캐시 미적재 / partial 상태 → 전체 캐시 1페이지 동기 적재 후 재조회.
+        // (전체 갱신은 비동기이지만, 상세 페이지 첫 진입 트래픽은 1페이지 동기로 빠른 응답 보장)
+        CacheSnapshot snap = cache.get(ALL_KEY);
+        if (snap == null || snap.partial) {
+            PageResult first = requestPage(basedUrl, Map.of(), 1);
+            if (first != null) {
+                List<CampingSite> base = (snap == null)
+                        ? new ArrayList<>(first.items)
+                        : mergeUnique(snap.sites, first.items);
+                boolean needMore = first.totalCount > base.size();
+                cache.put(ALL_KEY, new CacheSnapshot(
+                        Collections.unmodifiableList(base),
+                        Instant.now().toEpochMilli(),
+                        needMore));
+                if (needMore) scheduleAllRefresh();
+                Optional<CampingSite> retry = lookupInCache(ALL_KEY, id);
+                if (retry.isPresent()) return retry;
+            }
+        }
+
+        // 마지막 수단: 다음 페이지를 동기적으로 몇 장 더 시도 (HTTP 호출 비용 ↑ 이지만 미존재 빠른 종결).
+        return scanRemainingPagesForId(id);
+    }
+
+    @Override
+    public List<String> fetchImages(String contentId) {
+        if (!isConfigured() || contentId == null || contentId.isBlank()) return List.of();
+        String id = contentId.trim();
+
+        ImageSnapshot snap = imageCache.get(id);
+        if (snap != null && !isStaleImage(snap)) return snap.urls;
+
+        try {
+            URI uri = URI.create(buildUrl(imageListUrl, Map.of("contentId", id), 1, MAX_PAGE_SIZE));
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.ACCEPT, "application/json");
+            String raw = httpClient.requestUri(uri, HttpMethod.GET, headers);
+            if (raw == null || raw.isBlank()) return cachedImages(id, List.of());
+            String trimmed = raw.trim();
+            if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+                log.warn("[CAMPING] imageList 비-JSON 응답 contentId={} prefix={}",
+                        id, trimmed.substring(0, Math.min(80, trimmed.length())));
+                return List.of();
+            }
+            String safe = trimmed
+                    .replaceAll("\"items\"\\s*:\\s*\"\\s*\"", "\"items\":null")
+                    .replaceAll("\"item\"\\s*:\\s*\"\\s*\"", "\"item\":null");
+            GoCampingResponse parsed = ObjectMapperUtil.toObject(safe, GoCampingResponse.class);
+            if (parsed == null || parsed.getResponse() == null
+                    || parsed.getResponse().getBody() == null
+                    || parsed.getResponse().getBody().getItems() == null
+                    || parsed.getResponse().getBody().getItems().getItem() == null) {
+                return cachedImages(id, List.of());
+            }
+            List<String> urls = parsed.getResponse().getBody().getItems().getItem().stream()
+                    .map(GoCampingResponse.Item::getImageUrl)
+                    .filter(s -> s != null && !s.isBlank())
+                    .distinct()
+                    .collect(Collectors.toUnmodifiableList());
+            return cachedImages(id, urls);
+        } catch (Exception ex) {
+            log.warn("[CAMPING] imageList 호출 실패 contentId={} err={}", id, ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<String> cachedImages(String contentId, List<String> urls) {
+        if (imageCache.size() >= MAX_IMAGE_CACHE) {
+            imageCache.entrySet().stream()
+                    .min((a, b) -> Long.compare(a.getValue().loadedAtEpochMs, b.getValue().loadedAtEpochMs))
+                    .ifPresent(e -> imageCache.remove(e.getKey()));
+        }
+        imageCache.put(contentId, new ImageSnapshot(urls, Instant.now().toEpochMilli()));
+        return urls;
+    }
+
+    private Optional<CampingSite> lookupInCache(String key, String contentId) {
+        return lookupInSnapshot(cache.get(key), contentId);
+    }
+
+    private Optional<CampingSite> lookupInSnapshot(CacheSnapshot snap, String contentId) {
+        if (snap == null || snap.sites.isEmpty()) return Optional.empty();
+        for (CampingSite s : snap.sites) {
+            if (contentId.equals(s.getId())) return Optional.of(s);
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * 캐시 미스 + 1페이지 동기 적재로도 못 찾은 경우, 추가 페이지를 제한적으로 더 훑어 본다.
+     * 전체 캐시가 partial 인 동안 호출자가 만든 직접 링크(/camping/{id}) 도 실패하지 않게 하려는 폴백.
+     * 트래픽 폭주 방지를 위해 최대 5 페이지(=1,000건) 까지만 동기 시도.
+     */
+    private Optional<CampingSite> scanRemainingPagesForId(String contentId) {
+        CacheSnapshot snap = cache.get(ALL_KEY);
+        int alreadyLoaded = snap == null ? 0 : snap.sites.size();
+        int startPage = alreadyLoaded / MAX_PAGE_SIZE + 2; // 1페이지는 이미 시도한 후
+        int maxAdditional = 5;
+        for (int p = startPage; p < startPage + maxAdditional; p++) {
+            PageResult pr = requestPage(basedUrl, Map.of(), p);
+            if (pr == null || pr.items.isEmpty()) break;
+            // 누적 캐시에 합치기 (partial 유지)
+            CacheSnapshot cur = cache.get(ALL_KEY);
+            List<CampingSite> merged = mergeUnique(cur == null ? List.of() : cur.sites, pr.items);
+            cache.put(ALL_KEY, new CacheSnapshot(
+                    Collections.unmodifiableList(merged),
+                    Instant.now().toEpochMilli(),
+                    true));
+            for (CampingSite s : pr.items) {
+                if (contentId.equals(s.getId())) return Optional.of(s);
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static List<CampingSite> mergeUnique(List<CampingSite> base, List<CampingSite> add) {
+        LinkedHashSet<String> ids = new LinkedHashSet<>();
+        List<CampingSite> out = new ArrayList<>(base.size() + add.size());
+        for (CampingSite s : base) {
+            if (s.getId() != null && ids.add(s.getId())) out.add(s);
+        }
+        for (CampingSite s : add) {
+            if (s.getId() != null && ids.add(s.getId())) out.add(s);
+        }
+        return out;
     }
 
     @Override
@@ -256,23 +409,13 @@ public class GoCampingHttpClient implements CampingSitePort {
     }
 
     private PageResult requestPage(String baseUrl, Map<String, String> extraParams, int pageNo, int rows) {
-        StringBuilder sb = new StringBuilder(baseUrl);
-        sb.append(baseUrl.contains("?") ? "&" : "?");
-        sb.append("serviceKey=").append(serviceKey);
-        sb.append("&_type=json");
-        sb.append("&MobileOS=ETC");
-        sb.append("&MobileApp=touraz-dvdholic");
-        sb.append("&numOfRows=").append(rows);
-        sb.append("&pageNo=").append(pageNo);
-        extraParams.forEach((k, v) -> sb.append('&').append(k).append('=')
-                .append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
-
+        String url = buildUrl(baseUrl, extraParams, pageNo, rows);
         String raw;
-        String urlForLog = sb.toString().replaceAll("serviceKey=[^&]+", "serviceKey=***");
+        String urlForLog = url.replaceAll("serviceKey=[^&]+", "serviceKey=***");
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.add(HttpHeaders.ACCEPT, "application/json");
-            URI uri = URI.create(sb.toString());
+            URI uri = URI.create(url);
             raw = httpClient.requestUri(uri, HttpMethod.GET, headers);
         } catch (Exception ex) {
             log.error("[CAMPING] 호출 실패 page={} url={} err={}", pageNo, urlForLog, ex.getMessage());
@@ -339,7 +482,7 @@ public class GoCampingHttpClient implements CampingSitePort {
                 .longIntro(nullIfBlank(i.getIntro()))
                 .imageUrl(nullIfBlank(i.getFirstImageUrl()))
                 .tel(nullIfBlank(i.getTel()))
-                .homepage(nullIfBlank(i.getHomepage()))
+                .homepage(normalizeHomepage(i.getHomepage()))
                 .direction(nullIfBlank(i.getDirection()))
                 .doNm(nullIfBlank(i.getDoNm()))
                 .sigunguNm(nullIfBlank(i.getSigunguNm()))
@@ -389,6 +532,54 @@ public class GoCampingHttpClient implements CampingSitePort {
 
     private static String nullIfBlank(String s) { return (s == null || s.isBlank()) ? null : s; }
 
+    /**
+     * GoCamping homepage 필드는 다음과 같은 비표준 형태로 내려오는 경우가 많아 프런트에서
+     * 그대로 {@code <a href>} 에 주입하면 상대 경로로 해석되어 SPA 내 404 가 발생한다.
+     *
+     * <ul>
+     *   <li>HTML 앵커 통째: {@code <a href="http://ezerpark.kr" target="_blank">홈페이지</a>}</li>
+     *   <li>프로토콜 누락: {@code www.ezerpark.com}</li>
+     *   <li>그냥 도메인만: {@code ezerpark.com}</li>
+     *   <li>이메일/전화 등 URL 이 아닌 잡음: {@code 010-1234-5678}</li>
+     *   <li>빈 문자열 / null</li>
+     * </ul>
+     *
+     * 이 함수는:
+     *  1) HTML 태그가 들어있으면 첫 번째 {@code href="..."} 값을 추출
+     *  2) 프로토콜이 없으면 {@code https://} 를 보정
+     *  3) 도메인 점(.)이 없거나 명백히 URL 이 아니면 null 반환 (프런트 섹션 자연 숨김)
+     */
+    private static final Pattern HREF_IN_HTML = Pattern.compile(
+            "href\\s*=\\s*['\"]([^'\"]+)['\"]", Pattern.CASE_INSENSITIVE);
+
+    static String normalizeHomepage(String raw) {
+        if (raw == null) return null;
+        String s = raw.trim();
+        if (s.isEmpty()) return null;
+
+        if (s.contains("<") && s.contains(">")) {
+            Matcher m = HREF_IN_HTML.matcher(s);
+            if (m.find()) {
+                s = m.group(1).trim();
+            } else {
+                s = s.replaceAll("<[^>]+>", "").trim();
+            }
+        }
+        if (s.isEmpty()) return null;
+
+        String lower = s.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("http://") || lower.startsWith("https://")) {
+            return s;
+        }
+        if (lower.startsWith("www.") || lower.contains(".")) {
+            if (s.contains(" ") || !s.matches("^[A-Za-z0-9.\\-_~:/?#@!$&'()*+,;=%]+$")) {
+                return null;
+            }
+            return "https://" + s;
+        }
+        return null;
+    }
+
     private static String joinAddr(String a1, String a2) {
         if ((a1 == null || a1.isBlank()) && (a2 == null || a2.isBlank())) return null;
         StringBuilder sb = new StringBuilder();
@@ -410,6 +601,26 @@ public class GoCampingHttpClient implements CampingSitePort {
         return ageMin >= cacheMinutes;
     }
 
+    private boolean isStaleImage(ImageSnapshot snap) {
+        if (snap == null) return true;
+        long ageMin = (Instant.now().toEpochMilli() - snap.loadedAtEpochMs) / 60_000L;
+        return ageMin >= cacheMinutes;
+    }
+
+    private String buildUrl(String baseUrl, Map<String, String> extraParams, int pageNo, int rows) {
+        StringBuilder sb = new StringBuilder(baseUrl);
+        sb.append(baseUrl.contains("?") ? "&" : "?");
+        sb.append("serviceKey=").append(serviceKey);
+        sb.append("&_type=json");
+        sb.append("&MobileOS=ETC");
+        sb.append("&MobileApp=touraz-dvdholic");
+        sb.append("&numOfRows=").append(rows);
+        sb.append("&pageNo=").append(pageNo);
+        extraParams.forEach((k, v) -> sb.append('&').append(k).append('=')
+                .append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
+        return sb.toString();
+    }
+
     private static <T> List<T> take(List<T> list, int limit) {
         if (list == null) return List.of();
         if (limit <= 0 || limit >= list.size()) return list;
@@ -421,4 +632,6 @@ public class GoCampingHttpClient implements CampingSitePort {
     }
 
     private record PageResult(List<CampingSite> items, int totalCount) {}
+
+    private record ImageSnapshot(List<String> urls, long loadedAtEpochMs) {}
 }

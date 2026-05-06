@@ -1,9 +1,46 @@
-fix(spot-brief): 한글 키워드 이중 URL 인코딩 차단
+feat(camping): 야영장 상세 페이지 + GoCamping homepage 정규화로 404 차단
 
-httpClient.request(String, ...) 는 RestTemplate#exchange 의 URI 템플릿으로
-해석되어 %-인코딩된 한글 키워드의 % 가 %25 로 재인코딩됐다. 이로 인해 KTO
-searchKeyword2 가 키워드를 인식 못 하고 totalCount=0 을 반환, 모달의 brief
-가 항상 null 로 비어 있었다.
+문제
+- /camping 카드의 "홈페이지" 클릭 시 404 ("This page could not be found.")
+- GoCamping API 의 homepage 필드가 종종 프로토콜 누락 도메인(www.ezerpark.com)
+  또는 HTML 앵커(<a href="...">홈페이지</a>) 통째로 내려와, <a href={raw}> 가
+  상대 경로로 해석되어 SPA 내 not-found 로 빠지는 동선이 있었음.
+- 또한 카드에 상세 페이지가 없어 "더 많은 정보를 보고 싶다" 라는 기본 욕구가
+  주소 링크 / 외부 홈페이지 링크 두 가지로만 분산되어 있던 UX.
 
-URI.create(url) 로 감싸 requestUri(URI, ...) 를 호출하도록 변경해 재인코딩을
-차단한다 (다른 KTO 어댑터들이 이미 사용 중인 패턴).
+수정
+- 백엔드 GoCampingHttpClient.toDomain() 에 normalizeHomepage() 추가
+  · HTML 앵커에서 첫 href 추출, 프로토콜 누락 시 https:// 보정,
+    URL 형태 아니면 null 반환 → 프런트 섹션 자연 숨김
+- 프런트 sanitizeHomepageUrl() 동일 로직을 CampingCard / CampingMiniCard /
+  MarkerPopup / 상세 페이지에 방어선으로 배치 (옛 캐시 응답 대비)
+- /camping/[id] 상세 페이지 신설
+  · 히어로(대표 이미지 배경 + 분류/입지/거리 배지 + 주소)
+  · 액션바: 카카오맵·네이버맵·전화·홈페이지·공유(clipboard 폴백)
+  · 본문 그리드: 소개 / 찾아오는 길 / 연락처 / 주소
+  · 사진 갤러리 (GoCamping /imageList, 0건이면 섹션 숨김)
+  · Leaflet 미니 지도 (위·경도 있을 때)
+  · 미존재/실패 시 NotFoundCard + "목록으로 돌아가기"
+- CampingCard / CampingMiniCard 를 클릭 영역화
+  · role="link" + tabIndex + Enter/Space 키 핸들러로 a11y 보강
+  · 중첩 anchor 회피 위해 <Link> 대신 article + router.push 패턴
+  · 내부 외부 링크는 stopPropagation 으로 상세 진입 차단
+  · MarkerPopup 의 야영장 이름도 상세 링크 연결
+
+백엔드 신규 엔드포인트
+- GET /api/v1/camping/{id}        : 단일 야영장 상세 (404 가능)
+- GET /api/v1/camping/{id}/images : 갤러리 (imageList, 빈 리스트 폴백)
+
+캐시 / 폴백 전략
+- findById: 1) __ALL__ 캐시 → 2) 키워드 캐시 → 3) 1페이지 동기 적재 후 재시도
+  → 4) 다음 5페이지(=1,000건) 동기 fallback. partial 상태 직접 링크 진입에도 응답.
+- fetchImages: 24h TTL, 256건 LRU 근사 캐시. 실패 시 빈 리스트 → 갤러리 자연 숨김.
+- GoCampingResponse.Item 에 imageUrl/serialnum 필드 추가 (imageList 응답 전용).
+
+i18n
+- camping.detailNotFound / backToList / share / openKakaoMap / galleryTitle 등
+  21 키 추가 (ko/en × locales/ + src/locales/ 양쪽 동기화).
+
+검증
+- gradlew compileJava: 5개 모듈 빌드 성공
+- ReadLints: 변경된 13개 파일 0 errors

@@ -78,7 +78,9 @@ public class GoCampingResponse {
         private String lctCl;         // 입지 구분 (산/숲속/계곡/해변/도심)
         private String lineIntro;     // 한줄 소개
         private String intro;         // 긴 소개
-        private String firstImageUrl; // 대표 이미지 URL
+        private String firstImageUrl; // 대표 이미지 URL (basedList/searchList/locationBasedList)
+        private String imageUrl;      // 이미지 URL (imageList 응답 전용)
+        private String serialnum;     // 이미지 시리얼 번호 (imageList 응답 전용)
         private String tel;
         private String homepage;
         private String direction;

@@ -15,9 +15,36 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/src/axiosConfig";
 import { Tent, MapPin, Phone, ExternalLink, ArrowRight } from "lucide-react";
+
+/**
+ * GoCamping homepage 필드 정규화. 자세한 케이스는 app/camping/page.js 의 동명 함수 주석 참조.
+ * 백엔드 1차 정규화에 더해 캐시/폴백 응답에 대비해 동일 로직을 둔다.
+ */
+function sanitizeHomepageUrl(raw) {
+  if (raw == null) return null;
+  let s = String(raw).trim();
+  if (!s) return null;
+
+  if (s.includes("<") && s.includes(">")) {
+    const m = s.match(/href\s*=\s*['"]([^'"]+)['"]/i);
+    if (m) s = m[1].trim();
+    else s = s.replace(/<[^>]+>/g, "").trim();
+  }
+  if (!s) return null;
+
+  const lower = s.toLowerCase();
+  if (lower.startsWith("http://") || lower.startsWith("https://")) return s;
+  if (lower.startsWith("www.") || s.includes(".")) {
+    if (/\s/.test(s)) return null;
+    if (!/^[A-Za-z0-9.\-_~:/?#@!$&'()*+,;=%]+$/.test(s)) return null;
+    return `https://${s}`;
+  }
+  return null;
+}
 
 export default function NearbyCampingStrip({
   lat,
@@ -122,8 +149,25 @@ export default function NearbyCampingStrip({
 
 function CampingMiniCard({ site }) {
   const { t } = useTranslation();
-  return (
-    <article className="ncs-card">
+  const router = useRouter();
+  const homepageHref = sanitizeHomepageUrl(site.homepage);
+  const detailHref = site.id
+    ? `/camping/${encodeURIComponent(site.id)}${
+        site.distanceKm != null ? `?d=${site.distanceKm}` : ""
+      }`
+    : null;
+  const onCardClick = () => {
+    if (detailHref) router.push(detailHref);
+  };
+  const onCardKeyDown = (e) => {
+    if (!detailHref) return;
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      router.push(detailHref);
+    }
+  };
+  const inner = (
+    <>
       <div className="ncs-img">
         {site.imageUrl ? (
           <img
@@ -159,9 +203,9 @@ function CampingMiniCard({ site }) {
           <Phone size={11} />
           <span>{site.tel || t("nearbyCamping.phoneNone")}</span>
         </div>
-        {site.homepage && (
+        {homepageHref && (
           <a
-            href={site.homepage}
+            href={homepageHref}
             target="_blank"
             rel="noopener noreferrer"
             className="ncs-home"
@@ -171,8 +215,24 @@ function CampingMiniCard({ site }) {
           </a>
         )}
       </div>
-    </article>
+    </>
   );
+
+  if (detailHref) {
+    return (
+      <article
+        className="ncs-card ncs-card-link"
+        role="link"
+        tabIndex={0}
+        aria-label={site.name || ""}
+        onClick={onCardClick}
+        onKeyDown={onCardKeyDown}
+      >
+        {inner}
+      </article>
+    );
+  }
+  return <article className="ncs-card">{inner}</article>;
 }
 
 const cssBlock = `
@@ -219,6 +279,8 @@ const cssBlock = `
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
   display: flex; flex-direction: column;
 }
+.ncs-card-link { text-decoration: none; color: inherit; cursor: pointer; }
+.ncs-card-link:focus-visible { outline: 2px solid #22c55e; outline-offset: 2px; }
 .ncs-card:hover {
   transform: translateY(-2px);
   border-color: rgba(34, 197, 94, 0.35);
