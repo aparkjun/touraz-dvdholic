@@ -1276,7 +1276,7 @@ function DashboardContent() {
               <button
                 type="button"
                 onClick={() => setPromptTravelMode((v) => !v)}
-                title="한국관광공사 지역 지표를 AI 추천 컨텍스트로 주입"
+                title={t('dashboardPage.travelModeTooltip', '한국관광공사 지역 지표를 AI 추천 컨텍스트로 주입')}
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -1297,7 +1297,7 @@ function DashboardContent() {
                 }}
               >
                 <span style={{ fontSize: "13px" }}>{promptTravelMode ? "🌏" : "🧭"}</span>
-                {promptTravelMode ? "여행 모드 ON" : "여행 모드"}
+                {promptTravelMode ? t('dashboardPage.travelModeOn', '여행 모드 ON') : t('dashboardPage.travelMode', '여행 모드')}
               </button>
             </div>
             <div

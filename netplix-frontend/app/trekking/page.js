@@ -4,6 +4,7 @@ import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import {
   Footprints,
   Mountain,
@@ -53,7 +54,7 @@ import AmbientBackdrop from '@/components/AmbientBackdrop';
 const ROUTE_FILTERS = [
   {
     id: 'hae',
-    label: '해파랑길',
+    label: '해파랑길', // i18n key: trekking.routes.hae
     routeIdx: 'T_THEME_MNG0000011235',
     accent: {
       bg: 'linear-gradient(135deg, #0ea5e9 0%, #06b6d4 100%)',
@@ -92,6 +93,9 @@ const DEFAULT_ACCENT = {
 const accentForRoute = (routeIdx) =>
   ROUTE_FILTERS.find((f) => f.routeIdx === routeIdx)?.accent || DEFAULT_ACCENT;
 
+const idForRoute = (routeIdx) =>
+  ROUTE_FILTERS.find((f) => f.routeIdx === routeIdx)?.id || null;
+
 const labelForRoute = (routeIdx) =>
   ROUTE_FILTERS.find((f) => f.routeIdx === routeIdx)?.label || '기타';
 
@@ -104,6 +108,7 @@ export default function TrekkingPage() {
 }
 
 function TrekkingPageInner() {
+  const { t } = useTranslation();
   const pageRef = useRef(null);
   // 동적으로 펼쳐지는 NearbyCineTripStrip(.js-drag-scroll) 도 자동 바인딩
   useDragScrollAll(pageRef);
@@ -140,13 +145,13 @@ function TrekkingPageInner() {
         setRoutes(Array.isArray(data) ? data : []);
       } catch (e) {
         console.error('[trekking-routes] fetch failed:', e?.message || e);
-        if (alive) setRoutesError('길 목록을 불러올 수 없어요');
+        if (alive) setRoutesError(t('trekking.routesError', '길 목록을 불러올 수 없어요'));
       } finally {
         if (alive) setRoutesLoading(false);
       }
     })();
     return () => { alive = false; };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     let alive = true;
@@ -172,13 +177,13 @@ function TrekkingPageInner() {
         setCourses(list);
       } catch (e) {
         console.error('[trekking-courses] fetch failed:', e?.message || e);
-        if (alive) setCoursesError('코스 목록을 불러올 수 없어요');
+        if (alive) setCoursesError(t('trekking.coursesError', '코스 목록을 불러올 수 없어요'));
       } finally {
         if (alive) setCoursesLoading(false);
       }
     })();
     return () => { alive = false; };
-  }, [activeRouteIdx, selectedAreaCode]);
+  }, [activeRouteIdx, selectedAreaCode, t]);
 
   const clearAreaFilter = () => {
     const next = new URLSearchParams(searchParams.toString());
@@ -239,7 +244,7 @@ function TrekkingPageInner() {
           }}
         >
           <ArrowLeft size={14} />
-          대시보드로 돌아가기
+          {t('trekking.backToDashboard', '대시보드로 돌아가기')}
         </Link>
       </div>
 
@@ -323,14 +328,11 @@ function TrekkingPageInner() {
               backgroundClip: 'text', color: 'transparent', letterSpacing: '-0.01em',
             }}
           >
-            코스로 떠나는 걷기여행
+            {t('trekking.heroTitle', '코스로 떠나는 걷기여행')}
           </h1>
 
           <p style={{ fontSize: 16, lineHeight: 1.65, color: 'rgba(220,252,231,0.82)', margin: 0, maxWidth: 620 }}>
-            한국관광공사 <strong style={{ color: '#fde68a' }}>두루누비</strong> 에서 제공하는
-            <strong style={{ color: '#a7f3d0' }}> 코리아둘레길 284개 코스 </strong>
-            의 GPX·지역·주변 관광정보를 따라, 영화 속 장소와 반려동물 동반 여행에
-            <strong style={{ color: '#7dd3fc' }}> 산뜻한 걷기 코스 </strong>까지 한 번에 이어집니다.
+            {t('trekking.heroBody', '한국관광공사 두루누비에서 제공하는 코리아둘레길 284개 코스의 GPX·지역·주변 관광정보를 따라, 영화 속 장소와 반려동물 동반 여행에 산뜻한 걷기 코스까지 한 번에 이어집니다.')}
           </p>
 
           {selectedAreaCode && selectedAreaLabel && (
@@ -348,11 +350,11 @@ function TrekkingPageInner() {
               }}
             >
               <MapPin size={14} />
-              <span>{selectedAreaLabel} 지역 코스만 보기</span>
+              <span>{t('trekking.areaChip', '{{region}} 지역 코스만 보기', { region: selectedAreaLabel })}</span>
               <button
                 type="button"
                 onClick={clearAreaFilter}
-                aria-label="지역 필터 해제"
+                aria-label={t('trekking.areaFilterClearAria', '지역 필터 해제')}
                 style={{
                   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                   width: 22, height: 22, borderRadius: '50%',
@@ -373,7 +375,7 @@ function TrekkingPageInner() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
             <Film size={18} color="#f5d0fe" />
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>
-              {selectedAreaLabel} 배경 영화·촬영지
+              {t('trekking.cineSectionTitle', '{{region}} 배경 영화·촬영지', { region: selectedAreaLabel })}
             </h2>
             <span style={{ fontSize: 12, color: 'rgba(220,252,231,0.55)', marginLeft: 6 }}>
               CineTrip
@@ -388,10 +390,10 @@ function TrekkingPageInner() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
             <Footprints size={18} color="#fde68a" />
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>
-              {selectedAreaLabel} 추천 도보 코스
+              {t('trekking.curatedSectionTitle', '{{region}} 추천 도보 코스', { region: selectedAreaLabel })}
             </h2>
             <span style={{ fontSize: 12, color: 'rgba(220,252,231,0.55)', marginLeft: 6 }}>
-              한양도성·둘레길·하천 산책로 큐레이션
+              {t('trekking.curatedSectionSub', '한양도성·둘레길·하천 산책로 큐레이션')}
             </span>
           </div>
 
@@ -413,14 +415,14 @@ function TrekkingPageInner() {
       <section style={{ maxWidth: 1160, margin: '32px auto 0', padding: '0 20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
           <Mountain size={18} color="#6ee7b7" />
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>코리아둘레길 · 주요 노선</h2>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{t('trekking.routesSectionTitle', '코리아둘레길 · 주요 노선')}</h2>
         </div>
         {routesLoading ? (
           <GridSkeleton count={4} height={128} />
         ) : routesError ? (
           <EmptyCard msg={routesError} />
         ) : routes.length === 0 ? (
-          <EmptyCard msg="등록된 길 정보가 없어요" />
+          <EmptyCard msg={t('trekking.routesEmpty', '등록된 길 정보가 없어요')} />
         ) : (
           <div
             style={{
@@ -488,8 +490,8 @@ function TrekkingPageInner() {
           <Route size={18} color="#7dd3fc" />
           <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>
             {selectedAreaCode && selectedAreaLabel
-              ? `${selectedAreaLabel} 걷기 코스`
-              : '걷기 코스 둘러보기'}
+              ? t('trekking.coursesSectionTitleArea', '{{region}} 걷기 코스', { region: selectedAreaLabel })
+              : t('trekking.coursesSectionTitleAll', '걷기 코스 둘러보기')}
           </h2>
           {selectedAreaCode && (
             <button
@@ -504,20 +506,20 @@ function TrekkingPageInner() {
                 fontSize: 12, fontWeight: 700, cursor: 'pointer',
               }}
             >
-              전체 지역 보기
+              {t('trekking.viewAllAreas', '전체 지역 보기')}
             </button>
           )}
         </div>
 
         <div
           role="tablist"
-          aria-label="둘레길 구분 선택"
+          aria-label={t('trekking.chipsAriaLabel', '둘레길 구분 선택')}
           style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}
         >
           <ChipButton
             active={activeRouteIdx === null}
             onClick={() => setActiveRouteIdx(null)}
-            label="전체"
+            label={t('trekking.chipAll', '전체')}
             color="#a7f3d0"
           />
           {ROUTE_FILTERS.map((f) => (
@@ -525,7 +527,7 @@ function TrekkingPageInner() {
               key={f.id}
               active={activeRouteIdx === f.routeIdx}
               onClick={() => setActiveRouteIdx(f.routeIdx)}
-              label={f.label}
+              label={t(`trekking.routes.${f.id}`, f.label)}
               color={f.accent.chip}
             />
           ))}
@@ -540,21 +542,13 @@ function TrekkingPageInner() {
             msg={
               selectedAreaCode
                 ? curatedCourses.length > 0
-                  ? `코리아둘레길(해파랑·남파랑·서해랑)은 해안선을 따라 이어져 있어 ${
-                      selectedAreaLabel || '선택하신 지역'
-                    }을(를) 지나지 않습니다. 대신 위의 “${
-                      selectedAreaLabel || '지역'
-                    } 추천 도보 코스” 섹션에서 ${
-                      selectedAreaLabel || '이 지역'
-                    }의 대표 산책·둘레길을 만나보세요.`
-                  : `${
-                      selectedAreaLabel || '선택하신 지역'
-                    }을(를) 지나는 코리아둘레길 코스가 두루누비 데이터에 없어요.`
-                : '선택하신 조건의 코스가 아직 없어요'
+                  ? t('trekking.coursesEmptyCoastalNote', '코리아둘레길(해파랑·남파랑·서해랑)은 해안선을 따라 이어져 있어 {{region}}을(를) 지나지 않습니다. 대신 위의 "{{region}} 추천 도보 코스" 섹션에서 {{region}}의 대표 산책·둘레길을 만나보세요.', { region: selectedAreaLabel || t('trekking.selectedAreaFallback', '선택하신 지역') })
+                  : t('trekking.coursesEmptyArea', '{{region}}을(를) 지나는 코리아둘레길 코스가 두루누비 데이터에 없어요.', { region: selectedAreaLabel || t('trekking.selectedAreaFallback', '선택하신 지역') })
+                : t('trekking.coursesEmpty', '선택하신 조건의 코스가 아직 없어요')
             }
             action={
               selectedAreaCode
-                ? { label: '전체 코스 보기', onClick: clearAreaFilter }
+                ? { label: t('trekking.viewAllCourses', '전체 코스 보기'), onClick: clearAreaFilter }
                 : null
             }
           />
@@ -598,8 +592,12 @@ function ChipButton({ active, onClick, label, color }) {
 }
 
 function CourseCard({ course }) {
+  const { t } = useTranslation();
   const acc = accentForRoute(course.routeIdx);
-  const routeLabel = labelForRoute(course.routeIdx);
+  const routeId = idForRoute(course.routeIdx);
+  const routeLabel = routeId
+    ? t(`trekking.routes.${routeId}`, labelForRoute(course.routeIdx))
+    : t('trekking.routeOther', '기타');
   const [open, setOpen] = useState(false);
   const [cineOpen, setCineOpen] = useState(false);
   const courseAreaCode = sigunToAreaCode(course.sigun);
@@ -640,7 +638,7 @@ function CourseCard({ course }) {
       </div>
 
       <h3 style={{ margin: '0 0 10px', fontSize: 17.5, fontWeight: 900, color: '#ecfeff', lineHeight: 1.3 }}>
-        {course.crsKorNm || '코스 정보'}
+        {course.crsKorNm || t('trekking.cardCourseInfo', '코스 정보')}
       </h3>
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
@@ -681,7 +679,7 @@ function CourseCard({ course }) {
                 color: acc.chip, fontSize: 12, fontWeight: 700,
               }}
             >
-              {open ? '접기' : '더보기'}
+              {open ? t('trekking.collapse', '접기') : t('trekking.expand', '더보기')}
             </button>
           )}
         </>
@@ -701,7 +699,7 @@ function CourseCard({ course }) {
             }}
           >
             <Download size={12} />
-            GPX 다운로드
+            {t('trekking.gpxDownload', 'GPX 다운로드')}
           </a>
         )}
         {courseAreaCode && (
@@ -709,7 +707,7 @@ function CourseCard({ course }) {
             type="button"
             onClick={() => setCineOpen((v) => !v)}
             aria-expanded={cineOpen}
-            aria-label={`${courseAreaLabel} 배경 영화 ${cineOpen ? '접기' : '펼치기'}`}
+            aria-label={t('trekking.cineToggleAria', '{{region}} 배경 영화 {{state}}', { region: courseAreaLabel, state: cineOpen ? t('trekking.collapse', '접기') : t('trekking.expand', '펼치기') })}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '7px 12px', borderRadius: 999, fontSize: 12, fontWeight: 800,
@@ -722,7 +720,9 @@ function CourseCard({ course }) {
             }}
           >
             <Film size={12} />
-            이 길의 영화 {courseAreaLabel && `(${courseAreaLabel})`}
+            {courseAreaLabel
+              ? t('trekking.cineToggleArea', '이 길의 영화 ({{region}})', { region: courseAreaLabel })
+              : t('trekking.cineToggle', '이 길의 영화')}
             {cineOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
         )}
@@ -747,6 +747,7 @@ function CourseCard({ course }) {
 }
 
 function CuratedCourseCard({ course, areaCode }) {
+  const { t } = useTranslation();
   const [cineOpen, setCineOpen] = useState(false);
   const accent = {
     bg: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
@@ -777,7 +778,7 @@ function CuratedCourseCard({ course, areaCode }) {
             fontSize: 10.5, fontWeight: 800, letterSpacing: '0.1em',
           }}
         >
-          추천 도보
+          {t('trekking.curatedBadge', '추천 도보')}
         </span>
         {course.sigun && (
           <span style={{ fontSize: 11.5, color: 'rgba(254,243,199,0.7)' }}>
@@ -842,7 +843,7 @@ function CuratedCourseCard({ course, areaCode }) {
             }}
           >
             <Compass size={12} />
-            공식 안내 보기
+            {t('trekking.officialGuide', '공식 안내 보기')}
           </a>
         )}
         {areaCode && (
@@ -861,7 +862,7 @@ function CuratedCourseCard({ course, areaCode }) {
             }}
           >
             <Film size={12} />
-            이 지역의 영화
+            {t('trekking.regionalCine', '이 지역의 영화')}
             {cineOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
         )}

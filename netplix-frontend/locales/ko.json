@@ -399,6 +399,284 @@
     "phoneNone": "전화 없음",
     "poweredBy": "출처: 한국관광공사 고캠핑 GoCamping"
   },
+  "regionShortcuts": {
+    "all": "전체",
+    "1": "서울", "2": "인천", "3": "대전", "4": "대구", "5": "광주", "6": "부산",
+    "7": "울산", "8": "세종", "31": "경기", "32": "강원", "33": "충북", "34": "충남",
+    "35": "전북", "36": "전남", "37": "경북", "38": "경남", "39": "제주"
+  },
+  "cineTripPage": {
+    "mapping": {
+      "SHOT": "촬영지",
+      "BACKGROUND": "배경",
+      "THEME": "테마"
+    },
+    "emptyTitle": "아직 연결된 영화가 없어요",
+    "emptySub": "다른 지역을 골라보거나 잠시 뒤에 다시 오세요.",
+    "untitled": "제목 미상",
+    "viewCourse": "여행 코스 보기",
+    "share": "공유",
+    "shareKakao": "카카오톡으로 공유",
+    "movieCardsAria": "영화 카드",
+    "trendingScore": "트렌딩 스코어",
+    "shareTitle": "{{movie}} · CineTrip",
+    "shareDesc": "이 영화로 떠나는 여행: {{regions}}",
+    "shareDescNoRegion": "이 영화로 떠나는 여행 큐레이션",
+    "movieFallback": "영화",
+    "regionMetric": "{{region}} 지표",
+    "tourDemandLabel": "관광수요",
+    "searchLabel": "검색"
+  },
+  "photoStrip": {
+    "regionTitle": "{{region}} 수상작 포토스팟",
+    "nationalTitle": "전국 수상작 포토스팟",
+    "movieTitle": "\"{{movie}}\" 관련 관광 수상작"
+  },
+  "dashboardPage": {
+    "travelModeOn": "여행 모드 ON",
+    "travelMode": "여행 모드",
+    "travelModeTooltip": "한국관광공사 지역 지표를 AI 추천 컨텍스트로 주입",
+    "totalCount": "총 {{count}}편"
+  },
+  "crowdRadarPage": {
+    "dow": ["일", "월", "화", "수", "목", "금", "토"]
+  },
+  "movieSpotlight": {
+    "dismissAria": "스포트라이트 닫기",
+    "title": "『{{movie}}』의 발자취를 따라",
+    "subtitleHasMapping": "아래 버튼 중 하나를 선택해 이 작품과 연결된 여행지를 바로 확인해 보세요.",
+    "subtitleNoMapping": "이 작품은 아직 촬영지 매핑이 준비되지 않았어요. 대신 전국 CineTrip 큐레이션을 둘러보세요.",
+    "viewCourse": "여행 코스 바로 보기",
+    "viewSpots": "이 영화의 장소 모아보기",
+    "browseAll": "전체 CineTrip 둘러보기",
+    "interestPrefix": "관심도"
+  },
+  "wellnessCalendar": {
+    "badge": "BINGE RECOVERY CALENDAR",
+    "title": "정주행 회복 · 한산한 힐링 데이 TOP 5",
+    "subtitle": "시즌 완주하신 당신에게. 향후 2주 안에서 관광지 혼잡도 예측이 가장 낮은 날과 지역을 골라 드려요. 이 날짜에 온천·힐링숲·템플스테이를 잡으면 사람에 치이지 않고 제대로 회복할 수 있어요.",
+    "source": "출처: 한국관광공사 관광지 집중률 방문자 추이 예측 × 웰니스관광 큐레이션",
+    "viewMore": "더 많은 날짜/지역 보기",
+    "cardTooltip": "아래 목록을 이 행정구역(지도·데이터 원본 코드)만 보이게 바꿉니다. 새로 고침(F5)과는 다른 동작입니다.",
+    "concentration": "혼잡도",
+    "spotPrefix": "대표 관광지",
+    "filterCta": "이 행정구역 힐링 스팟만 아래 목록에 →",
+    "dow": ["일", "월", "화", "수", "목", "금", "토"]
+  },
+  "petCinema": {
+    "headerTitle": "반려와 함께 보면 좋은 영화 큐레이션",
+    "headerSubtitle": "산책 다녀온 저녁, 소파 위에서 한 편",
+    "viewMovieInfo": "영화 정보 보기",
+    "cardAria": "{{title}} 영화 정보 새 탭으로 보기",
+    "picks": {
+      "maum": { "title": "마음이", "subtitle": "한국 · 2006", "blurb": "진돗개 \"마음이\" 와 남매의 자전거 로드무비", "tag": "반려견 · 한국" },
+      "sugar": { "title": "각설탕", "subtitle": "한국 · 2006", "blurb": "소녀와 경주마 \"천둥\" 의 청춘 성장기", "tag": "가족 · 한국" },
+      "mari": { "title": "마리 이야기", "subtitle": "한국 애니 · 2002", "blurb": "어린 날 친구가 되어준 하얀 고양이의 기억", "tag": "애니 · 한국" },
+      "hachi": { "title": "하치 이야기", "subtitle": "Hachi · 2009", "blurb": "주인을 기다린 전설의 견공 아키타", "tag": "실화 · 견공" },
+      "marley": { "title": "말리와 나", "subtitle": "Marley & Me · 2008", "blurb": "장난꾸러기 골든 리트리버가 만든 가족의 12년", "tag": "가족 · 리트리버" },
+      "isle": { "title": "개들의 섬", "subtitle": "Isle of Dogs · 2018", "blurb": "추방된 개들과 소년이 만든 기묘한 모험", "tag": "모험 · 애니" }
+    }
+  },
+  "nearbyCineTrip": {
+    "mappingShot": "촬영지",
+    "mappingBackground": "배경",
+    "mappingTheme": "테마",
+    "errorLoad": "이 지역의 영화 큐레이션을 불러올 수 없어요",
+    "empty": "아직 이 지역과 연결된 영화 큐레이션이 없어요.",
+    "defaultTitle": "{{region}} 배경으로 한 영화들",
+    "viewInCineTrip": "CineTrip 에서 보기",
+    "untitled": "제목 미상",
+    "naverSearchSuffix": "영화"
+  },
+  "trendingRegions": {
+    "today": { "label": "오늘", "title": "오늘 뜨는 지역", "subtitle": "관광공사 검색량 급등 기준" },
+    "week": { "label": "이번주", "title": "이번주 뜨는 지역", "subtitle": "관광수요·경쟁력 가중 지수" },
+    "month": { "label": "이번달", "title": "이번달 뜨는 지역", "subtitle": "문화·관광자원 종합 점수" },
+    "tabsAriaLabel": "트렌딩 지역 기간 선택",
+    "errorLoad": "데이터를 불러올 수 없어요",
+    "empty": "아직 집계된 지역이 없어요"
+  },
+  "dashboardCta": {
+    "cineTrip": {
+      "tag": "CineTrip · Boarding Pass",
+      "title": "영화로 떠나는 여행",
+      "desc": "촬영지·배경·OST가 살아있는 큐레이션 카드로 체크인하세요.",
+      "cta": "CineTrip 전체 카드 보기"
+    },
+    "petTravel": {
+      "tag": "Pet Travel · Fresh Air",
+      "title": "반려동물과 함께 떠나요",
+      "desc": "햇살 가득, 네 발로 봄바람. 동반 가능 장소를 지도처럼 펼쳐요.",
+      "cta": "반려동물 여행 전체 보기"
+    },
+    "trekking": {
+      "tag": "Durunubi · Korea Trails",
+      "title": "코스로 떠나는 걷기여행",
+      "desc": "코리아둘레길 284개 코스, 숲길·바닷길·마을길을 따라 산뜻하게 걸어봐요.",
+      "cta": "걷기여행 코스 둘러보기"
+    },
+    "photoGallery": {
+      "tag": "Korea Photo Gallery",
+      "title": "관광사진 갤러리",
+      "desc": "한국관광공사가 큐레이션한 전국 풍경 사진첩을 지역별로 둘러봐요.",
+      "cta": "사진첩 열어보기"
+    },
+    "camping": {
+      "tag": "GoCamping · Nature Stay",
+      "title": "전국 야영장 찾기",
+      "desc": "영화 본 그날 밤, 숲속 야영장에서 별을 보며 하루 더. 내 주변 야영장도 한 번에.",
+      "cta": "야영장 전체 보기"
+    },
+    "wellness": {
+      "tag": "Binge Recovery · Wellness",
+      "title": "정주행 번아웃 힐링 스팟",
+      "desc": "드라마 몰아본 뒤 뻐근한 어깨와 지친 마음. 가까운 온천·스파·힐링숲에서 리셋해요.",
+      "cta": "힐링 스팟 둘러보기"
+    },
+    "medicalTourism": {
+      "tag": "K-Medical Tourism · Global · EN / KO",
+      "title": "K-의료관광 · 외국인 환영",
+      "desc": "성형·한방·건강검진·재활·미용·척추·치과 — 해외 여행객을 위한 검증된 한국 의료 스팟을 ko/en 양 언어로 탐색하세요.",
+      "cta": "의료관광 스팟 둘러보기"
+    },
+    "audioGuide": {
+      "tag": "Cine Audio Trail · Odii · 귀로 듣는 영화의 배경",
+      "title": "영화는 극장에서 · 이야기는 현지에서",
+      "desc": "정주행 번아웃 뒤 눈 대신 귀로. 한국관광공사 오디오 가이드 팟캐스트로 만나는 4대 시그니처 코스 — 촬영지 · DVD 반납길 · 궁궐 · 사찰의 숨은 이야기를 이어폰으로.",
+      "cta": "4대 코스 열어 보기"
+    },
+    "crowdRadar": {
+      "tag": "Quiet Set Radar · 향후 30일 혼잡도 예측",
+      "title": "조용한 촬영지를 귀띔해 드려요",
+      "desc": "영화는 왁자지껄했지만, 촬영지는 한가할 때 가자. 한국관광공사 KT 빅데이터 기반 관광지 30일 집중률 예측으로 인파 없는 날 · 한산한 촬영지를 골라봐요.",
+      "cta": "한산한 촬영지 레이더 열기"
+    },
+    "relatedSpots": {
+      "tag": "Korea Tour Big Data · 함께 다녀간 곳",
+      "title": "조용한 명소 옆, 사람들은 어디로 갔을까",
+      "desc": "한 곳을 떠올려 보세요. 그 곁을 거닐던 사람들이 다음으로 향한 자리들을, 한국관광공사 TarRlteTarService1 데이터가 잔잔히 보여드릴게요.",
+      "cta": "잔잔히 둘러보기"
+    }
+  },
+  "petTravel": {
+    "heroBadge": "한국관광공사 · 반려동물 동반여행",
+    "heroTitle": "햇살 가득, 함께 떠나요",
+    "heroSubtitle1": "방 안에만 머물렀다면, 이제는 네 발로 봄바람을 느낄 차례.",
+    "heroSubtitle2": "지역별 반려동물 동반 가능한 관광지·숙소·음식점을 한눈에 확인하세요.",
+    "feature1Title": "반려동물 동반 가능",
+    "feature1Desc": "공원·해변·산책로 명소",
+    "feature2Title": "안전한 여행 팁",
+    "feature2Desc": "이동·숙박 시 유의 사항",
+    "feature3Title": "야외 액티비티",
+    "feature3Desc": "햇살 아래 자연 탐험",
+    "bannerTitle": "신선한 바람 한 모금, 준비되셨나요?",
+    "bannerBody": "지역 탭을 눌러 오늘 떠날 장소를 골라보세요. 모든 정보는 한국관광공사에서 제공합니다.",
+    "cinemaTitle": "{{region}} 배경, 반려와 돌아와 보면 좋은 영화",
+    "petCinemaBadge": "PetCinema",
+    "walkTitle": "반려와 산책 삼아 걷기 좋은 코스",
+    "walkSubtitle": "{{region}} 인근 두루누비 코스",
+    "petWalkBadge": "PetWalk",
+    "dataSource": "© 한국관광공사 반려동물 동반여행 정보 (KorPetTourService)",
+    "areaAll": "전국",
+    "areaHintAll": "주요 지역 요약",
+    "areas": {
+      "1": "서울", "2": "인천", "3": "대전", "4": "대구", "5": "광주", "6": "부산",
+      "7": "울산", "8": "세종", "31": "경기", "32": "강원", "33": "충북", "34": "충남",
+      "35": "경북", "36": "경남", "37": "전북", "38": "전남", "39": "제주"
+    }
+  },
+  "trekking": {
+    "heroBadge": "Durunubi · Korea Trails",
+    "heroTitle": "코스로 떠나는 걷기여행",
+    "heroBody": "한국관광공사 두루누비 에서 제공하는 코리아둘레길 284개 코스의 GPX·지역·주변 관광정보를 따라, 영화 속 장소와 반려동물 동반 여행에 산뜻한 걷기 코스까지 한 번에 이어집니다.",
+    "backToDashboard": "대시보드로 돌아가기",
+    "areaChip": "{{region}} 지역 코스만 보기",
+    "areaFilterClearAria": "지역 필터 해제",
+    "cineSectionTitle": "{{region}} 배경 영화·촬영지",
+    "curatedSectionTitle": "{{region}} 추천 도보 코스",
+    "curatedSectionSub": "한양도성·둘레길·하천 산책로 큐레이션",
+    "routesSectionTitle": "코리아둘레길 · 주요 노선",
+    "routesEmpty": "등록된 길 정보가 없어요",
+    "routesError": "길 목록을 불러올 수 없어요",
+    "coursesError": "코스 목록을 불러올 수 없어요",
+    "coursesSectionTitleArea": "{{region}} 걷기 코스",
+    "coursesSectionTitleAll": "걷기 코스 둘러보기",
+    "viewAllAreas": "전체 지역 보기",
+    "chipsAriaLabel": "둘레길 구분 선택",
+    "chipAll": "전체",
+    "routes": {
+      "hae": "해파랑길",
+      "nam": "남파랑길",
+      "seo": "서해랑길"
+    },
+    "routeOther": "기타",
+    "coursesEmptyCoastalNote": "코리아둘레길(해파랑·남파랑·서해랑)은 해안선을 따라 이어져 있어 {{region}}을(를) 지나지 않습니다. 대신 위의 \"{{region}} 추천 도보 코스\" 섹션에서 {{region}}의 대표 산책·둘레길을 만나보세요.",
+    "coursesEmptyArea": "{{region}}을(를) 지나는 코리아둘레길 코스가 두루누비 데이터에 없어요.",
+    "coursesEmpty": "선택하신 조건의 코스가 아직 없어요",
+    "selectedAreaFallback": "선택하신 지역",
+    "selectedAreaFallbackShort": "지역",
+    "selectedAreaFallbackThis": "이 지역",
+    "viewAllCourses": "전체 코스 보기",
+    "cardCourseInfo": "코스 정보",
+    "expand": "더보기",
+    "collapse": "접기",
+    "gpxDownload": "GPX 다운로드",
+    "cineToggle": "이 길의 영화",
+    "cineToggleArea": "이 길의 영화 ({{region}})",
+    "cineToggleAria": "{{region}} 배경 영화 {{state}}",
+    "curatedBadge": "추천 도보",
+    "officialGuide": "공식 안내 보기",
+    "regionalCine": "이 지역의 영화"
+  },
+  "relatedSpots": {
+    "heroBadge": "한국관광공사 빅데이터 · 함께 다녀간 곳",
+    "heroTitle": "조용한 명소 옆,<br/>사람들은 어디로 갔을까",
+    "heroSubtitle": "한 곳을 떠올려 보세요. 그 곁을 거닐던 사람들이<br/>다음으로 향한 자리들을 데이터가 잔잔히 보여드릴게요.",
+    "searchPlaceholder": "여수 · 한라산 · 경주처럼 시·군·구 또는 명소를 적어주세요",
+    "searchSubmit": "잔잔히 찾기",
+    "regions": {
+      "jeju": "제주",
+      "gangwon": "강원",
+      "gyeongsang": "경상",
+      "jeolla": "전라",
+      "city": "도시"
+    },
+    "loading": "데이터로 길을 잇는 중…",
+    "errorGeneric": "데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+    "summary": "기준 명소 {{groupCount}}곳 · 함께 다녀간 자리 {{relatedCount}}곳을 찾았어요",
+    "goCineTrip": "영화로 떠나는 여행으로 가기",
+    "groupStartLabel": "여기서 출발",
+    "groupCopy": "이 곳을 다녀간 사람들이 함께 / 이어서 향한 자리들이에요. 한 곳을 눌러보면 잔잔하게 길잡이가 펼쳐집니다.",
+    "modal": {
+      "closeAria": "닫기",
+      "untitled": "이름 미상",
+      "rankRelation": "<strong>{{baseSpot}}</strong>{{baseRegionPart}}<br/>를 다녀간 사람들이 <strong>{{rank}}순위</strong>로 발걸음을 옮긴 자리예요.",
+      "togetherRelation": "<strong>{{baseSpot}}</strong>{{baseRegionPart}}<br/>를 다녀간 사람들이 함께로 발걸음을 옮긴 자리예요.",
+      "noBaseRelation": "이 곳에서 사람들이 다음으로 향했던 자리예요.",
+      "naverMap": "네이버 지도",
+      "kakaoMap": "카카오 맵",
+      "googleSearch": "더 찾아보기",
+      "restartHere": "{{keyword}} 에서 다시 출발해 보기",
+      "deeperHintWithBrief": "운영시간·예약 같은 더 깊은 정보는<br/>외부 지도/검색에서 잔잔히 이어 보세요.",
+      "deeperHint": "좌표·사진·운영시간 같은 깊은 정보는<br/>외부 지도/검색에서 잔잔히 이어 보세요."
+    },
+    "brief": {
+      "loading": "한국관광공사 풍경을 가만히 가져오는 중…",
+      "sourceWith": "한국관광공사 무장애여행정보",
+      "sourcePet": "한국관광공사 반려동물 동반정보",
+      "sourceEng": "한국관광공사 영문 관광정보",
+      "sourceDefault": "한국관광공사",
+      "sourcePrefix": "출처:",
+      "ktoLabel": "한국관광공사 표기"
+    },
+    "rankAria": "연관 순위 {{rank}}",
+    "emptyHint": "먼저 떠올린 한 곳을 입력하거나,<br/>아래 인기 지역 중에서 살짝 골라 보세요.",
+    "noResult": {
+      "noData": "그 자리에 대한 데이터는 아직 잠잠해요.",
+      "unsupportedNote": "한국관광공사 빅데이터는 시·군·구 단위로 모아져 있어요.<br/>아래 인기 지역 중에서 가까운 한 곳을 골라 보면, 그 동네에서 사람들이 함께 다닌 자리들이 살며시 이어서 보여집니다.",
+      "fallback": "영화로 떠나는 여행에서 다른 길 보기"
+    }
+  },
   "wellness": {
     "pageTitle": "정주행 번아웃 · 내 주변 힐링 스팟",
     "pageSubtitle": "드라마/영화 몰아본 뒤 뻐근한 어깨와 지친 마음을, 한국관광공사가 큐레이션한 전국 웰니스 스팟(온천·스파·힐링숲·템플스테이·명상·요가)에서 풀어보세요.",
@@ -572,6 +850,39 @@
         "loading": "연관 해설 이야기를 불러오는 중...",
         "empty": "이 관광지에 연결된 해설 이야기를 찾지 못했어요. 서버 캐시가 준비되는 동안 잠시 후 다시 열어 주세요."
       }
+    },
+    "courses": {
+      "aria": "Cine Audio Trail 4대 코스",
+      "title": "Cine Audio Trail · 4대 시그니처 코스",
+      "film": {
+        "title": "촬영지 · Cine Set Trail",
+        "desc": "영화·K-드라마 속 그 장면, 그 장소. 감독이 왜 이 배경을 골랐는지 현장에서 귀로 듣기.",
+        "cta": "바로 재생"
+      },
+      "dvd": {
+        "title": "DVD 반납길 · Return Route",
+        "desc": "DVD 반납 가는 길, 지금 내 위치 주변의 숨은 해설을 이어폰으로. GPS 기반 오디오 가이드.",
+        "cta": "내 위치로 재생",
+        "on": "내 주변 듣는 중"
+      },
+      "palace": {
+        "title": "궁궐 · Royal Whisper",
+        "desc": "경복궁·창덕궁·덕수궁의 담장 너머 왕실 이야기. 걸으며 듣는 조선의 하루.",
+        "cta": "바로 재생"
+      },
+      "temple": {
+        "title": "사찰 · Mindful Path",
+        "desc": "불국사·해인사·통도사… 스님의 발걸음을 따라가는 명상의 오디오 트레일.",
+        "cta": "바로 재생"
+      }
+    },
+    "toast": {
+      "loading": "오디오 가이드 찾는 중…",
+      "playing": "재생 시작 ·",
+      "noaudio": "오디오가 비어있는 항목이 많아요. 카드에서 원하는 항목을 직접 눌러주세요.",
+      "empty": "결과가 없어요. 다른 코스를 시도해보세요.",
+      "close": "닫기",
+      "clear": "지우기"
     }
   },
   "nearbyAudioGuide": {
@@ -709,7 +1020,15 @@
     "expandReview": "긴 리뷰 펼치기 ▼"
   },
   "common": {
-    "lang": "한국어"
+    "lang": "한국어",
+    "back": "뒤로",
+    "loading": "로딩 중…",
+    "close": "닫기",
+    "more": "더 보기",
+    "search": "검색",
+    "share": "공유",
+    "copy": "복사",
+    "copied": "복사됨"
   },
   "att": {
     "title": "광고 추적 허용 안내",
@@ -720,7 +1039,7 @@
   "cineTrip": {
     "hero": {
       "topLabel": "Cinematic Journeys · 영화로 떠나는 여행",
-      "tagline": "Your favorite scene is a real place.",
+      "tagline": "좋아하는 그 장면이, 실제로 존재하는 장소입니다.",
       "taglineEn": "Travel the Korea you saw on screen.",
       "subcopy": "좋아하는 그 장면이, 실제로 존재하는 장소입니다.",
       "cta": {

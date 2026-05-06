@@ -122,6 +122,7 @@ function SkeletonCard() {
 }
 
 function EmptyState() {
+  const { t } = useTranslation();
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -135,9 +136,9 @@ function EmptyState() {
     >
       <Film size={64} style={{ margin: '0 auto 24px', opacity: 0.3, color: '#a855f7' }} />
       <h3 style={{ fontSize: 24, fontWeight: 600, color: '#fff', marginBottom: 12 }}>
-        아직 연결된 영화가 없어요
+        {t('cineTripPage.emptyTitle', '아직 연결된 영화가 없어요')}
       </h3>
-      <p style={{ fontSize: 16, color: '#888' }}>다른 지역을 골라보거나 잠시 뒤에 다시 오세요.</p>
+      <p style={{ fontSize: 16, color: '#888' }}>{t('cineTripPage.emptySub', '다른 지역을 골라보거나 잠시 뒤에 다시 오세요.')}</p>
     </motion.div>
   );
 }
@@ -154,6 +155,7 @@ function EmptyState() {
  *   매핑 없음 안내와 함께 전체 CineTrip 둘러보기 CTA 만 노출.
  */
 function MovieSpotlightBanner({ movieName, onFocusRegion, onDismiss }) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [courseOpen, setCourseOpen] = useState(false);
@@ -233,7 +235,7 @@ function MovieSpotlightBanner({ movieName, onFocusRegion, onDismiss }) {
       <button
         type="button"
         onClick={onDismiss}
-        aria-label="스포트라이트 닫기"
+        aria-label={t('movieSpotlight.dismissAria', '스포트라이트 닫기')}
         style={{
           position: 'absolute',
           top: 10,
@@ -318,7 +320,7 @@ function MovieSpotlightBanner({ movieName, onFocusRegion, onDismiss }) {
               lineHeight: 1.25,
             }}
           >
-            『{movie.movieName || movieName}』의 발자취를 따라
+            {t('movieSpotlight.title', '『{{movie}}』의 발자취를 따라', { movie: movie.movieName || movieName })}
           </h2>
           <p
             style={{
@@ -329,8 +331,8 @@ function MovieSpotlightBanner({ movieName, onFocusRegion, onDismiss }) {
             }}
           >
             {hasMapping
-              ? '아래 버튼 중 하나를 선택해 이 작품과 연결된 여행지를 바로 확인해 보세요.'
-              : '이 작품은 아직 촬영지 매핑이 준비되지 않았어요. 대신 전국 CineTrip 큐레이션을 둘러보세요.'}
+              ? t('movieSpotlight.subtitleHasMapping', '아래 버튼 중 하나를 선택해 이 작품과 연결된 여행지를 바로 확인해 보세요.')
+              : t('movieSpotlight.subtitleNoMapping', '이 작품은 아직 촬영지 매핑이 준비되지 않았어요. 대신 전국 CineTrip 큐레이션을 둘러보세요.')}
           </p>
 
           {regionChips.length > 0 && (
@@ -344,7 +346,9 @@ function MovieSpotlightBanner({ movieName, onFocusRegion, onDismiss }) {
             >
               {regionChips.slice(0, 6).map((r) => {
                 const color = MAPPING_TYPE_COLORS[r.mappingType] || '#333';
-                const label = MAPPING_TYPE_LABEL[r.mappingType] || r.mappingType;
+                const label = r.mappingType
+                  ? t(`cineTripPage.mapping.${r.mappingType}`, MAPPING_TYPE_LABEL[r.mappingType] || r.mappingType)
+                  : '';
                 return (
                   <button
                     key={r.areaCode}
@@ -414,7 +418,7 @@ function MovieSpotlightBanner({ movieName, onFocusRegion, onDismiss }) {
                 }}
               >
                 <Plane size={15} />
-                여행 코스 바로 보기
+                {t('movieSpotlight.viewCourse', '여행 코스 바로 보기')}
               </button>
             )}
 
@@ -437,7 +441,7 @@ function MovieSpotlightBanner({ movieName, onFocusRegion, onDismiss }) {
                 }}
               >
                 <Compass size={14} />
-                이 영화의 장소 모아보기
+                {t('movieSpotlight.viewSpots', '이 영화의 장소 모아보기')}
                 <ChevronDown size={14} style={{ opacity: 0.85 }} />
               </button>
             )}
@@ -463,7 +467,7 @@ function MovieSpotlightBanner({ movieName, onFocusRegion, onDismiss }) {
                 }}
               >
                 <Compass size={15} />
-                전체 CineTrip 둘러보기
+                {t('movieSpotlight.browseAll', '전체 CineTrip 둘러보기')}
               </button>
             )}
 
@@ -482,7 +486,7 @@ function MovieSpotlightBanner({ movieName, onFocusRegion, onDismiss }) {
                 }}
               >
                 <TrendingUp size={13} />
-                관심도{' '}
+                {t('movieSpotlight.interestPrefix', '관심도')}{' '}
                 {regionIndices
                   .reduce((s, r) => s + Number(r?.searchVolume || 0), 0)
                   .toLocaleString()}
@@ -508,6 +512,7 @@ function MovieSpotlightBanner({ movieName, onFocusRegion, onDismiss }) {
 }
 
 function MovieCard({ item, index, eager = false }) {
+  const { t } = useTranslation();
   const [isHovered, setIsHovered] = useState(false);
   const [shareToast, setShareToast] = useState('');
   const [courseOpen, setCourseOpen] = useState(false);
@@ -533,10 +538,10 @@ function MovieCard({ item, index, eager = false }) {
       .filter(Boolean)
       .join(', ');
     const channel = await shareContent({
-      title: `${movie.movieName || '영화'} · CineTrip`,
+      title: t('cineTripPage.shareTitle', '{{movie}} · CineTrip', { movie: movie.movieName || t('cineTripPage.movieFallback', '영화') }),
       description: regionLabel
-        ? `이 영화로 떠나는 여행: ${regionLabel}`
-        : '이 영화로 떠나는 여행 큐레이션',
+        ? t('cineTripPage.shareDesc', '이 영화로 떠나는 여행: {{regions}}', { regions: regionLabel })
+        : t('cineTripPage.shareDescNoRegion', '이 영화로 떠나는 여행 큐레이션'),
       imageUrl: movie.posterPath
         ? (movie.posterPath.startsWith('http')
             ? movie.posterPath
@@ -655,7 +660,7 @@ function MovieCard({ item, index, eager = false }) {
             whiteSpace: 'nowrap',
           }}
         >
-          {movie.movieName || '제목 미상'}
+          {movie.movieName || t('cineTripPage.untitled', '제목 미상')}
         </h3>
         <p
           style={{
@@ -698,7 +703,9 @@ function MovieCard({ item, index, eager = false }) {
                   fontSize: 10,
                 }}
               >
-                {MAPPING_TYPE_LABEL[m.mappingType] || m.mappingType}
+                {m.mappingType
+                  ? t(`cineTripPage.mapping.${m.mappingType}`, MAPPING_TYPE_LABEL[m.mappingType] || m.mappingType)
+                  : ''}
               </span>
             </div>
           ))}
@@ -718,9 +725,9 @@ function MovieCard({ item, index, eager = false }) {
               color: '#cfcfcf',
             }}
           >
-            <span style={{ opacity: 0.8 }}>{topRegionIndex.regionName} 지표</span>
+            <span style={{ opacity: 0.8 }}>{t('cineTripPage.regionMetric', '{{region}} 지표', { region: topRegionIndex.regionName })}</span>
             <span>
-              관광수요 <b>{(topRegionIndex.tourDemandIdx ?? 0).toFixed(1)}</b> · 검색{' '}
+              {t('cineTripPage.tourDemandLabel', '관광수요')} <b>{(topRegionIndex.tourDemandIdx ?? 0).toFixed(1)}</b> · {t('cineTripPage.searchLabel', '검색')}{' '}
               <b>{topRegionIndex.searchVolume ?? 0}</b>
             </span>
           </div>
@@ -732,7 +739,7 @@ function MovieCard({ item, index, eager = false }) {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <TrendingUp size={14} style={{ color: '#a855f7' }} />
-              <span style={{ fontSize: 12, color: '#888' }}>트렌딩 스코어</span>
+              <span style={{ fontSize: 12, color: '#888' }}>{t('cineTripPage.trendingScore', '트렌딩 스코어')}</span>
             </div>
             <span style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>{score.toFixed(1)}</span>
           </div>
@@ -761,7 +768,7 @@ function MovieCard({ item, index, eager = false }) {
             type="button"
             onClick={openCourse}
             disabled={mappings.length === 0}
-            aria-label="여행 코스 보기"
+            aria-label={t('cineTripPage.viewCourse', '여행 코스 보기')}
             style={{
               flex: 1,
               padding: 12,
@@ -785,13 +792,13 @@ function MovieCard({ item, index, eager = false }) {
             }}
           >
             <Film size={16} />
-            여행 코스 보기
+            {t('cineTripPage.viewCourse', '여행 코스 보기')}
           </button>
           <button
             type="button"
             onClick={handleShare}
-            aria-label="공유"
-            title="카카오톡으로 공유"
+            aria-label={t('cineTripPage.share', '공유')}
+            title={t('cineTripPage.shareKakao', '카카오톡으로 공유')}
             style={{
               width: 46,
               padding: 12,
@@ -1035,6 +1042,9 @@ function CineTripPageInner() {
         >
           {REGION_FILTERS.map((region) => {
             const active = selectedAreaCode === region.areaCode;
+            const localizedLabel = region.areaCode == null
+              ? t('regionShortcuts.all', region.label)
+              : t(`regionShortcuts.${region.areaCode}`, region.label);
             return (
               <motion.button
                 key={region.label}
@@ -1062,7 +1072,7 @@ function CineTripPageInner() {
                   textShadow: active ? '0 1px 2px rgba(0, 0, 0, 0.2)' : 'none',
                 }}
               >
-                {region.label}
+                {localizedLabel}
               </motion.button>
             );
           })}
@@ -1076,8 +1086,10 @@ function CineTripPageInner() {
           limit={0}
           title={
             selectedAreaCode
-              ? `${REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''} 수상작 포토스팟`
-              : '전국 수상작 포토스팟'
+              ? t('photoStrip.regionTitle', '{{region}} 수상작 포토스팟', {
+                  region: t(`regionShortcuts.${selectedAreaCode}`, REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''),
+                })
+              : t('photoStrip.nationalTitle', '전국 수상작 포토스팟')
           }
         />
 
@@ -1203,7 +1215,7 @@ function CineTripPageInner() {
           ref={cardsRef}
           className="cinetrip-scroll-row"
           role="list"
-          aria-label="영화 카드"
+          aria-label={t('cineTripPage.movieCardsAria', '영화 카드')}
         >
           {loading ? (
             Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)

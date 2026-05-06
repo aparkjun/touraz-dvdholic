@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, TrendingUp, PawPrint, Plane, PlaneTakeoff, Camera, Tent, Leaf, Stethoscope, Headphones, Radar, Compass } from 'lucide-react';
 import Link from 'next/link';
+import { useTranslation } from 'react-i18next';
 import axios from '@/lib/axiosConfig';
 import TravelPortalButton from '@/components/TravelPortalButton';
 import TrekkingPortalButton from '@/components/TrekkingPortalButton';
@@ -16,18 +17,26 @@ const RANK_COLORS = [
 
 const fallbackRank = (i) => RANK_COLORS[i] || 'rgba(255, 255, 255, 0.1)';
 
-const PERIODS = [
-  { key: 'today', label: '오늘',   title: '오늘 뜨는 지역',   subtitle: '관광공사 검색량 급등 기준' },
-  { key: 'week',  label: '이번주', title: '이번주 뜨는 지역', subtitle: '관광수요·경쟁력 가중 지수' },
-  { key: 'month', label: '이번달', title: '이번달 뜨는 지역', subtitle: '문화·관광자원 종합 점수' },
-];
+const PERIOD_KEYS = ['today', 'week', 'month'];
 
 export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'today' }) {
+  const { t } = useTranslation();
   const [regions, setRegions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [maxVolume, setMaxVolume] = useState(0);
   const [error, setError] = useState(null);
   const [period, setPeriod] = useState(defaultPeriod);
+
+  const PERIODS = useMemo(
+    () =>
+      PERIOD_KEYS.map((k) => ({
+        key: k,
+        label: t(`trendingRegions.${k}.label`, { defaultValue: k }),
+        title: t(`trendingRegions.${k}.title`, { defaultValue: k }),
+        subtitle: t(`trendingRegions.${k}.subtitle`, { defaultValue: '' }),
+      })),
+    [t]
+  );
 
   const currentPeriodMeta = PERIODS.find((p) => p.key === period) || PERIODS[0];
 
@@ -49,7 +58,7 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
         );
       } catch (e) {
         console.error('[trending-regions] fetch failed:', e?.message || e);
-        if (alive) setError('데이터를 불러올 수 없어요');
+        if (alive) setError(t('trendingRegions.errorLoad', '데이터를 불러올 수 없어요'));
       } finally {
         if (alive) setLoading(false);
       }
@@ -57,7 +66,7 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
     return () => {
       alive = false;
     };
-  }, [limit, period]);
+  }, [limit, period, t]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -93,7 +102,7 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
 
       <div
         role="tablist"
-        aria-label="트렌딩 지역 기간 선택"
+        aria-label={t('trendingRegions.tabsAriaLabel', '트렌딩 지역 기간 선택')}
         style={{
           display: 'inline-flex',
           padding: 3,
@@ -173,7 +182,7 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
             fontSize: 13,
           }}
         >
-          아직 집계된 지역이 없어요
+          {t('trendingRegions.empty', '아직 집계된 지역이 없어요')}
         </div>
       ) : (
         <motion.div
@@ -291,58 +300,58 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
       <div className="trw-cta-grid">
         <TravelPortalButton
           href="/cine-trip"
-          tag="CineTrip · Boarding Pass"
-          title="영화로 떠나는 여행"
-          desc="촬영지·배경·OST가 살아있는 큐레이션 카드로 체크인하세요."
-          cta="CineTrip 전체 카드 보기"
+          tag={t('dashboardCta.cineTrip.tag', 'CineTrip · Boarding Pass')}
+          title={t('dashboardCta.cineTrip.title', '영화로 떠나는 여행')}
+          desc={t('dashboardCta.cineTrip.desc', '촬영지·배경·OST가 살아있는 큐레이션 카드로 체크인하세요.')}
+          cta={t('dashboardCta.cineTrip.cta', 'CineTrip 전체 카드 보기')}
           Icon={PlaneTakeoff}
           theme="cinema"
           fullWidth
         />
         <TravelPortalButton
           href="/pet-travel"
-          tag="Pet Travel · Fresh Air"
-          title="반려동물과 함께 떠나요"
-          desc="햇살 가득, 네 발로 봄바람. 동반 가능 장소를 지도처럼 펼쳐요."
-          cta="반려동물 여행 전체 보기"
+          tag={t('dashboardCta.petTravel.tag', 'Pet Travel · Fresh Air')}
+          title={t('dashboardCta.petTravel.title', '반려동물과 함께 떠나요')}
+          desc={t('dashboardCta.petTravel.desc', '햇살 가득, 네 발로 봄바람. 동반 가능 장소를 지도처럼 펼쳐요.')}
+          cta={t('dashboardCta.petTravel.cta', '반려동물 여행 전체 보기')}
           Icon={PawPrint}
           theme="outdoor"
           fullWidth
         />
         <TrekkingPortalButton
           href="/trekking"
-          tag="Durunubi · Korea Trails"
-          title="코스로 떠나는 걷기여행"
-          desc="코리아둘레길 284개 코스, 숲길·바닷길·마을길을 따라 산뜻하게 걸어봐요."
-          cta="걷기여행 코스 둘러보기"
+          tag={t('dashboardCta.trekking.tag', 'Durunubi · Korea Trails')}
+          title={t('dashboardCta.trekking.title', '코스로 떠나는 걷기여행')}
+          desc={t('dashboardCta.trekking.desc', '코리아둘레길 284개 코스, 숲길·바닷길·마을길을 따라 산뜻하게 걸어봐요.')}
+          cta={t('dashboardCta.trekking.cta', '걷기여행 코스 둘러보기')}
           fullWidth
         />
         <TravelPortalButton
           href="/photo-gallery"
-          tag="Korea Photo Gallery"
-          title="관광사진 갤러리"
-          desc="한국관광공사가 큐레이션한 전국 풍경 사진첩을 지역별로 둘러봐요."
-          cta="사진첩 열어보기"
+          tag={t('dashboardCta.photoGallery.tag', 'Korea Photo Gallery')}
+          title={t('dashboardCta.photoGallery.title', '관광사진 갤러리')}
+          desc={t('dashboardCta.photoGallery.desc', '한국관광공사가 큐레이션한 전국 풍경 사진첩을 지역별로 둘러봐요.')}
+          cta={t('dashboardCta.photoGallery.cta', '사진첩 열어보기')}
           Icon={Camera}
           theme="gallery"
           fullWidth
         />
         <TravelPortalButton
           href="/camping"
-          tag="GoCamping · Nature Stay"
-          title="전국 야영장 찾기"
-          desc="영화 본 그날 밤, 숲속 야영장에서 별을 보며 하루 더. 내 주변 야영장도 한 번에."
-          cta="야영장 전체 보기"
+          tag={t('dashboardCta.camping.tag', 'GoCamping · Nature Stay')}
+          title={t('dashboardCta.camping.title', '전국 야영장 찾기')}
+          desc={t('dashboardCta.camping.desc', '영화 본 그날 밤, 숲속 야영장에서 별을 보며 하루 더. 내 주변 야영장도 한 번에.')}
+          cta={t('dashboardCta.camping.cta', '야영장 전체 보기')}
           Icon={Tent}
           theme="camping"
           fullWidth
         />
         <TravelPortalButton
           href="/wellness"
-          tag="Binge Recovery · Wellness"
-          title="정주행 번아웃 힐링 스팟"
-          desc="드라마 몰아본 뒤 뻐근한 어깨와 지친 마음. 가까운 온천·스파·힐링숲에서 리셋해요."
-          cta="힐링 스팟 둘러보기"
+          tag={t('dashboardCta.wellness.tag', 'Binge Recovery · Wellness')}
+          title={t('dashboardCta.wellness.title', '정주행 번아웃 힐링 스팟')}
+          desc={t('dashboardCta.wellness.desc', '드라마 몰아본 뒤 뻐근한 어깨와 지친 마음. 가까운 온천·스파·힐링숲에서 리셋해요.')}
+          cta={t('dashboardCta.wellness.cta', '힐링 스팟 둘러보기')}
           Icon={Leaf}
           theme="wellness"
           fullWidth
@@ -350,10 +359,10 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
         <div className="trw-cta-span-full">
           <TravelPortalButton
             href="/medical-tourism"
-            tag="K-Medical Tourism · Global · EN / KO"
-            title="K-의료관광 · 외국인 환영"
-            desc="성형·한방·건강검진·재활·미용·척추·치과 — 해외 여행객을 위한 검증된 한국 의료 스팟을 ko/en 양 언어로 탐색하세요."
-            cta="의료관광 스팟 둘러보기"
+            tag={t('dashboardCta.medicalTourism.tag', 'K-Medical Tourism · Global · EN / KO')}
+            title={t('dashboardCta.medicalTourism.title', 'K-의료관광 · 외국인 환영')}
+            desc={t('dashboardCta.medicalTourism.desc', '성형·한방·건강검진·재활·미용·척추·치과 — 해외 여행객을 위한 검증된 한국 의료 스팟을 ko/en 양 언어로 탐색하세요.')}
+            cta={t('dashboardCta.medicalTourism.cta', '의료관광 스팟 둘러보기')}
             Icon={Stethoscope}
             theme="medical"
             fullWidth
@@ -362,10 +371,10 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
         <div className="trw-cta-span-full">
           <TravelPortalButton
             href="/audio-guide"
-            tag="Cine Audio Trail · Odii · 귀로 듣는 영화의 배경"
-            title="영화는 극장에서 · 이야기는 현지에서"
-            desc="정주행 번아웃 뒤 눈 대신 귀로. 한국관광공사 오디오 가이드 팟캐스트로 만나는 4대 시그니처 코스 — 촬영지 · DVD 반납길 · 궁궐 · 사찰의 숨은 이야기를 이어폰으로."
-            cta="4대 코스 열어 보기"
+            tag={t('dashboardCta.audioGuide.tag', 'Cine Audio Trail · Odii · 귀로 듣는 영화의 배경')}
+            title={t('dashboardCta.audioGuide.title', '영화는 극장에서 · 이야기는 현지에서')}
+            desc={t('dashboardCta.audioGuide.desc', '정주행 번아웃 뒤 눈 대신 귀로. 한국관광공사 오디오 가이드 팟캐스트로 만나는 4대 시그니처 코스 — 촬영지 · DVD 반납길 · 궁궐 · 사찰의 숨은 이야기를 이어폰으로.')}
+            cta={t('dashboardCta.audioGuide.cta', '4대 코스 열어 보기')}
             Icon={Headphones}
             theme="audio"
             fullWidth
@@ -374,10 +383,10 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
         <div className="trw-cta-span-full">
           <TravelPortalButton
             href="/crowd-radar"
-            tag="Quiet Set Radar · 향후 30일 혼잡도 예측"
-            title="조용한 촬영지를 귀띔해 드려요"
-            desc="영화는 왁자지껄했지만, 촬영지는 한가할 때 가자. 한국관광공사 KT 빅데이터 기반 관광지 30일 집중률 예측으로 인파 없는 날 · 한산한 촬영지를 골라봐요."
-            cta="한산한 촬영지 레이더 열기"
+            tag={t('dashboardCta.crowdRadar.tag', 'Quiet Set Radar · 향후 30일 혼잡도 예측')}
+            title={t('dashboardCta.crowdRadar.title', '조용한 촬영지를 귀띔해 드려요')}
+            desc={t('dashboardCta.crowdRadar.desc', '영화는 왁자지껄했지만, 촬영지는 한가할 때 가자. 한국관광공사 KT 빅데이터 기반 관광지 30일 집중률 예측으로 인파 없는 날 · 한산한 촬영지를 골라봐요.')}
+            cta={t('dashboardCta.crowdRadar.cta', '한산한 촬영지 레이더 열기')}
             Icon={Radar}
             theme="radar"
             fullWidth
@@ -386,10 +395,10 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
         <div className="trw-cta-span-full">
           <TravelPortalButton
             href="/related-spots"
-            tag="Korea Tour Big Data · 함께 다녀간 곳"
-            title="조용한 명소 옆, 사람들은 어디로 갔을까"
-            desc="한 곳을 떠올려 보세요. 그 곁을 거닐던 사람들이 다음으로 향한 자리들을, 한국관광공사 TarRlteTarService1 데이터가 잔잔히 보여드릴게요."
-            cta="잔잔히 둘러보기"
+            tag={t('dashboardCta.relatedSpots.tag', 'Korea Tour Big Data · 함께 다녀간 곳')}
+            title={t('dashboardCta.relatedSpots.title', '조용한 명소 옆, 사람들은 어디로 갔을까')}
+            desc={t('dashboardCta.relatedSpots.desc', '한 곳을 떠올려 보세요. 그 곁을 거닐던 사람들이 다음으로 향한 자리들을, 한국관광공사 TarRlteTarService1 데이터가 잔잔히 보여드릴게요.')}
+            cta={t('dashboardCta.relatedSpots.cta', '잔잔히 둘러보기')}
             Icon={Compass}
             theme="related"
             fullWidth

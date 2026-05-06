@@ -126,11 +126,25 @@ function patchListCache(patch) {
 }
 
 // 고캠핑 키워드 검색 히트율이 좋은 광역 축약형
+// keyword: GoCamping API 검색용 한글(고정), code: i18n 라벨용 광역 코드
 const REGION_SHORTCUTS = [
-  "서울", "부산", "인천", "대구", "대전",
-  "광주", "울산", "세종", "경기", "강원",
-  "충북", "충남", "전북", "전남", "경북",
-  "경남", "제주",
+  { keyword: "서울", code: "1" },
+  { keyword: "부산", code: "6" },
+  { keyword: "인천", code: "2" },
+  { keyword: "대구", code: "4" },
+  { keyword: "대전", code: "3" },
+  { keyword: "광주", code: "5" },
+  { keyword: "울산", code: "7" },
+  { keyword: "세종", code: "8" },
+  { keyword: "경기", code: "31" },
+  { keyword: "강원", code: "32" },
+  { keyword: "충북", code: "33" },
+  { keyword: "충남", code: "34" },
+  { keyword: "전북", code: "35" },
+  { keyword: "전남", code: "36" },
+  { keyword: "경북", code: "37" },
+  { keyword: "경남", code: "38" },
+  { keyword: "제주", code: "39" },
 ];
 
 /**
@@ -485,12 +499,12 @@ function CampingInner() {
             </button>
             {REGION_SHORTCUTS.map((r) => (
               <button
-                key={r}
+                key={r.code}
                 type="button"
-                className={`cmp-chip ${keyword === r ? "cmp-chip-active" : ""}`}
-                onClick={() => applyKeyword(r)}
+                className={`cmp-chip ${keyword === r.keyword ? "cmp-chip-active" : ""}`}
+                onClick={() => applyKeyword(r.keyword)}
               >
-                {r}
+                {t(`regionShortcuts.${r.code}`, r.keyword)}
               </button>
             ))}
           </div>

@@ -73,10 +73,24 @@ const THEME_SHORTCUTS = [
   { key: "영화",       ko: "영화",          en: "Film Location" },
 ];
 
+// keyword: KTO 오디오가이드 API 검색용 한글, code: i18n 라벨 키
 const REGION_SHORTCUTS = [
-  "서울", "부산", "인천", "대구", "대전",
-  "광주", "울산", "경기", "강원",
-  "충북", "충남", "전북", "전남", "경북", "경남", "제주",
+  { keyword: "서울", code: "1" },
+  { keyword: "부산", code: "6" },
+  { keyword: "인천", code: "2" },
+  { keyword: "대구", code: "4" },
+  { keyword: "대전", code: "3" },
+  { keyword: "광주", code: "5" },
+  { keyword: "울산", code: "7" },
+  { keyword: "경기", code: "31" },
+  { keyword: "강원", code: "32" },
+  { keyword: "충북", code: "33" },
+  { keyword: "충남", code: "34" },
+  { keyword: "전북", code: "35" },
+  { keyword: "전남", code: "36" },
+  { keyword: "경북", code: "37" },
+  { keyword: "경남", code: "38" },
+  { keyword: "제주", code: "39" },
 ];
 
 function AudioGuidePageInner() {
@@ -504,7 +518,7 @@ function AudioGuidePageInner() {
               aria-label={t("audioGuide.search.aria", "오디오 가이드 검색")}
             />
             {keyword && (
-              <button type="button" className="agp-search-clear" onClick={clearSearch} aria-label="clear">
+              <button type="button" className="agp-search-clear" onClick={clearSearch} aria-label={t("audioGuide.toast.clear", "Clear")}>
                 <X size={14} />
               </button>
             )}
@@ -750,7 +764,7 @@ function AudioGuidePageInner() {
             type="button"
             className="agp-toast-close"
             onClick={() => setCourseToast(null)}
-            aria-label="close"
+            aria-label={t("audioGuide.toast.close", "Close")}
           >
             <X size={12} />
           </button>
@@ -779,15 +793,15 @@ function AudioGuidePageInner() {
         <div className="agp-chips-row">
           <span className="agp-chips-label">{t("audioGuide.chips.region", "지역")}</span>
           {REGION_SHORTCUTS.map((r) => {
-            const on = keyword === r;
+            const on = keyword === r.keyword;
             return (
               <button
-                key={r}
+                key={r.code}
                 type="button"
                 className={`agp-chip ${on ? "agp-chip-on" : ""}`}
-                onClick={() => applyRegion(r)}
+                onClick={() => applyRegion(r.keyword)}
               >
-                {r}
+                {t(`regionShortcuts.${r.code}`, r.keyword)}
               </button>
             );
           })}
@@ -891,7 +905,7 @@ function AudioGuidePageInner() {
                 {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
               </button>
               <button type="button" className="agp-player-btn agp-player-btn-close"
-                onClick={stopPlayback} aria-label="close">
+                onClick={stopPlayback} aria-label={t("common.close", "Close")}>
                 <X size={16} />
               </button>
             </div>

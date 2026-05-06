@@ -88,11 +88,25 @@ const DEFAULT_ZOOM = 7;
 const RADIUS_OPTIONS = [10, 30, 50]; // km
 const PAGE_SIZE = 60;
 
+// keyword: KTO 의료관광 API 검색용 한글, code: i18n 라벨 키
 const REGION_SHORTCUTS = [
-  "서울", "부산", "인천", "대구", "대전",
-  "광주", "울산", "세종", "경기", "강원",
-  "충북", "충남", "전북", "전남", "경북",
-  "경남", "제주",
+  { keyword: "서울", code: "1" },
+  { keyword: "부산", code: "6" },
+  { keyword: "인천", code: "2" },
+  { keyword: "대구", code: "4" },
+  { keyword: "대전", code: "3" },
+  { keyword: "광주", code: "5" },
+  { keyword: "울산", code: "7" },
+  { keyword: "세종", code: "8" },
+  { keyword: "경기", code: "31" },
+  { keyword: "강원", code: "32" },
+  { keyword: "충북", code: "33" },
+  { keyword: "충남", code: "34" },
+  { keyword: "전북", code: "35" },
+  { keyword: "전남", code: "36" },
+  { keyword: "경북", code: "37" },
+  { keyword: "경남", code: "38" },
+  { keyword: "제주", code: "39" },
 ];
 
 /** K-의료관광 특화 키워드. MdclTursmService searchKeyword 에서 히트율이 높은 대표 분야. */
@@ -402,12 +416,12 @@ function MedicalTourismInner() {
             </button>
             {REGION_SHORTCUTS.map((r) => (
               <button
-                key={r}
+                key={r.code}
                 type="button"
-                className={`mt-chip ${keyword === r ? "mt-chip-active" : ""}`}
-                onClick={() => applyKeyword(r)}
+                className={`mt-chip ${keyword === r.keyword ? "mt-chip-active" : ""}`}
+                onClick={() => applyKeyword(r.keyword)}
               >
-                {r}
+                {t(`regionShortcuts.${r.code}`, r.keyword)}
               </button>
             ))}
           </div>

@@ -4,6 +4,7 @@ import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, MapPin, Loader2, ArrowRight, Hash, X, ExternalLink, Compass, Search as SearchIcon, Navigation } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import axios from '@/lib/axiosConfig';
 import AmbientBackdrop from '@/components/AmbientBackdrop';
 
@@ -16,16 +17,17 @@ import AmbientBackdrop from '@/components/AmbientBackdrop';
 
 // 백엔드 KoreanPlaceCodes 와 동일하게 묶음. UI 칩 노출용.
 const POPULAR_PLACE_GROUPS = [
-  { region: '제주',     keywords: ['한라산', '제주시', '서귀포'] },
-  { region: '강원',     keywords: ['강릉', '속초', '양양', '춘천'] },
-  { region: '경상',     keywords: ['경주', '안동', '통영', '거제', '남해'] },
-  { region: '전라',     keywords: ['여수', '담양', '순천', '목포', '전주'] },
-  { region: '도시',     keywords: ['서울', '부산', '인천', '대구', '광주', '대전', '울산'] },
+  { regionId: 'jeju',      region: '제주',     keywords: ['한라산', '제주시', '서귀포'] },
+  { regionId: 'gangwon',   region: '강원',     keywords: ['강릉', '속초', '양양', '춘천'] },
+  { regionId: 'gyeongsang',region: '경상',     keywords: ['경주', '안동', '통영', '거제', '남해'] },
+  { regionId: 'jeolla',    region: '전라',     keywords: ['여수', '담양', '순천', '목포', '전주'] },
+  { regionId: 'city',      region: '도시',     keywords: ['서울', '부산', '인천', '대구', '광주', '대전', '울산'] },
 ];
 
 const REGISTERED_KEYWORDS = POPULAR_PLACE_GROUPS.flatMap((g) => g.keywords);
 
 function RelatedSpotsInner() {
+  const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -68,7 +70,7 @@ function RelatedSpotsInner() {
     } catch (e) {
       if (reqId !== lastReqRef.current) return;
       console.error('[related-spots] keyword failed', e?.message || e);
-      setError('데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.');
+      setError(t('relatedSpots.errorGeneric', '데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'));
       setGroups([]);
     } finally {
       if (reqId === lastReqRef.current) setLoading(false);
@@ -127,7 +129,7 @@ function RelatedSpotsInner() {
             }}
           >
             <Sparkles size={14} />
-            한국관광공사 빅데이터 · 함께 다녀간 곳
+            {t('relatedSpots.heroBadge', '한국관광공사 빅데이터 · 함께 다녀간 곳')}
           </div>
           <h1
             style={{
@@ -140,12 +142,12 @@ function RelatedSpotsInner() {
               WebkitTextFillColor: 'transparent',
               backgroundClip: 'text',
             }}
-          >
-            조용한 명소 옆,<br />사람들은 어디로 갔을까
-          </h1>
-          <p style={{ marginTop: 10, color: '#cbd5e1', fontSize: 14, lineHeight: 1.7 }}>
-            한 곳을 떠올려 보세요. 그 곁을 거닐던 사람들이<br />다음으로 향한 자리들을 데이터가 잔잔히 보여드릴게요.
-          </p>
+            dangerouslySetInnerHTML={{ __html: t('relatedSpots.heroTitle', '조용한 명소 옆,<br/>사람들은 어디로 갔을까') }}
+          />
+          <p
+            style={{ marginTop: 10, color: '#cbd5e1', fontSize: 14, lineHeight: 1.7 }}
+            dangerouslySetInnerHTML={{ __html: t('relatedSpots.heroSubtitle', '한 곳을 떠올려 보세요. 그 곁을 거닐던 사람들이<br/>다음으로 향한 자리들을 데이터가 잔잔히 보여드릴게요.') }}
+          />
         </motion.div>
 
         {/* 검색 입력 */}
@@ -166,7 +168,7 @@ function RelatedSpotsInner() {
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') runKeywordSearch(keyword); }}
-              placeholder="여수 · 한라산 · 경주처럼 시·군·구 또는 명소를 적어주세요"
+              placeholder={t('relatedSpots.searchPlaceholder', '여수 · 한라산 · 경주처럼 시·군·구 또는 명소를 적어주세요')}
               style={{
                 flex: 1,
                 minWidth: 0,
@@ -197,14 +199,14 @@ function RelatedSpotsInner() {
                 whiteSpace: 'nowrap',
               }}
             >
-              {loading ? <Loader2 size={14} className="anim-spin" /> : '잔잔히 찾기'}
+              {loading ? <Loader2 size={14} className="anim-spin" /> : t('relatedSpots.searchSubmit', '잔잔히 찾기')}
             </button>
           </div>
 
           {/* 인기 지역 칩 — 그룹 단위 표시 */}
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
             {POPULAR_PLACE_GROUPS.map((g) => (
-              <div key={g.region} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
+              <div key={g.regionId} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>
                 <div
                   style={{
                     fontSize: 11,
@@ -215,7 +217,7 @@ function RelatedSpotsInner() {
                     paddingTop: 6,
                   }}
                 >
-                  {g.region}
+                  {t(`relatedSpots.regions.${g.regionId}`, g.region)}
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, flex: 1 }}>
                   {g.keywords.map((k) => {
@@ -256,7 +258,7 @@ function RelatedSpotsInner() {
         {/* Empty / loading / error */}
         {loading && (
           <div style={{ textAlign: 'center', color: '#a5b4fc', padding: '24px 0' }}>
-            <Loader2 size={20} className="anim-spin" /> 데이터로 길을 잇는 중…
+            <Loader2 size={20} className="anim-spin" /> {t('relatedSpots.loading', '데이터로 길을 잇는 중…')}
           </div>
         )}
         {!loading && error && (
@@ -284,7 +286,7 @@ function RelatedSpotsInner() {
               style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
             >
               <div style={{ color: '#94a3b8', fontSize: 12, textAlign: 'center' }}>
-                기준 명소 {groups.length}곳 · 함께 다녀간 자리 {totalRelated}곳을 찾았어요
+                {t('relatedSpots.summary', '기준 명소 {{groupCount}}곳 · 함께 다녀간 자리 {{relatedCount}}곳을 찾았어요', { groupCount: groups.length, relatedCount: totalRelated })}
               </div>
               {groups.map((g, idx) => (
                 <GroupCard
@@ -314,7 +316,7 @@ function RelatedSpotsInner() {
               gap: 6,
             }}
           >
-            영화로 떠나는 여행으로 가기 <ArrowRight size={14} />
+            {t('relatedSpots.goCineTrip', '영화로 떠나는 여행으로 가기')} <ArrowRight size={14} />
           </button>
         </div>
       </div>
@@ -343,6 +345,7 @@ function RelatedSpotsInner() {
 }
 
 function GroupCard({ group, onPickRelated }) {
+  const { t } = useTranslation();
   const region = [group.areaName, group.signguName].filter(Boolean).join(' · ');
   return (
     <motion.div
@@ -357,12 +360,12 @@ function GroupCard({ group, onPickRelated }) {
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, color: '#94a3b8', letterSpacing: 0.4 }}>여기서 출발</span>
+        <span style={{ fontSize: 11, color: '#94a3b8', letterSpacing: 0.4 }}>{t('relatedSpots.groupStartLabel', '여기서 출발')}</span>
         <span style={{ fontSize: 17, fontWeight: 800, color: '#fef3c7' }}>{group.baseSpot}</span>
         {region && <span style={{ fontSize: 11, color: '#a5b4fc' }}>· {region}</span>}
       </div>
       <p style={{ margin: '0 0 12px', fontSize: 12, color: '#94a3b8' }}>
-        이 곳을 다녀간 사람들이 함께 / 이어서 향한 자리들이에요. 한 곳을 눌러보면 잔잔하게 길잡이가 펼쳐집니다.
+        {t('relatedSpots.groupCopy', '이 곳을 다녀간 사람들이 함께 / 이어서 향한 자리들이에요. 한 곳을 눌러보면 잔잔하게 길잡이가 펼쳐집니다.')}
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
         {(group.related || []).map((r, i) => (
@@ -419,6 +422,7 @@ function GroupCard({ group, onPickRelated }) {
  * 확장 예정 (KEY_FORBIDDEN 으로 현재는 폴백 UI 만 제공).
  */
 function SpotDetailModal({ spot, onClose, onSearchAgain }) {
+  const { t } = useTranslation();
   // brief: KTO KorWith/Pet/Eng searchKeyword2 폴백을 통해 이미지/주소/전화/좌표를 가져온다.
   // 모달이 마운트되면 비동기로 페치하고, 도착하면 부드럽게 추가 노출.
   // 결과가 비어 있으면(앞 3개 서비스 모두 매칭 0건) 기존 외부 링크 폴백 그대로.
@@ -453,7 +457,7 @@ function SpotDetailModal({ spot, onClose, onSearchAgain }) {
 
   if (!spot) return null;
 
-  const title = spot.relatedSpot || '이름 미상';
+  const title = spot.relatedSpot || t('relatedSpots.modal.untitled', '이름 미상');
   const baseSpot = spot.baseSpot;
   const baseRegion = [spot.baseAreaName, spot.baseSignguName].filter(Boolean).join(' · ');
   const targetRegion = [spot.relatedAreaName, spot.relatedSignguName].filter(Boolean).join(' · ');
@@ -523,7 +527,7 @@ function SpotDetailModal({ spot, onClose, onSearchAgain }) {
         <button
           type="button"
           onClick={onClose}
-          aria-label="닫기"
+          aria-label={t('relatedSpots.modal.closeAria', '닫기')}
           style={{
             position: 'absolute',
             top: 14,
@@ -593,35 +597,48 @@ function SpotDetailModal({ spot, onClose, onSearchAgain }) {
         )}
 
         {/* 잔잔 카피: 이 자리가 기준 명소와 어떤 관계인지 */}
-        <div
-          style={{
-            margin: '6px 0 18px',
-            padding: '14px 16px',
-            borderRadius: 14,
-            background: 'rgba(99,102,241,0.10)',
-            border: '1px solid rgba(165,180,252,0.18)',
-            fontSize: 13,
-            lineHeight: 1.8,
-            color: '#cbd5e1',
-          }}
-        >
-          {baseSpot ? (
-            <>
-              <span style={{ color: '#fef3c7', fontWeight: 700 }}>{baseSpot}</span>
-              {baseRegion && <span style={{ color: '#94a3b8' }}> · {baseRegion}</span>}
-              <br />
-              를 다녀간 사람들이 {spot.rank ? <strong style={{ color: '#fff' }}>{spot.rank}순위</strong> : '함께'} 로 발걸음을 옮긴 자리예요.
-            </>
-          ) : (
-            <>이 곳에서 사람들이 다음으로 향했던 자리예요.</>
-          )}
-        </div>
+        {(() => {
+          const baseRegionPart = baseRegion ? ` · ${baseRegion}` : '';
+          let html;
+          if (baseSpot) {
+            if (spot.rank) {
+              html = t(
+                'relatedSpots.modal.rankRelation',
+                '<strong>{{baseSpot}}</strong>{{baseRegionPart}}<br/>를 다녀간 사람들이 <strong>{{rank}}순위</strong>로 발걸음을 옮긴 자리예요.',
+                { baseSpot, baseRegionPart, rank: spot.rank }
+              );
+            } else {
+              html = t(
+                'relatedSpots.modal.togetherRelation',
+                '<strong>{{baseSpot}}</strong>{{baseRegionPart}}<br/>를 다녀간 사람들이 함께로 발걸음을 옮긴 자리예요.',
+                { baseSpot, baseRegionPart }
+              );
+            }
+          } else {
+            html = t('relatedSpots.modal.noBaseRelation', '이 곳에서 사람들이 다음으로 향했던 자리예요.');
+          }
+          return (
+            <div
+              style={{
+                margin: '6px 0 18px',
+                padding: '14px 16px',
+                borderRadius: 14,
+                background: 'rgba(99,102,241,0.10)',
+                border: '1px solid rgba(165,180,252,0.18)',
+                fontSize: 13,
+                lineHeight: 1.8,
+                color: '#cbd5e1',
+              }}
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          );
+        })()}
 
         {/* 외부 지도 / 검색 — 깊이를 잇는 길잡이 */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 16 }}>
-          <ExternalAction icon={<Navigation size={15} />} label="네이버 지도" href={naverMapUrl} accent="#22c55e" />
-          <ExternalAction icon={<MapPin size={15} />}     label="카카오 맵"   href={kakaoMapUrl} accent="#fde047" />
-          <ExternalAction icon={<SearchIcon size={15} />} label="더 찾아보기"  href={googleSearchUrl} accent="#a5b4fc" />
+          <ExternalAction icon={<Navigation size={15} />} label={t('relatedSpots.modal.naverMap', '네이버 지도')} href={naverMapUrl} accent="#22c55e" />
+          <ExternalAction icon={<MapPin size={15} />}     label={t('relatedSpots.modal.kakaoMap', '카카오 맵')}   href={kakaoMapUrl} accent="#fde047" />
+          <ExternalAction icon={<SearchIcon size={15} />} label={t('relatedSpots.modal.googleSearch', '더 찾아보기')}  href={googleSearchUrl} accent="#a5b4fc" />
         </div>
 
         {/* "이 곳에서 출발해 보기" — 사전 등록된 시·군·구일 때만 의미가 있어 안내 톤으로 보여줌 */}
@@ -650,15 +667,18 @@ function SpotDetailModal({ spot, onClose, onSearchAgain }) {
             }}
           >
             <Compass size={16} />
-            {followUpKeyword} 에서 다시 출발해 보기
+            {t('relatedSpots.modal.restartHere', '{{keyword}} 에서 다시 출발해 보기', { keyword: followUpKeyword })}
           </button>
         )}
 
-        <div style={{ marginTop: 14, fontSize: 11, color: 'rgba(203,213,225,0.55)', textAlign: 'center', lineHeight: 1.7 }}>
-          {brief
-            ? <>운영시간·예약 같은 더 깊은 정보는<br />외부 지도/검색에서 잔잔히 이어 보세요.</>
-            : <>좌표·사진·운영시간 같은 깊은 정보는<br />외부 지도/검색에서 잔잔히 이어 보세요.</>}
-        </div>
+        <div
+          style={{ marginTop: 14, fontSize: 11, color: 'rgba(203,213,225,0.55)', textAlign: 'center', lineHeight: 1.7 }}
+          dangerouslySetInnerHTML={{
+            __html: brief
+              ? t('relatedSpots.modal.deeperHintWithBrief', '운영시간·예약 같은 더 깊은 정보는<br/>외부 지도/검색에서 잔잔히 이어 보세요.')
+              : t('relatedSpots.modal.deeperHint', '좌표·사진·운영시간 같은 깊은 정보는<br/>외부 지도/검색에서 잔잔히 이어 보세요.'),
+          }}
+        />
       </motion.div>
     </motion.div>
   );
@@ -672,6 +692,7 @@ function SpotDetailModal({ spot, onClose, onSearchAgain }) {
  * KTO 라 별도 표기가 안전. 카드 하단에 "출처: 한국관광공사 OOServiceN" 워터마크를 잔잔히 노출.
  */
 function SpotBriefSection({ brief, loading, title }) {
+  const { t } = useTranslation();
   if (!brief && !loading) return null;
   if (!brief && loading) {
     return (
@@ -689,19 +710,19 @@ function SpotBriefSection({ brief, loading, title }) {
           gap: 8,
         }}
       >
-        <Loader2 size={14} className="anim-spin" /> 한국관광공사 풍경을 가만히 가져오는 중…
+        <Loader2 size={14} className="anim-spin" /> {t('relatedSpots.brief.loading', '한국관광공사 풍경을 가만히 가져오는 중…')}
       </div>
     );
   }
 
   const sourceLabel =
     brief.source === 'with'
-      ? '한국관광공사 무장애여행정보'
+      ? t('relatedSpots.brief.sourceWith', '한국관광공사 무장애여행정보')
       : brief.source === 'pet'
-      ? '한국관광공사 반려동물 동반정보'
+      ? t('relatedSpots.brief.sourcePet', '한국관광공사 반려동물 동반정보')
       : brief.source === 'eng'
-      ? '한국관광공사 영문 관광정보'
-      : '한국관광공사';
+      ? t('relatedSpots.brief.sourceEng', '한국관광공사 영문 관광정보')
+      : t('relatedSpots.brief.sourceDefault', '한국관광공사');
 
   const fullAddress = [brief.address, brief.addressSub].filter(Boolean).join(' ');
   const showImage = !!brief.firstImage;
@@ -753,7 +774,7 @@ function SpotBriefSection({ brief, loading, title }) {
               textAlign: 'right',
             }}
           >
-            출처: {sourceLabel}
+            {t('relatedSpots.brief.sourcePrefix', '출처:')} {sourceLabel}
           </div>
         </div>
       )}
@@ -761,7 +782,7 @@ function SpotBriefSection({ brief, loading, title }) {
       <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {brief.title && brief.title !== title && (
           <div style={{ fontSize: 12, color: '#94a3b8' }}>
-            <span style={{ color: '#cbd5e1' }}>한국관광공사 표기</span> · {brief.title}
+            <span style={{ color: '#cbd5e1' }}>{t('relatedSpots.brief.ktoLabel', '한국관광공사 표기')}</span> · {brief.title}
           </div>
         )}
         {fullAddress && (
@@ -788,7 +809,7 @@ function SpotBriefSection({ brief, loading, title }) {
         )}
         {!showImage && !showAlt && (
           <div style={{ fontSize: 11, color: 'rgba(203,213,225,0.55)' }}>
-            출처: {sourceLabel}
+            {t('relatedSpots.brief.sourcePrefix', '출처:')} {sourceLabel}
           </div>
         )}
       </div>
@@ -825,6 +846,7 @@ function ExternalAction({ icon, label, href, accent }) {
 }
 
 function RankBadge({ rank }) {
+  const { t } = useTranslation();
   if (rank == null) return null;
   const palette =
     rank === 1 ? 'linear-gradient(135deg, #fbbf24, #f59e0b)' :
@@ -848,7 +870,7 @@ function RankBadge({ rank }) {
         fontWeight: 800,
         letterSpacing: 0.3,
       }}
-      aria-label={`연관 순위 ${rank}`}
+      aria-label={t('relatedSpots.rankAria', '연관 순위 {{rank}}', { rank })}
     >
       #{rank}
     </span>
@@ -856,6 +878,7 @@ function RankBadge({ rank }) {
 }
 
 function EmptyHint() {
+  const { t } = useTranslation();
   return (
     <div
       style={{
@@ -865,17 +888,17 @@ function EmptyHint() {
         fontSize: 13,
         lineHeight: 1.7,
       }}
-    >
-      먼저 떠올린 한 곳을 입력하거나,<br />아래 인기 지역 중에서 살짝 골라 보세요.
-    </div>
+      dangerouslySetInnerHTML={{ __html: t('relatedSpots.emptyHint', '먼저 떠올린 한 곳을 입력하거나,<br/>아래 인기 지역 중에서 살짝 골라 보세요.') }}
+    />
   );
 }
 
 function NoResult({ unsupported, onPickPlace, onFallback }) {
+  const { t } = useTranslation();
   return (
     <div style={{ textAlign: 'center', padding: '20px 12px' }}>
       <p style={{ color: '#cbd5e1', fontSize: 13, marginBottom: 10 }}>
-        그 자리에 대한 데이터는 아직 잠잠해요.
+        {t('relatedSpots.noResult.noData', '그 자리에 대한 데이터는 아직 잠잠해요.')}
       </p>
       {unsupported && (
         <div
@@ -891,8 +914,7 @@ function NoResult({ unsupported, onPickPlace, onFallback }) {
             lineHeight: 1.7,
           }}
         >
-          한국관광공사 빅데이터는 시·군·구 단위로 모아져 있어요.<br />
-          아래 인기 지역 중에서 가까운 한 곳을 골라 보면, 그 동네에서 사람들이 함께 다닌 자리들이 살며시 이어서 보여집니다.
+          <div dangerouslySetInnerHTML={{ __html: t('relatedSpots.noResult.unsupportedNote', '한국관광공사 빅데이터는 시·군·구 단위로 모아져 있어요.<br/>아래 인기 지역 중에서 가까운 한 곳을 골라 보면, 그 동네에서 사람들이 함께 다닌 자리들이 살며시 이어서 보여집니다.') }} />
           <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center' }}>
             {['여수', '담양', '경주', '강릉', '한라산', '안동'].map((k) => (
               <button
@@ -928,7 +950,7 @@ function NoResult({ unsupported, onPickPlace, onFallback }) {
           cursor: 'pointer',
         }}
       >
-        영화로 떠나는 여행에서 다른 길 보기
+        {t('relatedSpots.noResult.fallback', '영화로 떠나는 여행에서 다른 길 보기')}
       </button>
     </div>
   );

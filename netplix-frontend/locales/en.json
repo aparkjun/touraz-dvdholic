@@ -399,6 +399,284 @@
     "phoneNone": "No phone",
     "poweredBy": "Source: Korea Tourism Organization GoCamping"
   },
+  "regionShortcuts": {
+    "all": "All",
+    "1": "Seoul", "2": "Incheon", "3": "Daejeon", "4": "Daegu", "5": "Gwangju", "6": "Busan",
+    "7": "Ulsan", "8": "Sejong", "31": "Gyeonggi", "32": "Gangwon", "33": "Chungbuk", "34": "Chungnam",
+    "35": "Jeonbuk", "36": "Jeonnam", "37": "Gyeongbuk", "38": "Gyeongnam", "39": "Jeju"
+  },
+  "cineTripPage": {
+    "mapping": {
+      "SHOT": "Filming site",
+      "BACKGROUND": "Backdrop",
+      "THEME": "Theme"
+    },
+    "emptyTitle": "No films linked yet",
+    "emptySub": "Try another region or check back in a moment.",
+    "untitled": "Untitled",
+    "viewCourse": "View travel course",
+    "share": "Share",
+    "shareKakao": "Share on KakaoTalk",
+    "movieCardsAria": "Film cards",
+    "trendingScore": "Trending score",
+    "shareTitle": "{{movie}} · CineTrip",
+    "shareDesc": "A trip with this film: {{regions}}",
+    "shareDescNoRegion": "A travel curation around this film",
+    "movieFallback": "Movie",
+    "regionMetric": "{{region}} metrics",
+    "tourDemandLabel": "Tourism demand",
+    "searchLabel": "Searches"
+  },
+  "photoStrip": {
+    "regionTitle": "{{region}} award-winning photo spots",
+    "nationalTitle": "Nationwide award-winning photo spots",
+    "movieTitle": "Award-winning travel photos related to \"{{movie}}\""
+  },
+  "dashboardPage": {
+    "travelModeOn": "Travel Mode ON",
+    "travelMode": "Travel Mode",
+    "travelModeTooltip": "Injects KTO regional metrics into AI recommendation context",
+    "totalCount": "Total {{count}}"
+  },
+  "crowdRadarPage": {
+    "dow": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  },
+  "movieSpotlight": {
+    "dismissAria": "Close spotlight",
+    "title": "Following the trail of \"{{movie}}\"",
+    "subtitleHasMapping": "Pick one of the buttons below to jump straight to places linked to this film.",
+    "subtitleNoMapping": "Filming sites aren't mapped for this title yet. Browse the nationwide CineTrip curation instead.",
+    "viewCourse": "View travel course",
+    "viewSpots": "See all places in this film",
+    "browseAll": "Browse all CineTrip",
+    "interestPrefix": "Interest"
+  },
+  "wellnessCalendar": {
+    "badge": "BINGE RECOVERY CALENDAR",
+    "title": "Binge Recovery · Top 5 Quiet Healing Days",
+    "subtitle": "For viewers who finished the season. We pick days and regions with the lowest forecasted crowd over the next 2 weeks — book a hot spring, healing forest, or temple stay then to recover without crowds.",
+    "source": "Source: KTO tourist concentration forecast × Wellness curation",
+    "viewMore": "Browse more dates & regions",
+    "cardTooltip": "This filters the list below to only this district (map/data source code). Different from a page refresh (F5).",
+    "concentration": "Crowd",
+    "spotPrefix": "Highlight spot",
+    "filterCta": "Filter healing spots to this district →",
+    "dow": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+  },
+  "petCinema": {
+    "headerTitle": "Films to watch with your pet",
+    "headerSubtitle": "After today's walk, one film on the couch",
+    "viewMovieInfo": "View movie info",
+    "cardAria": "Open {{title}} movie info in a new tab",
+    "picks": {
+      "maum": { "title": "Maum-i", "subtitle": "Korea · 2006", "blurb": "A road movie about Jindo dog \"Maum-i\" and a brother & sister", "tag": "Dog · Korea" },
+      "sugar": { "title": "Lump of Sugar", "subtitle": "Korea · 2006", "blurb": "A girl's coming-of-age story with race horse Cheondoong", "tag": "Family · Korea" },
+      "mari": { "title": "My Beautiful Girl, Mari", "subtitle": "Korea anime · 2002", "blurb": "Childhood memories with a white cat companion", "tag": "Anime · Korea" },
+      "hachi": { "title": "Hachi: A Dog's Tale", "subtitle": "Hachi · 2009", "blurb": "The legendary Akita who waited for his owner", "tag": "True story · Dog" },
+      "marley": { "title": "Marley & Me", "subtitle": "Marley & Me · 2008", "blurb": "12 years of family chaos with a Golden Retriever", "tag": "Family · Retriever" },
+      "isle": { "title": "Isle of Dogs", "subtitle": "Isle of Dogs · 2018", "blurb": "An odd adventure of exiled dogs and a boy", "tag": "Adventure · Anime" }
+    }
+  },
+  "nearbyCineTrip": {
+    "mappingShot": "Filming site",
+    "mappingBackground": "Backdrop",
+    "mappingTheme": "Theme",
+    "errorLoad": "Couldn't load CineTrip curation for this region",
+    "empty": "No film curations are linked to this region yet.",
+    "defaultTitle": "Films set in {{region}}",
+    "viewInCineTrip": "View in CineTrip",
+    "untitled": "Untitled",
+    "naverSearchSuffix": "movie"
+  },
+  "trendingRegions": {
+    "today": { "label": "Today", "title": "Trending today", "subtitle": "Surge in KTO search volume" },
+    "week": { "label": "This week", "title": "Trending this week", "subtitle": "Tourism demand × competitiveness" },
+    "month": { "label": "This month", "title": "Trending this month", "subtitle": "Culture & tourism composite" },
+    "tabsAriaLabel": "Choose trending period",
+    "errorLoad": "Couldn't load data",
+    "empty": "No regions ranked yet"
+  },
+  "dashboardCta": {
+    "cineTrip": {
+      "tag": "CineTrip · Boarding Pass",
+      "title": "Cinematic Journeys",
+      "desc": "Check in with curated cards alive with filming sites, backdrops, and OSTs.",
+      "cta": "View all CineTrip cards"
+    },
+    "petTravel": {
+      "tag": "Pet Travel · Fresh Air",
+      "title": "Travel with your pet",
+      "desc": "Sunshine and four paws — discover pet-friendly places mapped out for you.",
+      "cta": "Browse pet-friendly travel"
+    },
+    "trekking": {
+      "tag": "Durunubi · Korea Trails",
+      "title": "Walking journeys across Korea",
+      "desc": "284 Korea Trail courses through forests, coasts, and villages — fresh strolls await.",
+      "cta": "Browse trekking courses"
+    },
+    "photoGallery": {
+      "tag": "Korea Photo Gallery",
+      "title": "Tourism Photo Gallery",
+      "desc": "Browse a KTO-curated nationwide scenery album by region.",
+      "cta": "Open the photo album"
+    },
+    "camping": {
+      "tag": "GoCamping · Nature Stay",
+      "title": "Find a campsite anywhere in Korea",
+      "desc": "After tonight's film, stay one more night at a forest campsite under the stars — campsites near you in one click.",
+      "cta": "View all campsites"
+    },
+    "wellness": {
+      "tag": "Binge Recovery · Wellness",
+      "title": "Post-binge healing spots",
+      "desc": "After the marathon, reset sore shoulders and a tired mind at nearby hot springs, spas, and healing forests.",
+      "cta": "Browse healing spots"
+    },
+    "medicalTourism": {
+      "tag": "K-Medical Tourism · Global · EN / KO",
+      "title": "K-Medical Tourism · Foreigners Welcome",
+      "desc": "Plastic surgery, traditional Korean medicine, health checkups, rehab, beauty, spine, and dental — verified Korean medical spots for international travelers, in both EN and KO.",
+      "cta": "Browse medical tourism spots"
+    },
+    "audioGuide": {
+      "tag": "Cine Audio Trail · Odii · Backdrops by ear",
+      "title": "Watch in theaters · Hear stories on location",
+      "desc": "Rest your eyes after a binge — listen instead. Four KTO Audio Guide signature courses: filming sites, DVD return route, palaces, and temples — hidden tales in your earbuds.",
+      "cta": "Open the four signature courses"
+    },
+    "crowdRadar": {
+      "tag": "Quiet Set Radar · 30-day crowd forecast",
+      "title": "We'll whisper which filming sites are calm",
+      "desc": "Films may be loud, but visit the locations when they're quiet. KTO × KT big-data 30-day concentration forecasts help you find uncrowded days at filming sites.",
+      "cta": "Open the quiet-set radar"
+    },
+    "relatedSpots": {
+      "tag": "Korea Tour Big Data · Where visitors went next",
+      "title": "Beside the quiet spot, where did people drift next?",
+      "desc": "Think of one place — KTO TarRlteTarService1 quietly traces where its visitors wandered next.",
+      "cta": "Browse gently"
+    }
+  },
+  "petTravel": {
+    "heroBadge": "KTO · Pet-friendly Travel",
+    "heroTitle": "Sunshine, paws, and wide open roads",
+    "heroSubtitle1": "If you've been cooped up indoors, it's time to feel the spring breeze on four paws.",
+    "heroSubtitle2": "Browse pet-friendly attractions, lodging, and restaurants across regions at a glance.",
+    "feature1Title": "Pet-friendly venues",
+    "feature1Desc": "Parks, beaches, walking paths",
+    "feature2Title": "Safe travel tips",
+    "feature2Desc": "Transit & lodging guidelines",
+    "feature3Title": "Outdoor activities",
+    "feature3Desc": "Nature exploration under the sun",
+    "bannerTitle": "Ready for a breath of fresh air?",
+    "bannerBody": "Tap a region tab to choose where to go today. All info is provided by the Korea Tourism Organization.",
+    "cinemaTitle": "Films set in {{region}} — perfect to revisit with your pet",
+    "petCinemaBadge": "PetCinema",
+    "walkTitle": "Trails great for a walk with your pet",
+    "walkSubtitle": "Duruunubi courses around {{region}}",
+    "petWalkBadge": "PetWalk",
+    "dataSource": "© KTO Pet-friendly Travel (KorPetTourService)",
+    "areaAll": "Nationwide",
+    "areaHintAll": "Major regions summary",
+    "areas": {
+      "1": "Seoul", "2": "Incheon", "3": "Daejeon", "4": "Daegu", "5": "Gwangju", "6": "Busan",
+      "7": "Ulsan", "8": "Sejong", "31": "Gyeonggi", "32": "Gangwon", "33": "Chungbuk", "34": "Chungnam",
+      "35": "Gyeongbuk", "36": "Gyeongnam", "37": "Jeonbuk", "38": "Jeonnam", "39": "Jeju"
+    }
+  },
+  "trekking": {
+    "heroBadge": "Durunubi · Korea Trails",
+    "heroTitle": "Walking Journeys Across Korea",
+    "heroBody": "Follow 284 KTO-curated Korea Trails (Durunubi) — GPX tracks, regions, and nearby attractions — connecting filming-location tours and pet-friendly trips into a fresh walking experience.",
+    "backToDashboard": "Back to dashboard",
+    "areaChip": "Show only {{region}} courses",
+    "areaFilterClearAria": "Clear region filter",
+    "cineSectionTitle": "Films & filming sites set in {{region}}",
+    "curatedSectionTitle": "Recommended walking trails in {{region}}",
+    "curatedSectionSub": "Curated city walls, perimeter trails, riverside paths",
+    "routesSectionTitle": "Korea Trails · Major Routes",
+    "routesEmpty": "No registered route info",
+    "routesError": "Could not load route list",
+    "coursesError": "Could not load course list",
+    "coursesSectionTitleArea": "{{region}} walking courses",
+    "coursesSectionTitleAll": "Browse walking courses",
+    "viewAllAreas": "View all regions",
+    "chipsAriaLabel": "Choose Korea Trail route",
+    "chipAll": "All",
+    "routes": {
+      "hae": "Haeparang Trail",
+      "nam": "Nampaarang Trail",
+      "seo": "Seohaerang Trail"
+    },
+    "routeOther": "Other",
+    "coursesEmptyCoastalNote": "Korea Trails (Haeparang/Nampaarang/Seohaerang) follow the coastline and don't pass through {{region}}. Check the \"Recommended walking trails in {{region}}\" section above for popular local walks.",
+    "coursesEmptyArea": "Durunubi has no Korea Trail courses passing through {{region}}.",
+    "coursesEmpty": "No courses match the current filter yet",
+    "selectedAreaFallback": "this region",
+    "selectedAreaFallbackShort": "region",
+    "selectedAreaFallbackThis": "this region",
+    "viewAllCourses": "View all courses",
+    "cardCourseInfo": "Course",
+    "expand": "More",
+    "collapse": "Collapse",
+    "gpxDownload": "GPX download",
+    "cineToggle": "Films along this trail",
+    "cineToggleArea": "Films along this trail ({{region}})",
+    "cineToggleAria": "{{state}} films set in {{region}}",
+    "curatedBadge": "Featured walk",
+    "officialGuide": "Official guide",
+    "regionalCine": "Films set here"
+  },
+  "relatedSpots": {
+    "heroBadge": "KTO Big Data · Where Visitors Went Next",
+    "heroTitle": "Beside the quiet spot,<br/>where did people drift next?",
+    "heroSubtitle": "Think of one place. Data quietly traces<br/>the nearby spots its visitors wandered to next.",
+    "searchPlaceholder": "Try a city/region or landmark (e.g. Yeosu · Hallasan · Gyeongju)",
+    "searchSubmit": "Search gently",
+    "regions": {
+      "jeju": "Jeju",
+      "gangwon": "Gangwon",
+      "gyeongsang": "Gyeongsang",
+      "jeolla": "Jeolla",
+      "city": "City"
+    },
+    "loading": "Connecting paths through the data…",
+    "errorGeneric": "Couldn't load data. Please try again in a moment.",
+    "summary": "Found {{relatedCount}} companion places across {{groupCount}} base spots",
+    "goCineTrip": "Go to Cinematic Journeys",
+    "groupStartLabel": "Starting here",
+    "groupCopy": "Places visitors of this spot went to together or next. Tap one to gently unfold details.",
+    "modal": {
+      "closeAria": "Close",
+      "untitled": "Untitled",
+      "rankRelation": "Visitors of <strong>{{baseSpot}}</strong>{{baseRegionPart}}<br/>went here as their <strong>#{{rank}}</strong> next stop.",
+      "togetherRelation": "Visitors of <strong>{{baseSpot}}</strong>{{baseRegionPart}}<br/>went here together with that spot.",
+      "noBaseRelation": "Where people went next from this spot.",
+      "naverMap": "Naver Maps",
+      "kakaoMap": "Kakao Map",
+      "googleSearch": "Search the web",
+      "restartHere": "Restart from {{keyword}}",
+      "deeperHintWithBrief": "Hours, reservations and more — continue gently<br/>through external maps or search.",
+      "deeperHint": "Coordinates, photos, hours — continue gently<br/>through external maps or search."
+    },
+    "brief": {
+      "loading": "Quietly fetching scenes from KTO…",
+      "sourceWith": "KTO Barrier-Free Tourism Info",
+      "sourcePet": "KTO Pet-friendly Tourism Info",
+      "sourceEng": "KTO English Tourism Info",
+      "sourceDefault": "KTO",
+      "sourcePrefix": "Source:",
+      "ktoLabel": "KTO listing"
+    },
+    "rankAria": "Related rank {{rank}}",
+    "emptyHint": "Type a place you have in mind,<br/>or pick a popular region below.",
+    "noResult": {
+      "noData": "The data here is still quiet.",
+      "unsupportedNote": "KTO big data is grouped at the city/district level.<br/>Pick a nearby popular region below to gently see places visited together.",
+      "fallback": "Try other paths in Cinematic Journeys"
+    }
+  },
   "wellness": {
     "pageTitle": "Post-Binge Recovery · Healing Spots Near You",
     "pageSubtitle": "After a long movie/drama marathon, unwind your sore shoulders and tired mind at KTO-curated wellness spots — hot springs, spas, healing forests, temple stays, meditation and yoga studios nationwide.",
@@ -572,6 +850,39 @@
         "loading": "Loading related narration stories...",
         "empty": "No narration stories linked to this spot yet. The server cache may still be warming up — please try again in a moment."
       }
+    },
+    "courses": {
+      "aria": "Four signature Cine Audio Trail courses",
+      "title": "Cine Audio Trail · 4 Signature Courses",
+      "film": {
+        "title": "Filming Sites · Cine Set Trail",
+        "desc": "That scene from the movie, that very place. Hear on location why the director chose this backdrop.",
+        "cta": "Play now"
+      },
+      "dvd": {
+        "title": "DVD Return Route",
+        "desc": "On the way to return your DVD, listen to hidden narrations around your current location. GPS-based audio guide.",
+        "cta": "Play near me",
+        "on": "Listening nearby"
+      },
+      "palace": {
+        "title": "Royal Palaces · Whisper",
+        "desc": "Royal stories beyond the walls of Gyeongbok, Changdeok, and Deoksu palaces. A day in Joseon you can walk and listen.",
+        "cta": "Play now"
+      },
+      "temple": {
+        "title": "Temples · Mindful Path",
+        "desc": "Bulguksa, Haeinsa, Tongdosa… a meditative audio trail tracing monks' footsteps.",
+        "cta": "Play now"
+      }
+    },
+    "toast": {
+      "loading": "Finding audio guide…",
+      "playing": "Now playing ·",
+      "noaudio": "Many items have no audio. Tap a specific card to play it directly.",
+      "empty": "No results. Try another course.",
+      "close": "Close",
+      "clear": "Clear"
     }
   },
   "nearbyAudioGuide": {
@@ -709,7 +1020,15 @@
     "expandReview": "Expand full review ▼"
   },
   "common": {
-    "lang": "English"
+    "lang": "English",
+    "back": "Back",
+    "loading": "Loading…",
+    "close": "Close",
+    "more": "More",
+    "search": "Search",
+    "share": "Share",
+    "copy": "Copy",
+    "copied": "Copied"
   },
   "att": {
     "title": "Allow Ad Tracking",

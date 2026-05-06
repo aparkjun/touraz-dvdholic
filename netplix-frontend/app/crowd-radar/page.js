@@ -41,6 +41,7 @@ import {
 } from "lucide-react";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 
+// KTO area code 표준: 35=전북, 36=전남, 37=경북, 38=경남
 const AREA_LABEL = {
   "1": "서울",
   "2": "인천",
@@ -54,10 +55,10 @@ const AREA_LABEL = {
   "32": "강원",
   "33": "충북",
   "34": "충남",
-  "35": "경북",
-  "36": "경남",
-  "37": "전북",
-  "38": "전남",
+  "35": "전북",
+  "36": "전남",
+  "37": "경북",
+  "38": "경남",
   "39": "제주",
 };
 
@@ -156,11 +157,14 @@ function toLocalDate(d) {
   return null;
 }
 
-function fmtMMDD(d) {
+function fmtMMDD(d, dowList) {
   if (!d) return "";
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
-  const dow = ["일", "월", "화", "수", "목", "금", "토"][d.getDay()];
+  const list = Array.isArray(dowList) && dowList.length === 7
+    ? dowList
+    : ["일", "월", "화", "수", "목", "금", "토"];
+  const dow = list[d.getDay()];
   return `${mm}.${dd} (${dow})`;
 }
 
@@ -244,6 +248,7 @@ function CrowdRadarInner() {
   const searchParams = useSearchParams();
   const { t, i18n } = useTranslation();
   const isEn = (i18n?.language || "ko").toLowerCase().startsWith("en");
+  const dowList = t("crowdRadarPage.dow", { returnObjects: true, defaultValue: ["일","월","화","수","목","금","토"] });
 
   const [rawRows, setRawRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -438,7 +443,7 @@ function CrowdRadarInner() {
                   value={stats.quietest?.spotName || "-"}
                   sub={
                     stats.quietest?.minInRange
-                      ? `${fmtMMDD(stats.quietest.minInRange.date)} · ${formatRate(stats.quietest.minInRange.rate)}`
+                      ? `${fmtMMDD(stats.quietest.minInRange.date, dowList)} · ${formatRate(stats.quietest.minInRange.rate)}`
                       : "-"
                   }
                   color="#10b981"
@@ -449,7 +454,7 @@ function CrowdRadarInner() {
                   value={stats.busiest?.spotName || "-"}
                   sub={
                     stats.busiest?.maxInRange
-                      ? `${fmtMMDD(stats.busiest.maxInRange.date)} · ${formatRate(stats.busiest.maxInRange.rate)}`
+                      ? `${fmtMMDD(stats.busiest.maxInRange.date, dowList)} · ${formatRate(stats.busiest.maxInRange.rate)}`
                       : "-"
                   }
                   color="#ef4444"
@@ -522,7 +527,7 @@ function CrowdRadarInner() {
                       ...(areaFilter === code ? styles.chipActive : null),
                     }}
                   >
-                    {AREA_LABEL[code]}
+                    {t(`regionShortcuts.${code}`, AREA_LABEL[code])}
                   </button>
                 ))}
               </div>
@@ -612,6 +617,7 @@ function StatCard({ icon, label, value, sub, color }) {
 
 function SpotCard({ spot, rank, preset }) {
   const { t } = useTranslation();
+  const dowList = t("crowdRadarPage.dow", { returnObjects: true, defaultValue: ["일","월","화","수","목","금","토"] });
   const series = spot.series;
   const color = levelColor(spot.scoreInRange);
   const maxRate = series.length ? Math.max(...series.map((x) => x.rate), 10) : 100;
@@ -690,11 +696,11 @@ function SpotCard({ spot, rank, preset }) {
         <div style={{ display: "flex", gap: 10, fontSize: 11, flexWrap: "wrap" }}>
           <span style={{ color: "#34d399" }}>
             <TrendingDown size={11} style={{ verticalAlign: "text-top" }} />{" "}
-            {t("crowdRadar.spot.min", "최저")} {fmtMMDD(spot.minEntry.date)} · {formatRate(spot.minEntry.rate)}
+            {t("crowdRadar.spot.min", "최저")} {fmtMMDD(spot.minEntry.date, dowList)} · {formatRate(spot.minEntry.rate)}
           </span>
           <span style={{ color: "#f87171" }}>
             <TrendingUp size={11} style={{ verticalAlign: "text-top" }} />{" "}
-            {t("crowdRadar.spot.max", "최고")} {fmtMMDD(spot.maxEntry.date)} · {formatRate(spot.maxEntry.rate)}
+            {t("crowdRadar.spot.max", "최고")} {fmtMMDD(spot.maxEntry.date, dowList)} · {formatRate(spot.maxEntry.rate)}
           </span>
         </div>
       )}

@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { Film, Sparkles, ArrowRight, MapPin } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 import axios from '@/lib/axiosConfig';
 import { sigunToAreaCode, areaCodeToLabel } from '@/lib/regionMap';
 
@@ -13,9 +14,9 @@ import { sigunToAreaCode, areaCodeToLabel } from '@/lib/regionMap';
  * CineTrip 지역 매핑 DB 에는 있지만 영화 원본 DB(/api/v1/movie/{name}/detail) 에
  * 없는 영화(예: 국제시장)를 클릭했을 때의 fallback 으로 사용.
  */
-const buildNaverMovieUrl = (name) =>
+const buildNaverMovieUrl = (name, suffix = '영화') =>
   `https://search.naver.com/search.naver?where=nexearch&query=${encodeURIComponent(
-    `${name} 영화`
+    `${name} ${suffix}`
   )}`;
 
 /**
@@ -28,7 +29,12 @@ const buildNaverMovieUrl = (name) =>
  */
 const NO_POSTER_PLACEHOLDER = '/no-poster-placeholder.png';
 
-const MAPPING_TYPE_LABEL = {
+const MAPPING_TYPE_KEY = {
+  SHOT: 'nearbyCineTrip.mappingShot',
+  BACKGROUND: 'nearbyCineTrip.mappingBackground',
+  THEME: 'nearbyCineTrip.mappingTheme',
+};
+const MAPPING_TYPE_FALLBACK = {
   SHOT: '촬영지',
   BACKGROUND: '배경',
   THEME: '테마',
@@ -48,6 +54,7 @@ export default function NearbyCineTripStrip({
   title,
   badgeLabel = 'CineWalk',
 }) {
+  const { t } = useTranslation();
   const isLight = theme === 'light';
   const headerBadgeBg = isLight
     ? 'linear-gradient(135deg, #0284c7 0%, #06b6d4 100%)'
@@ -83,7 +90,7 @@ export default function NearbyCineTripStrip({
         if (alive) setItems(Array.isArray(payload) ? payload : []);
       } catch (e) {
         console.error('[nearby-cine-trip] fetch failed:', e?.message || e);
-        if (alive) setError('이 지역의 영화 큐레이션을 불러올 수 없어요');
+        if (alive) setError(t('nearbyCineTrip.errorLoad', '이 지역의 영화 큐레이션을 불러올 수 없어요'));
       } finally {
         if (alive) setLoading(false);
       }
@@ -91,13 +98,13 @@ export default function NearbyCineTripStrip({
     return () => {
       alive = false;
     };
-  }, [areaCode, limit]);
+  }, [areaCode, limit, t]);
 
   if (!areaCode) return null;
   if (!loading && !error && items.length === 0) {
     return (
       <div style={{ padding: '10px 2px', fontSize: 12.5, color: emptyTextColor }}>
-        아직 이 지역과 연결된 영화 큐레이션이 없어요.
+        {t('nearbyCineTrip.empty', '아직 이 지역과 연결된 영화 큐레이션이 없어요.')}
       </div>
     );
   }
@@ -133,7 +140,7 @@ export default function NearbyCineTripStrip({
           <Sparkles size={11} /> {badgeLabel}
         </span>
         <span style={{ fontSize: 13, fontWeight: 800, color: headerTitleColor }}>
-          {title || `${regionLabel} 배경으로 한 영화들`}
+          {title || t('nearbyCineTrip.defaultTitle', '{{region}} 배경으로 한 영화들', { region: regionLabel })}
         </span>
         <Link
           href={`/cine-trip?area=${areaCode}`}
@@ -148,7 +155,7 @@ export default function NearbyCineTripStrip({
             gap: 4,
           }}
         >
-          CineTrip 에서 보기 <ArrowRight size={12} />
+          {t('nearbyCineTrip.viewInCineTrip', 'CineTrip 에서 보기')} <ArrowRight size={12} />
         </Link>
       </div>
 
@@ -188,10 +195,14 @@ export default function NearbyCineTripStrip({
 }
 
 function MoviePosterCard({ item, index }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const movie = item?.movie || {};
   const mapping = (item?.mappings || [])[0];
-  const tagLabel = MAPPING_TYPE_LABEL[mapping?.mappingType] || '';
+  const mappingTypeKey = MAPPING_TYPE_KEY[mapping?.mappingType];
+  const tagLabel = mappingTypeKey
+    ? t(mappingTypeKey, MAPPING_TYPE_FALLBACK[mapping?.mappingType])
+    : '';
   const [checking, setChecking] = useState(false);
 
   /**
@@ -223,10 +234,10 @@ function MoviePosterCard({ item, index }) {
       if (hasDetail) {
         router.push(internalUrl);
       } else {
-        window.open(buildNaverMovieUrl(name), '_blank', 'noopener,noreferrer');
+        window.open(buildNaverMovieUrl(name, t('nearbyCineTrip.naverSearchSuffix', '영화')), '_blank', 'noopener,noreferrer');
       }
     } catch {
-      window.open(buildNaverMovieUrl(name), '_blank', 'noopener,noreferrer');
+      window.open(buildNaverMovieUrl(name, t('nearbyCineTrip.naverSearchSuffix', '영화')), '_blank', 'noopener,noreferrer');
     } finally {
       setChecking(false);
     }
@@ -314,7 +325,7 @@ function MoviePosterCard({ item, index }) {
             overflow: 'hidden',
           }}
         >
-          {movie.movieName || '제목 미상'}
+          {movie.movieName || t('nearbyCineTrip.untitled', '제목 미상')}
         </div>
         {mapping?.regionName && (
           <div

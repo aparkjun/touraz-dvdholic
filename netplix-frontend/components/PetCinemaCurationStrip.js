@@ -3,6 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Clapperboard, Heart, ExternalLink } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 /**
  * 반려동물·동물·가족 테마 영화 큐레이션 스트립.
@@ -23,61 +24,49 @@ const buildNaverMovieUrl = (query) =>
 
 const PET_CINEMA_PICKS = [
   {
-    title: '마음이',
-    subtitle: '한국 · 2006',
-    blurb: '진돗개 "마음이" 와 남매의 자전거 로드무비',
+    id: 'maum',
+    fallback: { title: '마음이', subtitle: '한국 · 2006', blurb: '진돗개 "마음이" 와 남매의 자전거 로드무비', tag: '반려견 · 한국' },
     emoji: '🐕‍🦺',
-    tag: '반려견 · 한국',
     gradient: 'linear-gradient(135deg, #fbbf24 0%, #f97316 55%, #dc2626 100%)',
     accent: '#fef3c7',
     searchQuery: '마음이 영화 2006',
   },
   {
-    title: '각설탕',
-    subtitle: '한국 · 2006',
-    blurb: '소녀와 경주마 "천둥" 의 청춘 성장기',
+    id: 'sugar',
+    fallback: { title: '각설탕', subtitle: '한국 · 2006', blurb: '소녀와 경주마 "천둥" 의 청춘 성장기', tag: '가족 · 한국' },
     emoji: '🐎',
-    tag: '가족 · 한국',
     gradient: 'linear-gradient(135deg, #0ea5e9 0%, #14b8a6 50%, #22c55e 100%)',
     accent: '#ccfbf1',
     searchQuery: '각설탕 영화 2006',
   },
   {
-    title: '마리 이야기',
-    subtitle: '한국 애니 · 2002',
-    blurb: '어린 날 친구가 되어준 하얀 고양이의 기억',
+    id: 'mari',
+    fallback: { title: '마리 이야기', subtitle: '한국 애니 · 2002', blurb: '어린 날 친구가 되어준 하얀 고양이의 기억', tag: '애니 · 한국' },
     emoji: '🐈',
-    tag: '애니 · 한국',
     gradient: 'linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f472b6 100%)',
     accent: '#fce7f3',
     searchQuery: '마리이야기 애니메이션 2002',
   },
   {
-    title: '하치 이야기',
-    subtitle: 'Hachi · 2009',
-    blurb: '주인을 기다린 전설의 견공 아키타',
+    id: 'hachi',
+    fallback: { title: '하치 이야기', subtitle: 'Hachi · 2009', blurb: '주인을 기다린 전설의 견공 아키타', tag: '실화 · 견공' },
     emoji: '🐕',
-    tag: '실화 · 견공',
     gradient: 'linear-gradient(135deg, #1e3a8a 0%, #7c3aed 55%, #db2777 100%)',
     accent: '#e0e7ff',
     searchQuery: '하치 이야기 영화 2009',
   },
   {
-    title: '말리와 나',
-    subtitle: 'Marley & Me · 2008',
-    blurb: '장난꾸러기 골든 리트리버가 만든 가족의 12년',
+    id: 'marley',
+    fallback: { title: '말리와 나', subtitle: 'Marley & Me · 2008', blurb: '장난꾸러기 골든 리트리버가 만든 가족의 12년', tag: '가족 · 리트리버' },
     emoji: '🐶',
-    tag: '가족 · 리트리버',
     gradient: 'linear-gradient(135deg, #f59e0b 0%, #10b981 50%, #0ea5e9 100%)',
     accent: '#d1fae5',
     searchQuery: '말리와 나 영화 2008',
   },
   {
-    title: '개들의 섬',
-    subtitle: 'Isle of Dogs · 2018',
-    blurb: '추방된 개들과 소년이 만든 기묘한 모험',
+    id: 'isle',
+    fallback: { title: '개들의 섬', subtitle: 'Isle of Dogs · 2018', blurb: '추방된 개들과 소년이 만든 기묘한 모험', tag: '모험 · 애니' },
     emoji: '🦴',
-    tag: '모험 · 애니',
     gradient: 'linear-gradient(135deg, #c2410c 0%, #a855f7 55%, #0284c7 100%)',
     accent: '#fed7aa',
     searchQuery: '개들의 섬 영화 2018 웨스 앤더슨',
@@ -85,6 +74,7 @@ const PET_CINEMA_PICKS = [
 ];
 
 export default function PetCinemaCurationStrip() {
+  const { t } = useTranslation();
   return (
     <section
       style={{
@@ -152,10 +142,10 @@ export default function PetCinemaCurationStrip() {
             letterSpacing: '-0.02em',
           }}
         >
-          반려와 함께 보면 좋은 영화 큐레이션
+          {t('petCinema.headerTitle', '반려와 함께 보면 좋은 영화 큐레이션')}
         </h3>
         <span style={{ fontSize: 12.5, color: '#0f766e' }}>
-          산책 다녀온 저녁, 소파 위에서 한 편
+          {t('petCinema.headerSubtitle', '산책 다녀온 저녁, 소파 위에서 한 편')}
         </span>
       </header>
 
@@ -171,7 +161,7 @@ export default function PetCinemaCurationStrip() {
         }}
       >
         {PET_CINEMA_PICKS.map((pick, i) => (
-          <PetCinemaCard key={pick.title} pick={pick} index={i} />
+          <PetCinemaCard key={pick.id} pick={pick} index={i} />
         ))}
       </div>
     </section>
@@ -179,14 +169,19 @@ export default function PetCinemaCurationStrip() {
 }
 
 function PetCinemaCard({ pick, index }) {
-  const href = buildNaverMovieUrl(pick.searchQuery || `${pick.title} 영화`);
+  const { t } = useTranslation();
+  const title = t(`petCinema.picks.${pick.id}.title`, pick.fallback.title);
+  const subtitle = t(`petCinema.picks.${pick.id}.subtitle`, pick.fallback.subtitle);
+  const blurb = t(`petCinema.picks.${pick.id}.blurb`, pick.fallback.blurb);
+  const tag = t(`petCinema.picks.${pick.id}.tag`, pick.fallback.tag);
+  const href = buildNaverMovieUrl(pick.searchQuery || `${pick.fallback.title} 영화`);
 
   return (
     <motion.a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={`${pick.title} 영화 정보 새 탭으로 보기`}
+      aria-label={t('petCinema.cardAria', '{{title}} 영화 정보 새 탭으로 보기', { title })}
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.3) }}
@@ -254,7 +249,7 @@ function PetCinemaCard({ pick, index }) {
             }}
           >
             <Heart size={9} style={{ verticalAlign: -1, marginRight: 3 }} />
-            {pick.tag}
+            {tag}
           </span>
 
           <h4
@@ -267,7 +262,7 @@ function PetCinemaCard({ pick, index }) {
               letterSpacing: '-0.015em',
             }}
           >
-            {pick.title}
+            {title}
           </h4>
           <div
             style={{
@@ -276,7 +271,7 @@ function PetCinemaCard({ pick, index }) {
               color: 'rgba(255,255,255,0.85)',
             }}
           >
-            {pick.subtitle}
+            {subtitle}
           </div>
         </div>
 
@@ -293,7 +288,7 @@ function PetCinemaCard({ pick, index }) {
             overflow: 'hidden',
           }}
         >
-          {pick.blurb}
+          {blurb}
         </p>
 
         <div
@@ -312,7 +307,7 @@ function PetCinemaCard({ pick, index }) {
             backdropFilter: 'blur(4px)',
           }}
         >
-          영화 정보 보기 <ExternalLink size={11} />
+          {t('petCinema.viewMovieInfo', '영화 정보 보기')} <ExternalLink size={11} />
         </div>
       </div>
     </motion.a>

@@ -19,14 +19,13 @@ import { useTranslation } from 'react-i18next';
  * 웰니스 페이지 전용. 결과 0건이면 숨김. 영어 모드 숨김.
  */
 export default function WellnessRecoveryCalendar() {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isEn = i18n.language && i18n.language.startsWith('en');
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isEn) return;
     let alive = true;
     (async () => {
       setLoading(true);
@@ -44,7 +43,7 @@ export default function WellnessRecoveryCalendar() {
     return () => {
       alive = false;
     };
-  }, [isEn]);
+  }, []);
 
   const topQuietDays = useMemo(() => {
     if (!rows.length) return [];
@@ -77,7 +76,6 @@ export default function WellnessRecoveryCalendar() {
     return picks;
   }, [rows]);
 
-  if (isEn) return null;
   if (!loading && topQuietDays.length === 0) return null;
 
   return (
@@ -130,16 +128,14 @@ export default function WellnessRecoveryCalendar() {
             }}
           >
             <CalendarHeart size={12} />
-            BINGE RECOVERY CALENDAR
+            {t('wellnessCalendar.badge', 'BINGE RECOVERY CALENDAR')}
           </div>
           <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#fff' }}>
-            정주행 회복 · 한산한 힐링 데이 TOP 5
+            {t('wellnessCalendar.title', '정주행 회복 · 한산한 힐링 데이 TOP 5')}
           </h3>
         </div>
         <p style={{ fontSize: 13, color: '#cbd5e1', margin: '0 0 16px', lineHeight: 1.55 }}>
-          시즌 완주하신 당신에게. 향후 2주 안에서 관광지 혼잡도 예측이 가장 낮은 날과 지역을 골라
-          드려요. 이 날짜에 온천·힐링숲·템플스테이를 잡으면 사람에 치이지 않고 제대로 회복할 수
-          있어요.
+          {t('wellnessCalendar.subtitle', '시즌 완주하신 당신에게. 향후 2주 안에서 관광지 혼잡도 예측이 가장 낮은 날과 지역을 골라 드려요. 이 날짜에 온천·힐링숲·템플스테이를 잡으면 사람에 치이지 않고 제대로 회복할 수 있어요.')}
         </p>
 
         {loading ? (
@@ -188,7 +184,7 @@ export default function WellnessRecoveryCalendar() {
           }}
         >
           <span style={{ fontSize: 11, color: '#6b7280' }}>
-            출처: 한국관광공사 관광지 집중률 방문자 추이 예측 × 웰니스관광 큐레이션
+            {t('wellnessCalendar.source', '출처: 한국관광공사 관광지 집중률 방문자 추이 예측 × 웰니스관광 큐레이션')}
           </span>
           <Link
             href="/crowd-radar"
@@ -207,7 +203,7 @@ export default function WellnessRecoveryCalendar() {
               boxShadow: '0 10px 28px -14px rgba(16,185,129,0.7)',
             }}
           >
-            더 많은 날짜/지역 보기
+            {t('wellnessCalendar.viewMore', '더 많은 날짜/지역 보기')}
             <ArrowRight size={12} />
           </Link>
         </div>
@@ -218,6 +214,7 @@ export default function WellnessRecoveryCalendar() {
 }
 
 function QuietDayCard({ r, rank, delay }) {
+  const { t, i18n } = useTranslation();
   const color = levelColor(r.concentrationRate);
   const qs = new URLSearchParams();
   if (r.areaCode != null && String(r.areaCode).trim() !== '') {
@@ -234,7 +231,7 @@ function QuietDayCard({ r, rank, delay }) {
       href={dest}
       prefetch={true}
       scroll
-      title="아래 목록을 이 행정구역(지도·데이터 원본 코드)만 보이게 바꿉니다. 새로 고침(F5)과는 다른 동작입니다."
+      title={t('wellnessCalendar.cardTooltip', '아래 목록을 이 행정구역(지도·데이터 원본 코드)만 보이게 바꿉니다. 새로 고침(F5)과는 다른 동작입니다.')}
       style={{
         display: 'block',
         borderRadius: 14,
@@ -304,7 +301,7 @@ function QuietDayCard({ r, rank, delay }) {
               fontWeight: 700,
             }}
           >
-            혼잡도 {r.concentrationRate.toFixed(1)}
+            {t('wellnessCalendar.concentration', '혼잡도')} {r.concentrationRate.toFixed(1)}
           </span>
         </div>
         <div
@@ -316,7 +313,7 @@ function QuietDayCard({ r, rank, delay }) {
             letterSpacing: '-0.3px',
           }}
         >
-          {formatDateShort(r.baseDate)}
+          {formatDateShort(r.baseDate, i18n.language)}
         </div>
         <div
           style={{
@@ -334,7 +331,7 @@ function QuietDayCard({ r, rank, delay }) {
         </div>
         {r.spotName && (
           <div style={{ marginTop: 2, fontSize: 11, color: '#cbd5e1' }}>
-            대표 관광지 · {r.spotName}
+            {t('wellnessCalendar.spotPrefix', '대표 관광지')} · {r.spotName}
           </div>
         )}
         <div
@@ -345,7 +342,7 @@ function QuietDayCard({ r, rank, delay }) {
             fontWeight: 700,
           }}
         >
-          이 행정구역 힐링 스팟만 아래 목록에 →
+          {t('wellnessCalendar.filterCta', '이 행정구역 힐링 스팟만 아래 목록에 →')}
         </div>
       </motion.div>
     </Link>
@@ -383,11 +380,15 @@ function toDate(baseDate) {
   return d;
 }
 
-function formatDateShort(baseDate) {
+function formatDateShort(baseDate, lang) {
   const d = toDate(baseDate);
   if (!d) return '-';
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
-  const dow = ['일', '월', '화', '수', '목', '금', '토'][d.getDay()];
+  const isEn = typeof lang === 'string' && lang.startsWith('en');
+  const dows = isEn
+    ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+    : ['일', '월', '화', '수', '목', '금', '토'];
+  const dow = dows[d.getDay()];
   return `${mm}.${dd} (${dow})`;
 }

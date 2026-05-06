@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import {
   PawPrint,
   Sun,
@@ -116,9 +117,15 @@ function FloatingItem({
 }
 
 export default function PetTravelPage() {
+  const { t } = useTranslation();
   const [selected, setSelected] = useState(null); // null = 전국
   const pageRef = useRef(null);
   useDragScrollAll(pageRef);
+
+  const areaLabelI18n = (code) => {
+    if (code == null) return t('petTravel.areaAll', '전국');
+    return t(`petTravel.areas.${code}`, AREA_LABEL[code] || String(code));
+  };
 
   useEffect(() => {
     if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -363,7 +370,7 @@ export default function PetTravelPage() {
             }}
           >
             <Sun size={14} style={{ color: '#f59e0b' }} />
-            한국관광공사 · 반려동물 동반여행
+            {t('petTravel.heroBadge', '한국관광공사 · 반려동물 동반여행')}
           </div>
 
           <h1
@@ -388,7 +395,7 @@ export default function PetTravelPage() {
             >
               <PawPrint size={44} color="#0f766e" style={{ fill: 'rgba(20,184,166,0.45)' }} />
             </motion.span>
-            <span className="pt-hero-title">햇살 가득, 함께 떠나요</span>
+            <span className="pt-hero-title">{t('petTravel.heroTitle', '햇살 가득, 함께 떠나요')}</span>
           </h1>
 
           <p
@@ -401,7 +408,7 @@ export default function PetTravelPage() {
               fontWeight: 600,
             }}
           >
-            방 안에만 머물렀다면, 이제는 네 발로 봄바람을 느낄 차례.
+            {t('petTravel.heroSubtitle1', '방 안에만 머물렀다면, 이제는 네 발로 봄바람을 느낄 차례.')}
           </p>
           <p
             className="pt-hero-subtitle"
@@ -412,7 +419,7 @@ export default function PetTravelPage() {
               maxWidth: 600,
             }}
           >
-            지역별 반려동물 동반 가능한 관광지·숙소·음식점을 한눈에 확인하세요.
+            {t('petTravel.heroSubtitle2', '지역별 반려동물 동반 가능한 관광지·숙소·음식점을 한눈에 확인하세요.')}
           </p>
 
           {/* 3개 특징 카드 */}
@@ -430,20 +437,20 @@ export default function PetTravelPage() {
             {[
               {
                 icon: MapPin,
-                title: '반려동물 동반 가능',
-                desc: '공원·해변·산책로 명소',
+                title: t('petTravel.feature1Title', '반려동물 동반 가능'),
+                desc: t('petTravel.feature1Desc', '공원·해변·산책로 명소'),
                 accent: '#0d9488',
               },
               {
                 icon: Heart,
-                title: '안전한 여행 팁',
-                desc: '이동·숙박 시 유의 사항',
+                title: t('petTravel.feature2Title', '안전한 여행 팁'),
+                desc: t('petTravel.feature2Desc', '이동·숙박 시 유의 사항'),
                 accent: '#0284c7',
               },
               {
                 icon: Sun,
-                title: '야외 액티비티',
-                desc: '햇살 아래 자연 탐험',
+                title: t('petTravel.feature3Title', '야외 액티비티'),
+                desc: t('petTravel.feature3Desc', '햇살 아래 자연 탐험'),
                 accent: '#f59e0b',
               },
             ].map((f) => (
@@ -552,6 +559,7 @@ export default function PetTravelPage() {
           {AREA_CODES.map((a) => {
             const active =
               (a.code == null && selected == null) || a.code === selected;
+            const tabLabel = areaLabelI18n(a.code);
             return (
               <button
                 key={a.label}
@@ -578,7 +586,7 @@ export default function PetTravelPage() {
                     : '0 2px 6px rgba(13, 148, 136, 0.08)',
                 }}
               >
-                {a.label}
+                {tabLabel}
               </button>
             );
           })}
@@ -630,9 +638,9 @@ export default function PetTravelPage() {
             <Wind size={20} color="#92400e" />
           </div>
           <div style={{ fontSize: 13, color: '#0f172a', lineHeight: 1.55 }}>
-            <strong style={{ color: '#0f766e' }}>신선한 바람 한 모금, 준비되셨나요?</strong>
+            <strong style={{ color: '#0f766e' }}>{t('petTravel.bannerTitle', '신선한 바람 한 모금, 준비되셨나요?')}</strong>
             <br />
-            지역 탭을 눌러 오늘 떠날 장소를 골라보세요. 모든 정보는 한국관광공사에서 제공합니다.
+            {t('petTravel.bannerBody', '지역 탭을 눌러 오늘 떠날 장소를 골라보세요. 모든 정보는 한국관광공사에서 제공합니다.')}
           </div>
           <Sparkles
             size={18}
@@ -665,7 +673,7 @@ export default function PetTravelPage() {
             >
               <PetFriendlySpotsStrip
                 areaCode={code}
-                regionLabel={AREA_LABEL[code]}
+                regionLabel={areaLabelI18n(code)}
               />
 
               <div style={{ height: 14 }} />
@@ -673,8 +681,8 @@ export default function PetTravelPage() {
               <NearbyCineTripStrip
                 areaCode={code}
                 theme="light"
-                badgeLabel="PetCinema"
-                title={`${AREA_LABEL[code]} 배경, 반려와 돌아와 보면 좋은 영화`}
+                badgeLabel={t('petTravel.petCinemaBadge', 'PetCinema')}
+                title={t('petTravel.cinemaTitle', '{{region}} 배경, 반려와 돌아와 보면 좋은 영화', { region: areaLabelI18n(code) })}
                 limit={8}
               />
 
@@ -682,11 +690,11 @@ export default function PetTravelPage() {
               {/* 옵션 3: 반려와 산책 삼아 걷기 좋은 코스 */}
               <NearbyTrekkingStrip
                 areaCode={code}
-                regionName={AREA_LABEL[code]}
+                regionName={areaLabelI18n(code)}
                 theme="light"
-                badgeLabel="PetWalk"
-                title="반려와 산책 삼아 걷기 좋은 코스"
-                subtitle={`${AREA_LABEL[code]} 인근 두루누비 코스`}
+                badgeLabel={t('petTravel.petWalkBadge', 'PetWalk')}
+                title={t('petTravel.walkTitle', '반려와 산책 삼아 걷기 좋은 코스')}
+                subtitle={t('petTravel.walkSubtitle', '{{region}} 인근 두루누비 코스', { region: areaLabelI18n(code) })}
                 limit={PETWALK_TREK_LIMIT}
               />
             </motion.section>
@@ -709,26 +717,26 @@ export default function PetTravelPage() {
           >
             <PetFriendlySpotsStrip
               areaCode={selected}
-              regionLabel={AREA_LABEL[selected]}
+              regionLabel={areaLabelI18n(selected)}
             />
 
             <div style={{ height: 14 }} />
             <NearbyCineTripStrip
               areaCode={selected}
               theme="light"
-              badgeLabel="PetCinema"
-              title={`${AREA_LABEL[selected]} 배경, 반려와 돌아와 보면 좋은 영화`}
+              badgeLabel={t('petTravel.petCinemaBadge', 'PetCinema')}
+              title={t('petTravel.cinemaTitle', '{{region}} 배경, 반려와 돌아와 보면 좋은 영화', { region: areaLabelI18n(selected) })}
               limit={8}
             />
 
             <div style={{ height: 14 }} />
             <NearbyTrekkingStrip
               areaCode={selected}
-              regionName={AREA_LABEL[selected]}
+              regionName={areaLabelI18n(selected)}
               theme="light"
-              badgeLabel="PetWalk"
-              title="반려와 산책 삼아 걷기 좋은 코스"
-              subtitle={`${AREA_LABEL[selected]} 인근 두루누비 코스`}
+              badgeLabel={t('petTravel.petWalkBadge', 'PetWalk')}
+              title={t('petTravel.walkTitle', '반려와 산책 삼아 걷기 좋은 코스')}
+              subtitle={t('petTravel.walkSubtitle', '{{region}} 인근 두루누비 코스', { region: areaLabelI18n(selected) })}
               limit={PETWALK_TREK_LIMIT}
             />
           </motion.section>
@@ -743,7 +751,7 @@ export default function PetTravelPage() {
             opacity: 0.85,
           }}
         >
-          © 한국관광공사 반려동물 동반여행 정보 (KorPetTourService)
+          {t('petTravel.dataSource', '© 한국관광공사 반려동물 동반여행 정보 (KorPetTourService)')}
         </p>
       </div>
     </div>
