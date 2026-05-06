@@ -388,6 +388,11 @@ optgroup {
 }
 
 .app-nav-actions { flex: 0 0 auto; margin-right: 12px; position: relative; display: flex; align-items: center; gap: 8px; }
+/* 메인(랜딩) 페이지 전용: 네비 맨 왼쪽에 EN/KO 토글을 단독 노출.
+ * .app-nav-inner 가 justify-content: flex-end 라서 margin-right: auto 로 좌측 고정.
+ * .app-brand 가 position: absolute 로 중앙에 떠 있으므로 z-index: 2 로
+ * 클릭 가능 영역이 brand 아래로 가려지지 않게 보장. */
+.app-nav-leftmost { flex: 0 0 auto; margin-left: 12px; margin-right: auto; position: relative; display: flex; align-items: center; gap: 8px; z-index: 2; }
 /* Landing(/) 전용 — 사장님 칩이 브랜드(뱀 아이콘)와 겹치지 않도록
  * 화면 우측 끝까지 밀되, 끝에 자석처럼 붙지 않도록 약 10px 정도 호흡을 둔다.
  * (.app-nav-inner padding-right 12px 를 -2px 로 상쇄 → 결과 10px 여백) */

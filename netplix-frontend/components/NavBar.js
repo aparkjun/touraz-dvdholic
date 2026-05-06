@@ -41,9 +41,20 @@ export default function NavBar() {
     setIsLoggedIn(false);
   };
 
+  // 메인(랜딩) 페이지에서는 로그인 전에도 사용자가 빠르게 언어를 전환할 수 있도록
+  // 한국어/영어 토글을 네비게이션 맨 왼쪽에 단독 노출한다.
+  // (LanguageToggle 은 setUserLanguage → i18n.changeLanguage 를 호출 →
+  //  useTranslation 을 쓰는 모든 페이지/컴포넌트가 즉시 재렌더링된다.)
+  const isLandingPage = pathname === '/';
+
   return (
     <nav className="app-nav">
       <div className="app-nav-inner">
+        {isLandingPage && (
+          <div className="app-nav-leftmost">
+            <LanguageToggle />
+          </div>
+        )}
         <BrandLink isDashboard={pathname === '/dashboard'} isLoggedIn={isLoggedIn} />
         <AuthActions
           isLoggedIn={isLoggedIn}
