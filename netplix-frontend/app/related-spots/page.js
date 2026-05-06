@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, MapPin, Loader2, ArrowRight, Hash, X, ExternalLink, Compass, Search as SearchIcon, Navigation } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
+import AmbientBackdrop from '@/components/AmbientBackdrop';
 
 // "조용한 명소 + 함께 가는 명소" — 잔잔한 데이터 산책 화면.
 // 단일 키워드 모드 + 인기 지역 칩.
@@ -88,15 +89,22 @@ function RelatedSpotsInner() {
   return (
     <div
       style={{
+        position: 'relative',
+        isolation: 'isolate',
         minHeight: '100vh',
         width: '100%',
+        overflow: 'hidden',
         background:
-          'radial-gradient(900px 540px at 15% -10%, rgba(99,102,241,0.18), transparent), radial-gradient(900px 540px at 100% 10%, rgba(236,72,153,0.12), transparent), radial-gradient(140% 140% at 50% 110%, #04060c 40%, #0c1330 100%)',
+          'radial-gradient(900px 540px at 15% -10%, rgba(99,102,241,0.22), transparent),' +
+          ' radial-gradient(900px 540px at 100% 10%, rgba(236,72,153,0.18), transparent),' +
+          ' radial-gradient(900px 480px at 50% 110%, rgba(52,211,153,0.10), transparent),' +
+          ' radial-gradient(140% 140% at 50% 110%, #04060c 40%, #0c1330 100%)',
         color: '#f5f5f5',
         padding: '36px 16px 80px',
       }}
     >
-      <div style={{ maxWidth: 980, margin: '0 auto' }}>
+      <AmbientBackdrop palette={["#6366f1", "#ec4899", "#34d399", "#fbbf24"]} intensity={0.85} />
+      <div style={{ position: 'relative', zIndex: 1, maxWidth: 980, margin: '0 auto' }}>
         {/* Hero */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}

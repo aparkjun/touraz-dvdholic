@@ -39,6 +39,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import AmbientBackdrop from "@/components/AmbientBackdrop";
 
 const AREA_LABEL = {
   "1": "서울",
@@ -345,6 +346,7 @@ function CrowdRadarInner() {
 
   return (
     <div style={styles.page}>
+      <AmbientBackdrop palette={["#22d3ee", "#6366f1", "#f472b6", "#34d399"]} intensity={0.8} />
       <div style={styles.bgGrid} aria-hidden />
       <div style={styles.bgRadarSweep} aria-hidden />
 
@@ -806,11 +808,12 @@ function Sparkline({ series, isInRange, maxRate }) {
 const styles = {
   page: {
     position: "relative",
+    isolation: "isolate",
     minHeight: "100vh",
     color: "#fff",
     background:
-      "radial-gradient(1200px 600px at 0% 0%, rgba(34,211,238,0.10), transparent 60%),\n       radial-gradient(1000px 500px at 100% 100%, rgba(99,102,241,0.10), transparent 60%),\n       linear-gradient(180deg, #050712 0%, #0b1220 50%, #050712 100%)",
-    overflowX: "hidden",
+      "radial-gradient(1200px 600px at 0% 0%, rgba(34,211,238,0.18), transparent 60%),\n       radial-gradient(1000px 500px at 100% 100%, rgba(99,102,241,0.16), transparent 60%),\n       radial-gradient(900px 480px at 50% 110%, rgba(244,114,182,0.10), transparent 60%),\n       linear-gradient(180deg, #050712 0%, #0b1220 50%, #050712 100%)",
+    overflow: "hidden",
   },
   bgGrid: {
     position: "absolute",

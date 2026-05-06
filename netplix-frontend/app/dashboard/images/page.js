@@ -13,6 +13,7 @@ import NearbyWellnessStrip from "@/components/NearbyWellnessStrip";
 import NearbyMedicalTourismStrip from "@/components/NearbyMedicalTourismStrip";
 import NearbyAudioGuideStrip from "@/components/NearbyAudioGuideStrip";
 import MovieCrowdRadarStrip from "@/components/MovieCrowdRadarStrip";
+import AmbientBackdrop from "@/components/AmbientBackdrop";
 
 const baseUrl = "https://image.tmdb.org/t/p/original";
 const palette = {
@@ -374,7 +375,22 @@ function MovieImagesContent() {
 
   if (detailLoading) {
     return (
-      <div style={{ padding: "20px 16px 40px", color: palette.textMuted, minHeight: "100vh", background: "radial-gradient(125% 125% at 50% 90%, #000000 40%, #2b092b 100%)" }}>
+      <div
+        style={{
+          position: "relative",
+          isolation: "isolate",
+          overflow: "hidden",
+          padding: "20px 16px 40px",
+          color: palette.textMuted,
+          minHeight: "100vh",
+          background:
+            "radial-gradient(1200px 600px at 30% 0%, rgba(236,72,153,0.18), transparent 60%)," +
+            " radial-gradient(800px 420px at 80% 20%, rgba(139,92,246,0.16), transparent 60%)," +
+            " radial-gradient(900px 480px at 50% 110%, rgba(245,158,11,0.10), transparent 60%)," +
+            " radial-gradient(125% 125% at 50% 90%, #000000 40%, #2b092b 100%)",
+        }}
+      >
+        <AmbientBackdrop palette={["#ec4899", "#a78bfa", "#f59e0b", "#22d3ee"]} intensity={0.85} />
         <div style={{ maxWidth: "960px", margin: "0 auto 12px" }}>
           <BackButton />
         </div>
@@ -389,7 +405,21 @@ function MovieImagesContent() {
 
   if (!movie || !movieName) {
     return (
-      <div style={{ padding: "20px 16px 40px", color: palette.textMuted, minHeight: "100vh", background: "radial-gradient(125% 125% at 50% 90%, #000000 40%, #2b092b 100%)" }}>
+      <div
+        style={{
+          position: "relative",
+          isolation: "isolate",
+          overflow: "hidden",
+          padding: "20px 16px 40px",
+          color: palette.textMuted,
+          minHeight: "100vh",
+          background:
+            "radial-gradient(1200px 600px at 30% 0%, rgba(236,72,153,0.18), transparent 60%)," +
+            " radial-gradient(800px 420px at 80% 20%, rgba(139,92,246,0.16), transparent 60%)," +
+            " radial-gradient(125% 125% at 50% 90%, #000000 40%, #2b092b 100%)",
+        }}
+      >
+        <AmbientBackdrop palette={["#ec4899", "#a78bfa", "#f59e0b", "#22d3ee"]} intensity={0.8} />
         <div style={{ maxWidth: "960px", margin: "0 auto 12px" }}>
           <BackButton />
         </div>
@@ -403,11 +433,19 @@ function MovieImagesContent() {
   return (
     <div
       style={{
+        position: "relative",
+        isolation: "isolate",
+        overflow: "hidden",
         minHeight: "100vh",
-        background: "radial-gradient(1200px 600px at 30% 0%, rgba(236, 72, 153, 0.10), transparent), radial-gradient(800px 400px at 80% 20%, rgba(139, 92, 246, 0.08), transparent), radial-gradient(125% 125% at 50% 90%, #000000 40%, #2b092b 100%)",
+        background:
+          "radial-gradient(1200px 600px at 30% 0%, rgba(236,72,153,0.20), transparent 60%)," +
+          " radial-gradient(800px 420px at 80% 20%, rgba(139,92,246,0.16), transparent 60%)," +
+          " radial-gradient(900px 480px at 50% 110%, rgba(245,158,11,0.10), transparent 60%)," +
+          " radial-gradient(125% 125% at 50% 90%, #000000 40%, #2b092b 100%)",
         padding: "20px 16px 40px",
       }}
     >
+      <AmbientBackdrop palette={["#ec4899", "#a78bfa", "#f59e0b", "#22d3ee"]} intensity={0.85} />
       <div style={{ maxWidth: "960px", margin: "0 auto 12px" }}>
           <button
             type="button"

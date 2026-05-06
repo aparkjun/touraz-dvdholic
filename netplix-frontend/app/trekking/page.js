@@ -27,6 +27,7 @@ import NearbyCineTripStrip from '@/components/NearbyCineTripStrip';
 import { sigunToAreaCode, areaCodeToLabel } from '@/lib/regionMap';
 import { getCuratedCourses } from '@/lib/curatedTrekkingCourses';
 import useDragScrollAll from '@/lib/useDragScroll';
+import AmbientBackdrop from '@/components/AmbientBackdrop';
 
 /**
  * 코스로 떠나는 걷기여행 (코리아둘레길 · 두루누비) 페이지.
@@ -197,14 +198,19 @@ function TrekkingPageInner() {
       ref={pageRef}
       style={{
         minHeight: '100vh',
+        position: 'relative',
+        isolation: 'isolate',
+        overflow: 'hidden',
         background:
-          'radial-gradient(1000px 600px at 85% -10%, rgba(14,165,233,0.18) 0%, transparent 60%),' +
-          'radial-gradient(900px 520px at 10% 110%, rgba(251,191,36,0.16) 0%, transparent 60%),' +
+          'radial-gradient(1000px 600px at 85% -10%, rgba(14,165,233,0.22) 0%, transparent 60%),' +
+          'radial-gradient(900px 520px at 10% 110%, rgba(251,191,36,0.18) 0%, transparent 60%),' +
+          'radial-gradient(900px 520px at 50% 40%, rgba(34,197,94,0.10) 0%, transparent 60%),' +
           'linear-gradient(180deg, #04131a 0%, #07212a 55%, #04141a 100%)',
         color: '#ecfeff',
         paddingBottom: 80,
       }}
     >
+      <AmbientBackdrop palette={["#0ea5e9", "#fbbf24", "#22c55e", "#a78bfa"]} intensity={0.85} />
       <style>{`
         @keyframes trek-sun-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes trek-leaf-float {

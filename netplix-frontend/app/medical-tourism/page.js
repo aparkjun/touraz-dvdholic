@@ -33,6 +33,7 @@ import axios from "@/lib/axiosConfig";
 import MedicalTourismDetailModal from "@/components/MedicalTourismDetailModal";
 import MedicalTourismDailyPicks from "@/components/MedicalTourismDailyPicks";
 import { useMedicalFavorites } from "@/lib/useMedicalFavorites";
+import AmbientBackdrop from "@/components/AmbientBackdrop";
 import {
   Stethoscope,
   Globe2,
@@ -336,6 +337,7 @@ function MedicalTourismInner() {
   return (
     <div className="mt-root">
       <style>{cssBlock}</style>
+      <AmbientBackdrop palette={["#0ea5e9", "#8b5cf6", "#f59e0b", "#22d3ee"]} intensity={0.85} />
 
       <header className="mt-hero">
         <div className="mt-hero-inner">
@@ -776,16 +778,23 @@ export default function MedicalTourismPage() {
 const cssBlock = `
 .mt-root {
   min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
   background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(14, 165, 233, 0.18) 0%, transparent 60%),
-    radial-gradient(1000px 400px at 100% 0%, rgba(139, 92, 246, 0.14) 0%, transparent 60%),
-    linear-gradient(180deg, #0a0d10 0%, #101420 100%);
+    radial-gradient(1200px 500px at 10% -10%, rgba(14, 165, 233, 0.22) 0%, transparent 60%),
+    radial-gradient(1000px 400px at 100% 0%, rgba(139, 92, 246, 0.18) 0%, transparent 60%),
+    radial-gradient(900px 480px at 50% 110%, rgba(245,158,11,0.10) 0%, transparent 60%),
+    linear-gradient(180deg, #0a0d10 0%, #101420 60%, #0b0f18 100%);
   color: #f5f5f5;
 }
 .mt-hero {
+  position: relative;
+  z-index: 1;
   padding: 40px 20px 20px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
+.mt-main { position: relative; z-index: 1; }
 .mt-hero-inner { max-width: 1200px; margin: 0 auto; }
 .mt-tag {
   display: inline-flex; align-items: center; gap: 6px;

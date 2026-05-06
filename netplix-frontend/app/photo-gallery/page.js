@@ -20,6 +20,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Search, Camera } from "lucide-react";
 import TourGallerySection from "@/components/TourGallerySection";
+import AmbientBackdrop from "@/components/AmbientBackdrop";
 
 // 관광사진 DB 에서 히트율이 높은 대표 지역 키워드 (한국 광역 17곳).
 // "경기도"/"경상남도" 같은 정식명보다 축약형이 PhotoGalleryService1 검색에 유리.
@@ -68,6 +69,7 @@ function PhotoGalleryInner() {
   return (
     <div className="pgp-root">
       <style>{cssBlock}</style>
+      <AmbientBackdrop palette={["#f472b6", "#a78bfa", "#fbbf24", "#22d3ee"]} intensity={0.9} />
       <header className="pgp-hero">
         <div className="pgp-hero-inner">
           <div className="pgp-tag">
@@ -188,16 +190,23 @@ export default function PhotoGalleryPage() {
 const cssBlock = `
 .pgp-root {
   min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
   background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(244, 114, 182, 0.18) 0%, transparent 60%),
-    radial-gradient(1000px 400px at 100% 0%, rgba(167, 139, 250, 0.15) 0%, transparent 60%),
-    linear-gradient(180deg, #0b0b0f 0%, #141418 100%);
+    radial-gradient(1200px 500px at 10% -10%, rgba(244, 114, 182, 0.22) 0%, transparent 60%),
+    radial-gradient(1000px 400px at 100% 0%, rgba(167, 139, 250, 0.18) 0%, transparent 60%),
+    radial-gradient(900px 480px at 50% 110%, rgba(251,191,36,0.10) 0%, transparent 60%),
+    linear-gradient(180deg, #0b0b0f 0%, #141418 60%, #0c0c10 100%);
   color: #f5f5f5;
 }
 .pgp-hero {
+  position: relative;
+  z-index: 1;
   padding: 48px 20px 28px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
+.pgp-main { position: relative; z-index: 1; }
 .pgp-hero-inner { max-width: 1200px; margin: 0 auto; }
 .pgp-tag {
   display: inline-flex;

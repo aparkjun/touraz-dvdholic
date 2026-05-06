@@ -25,6 +25,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
+import AmbientBackdrop from "@/components/AmbientBackdrop";
 import {
   Tent,
   ArrowLeft,
@@ -208,6 +209,7 @@ function CampingDetailInner() {
   return (
     <div className="cmd-root">
       <style>{cssBlock}</style>
+      <AmbientBackdrop palette={["#22c55e", "#10b981", "#f59e0b", "#06b6d4"]} intensity={0.85} />
 
       <div className="cmd-topbar">
         <button
@@ -515,12 +517,18 @@ export default function CampingDetailPage() {
 const cssBlock = `
 .cmd-root {
   min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
   background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(34, 197, 94, 0.18) 0%, transparent 60%),
-    radial-gradient(1000px 400px at 100% 0%, rgba(16, 185, 129, 0.14) 0%, transparent 60%),
-    linear-gradient(180deg, #0b0f0b 0%, #101a12 100%);
+    radial-gradient(1200px 500px at 10% -10%, rgba(34, 197, 94, 0.22) 0%, transparent 60%),
+    radial-gradient(1000px 400px at 100% 0%, rgba(16, 185, 129, 0.18) 0%, transparent 60%),
+    radial-gradient(900px 480px at 50% 120%, rgba(245,158,11,0.10) 0%, transparent 60%),
+    linear-gradient(180deg, #07100a 0%, #0d1a14 60%, #101a12 100%);
   color: #f5f5f5;
 }
+.cmd-topbar, .cmd-hero, .cmd-actions, .cmd-grid, .cmd-back-list,
+.cmd-root > .cmd-not-found { position: relative; z-index: 1; }
 .cmd-topbar {
   max-width: 1100px;
   margin: 0 auto;

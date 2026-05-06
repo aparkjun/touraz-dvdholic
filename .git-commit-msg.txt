@@ -1,38 +1,67 @@
-perf(camping): 상세→뒤로가기 시 검은 화면/3-4초 지연 제거 (sessionStorage hydration)
+feat(ui): 대시보드/CTA 전 페이지에 AmbientBackdrop 글래스모피즘 배경 적용
 
 문제
-- /camping 카드 → 상세 → 뒤로가기 시 3~4초간 검은 화면이 보였다가 목록이 다시 그려짐
-- /camping 은 "use client" 페이지라 라우트 이탈 시 CampingInner 가 unmount → 뒤로가기 시
-  state(sites/visibleCount/keyword/scrollY) 가 모두 초기화되고 useEffect 가
-  /api/v1/camping?limit=0 (전국 ~3,700건, ~3MB JSON) 을 처음부터 재호출
-- 그 사이 Suspense fallback 이 plain "Loading…" 텍스트뿐이라 body 배경(#09090b)
-  이 그대로 노출되어 "검은 화면" 인상이 남음
+- /dashboard 와 모든 CTA 서브페이지(/camping, /cine-trip, /trekking,
+  /photo-gallery, /wellness, /medical-tourism, /audio-guide, /crowd-radar,
+  /related-spots, /pet-travel, /dashboard/images)의 배경이 까만 단색에 가까워
+  로그인/회원가입/지원 페이지의 글래스모피즘 무드와 비교해 단조롭다는 피드백
+- 기존 radial-gradient 도 투명도가 0.08~0.18 수준이라 시각적 깊이가 부족
+- 추가로 카드 → 상세 → 뒤로가기 전환에서 페이지 톤이 매번 다르게 느껴짐
 
-수정 (netplix-frontend/app/camping/page.js)
-- sessionStorage 5분 TTL 캐시 (LIST_CACHE_KEY = camping_list_cache_v1)
-  · 검색 컨텍스트(keyword + nearbyMode) 별로 sites / visibleCount / scrollY 저장
-  · readListCache / writeListCache / patchListCache 헬퍼
-- mount 시 캐시 hit → 즉시 hydrate (skeleton/fetch 모두 0회)
-  · useState 초기값으로 sites/loading=false/visibleCount/nearbyMode 박음
-  · skipFetchOnceRef 로 첫 useEffect 의 fetch 를 건너뜀 (어떤 이유로든
-    첫 effect 실행 시 즉시 ref 소비 → 키워드 변경 등 후속 동작은 정상 fetch)
-- 카드 클릭 직전 window.scrollY 를 캐시에 박아두고 router.push
-  · goDetail() 헬퍼로 onClick / onKeyDown(Enter, Space) 공통 처리
-- 돌아오면 mount 직후 2× requestAnimationFrame 뒤 scrollTo 로 위치 복원
-  · CSS scroll-behavior: smooth 의 가로채기를 막기 위해 잠깐 auto 로 강제 후 원복
-- ?nearby=true 자동 트리거 가드: 캐시가 nearby 모드로 hydrate 된 상태면
-  handleNearby()(GPS 재요청 + API) 호출도 생략 (skipAutoNearbyRef)
-- visibleCount 변동 시 캐시 동기화 → "더 보기" 누른 상태도 그대로 복원
-- Suspense fallback 을 CampingRouteFallback 으로 교체
-  · 본문(.cmp-root) 과 동일한 그라데이션 + hero 자리표시자 + 8개 카드 스켈레톤
-  · 라우트 전환 도중에도 톤 일치 → 검은 화면 인상 제거
+설계
+- 21st.dev 「Geometric」(회전 타원형 블러 도형) 패턴을 inspiration 으로 받아,
+  로그인의 원형 orb 와는 형태가 다른 회전 타원형 + 부드러운 드리프트로 차별화
+- 페이지마다 팔레트만 바꿔 같은 컴포넌트로 정체성 유지
 
-동작
-- /camping → 카드 → 뒤로가기 (5분 이내): 즉시 직전 화면 그대로 복원, fetch 0회
-- /camping?q=서울 → 카드 → 뒤로가기: 키워드별 캐시 분리, 즉시 복원
-- /camping?nearby=true → 카드 → 뒤로가기: GPS/API 호출 0회로 즉시 복원
-- TTL 만료 / 키워드 변경 시: 정상 fetch 동작 유지
+신규 컴포넌트
+- netplix-frontend/components/AmbientBackdrop.js
+  · 5 개의 회전 타원형 블러 도형(60px blur)이 framer-motion 으로 12~16s 주기
+    수직 드리프트 + mount-in 페이드/회전 애니메이션
+  · position: fixed + z-index: -1 → 부모(`isolation: isolate`) 의 스태킹
+    컨텍스트 안에서 콘텐츠 뒤로 안전 격리, pointer-events: none 으로 인터랙션
+    절대 차단하지 않음
+  · 상단 오로라 글로우 + 하단 페이드(가독성 보강) + intensity/topGlowColor 옵션
+  · theme: "dark" | "light" — 라이트 배경 페이지(pet-travel)에서는 하단 페이드를
+    흰색 베일로 자동 전환
+  · palette 4~5 개 색상을 받아 도형마다 다른 색 부여
+
+페이지별 적용 (각각 다른 팔레트로 정체성 유지)
+- dashboard:        violet · pink · blue · amber · cyan
+- camping (list+detail): green · emerald · amber · cyan
+- cine-trip:        rose · amber · indigo · sky
+- trekking:         sky · amber · green · violet
+- photo-gallery:    pink · violet · amber · cyan
+- wellness:         emerald · violet · sky · pink
+- medical-tourism:  sky · violet · amber · cyan
+- audio-guide:      violet · cyan · pink · amber
+- crowd-radar:      cyan · indigo · pink · emerald
+- related-spots:    indigo · pink · emerald · amber
+- dashboard/images: rose · violet · amber · cyan (로딩/에러/정상 3 분기 모두)
+- pet-travel:       amber · pink · violet · cyan (light 모드, intensity 0.7)
+
+추가 개선
+- 각 페이지의 root div 에 `position: relative` + `isolation: isolate` 부여 →
+  AmbientBackdrop 의 z-index:-1 이 페이지 밖으로 새지 않도록 스태킹 컨텍스트 형성
+- 기존 radial-gradient base 의 채도/투명도를 0.18~0.22 로 살짝 올리고
+  third color stop 을 추가해 베이스 자체도 덜 단조롭게 보강
+- camping list/detail 의 hero/main 클래스에 명시 z-index:1 추가
 
 검증
-- ReadLints: 0 errors
-- 변경 파일: 1 (netplix-frontend/app/camping/page.js)
+- ReadLints: 13개 변경 파일 + 신규 1개 모두 0 errors
+- npx next build: Compiled successfully, 25/25 정적 페이지 생성
+
+변경 파일 (14)
+- netplix-frontend/components/AmbientBackdrop.js (신규)
+- netplix-frontend/app/dashboard/page.js
+- netplix-frontend/app/dashboard/images/page.js
+- netplix-frontend/app/camping/page.js
+- netplix-frontend/app/camping/[id]/page.js
+- netplix-frontend/app/cine-trip/page.js
+- netplix-frontend/app/trekking/page.js
+- netplix-frontend/app/photo-gallery/page.js
+- netplix-frontend/app/wellness/page.js
+- netplix-frontend/app/medical-tourism/page.js
+- netplix-frontend/app/audio-guide/page.js
+- netplix-frontend/app/crowd-radar/page.js
+- netplix-frontend/app/related-spots/page.js
+- netplix-frontend/app/pet-travel/page.js

@@ -44,6 +44,7 @@ import {
   Ruler,
 } from "lucide-react";
 import WellnessRecoveryCalendar from "@/components/WellnessRecoveryCalendar";
+import AmbientBackdrop from "@/components/AmbientBackdrop";
 
 // Leaflet SSR 이슈 방지: 클라이언트에서만 로딩.
 let L, MapContainer, TileLayer, Marker, Popup, useMap;
@@ -364,6 +365,7 @@ function WellnessInner() {
   return (
     <div className="wel-root">
       <style>{cssBlock}</style>
+      <AmbientBackdrop palette={["#10b981", "#8b5cf6", "#38bdf8", "#f472b6"]} intensity={0.85} />
 
       <header className="wel-hero">
         <div className="wel-hero-inner">
@@ -714,16 +716,23 @@ export default function WellnessPage() {
 const cssBlock = `
 .wel-root {
   min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
   background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(16, 185, 129, 0.18) 0%, transparent 60%),
-    radial-gradient(1000px 400px at 100% 0%, rgba(139, 92, 246, 0.14) 0%, transparent 60%),
-    linear-gradient(180deg, #0a0d10 0%, #101420 100%);
+    radial-gradient(1200px 500px at 10% -10%, rgba(16, 185, 129, 0.22) 0%, transparent 60%),
+    radial-gradient(1000px 400px at 100% 0%, rgba(139, 92, 246, 0.18) 0%, transparent 60%),
+    radial-gradient(900px 480px at 50% 110%, rgba(56,189,248,0.12) 0%, transparent 60%),
+    linear-gradient(180deg, #0a0d10 0%, #101420 60%, #0c1018 100%);
   color: #f5f5f5;
 }
 .wel-hero {
+  position: relative;
+  z-index: 1;
   padding: 40px 20px 20px;
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
+.wel-main { position: relative; z-index: 1; }
 .wel-hero-inner { max-width: 1200px; margin: 0 auto; }
 .wel-tag {
   display: inline-flex; align-items: center; gap: 6px;

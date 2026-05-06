@@ -17,6 +17,7 @@ import NearbyCineTripStrip from '@/components/NearbyCineTripStrip';
 import NearbyTrekkingStrip from '@/components/NearbyTrekkingStrip';
 import PetCinemaCurationStrip from '@/components/PetCinemaCurationStrip';
 import useDragScrollAll from '@/lib/useDragScroll';
+import AmbientBackdrop from '@/components/AmbientBackdrop';
 
 /**
  * 반려동물 동반여행 전용 랜딩 페이지 (Sunshine / Teal 테마).
@@ -157,11 +158,18 @@ export default function PetTravelPage() {
         color: '#0f172a',
         fontFamily: 'var(--font-app)',
         position: 'relative',
+        isolation: 'isolate',
         overflow: 'hidden',
         background:
           'linear-gradient(180deg, #7dd3fc 0%, #5eead4 45%, #99f6e4 75%, #ecfeff 100%)',
       }}
     >
+      <AmbientBackdrop
+        theme="light"
+        palette={["#fbbf24", "#f472b6", "#a78bfa", "#22d3ee"]}
+        intensity={0.7}
+        topGlowColor="#fef3c7"
+      />
       <style>{`
         @keyframes pt-gradient-shift {
           0%, 100% { background-position: 0% 50%; }

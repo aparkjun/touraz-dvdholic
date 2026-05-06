@@ -31,6 +31,7 @@ import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
+import AmbientBackdrop from "@/components/AmbientBackdrop";
 import {
   Headphones,
   Mic2,
@@ -473,6 +474,7 @@ function AudioGuidePageInner() {
   return (
     <div className="agp-root">
       <style>{agpCss}</style>
+      <AmbientBackdrop palette={["#a78bfa", "#22d3ee", "#f472b6", "#fbbf24"]} intensity={0.9} />
 
       {/* Hero */}
       <header className="agp-hero">
@@ -1056,13 +1058,19 @@ export default function AudioGuidePage() {
 const agpCss = `
 .agp-root {
   min-height: 100vh;
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
   padding-bottom: 120px;
   color: #f5f5ff;
   background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(167,139,250,0.22) 0%, transparent 60%),
-    radial-gradient(1000px 400px at 100% 0%, rgba(251,191,36,0.14) 0%, transparent 60%),
-    linear-gradient(180deg, #0a0614 0%, #0a0614 40%, #100a1c 100%);
+    radial-gradient(1200px 500px at 10% -10%, rgba(167,139,250,0.26) 0%, transparent 60%),
+    radial-gradient(1000px 400px at 100% 0%, rgba(34,211,238,0.18) 0%, transparent 60%),
+    radial-gradient(900px 480px at 50% 110%, rgba(244,114,182,0.14) 0%, transparent 60%),
+    linear-gradient(180deg, #07041a 0%, #0a0614 45%, #100a1c 100%);
 }
+.agp-hero, .agp-courses, .agp-controls, .agp-list, .agp-section,
+.agp-empty, .agp-mini-player { position: relative; z-index: 1; }
 
 /* ===== Cine Audio Trail · 4대 시그니처 코스 ===== */
 .agp-courses {

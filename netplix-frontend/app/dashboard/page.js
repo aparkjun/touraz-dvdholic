@@ -10,6 +10,7 @@ import { showBanner, getTrackingStatus } from "@/lib/admob";
 import { getMovieTitle, getPosterPath, getBackdropPath } from "@/lib/movieLang";
 import useDragScrollAll from "@/lib/useDragScroll";
 import TrendingRegionsWidget from "@/components/TrendingRegionsWidget";
+import AmbientBackdrop from "@/components/AmbientBackdrop";
 
 function CategorySentinel({ cat, isLoadingMore, loadMoreCategory, palette }) {
   const sentinelRef = useRef(null);
@@ -812,15 +813,25 @@ function DashboardContent() {
       className="dashboard-page"
       style={{
         width: "100%",
+        position: "relative",
+        isolation: "isolate",
         background:
-          "radial-gradient(1200px 600px at 20% -10%, rgba(139, 92, 246, 0.10), transparent), radial-gradient(1000px 500px at 100% -20%, rgba(59, 130, 246, 0.10), transparent), radial-gradient(125% 125% at 50% 90%, #000000 40%, #0d1a36 100%)",
+          "radial-gradient(1400px 700px at 18% -10%, rgba(139,92,246,0.22), transparent 60%)," +
+          "radial-gradient(1100px 560px at 100% -15%, rgba(59,130,246,0.18), transparent 60%)," +
+          "radial-gradient(900px 480px at 50% 110%, rgba(236,72,153,0.16), transparent 60%)," +
+          "linear-gradient(180deg, #07060f 0%, #0a0a1f 45%, #0d1a36 100%)",
         minHeight: "100vh",
         padding: isNative ? "20px 12px 80px" : "20px 12px 28px",
         fontFamily: detailFontFamily,
         maxWidth: "100vw",
+        overflow: "hidden",
       }}
     >
-      <div ref={contentTopRef} style={{ width: "100%", padding: "0 5px" }}>
+      <AmbientBackdrop
+        palette={["#8b5cf6", "#ec4899", "#3b82f6", "#f59e0b", "#22d3ee"]}
+        intensity={0.95}
+      />
+      <div ref={contentTopRef} style={{ width: "100%", padding: "0 5px", position: "relative", zIndex: 1 }}>
         {/* Today's Popular - 오늘의 인기 MOVIE / DVD */}
         {!popularLoading && (todayMovies.length > 0 || todayDvds.length > 0) && (
           <div style={{
