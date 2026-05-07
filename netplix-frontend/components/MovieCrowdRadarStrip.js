@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Radar, Activity, MapPin, ArrowRight, Image as ImageIcon, Leaf, Sparkles } from 'lucide-react';
+import { Radar, MapPin, ArrowRight, Image as ImageIcon, Leaf, Sparkles } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
 import { areaLabel } from '@/lib/regionAreaCode';
@@ -245,26 +245,39 @@ export default function MovieCrowdRadarStrip({ movieName }) {
               display: 'inline-flex',
               flexDirection: 'column',
               alignItems: 'flex-end',
-              gap: 3,
+              gap: 4,
               padding: '8px 12px',
               borderRadius: 12,
-              background: `${level.color}14`,
-              border: `1px solid ${level.color}55`,
-              minWidth: 88,
+              background:
+                'linear-gradient(180deg, rgba(15,23,42,0.6) 0%, rgba(15,23,42,0.4) 100%)',
+              border: '1px solid rgba(148, 163, 184, 0.18)',
+              minWidth: 92,
+              backdropFilter: 'blur(6px)',
+              WebkitBackdropFilter: 'blur(6px)',
             }}
           >
             <span
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 5,
-                color: level.color,
+                gap: 6,
+                color: '#e2e8f0',
                 fontSize: 12,
-                fontWeight: 800,
+                fontWeight: 700,
                 letterSpacing: '-0.1px',
               }}
             >
-              <Activity size={12} />
+              <span
+                aria-hidden
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: level.color,
+                  boxShadow: `0 0 0 3px ${level.color}26`,
+                  flexShrink: 0,
+                }}
+              />
               {level.label}
             </span>
             <span
@@ -272,10 +285,14 @@ export default function MovieCrowdRadarStrip({ movieName }) {
                 fontSize: 10,
                 color: '#94a3b8',
                 fontWeight: 600,
-                letterSpacing: '0.02em',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
               }}
             >
-              평균 {summary.avg.toFixed(1)}
+              <span style={{ opacity: 0.75, marginRight: 4 }}>AVG</span>
+              <span style={{ color: '#cbd5e1', fontWeight: 700 }}>
+                {summary.avg.toFixed(1)}
+              </span>
             </span>
           </div>
         )}
