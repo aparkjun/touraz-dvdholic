@@ -391,7 +391,10 @@ function WellnessInner() {
   return (
     <div className="wel-root">
       <style>{cssBlock}</style>
-      <AmbientBackdrop palette={["#10b981", "#8b5cf6", "#38bdf8", "#f472b6"]} intensity={0.85} />
+      <AmbientBackdrop
+        palette={["#5f7266", "#6d6478", "#5f7580", "#8f7f6e"]}
+        intensity={0.42}
+      />
 
       <header className="wel-hero">
         <div className="wel-hero-inner">
@@ -673,17 +676,19 @@ export default function WellnessPage() {
 }
 
 const cssBlock = `
+@import url('https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap');
 .wel-root {
   min-height: 100vh;
   position: relative;
   isolation: isolate;
   overflow-x: hidden;
+  font-family: "Gowun Batang", "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, sans-serif;
   background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(16, 185, 129, 0.22) 0%, transparent 60%),
-    radial-gradient(1000px 400px at 100% 0%, rgba(139, 92, 246, 0.18) 0%, transparent 60%),
-    radial-gradient(900px 480px at 50% 110%, rgba(56,189,248,0.12) 0%, transparent 60%),
+    radial-gradient(1200px 500px at 10% -10%, rgba(102, 118, 108, 0.16) 0%, transparent 60%),
+    radial-gradient(1000px 400px at 100% 0%, rgba(115, 108, 128, 0.12) 0%, transparent 60%),
+    radial-gradient(900px 480px at 50% 110%, rgba(95, 117, 124, 0.1) 0%, transparent 60%),
     linear-gradient(180deg, #0a0d10 0%, #101420 60%, #0c1018 100%);
-  color: #f5f5f5;
+  color: #e8e8e6;
 }
 .wel-hero {
   position: relative;
@@ -695,27 +700,27 @@ const cssBlock = `
 .wel-hero-inner { max-width: 1200px; margin: 0 auto; }
 .wel-tag {
   display: inline-flex; align-items: center; gap: 6px;
-  font-size: 11px; font-weight: 800;
-  letter-spacing: 0.18em; text-transform: uppercase;
-  color: #a7f3d0;
-  background: rgba(16, 185, 129, 0.14);
-  border: 1px solid rgba(16, 185, 129, 0.28);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: #aeb8ae;
+  background: rgba(110, 126, 116, 0.18);
+  border: 1px solid rgba(130, 145, 135, 0.35);
   padding: 6px 10px; border-radius: 999px;
 }
 .wel-title {
   margin: 14px 0 6px;
   font-size: clamp(22px, 4vw, 36px);
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: -0.01em;
-  background: linear-gradient(90deg, #a7f3d0 0%, #c4b5fd 50%, #fbcfe8 100%);
+  background: linear-gradient(90deg, #c8d2ca 0%, #c7c0cf 50%, #d4c9cc 100%);
   -webkit-background-clip: text; background-clip: text;
   -webkit-text-fill-color: transparent; color: transparent;
-  line-height: 1.15;
+  line-height: 1.2;
 }
 .wel-sub {
   margin: 0 0 16px;
-  color: #c6c6c6; font-size: 0.95rem;
-  max-width: 760px; line-height: 1.5;
+  color: #a8a8a4; font-size: 0.95rem;
+  max-width: 760px; line-height: 1.65;
 }
 .wel-search {
   display: flex; align-items: center; gap: 8px;
@@ -727,32 +732,32 @@ const cssBlock = `
 .wel-search-icon { color: #bdbdbd; }
 .wel-search-input {
   flex: 1 1 auto; background: transparent; border: none; outline: none;
-  color: #f5f5f5; font-size: 0.95rem; padding: 8px 0; min-width: 0;
+  color: #e8e8e6; font-size: 0.95rem; padding: 8px 0; min-width: 0;
 }
-.wel-search-input::placeholder { color: #8a8a8a; }
+.wel-search-input::placeholder { color: #7d7d78; }
 .wel-search-btn {
   flex: 0 0 auto; border: none;
-  background: linear-gradient(135deg, #10b981 0%, #8b5cf6 100%);
-  color: #fff; font-weight: 700; font-size: 0.88rem;
+  background: linear-gradient(135deg, #5a6b60 0%, #6a5f78 100%);
+  color: #f2f1ef; font-weight: 700; font-size: 0.88rem;
   padding: 8px 16px; border-radius: 999px; cursor: pointer;
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
-.wel-search-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4); }
+.wel-search-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(90, 88, 105, 0.35); }
 
 .wel-nearby-btn {
   display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.28);
-  color: #6ee7b7;
+  background: rgba(95, 110, 100, 0.14);
+  border: 1px solid rgba(120, 136, 126, 0.35);
+  color: #b0bfb2;
   padding: 10px 16px; border-radius: 999px;
   font-weight: 700; font-size: 0.9rem; cursor: pointer;
   transition: all 0.2s ease;
 }
-.wel-nearby-btn:hover { background: rgba(16, 185, 129, 0.18); }
+.wel-nearby-btn:hover { background: rgba(95, 110, 100, 0.22); }
 .wel-nearby-btn-active {
-  background: linear-gradient(135deg, #059669, #7c3aed);
-  color: #fff; border-color: transparent;
-  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.35);
+  background: linear-gradient(135deg, #4d5e55, #5c5468);
+  color: #f2f1ef; border-color: transparent;
+  box-shadow: 0 4px 14px rgba(60, 56, 65, 0.35);
 }
 .wel-nearby-btn:disabled { cursor: wait; opacity: 0.85; }
 
@@ -761,23 +766,23 @@ const cssBlock = `
   display: flex; flex-wrap: wrap; gap: 8px;
 }
 .wel-theme-chip {
-  background: rgba(16,185,129,0.08);
-  border: 1px solid rgba(16,185,129,0.22);
-  color: #a7f3d0;
+  background: rgba(95, 108, 98, 0.12);
+  border: 1px solid rgba(125, 138, 128, 0.28);
+  color: #aeb8ae;
   font-size: 0.82rem; font-weight: 700;
   padding: 6px 14px;
   border-radius: 999px; cursor: pointer;
   transition: all 0.15s ease;
 }
 .wel-theme-chip:hover {
-  background: rgba(16,185,129,0.18);
-  color: #fff;
+  background: rgba(95, 108, 98, 0.2);
+  color: #e8eae7;
   transform: translateY(-1px);
 }
 .wel-theme-chip-active {
-  background: linear-gradient(135deg, #10b981 0%, #8b5cf6 100%);
-  color: #fff; border-color: transparent;
-  box-shadow: 0 4px 12px rgba(139,92,246,0.3);
+  background: linear-gradient(135deg, #5a6b60 0%, #65607a 100%);
+  color: #f2f1ef; border-color: transparent;
+  box-shadow: 0 4px 12px rgba(55, 52, 62, 0.28);
 }
 
 .wel-chips {
@@ -794,19 +799,19 @@ const cssBlock = `
 }
 .wel-chip:hover { background: rgba(255,255,255,0.1); color: #fff; }
 .wel-chip-active {
-  background: linear-gradient(135deg, rgba(16,185,129,0.25) 0%, rgba(139,92,246,0.2) 100%);
-  border-color: rgba(16,185,129,0.55);
-  color: #fff;
+  background: linear-gradient(135deg, rgba(95,110,100,0.28) 0%, rgba(110,100,120,0.22) 100%);
+  border-color: rgba(130, 145, 135, 0.5);
+  color: #f2f1ef;
 }
 
 .wel-nearby-panel {
   max-width: 1200px; margin: 16px auto 0; padding: 12px 16px;
-  background: rgba(16,185,129,0.08);
-  border: 1px solid rgba(16,185,129,0.22);
+  background: rgba(95, 108, 98, 0.1);
+  border: 1px solid rgba(125, 138, 128, 0.28);
   border-radius: 12px;
 }
 .wel-nearby-top { display: flex; justify-content: space-between; align-items: center; }
-.wel-nearby-info { display: flex; align-items: center; gap: 6px; color: #6ee7b7; font-weight: 700; font-size: 0.9rem; }
+.wel-nearby-info { display: flex; align-items: center; gap: 6px; color: #b0bfb2; font-weight: 700; font-size: 0.9rem; }
 .wel-nearby-src { font-size: 0.72rem; color: rgba(255,255,255,0.4); font-weight: 400; }
 .wel-nearby-close { background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; padding: 4px; }
 .wel-nearby-radius {
@@ -822,8 +827,8 @@ const cssBlock = `
   border-radius: 999px; cursor: pointer;
 }
 .wel-radius-chip-active {
-  background: linear-gradient(135deg, #059669, #7c3aed);
-  color: #fff; border-color: transparent;
+  background: linear-gradient(135deg, #4d5e55, #5c5468);
+  color: #f2f1ef; border-color: transparent;
 }
 .wel-nearby-error { margin-top: 8px; color: #fda4af; font-size: 0.82rem; }
 
@@ -840,16 +845,16 @@ const cssBlock = `
   width: calc(100% - 32px);
   max-width: 1200px; margin: 12px auto 0; padding: 10px 14px;
   display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap;
-  background: rgba(16,185,129,0.12); border: 1px solid rgba(52,211,153,0.35);
-  border-radius: 12px; color: #d1fae5;
-  font-size: 0.84rem; line-height: 1.45;
+  background: rgba(95, 108, 98, 0.14); border: 1px solid rgba(132, 148, 138, 0.38);
+  border-radius: 12px; color: #cfd5cf;
+  font-size: 0.84rem; line-height: 1.55;
 }
 .wel-kor-banner-text { margin: 0; flex: 1; min-width: 200px; }
 .wel-kor-banner-clear {
   flex-shrink: 0;
   background: rgba(255,255,255,0.08);
   border: 1px solid rgba(255,255,255,0.14);
-  color: #ecfdf5;
+  color: #dde2dd;
   font-size: 0.78rem; font-weight: 700;
   padding: 6px 12px; border-radius: 999px; cursor: pointer;
 }
@@ -880,7 +885,7 @@ const cssBlock = `
   outline: none;
 }
 .wel-card-interactive:focus-visible {
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.55), 0 10px 24px rgba(0,0,0,0.4);
+  box-shadow: 0 0 0 2px rgba(120, 140, 128, 0.55), 0 10px 24px rgba(0,0,0,0.4);
 }
 .wel-card-hint {
   margin-top: 6px;
@@ -891,7 +896,7 @@ const cssBlock = `
 }
 .wel-card:hover {
   transform: translateY(-3px);
-  border-color: rgba(16, 185, 129, 0.35);
+  border-color: rgba(125, 140, 130, 0.35);
   box-shadow: 0 10px 24px rgba(0,0,0,0.4);
 }
 .wel-img {
@@ -907,12 +912,12 @@ const cssBlock = `
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   color: rgba(255,255,255,0.25);
-  background: linear-gradient(135deg, rgba(16,185,129,0.08) 0%, rgba(139,92,246,0.04) 100%);
+  background: linear-gradient(135deg, rgba(95,110,100,0.1) 0%, rgba(105,95,115,0.06) 100%);
 }
 .wel-dist-badge {
   position: absolute; top: 10px; left: 10px;
-  background: rgba(16, 185, 129, 0.85);
-  color: #04241c;
+  background: rgba(138, 155, 140, 0.92);
+  color: #1c211e;
   font-size: 0.72rem; font-weight: 800;
   padding: 4px 10px; border-radius: 999px;
   backdrop-filter: blur(6px);
@@ -934,7 +939,7 @@ const cssBlock = `
   color: #c6c6c6; text-decoration: none;
   border-bottom: 1px dotted rgba(255,255,255,0.25);
 }
-.wel-addr-link:hover { color: #6ee7b7; border-bottom-color: rgba(110,231,183,0.5); }
+.wel-addr-link:hover { color: #a3b5a8; border-bottom-color: rgba(155, 175, 165, 0.55); }
 
 .wel-skeleton { cursor: default; }
 .wel-sk-img, .wel-sk-line {

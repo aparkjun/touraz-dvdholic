@@ -329,12 +329,12 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           display: flex;
           align-items: center;
           justify-content: center;
-          color: rgba(167, 243, 208, 0.6);
+          color: rgba(185, 198, 188, 0.65);
           background: radial-gradient(
             120% 100% at 50% 0%,
-            rgba(16, 185, 129, 0.18) 0%,
+            rgba(102, 118, 108, 0.2) 0%,
             transparent 60%
-          ), linear-gradient(135deg, rgba(16,185,129,0.05), rgba(139,92,246,0.05));
+          ), linear-gradient(135deg, rgba(95,110,100,0.08), rgba(105,95,115,0.06));
         }
         .ws-mod-hero-fallback::after {
           content: '🌿';
@@ -379,9 +379,9 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           backdrop-filter: blur(6px);
         }
         .ws-mod-tag-region {
-          background: rgba(16, 185, 129, 0.18);
-          border-color: rgba(110, 231, 183, 0.45);
-          color: #a7f3d0;
+          background: rgba(95, 110, 100, 0.22);
+          border-color: rgba(140, 155, 145, 0.45);
+          color: #c5cfc4;
         }
         .ws-mod-tag-dist {
           background: rgba(56, 189, 248, 0.18);
@@ -433,12 +433,12 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           margin-top: 1px;
         }
         .ws-mod-link {
-          color: #67e8f9;
+          color: #9bb8b8;
           text-decoration: none;
-          border-bottom: 1px dotted rgba(103, 232, 249, 0.5);
+          border-bottom: 1px dotted rgba(145, 168, 168, 0.45);
         }
         .ws-mod-link:hover {
-          color: #a5f3fc;
+          color: #c2d4d4;
         }
         .ws-mod-info-muted {
           color: #94a3b8;
@@ -503,12 +503,12 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           background: rgba(148, 163, 184, 0.22);
         }
         .ws-mod-act-tel {
-          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-          color: #022c1f;
-          border-color: rgba(110, 231, 183, 0.6);
+          background: linear-gradient(135deg, #5a6b60 0%, #4d5e55 100%);
+          color: #f0f1ef;
+          border-color: rgba(145, 160, 150, 0.55);
         }
         .ws-mod-act-tel:hover {
-          background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+          background: linear-gradient(135deg, #657668 0%, #56665c 100%);
         }
         .ws-mod-act-vk {
           background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
