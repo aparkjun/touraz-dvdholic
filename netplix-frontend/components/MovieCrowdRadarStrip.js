@@ -106,6 +106,7 @@ export default function MovieCrowdRadarStrip({ movieName }) {
       min,
       max,
       best,
+      bestIdx,
       spotName: predictions[0]?.spotName,
       areaName: predictions[0]?.areaName,
       signguName: predictions[0]?.signguName,
@@ -266,7 +267,12 @@ export default function MovieCrowdRadarStrip({ movieName }) {
             }}
           >
             {predictions.slice(0, 7).map((p, idx) => (
-              <MiniBar key={p.baseDate || idx} prediction={p} index={idx} />
+              <MiniBar
+                key={p.baseDate || idx}
+                prediction={p}
+                index={idx}
+                isBest={summary?.bestIdx === idx}
+              />
             ))}
           </div>
         )}
@@ -383,10 +389,23 @@ function formatDateShort(baseDate) {
   return `${mm}.${dd}(${dow})`;
 }
 
-function MiniBar({ prediction, index }) {
+function MiniBar({ prediction, index, isBest = false }) {
   const rate = prediction?.concentrationRate ?? 0;
   const level = rateLevel(rate);
   const pct = Math.max(8, Math.min(100, rate));
+  // 가장 한가한 날은 등급 색상 대신 시그니처 청록(turquoise→cyan) 그라디언트로
+  // 강조해 다른 날들과 한눈에 구분되게 한다.
+  const barGradient = isBest
+    ? 'linear-gradient(180deg, #5eead4 0%, #06b6d4 60%, #0891b2 100%)'
+    : `linear-gradient(180deg, ${level.color}ff, ${level.color}88)`;
+  // 날짜 라벨도 다른 날들 (회색) 과 분리해 시안 색 + 굵게.
+  const labelColor = isBest ? '#67e8f9' : '#e5e7eb';
+  const labelWeight = isBest ? 800 : 700;
+  const dateLabel = formatDateShort(prediction?.baseDate);
+  // 'MM.DD(요일)' → 'MM.DD' 와 '(요일)' 두 줄로 분리해 작은 폭에서도 읽히게.
+  const datePart = dateLabel.replace(/\([^)]*\)$/, '');
+  const dowMatch = dateLabel.match(/\(([^)]+)\)$/);
+  const dowPart = dowMatch ? dowMatch[1] : '';
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -396,9 +415,9 @@ function MiniBar({ prediction, index }) {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 4,
+        gap: 5,
       }}
-      title={`${formatDateShort(prediction?.baseDate)} · ${rate?.toFixed?.(1) ?? '-'}`}
+      title={`${dateLabel} · ${rate?.toFixed?.(1) ?? '-'}${isBest ? ' · 가장 한가' : ''}`}
     >
       <div
         style={{
@@ -406,22 +425,72 @@ function MiniBar({ prediction, index }) {
           height: 48,
           borderRadius: 6,
           background: 'rgba(255,255,255,0.04)',
-          border: '1px solid rgba(255,255,255,0.06)',
+          border: isBest
+            ? '1.5px solid rgba(103,232,249,0.85)'
+            : '1px solid rgba(255,255,255,0.06)',
           display: 'flex',
           alignItems: 'flex-end',
           overflow: 'hidden',
+          boxShadow: isBest
+            ? '0 0 0 2px rgba(103,232,249,0.2), 0 6px 18px -6px rgba(34,211,238,0.6)'
+            : 'none',
+          position: 'relative',
         }}
       >
         <div
           style={{
             width: '100%',
             height: `${pct}%`,
-            background: `linear-gradient(180deg, ${level.color}ff, ${level.color}88)`,
+            background: barGradient,
           }}
         />
+        {isBest && (
+          <span
+            style={{
+              position: 'absolute',
+              top: 2,
+              left: 2,
+              right: 2,
+              fontSize: 9,
+              fontWeight: 800,
+              color: '#001a1f',
+              background: '#67e8f9',
+              borderRadius: 3,
+              padding: '1px 0',
+              textAlign: 'center',
+              letterSpacing: '0.3px',
+              lineHeight: 1.2,
+              textShadow: '0 1px 0 rgba(255,255,255,0.4)',
+            }}
+          >
+            BEST
+          </span>
+        )}
       </div>
-      <div style={{ fontSize: 9, color: '#9ca3af', lineHeight: 1 }}>
-        {formatDateShort(prediction?.baseDate).slice(0, 5)}
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: labelWeight,
+          color: labelColor,
+          lineHeight: 1.15,
+          letterSpacing: '-0.2px',
+          textAlign: 'center',
+          textShadow: '0 1px 2px rgba(0,0,0,0.45)',
+        }}
+      >
+        <div>{datePart}</div>
+        {dowPart && (
+          <div
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: isBest ? '#a5f3fc' : '#cbd5e1',
+              marginTop: 1,
+            }}
+          >
+            ({dowPart})
+          </div>
+        )}
       </div>
     </motion.div>
   );
