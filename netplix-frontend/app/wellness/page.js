@@ -13,11 +13,10 @@
  *  - GET /api/v1/wellness/search?q=<keyword>   (searchKeyword)
  *
  * UI 구성:
- *  - 상단 hero: 검색창 + "내 주변 힐링 스팟 찾기" 버튼 + 지도/리스트 토글
+ *  - 상단 hero: 검색창 + "내 주변 힐링 스팟 찾기" 버튼
  *  - 테마 칩 (온천 · 스파 · 템플스테이 · 힐링숲 · 명상 · 요가 · 자연휴양림)
  *  - 17개 광역 지역 칩
- *  - 지도 모드: Leaflet + OSM (사용자 위치 파란 마커 + 힐링 스팟 민트 마커)
- *  - 리스트 모드: 카드 그리드 + 무한 스크롤
+ *  - 카드 그리드 + 무한 스크롤 — 카드(이미지) 탭 시 모달에서 카카오/네이버 지도·홈페이지·VisitKorea 안내
  *
  * 교차 접점:
  *  - 햄버거 메뉴의 "내 주변 힐링 스팟" → /wellness?nearby=true
@@ -40,48 +39,12 @@ import {
   X,
   MapPin,
   Phone,
-  List as ListIcon,
-  Map as MapIcon,
   Ruler,
 } from "lucide-react";
 import WellnessRecoveryCalendar from "@/components/WellnessRecoveryCalendar";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 import WellnessSpotDetailModal from "@/components/WellnessSpotDetailModal";
 
-// Leaflet SSR 이슈 방지: 클라이언트에서만 로딩.
-let L, MapContainer, TileLayer, Marker, Popup, useMap;
-let mintIcon, blueIcon;
-if (typeof window !== "undefined") {
-  L = require("leaflet");
-  const rl = require("react-leaflet");
-  MapContainer = rl.MapContainer;
-  TileLayer = rl.TileLayer;
-  Marker = rl.Marker;
-  Popup = rl.Popup;
-  useMap = rl.useMap;
-
-  delete L.Icon.Default.prototype._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-  });
-
-  // 민트/그린 톤 마커 (웰니스 아이덴티티)
-  mintIcon = new L.Icon({
-    iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-    iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-  });
-  blueIcon = new L.Icon({
-    iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-    iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
-  });
-}
-
-const KOREA_CENTER = [36.5, 127.5];
-const DEFAULT_ZOOM = 7;
 const RADIUS_OPTIONS = [10, 30, 50]; // km
 const PAGE_SIZE = 60;
 /** Heroku 웜업·공공 API(data.go.kr) 지연까지 고려해 넉넉히 둠. */
@@ -126,7 +89,6 @@ function WellnessInner() {
   const autoNearbyTriggered = useRef(false);
 
   const [mounted, setMounted] = useState(false);
-  const [viewMode, setViewMode] = useState("list");
   const [spots, setSpots] = useState([]);
   const [selectedSpot, setSelectedSpot] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -401,7 +363,6 @@ function WellnessInner() {
   };
 
   useEffect(() => {
-    if (viewMode !== "list") return undefined;
     if (typeof window === "undefined") return undefined;
     if (!sentinelRef.current) return undefined;
     if (visibleCount >= spots.length) return undefined;
@@ -418,12 +379,7 @@ function WellnessInner() {
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [viewMode, visibleCount, spots.length]);
-
-  const mappable = useMemo(
-    () => spots.filter((s) => s.latitude != null && s.longitude != null),
-    [spots]
-  );
+  }, [visibleCount, spots.length]);
 
   const headerCountLabel = useMemo(() => {
     if (loading || nearbyLoading) return null;
@@ -511,10 +467,9 @@ function WellnessInner() {
 
       {/*
        * 정주행 회복 캘린더 · 웰니스 × 관광지 집중률 크로스오버.
-       * 지도 모드에서는 카드가 시야를 방해하지 않도록 숨김.
        * 내부적으로 영어 모드/데이터 없음일 때 자동 숨김.
        */}
-      {viewMode !== "map" && !nearbyMode && (
+      {!nearbyMode && (
         <div style={{ padding: "0 20px" }}>
           <WellnessRecoveryCalendar />
         </div>
@@ -551,29 +506,9 @@ function WellnessInner() {
       )}
 
       <div className="wel-toolbar">
-        <div className="wel-toolbar-left">
-          {headerCountLabel && (
-            <span className="wel-total">{headerCountLabel}</span>
-          )}
-        </div>
-        <div className="wel-toolbar-right">
-          <button
-            type="button"
-            className={`wel-view-btn ${viewMode === "list" ? "wel-view-btn-active" : ""}`}
-            onClick={() => setViewMode("list")}
-            aria-pressed={viewMode === "list"}
-          >
-            <ListIcon size={14} /> {t("wellness.list")}
-          </button>
-          <button
-            type="button"
-            className={`wel-view-btn ${viewMode === "map" ? "wel-view-btn-active" : ""}`}
-            onClick={() => setViewMode("map")}
-            aria-pressed={viewMode === "map"}
-          >
-            <MapIcon size={14} /> {t("wellness.map")}
-          </button>
-        </div>
+        {headerCountLabel && (
+          <span className="wel-total">{headerCountLabel}</span>
+        )}
       </div>
 
       {korRegionFromUrl && !nearbyMode && (
@@ -596,78 +531,45 @@ function WellnessInner() {
       )}
 
       <main id="wellness-spots-anchor" className="wel-main">
-        {viewMode === "map" ? (
-          <div className="wel-map-wrap">
-            {mounted && MapContainer && (
-              <MapContainer
-                center={userPos ? [userPos.lat, userPos.lon] : KOREA_CENTER}
-                zoom={userPos ? 11 : DEFAULT_ZOOM}
-                style={{ width: "100%", height: "70vh", borderRadius: 12 }}
-                scrollWheelZoom
-              >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                <FitBounds spots={mappable} userPos={userPos} />
-                {userPos && (
-                  <Marker position={[userPos.lat, userPos.lon]} icon={blueIcon}>
-                    <Popup>{t("wellness.myLocation")}</Popup>
-                  </Marker>
-                )}
-                {mappable.map((s) => (
-                  <Marker key={s.id} position={[s.latitude, s.longitude]} icon={mintIcon}>
-                    <Popup>
-                      <MarkerPopup spot={s} />
-                    </Popup>
-                  </Marker>
-                ))}
-              </MapContainer>
-            )}
+        {loading || nearbyLoading ? (
+          <div className="wel-grid">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={`sk-${i}`} className="wel-card wel-skeleton">
+                <div className="wel-img wel-sk-img" />
+                <div className="wel-body">
+                  <div className="wel-sk-line wel-sk-line-lg" />
+                  <div className="wel-sk-line" />
+                  <div className="wel-sk-line wel-sk-line-sm" />
+                </div>
+              </div>
+            ))}
           </div>
+        ) : errored ? (
+          <EmptyState icon="⚠️" title={t("wellness.error")} desc={t("wellness.errorHint")} />
+        ) : spots.length === 0 ? (
+          <EmptyState
+            icon="🧘"
+            title={nearbyMode ? t("wellness.nearbyEmpty") : t("wellness.empty")}
+            desc={t("wellness.emptyHint")}
+          />
         ) : (
           <>
-            {loading || nearbyLoading ? (
-              <div className="wel-grid">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div key={`sk-${i}`} className="wel-card wel-skeleton">
-                    <div className="wel-img wel-sk-img" />
-                    <div className="wel-body">
-                      <div className="wel-sk-line wel-sk-line-lg" />
-                      <div className="wel-sk-line" />
-                      <div className="wel-sk-line wel-sk-line-sm" />
-                    </div>
-                  </div>
-                ))}
+            <div className="wel-grid">
+              {spots.slice(0, visibleCount).map((s) => (
+                <WellnessCard key={s.id} spot={s} onOpenDetail={setSelectedSpot} />
+              ))}
+            </div>
+            {visibleCount < spots.length && (
+              <div className="wel-more">
+                <div ref={sentinelRef} aria-hidden className="wel-sentinel" />
+                <button
+                  type="button"
+                  className="wel-more-btn"
+                  onClick={() => setVisibleCount((c) => Math.min(c + PAGE_SIZE, spots.length))}
+                >
+                  {t("wellness.loadMore", { shown: visibleCount, total: spots.length })}
+                </button>
               </div>
-            ) : errored ? (
-              <EmptyState icon="⚠️" title={t("wellness.error")} desc={t("wellness.errorHint")} />
-            ) : spots.length === 0 ? (
-              <EmptyState
-                icon="🧘"
-                title={nearbyMode ? t("wellness.nearbyEmpty") : t("wellness.empty")}
-                desc={t("wellness.emptyHint")}
-              />
-            ) : (
-              <>
-                <div className="wel-grid">
-                  {spots.slice(0, visibleCount).map((s) => (
-                    <WellnessCard key={s.id} spot={s} onOpenDetail={setSelectedSpot} />
-                  ))}
-                </div>
-                {visibleCount < spots.length && (
-                  <div className="wel-more">
-                    <div ref={sentinelRef} aria-hidden className="wel-sentinel" />
-                    <button
-                      type="button"
-                      className="wel-more-btn"
-                      onClick={() => setVisibleCount((c) => Math.min(c + PAGE_SIZE, spots.length))}
-                    >
-                      {t("wellness.loadMore", { shown: visibleCount, total: spots.length })}
-                    </button>
-                  </div>
-                )}
-              </>
             )}
           </>
         )}
@@ -676,43 +578,6 @@ function WellnessInner() {
         spot={selectedSpot}
         onClose={() => setSelectedSpot(null)}
       />
-    </div>
-  );
-}
-
-function FitBounds({ spots, userPos }) {
-  const map = useMap ? useMap() : null;
-  useEffect(() => {
-    if (!map || !L) return;
-    const pts = [];
-    spots.forEach((s) => {
-      if (s.latitude != null && s.longitude != null) {
-        pts.push([s.latitude, s.longitude]);
-      }
-    });
-    if (userPos) pts.push([userPos.lat, userPos.lon]);
-    if (pts.length === 0) return;
-    try {
-      const bounds = L.latLngBounds(pts);
-      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
-    } catch (_) {}
-  }, [map, spots, userPos]);
-  return null;
-}
-
-function MarkerPopup({ spot }) {
-  const { t } = useTranslation();
-  return (
-    <div style={{ minWidth: 200, maxWidth: 260 }}>
-      <div style={{ fontWeight: 700, marginBottom: 4 }}>{spot.name}</div>
-      {spot.address && (
-        <div style={{ fontSize: 12, color: "#555", marginBottom: 4 }}>
-          📍 {spot.address}
-        </div>
-      )}
-      <div style={{ fontSize: 12 }}>
-        📞 {spot.tel || t("wellness.phoneNone")}
-      </div>
     </div>
   );
 }
@@ -965,19 +830,10 @@ const cssBlock = `
 .wel-toolbar {
   max-width: 1200px; margin: 16px auto 0;
   padding: 0 16px;
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; justify-content: flex-start; align-items: center;
   gap: 10px; flex-wrap: wrap;
 }
 .wel-total { color: #dc2626; font-weight: 800; font-size: 1rem; }
-.wel-toolbar-right { display: inline-flex; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 999px; padding: 3px; }
-.wel-view-btn {
-  background: transparent; border: none; color: rgba(255,255,255,0.65);
-  font-size: 0.82rem; font-weight: 600; padding: 6px 12px;
-  border-radius: 999px; cursor: pointer;
-  display: inline-flex; align-items: center; gap: 4px;
-  transition: all 0.2s ease;
-}
-.wel-view-btn-active { background: linear-gradient(135deg, #10b981, #8b5cf6); color: #fff; }
 
 .wel-kor-banner {
   box-sizing: border-box;
@@ -1000,8 +856,6 @@ const cssBlock = `
 .wel-kor-banner-clear:hover { background: rgba(255,255,255,0.14); }
 
 .wel-main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; scroll-margin-top: 72px; }
-.wel-map-wrap { border-radius: 12px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.35); }
-.wel-map-wrap .leaflet-container img { max-width: none !important; max-height: none !important; height: auto; }
 
 .wel-grid {
   display: grid;
