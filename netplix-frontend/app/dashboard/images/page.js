@@ -1,8 +1,7 @@
 'use client';
 import React, { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { Undo2 } from "lucide-react";
 import axios from "@/lib/axiosConfig";
 import { getMovieTitle, getPosterPath, getBackdropPath, getOverview, getTagline } from "@/lib/movieLang";
 import CineTripCTA from "@/components/CineTripCTA";
@@ -113,7 +112,6 @@ function ReviewCard({ review, palette, movieName, ct, onHelpful }) {
 
 function MovieImagesContent() {
   const { t } = useTranslation();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const movieNameParam = searchParams.get("movieName");
   const contentTypeParam = searchParams.get("contentType") || "dvd";
@@ -338,41 +336,6 @@ function MovieImagesContent() {
     return `$${n.toLocaleString()}`;
   };
 
-  const BackButton = () => (
-    <button
-      type="button"
-      onClick={() => router.back()}
-      title={t("movieImages.backLabel")}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: "40px",
-        height: "40px",
-        padding: 0,
-        background: "linear-gradient(135deg, rgba(255,59,92,0.15), rgba(91,140,255,0.15))",
-        border: "1px solid rgba(255,255,255,0.12)",
-        borderRadius: "50%",
-        color: "rgba(255,255,255,0.85)",
-        cursor: "pointer",
-        transition: "all 0.25s ease",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,59,92,0.3), rgba(91,140,255,0.3))";
-        e.currentTarget.style.transform = "scale(1.1)";
-        e.currentTarget.style.boxShadow = "0 4px 16px rgba(255,59,92,0.25)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,59,92,0.15), rgba(91,140,255,0.15))";
-        e.currentTarget.style.transform = "scale(1)";
-        e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
-      }}
-    >
-      <Undo2 size={20} strokeWidth={2.5} />
-    </button>
-  );
-
   if (detailLoading) {
     return (
       <div
@@ -391,9 +354,6 @@ function MovieImagesContent() {
         }}
       >
         <AmbientBackdrop palette={["#ec4899", "#a78bfa", "#f59e0b", "#22d3ee"]} intensity={0.85} />
-        <div style={{ maxWidth: "960px", margin: "0 auto 12px" }}>
-          <BackButton />
-        </div>
         <div style={{ textAlign: "center", paddingTop: "40px" }}>
           <div style={{ width: "40px", height: "40px", border: "3px solid rgba(255,59,92,0.2)", borderTopColor: "#ff3b5c", borderRadius: "50%", margin: "0 auto 16px", animation: "spin 1s linear infinite" }} />
           <p>{t("movieImages.loadingDetail")}</p>
@@ -420,9 +380,6 @@ function MovieImagesContent() {
         }}
       >
         <AmbientBackdrop palette={["#ec4899", "#a78bfa", "#f59e0b", "#22d3ee"]} intensity={0.8} />
-        <div style={{ maxWidth: "960px", margin: "0 auto 12px" }}>
-          <BackButton />
-        </div>
         <div style={{ textAlign: "center", paddingTop: "40px" }}>
           <p>{t("movieImages.movieNotFound")}</p>
         </div>
@@ -446,40 +403,6 @@ function MovieImagesContent() {
       }}
     >
       <AmbientBackdrop palette={["#ec4899", "#a78bfa", "#f59e0b", "#22d3ee"]} intensity={0.85} />
-      <div style={{ maxWidth: "960px", margin: "0 auto 12px" }}>
-          <button
-            type="button"
-            onClick={() => router.back()}
-            title={t("movieImages.backLabel")}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "40px",
-              height: "40px",
-              padding: 0,
-              background: "linear-gradient(135deg, rgba(255,59,92,0.15), rgba(91,140,255,0.15))",
-              border: "1px solid rgba(255,255,255,0.12)",
-              borderRadius: "50%",
-              color: "rgba(255,255,255,0.85)",
-              cursor: "pointer",
-              transition: "all 0.25s ease",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,59,92,0.3), rgba(91,140,255,0.3))";
-              e.currentTarget.style.transform = "scale(1.1)";
-              e.currentTarget.style.boxShadow = "0 4px 16px rgba(255,59,92,0.25)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "linear-gradient(135deg, rgba(255,59,92,0.15), rgba(91,140,255,0.15))";
-              e.currentTarget.style.transform = "scale(1)";
-              e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
-            }}
-          >
-            <Undo2 size={20} strokeWidth={2.5} />
-          </button>
-        </div>
       <h1 style={{ color: palette.text, fontSize: "22px", fontWeight: 800, marginBottom: "24px", textAlign: "center" }}>
         {displayName}
       </h1>
