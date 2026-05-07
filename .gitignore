@@ -130,3 +130,4 @@ photos_full.json
 
 # iOS 빌드 산출물 (.xcarchive / .ipa 등 - 절대 커밋 금지)
 netplix-frontend/ios/App/build-output/
+netplix-frontend/ios/App/output/

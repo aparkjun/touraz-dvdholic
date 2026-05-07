@@ -5,7 +5,9 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 IOS_APP="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ARCHIVE="${IOS_APP}/build/App.xcarchive"
+# Xcode/Capacitor가 프로젝트 ./build 를 clean 하므로, 아카이브는 별도 디렉터리에 둔다 (.gitignore됨)
+ARCHIVE_DIR="${IOS_APP}/build-output"
+ARCHIVE="${ARCHIVE_DIR}/App.xcarchive"
 EXPORT_DIR="${IOS_APP}/output"
 
 cd "$ROOT"
@@ -23,7 +25,7 @@ if [[ ! -d "Pods" ]]; then
   pod install
 fi
 
-mkdir -p build output
+mkdir -p "${ARCHIVE_DIR}" output
 
 echo "==> xcodebuild archive → ${ARCHIVE}"
 xcodebuild \
