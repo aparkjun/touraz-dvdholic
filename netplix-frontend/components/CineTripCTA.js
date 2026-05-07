@@ -237,18 +237,25 @@ export default function CineTripCTA({ movieName, posterUrl, contentType }) {
         {primaryArea && (
           <Link
             href={`/trekking?area=${primaryArea}`}
+            className="cinetrip-cta-walk"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              padding: '10px 14px',
-              background: 'rgba(34, 197, 94, 0.12)',
-              border: '1px solid rgba(34, 197, 94, 0.35)',
+              padding: '10px 16px',
+              background:
+                'linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%)',
+              backgroundSize: '180% 180%',
+              border: '1px solid rgba(110, 231, 183, 0.6)',
               borderRadius: 999,
-              color: '#86efac',
+              color: '#04241a',
               fontSize: 13,
-              fontWeight: 700,
+              fontWeight: 800,
+              letterSpacing: '0.2px',
               textDecoration: 'none',
+              boxShadow:
+                '0 6px 18px rgba(16, 185, 129, 0.45), inset 0 1px 0 rgba(255,255,255,0.35)',
+              textShadow: '0 1px 0 rgba(255,255,255,0.2)',
             }}
           >
             <Footprints size={14} />
@@ -259,6 +266,7 @@ export default function CineTripCTA({ movieName, posterUrl, contentType }) {
 
         <button
           type="button"
+          className="cinetrip-cta-share"
           onClick={async () => {
             const regionText =
               regionChips.length > 0
@@ -287,14 +295,20 @@ export default function CineTripCTA({ movieName, posterUrl, contentType }) {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
-            padding: '10px 14px',
-            background: 'rgba(255,255,255,0.08)',
-            border: '1px solid rgba(255,255,255,0.15)',
+            padding: '10px 16px',
+            background:
+              'linear-gradient(135deg, #06b6d4 0%, #0ea5e9 50%, #38bdf8 100%)',
+            backgroundSize: '180% 180%',
+            border: '1px solid rgba(125, 211, 252, 0.6)',
             borderRadius: 999,
-            color: '#fff',
+            color: '#ffffff',
             fontSize: 13,
-            fontWeight: 600,
+            fontWeight: 800,
+            letterSpacing: '0.2px',
             cursor: 'pointer',
+            boxShadow:
+              '0 6px 18px rgba(14, 165, 233, 0.45), inset 0 1px 0 rgba(255,255,255,0.3)',
+            textShadow: '0 1px 0 rgba(0,0,0,0.18)',
           }}
         >
           <Share2 size={14} />
@@ -317,6 +331,30 @@ export default function CineTripCTA({ movieName, posterUrl, contentType }) {
           box-shadow: 0 10px 28px rgba(139, 92, 246, 0.6),
             inset 0 1px 0 rgba(255, 255, 255, 0.35);
         }
+        .cinetrip-cta-walk,
+        .cinetrip-cta-share {
+          transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+            box-shadow 220ms ease, background-position 240ms ease;
+          background-position: 0% 50%;
+        }
+        .cinetrip-cta-walk {
+          animation: cinetripWalkShift 7s ease-in-out infinite;
+        }
+        .cinetrip-cta-walk:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 10px 24px rgba(16, 185, 129, 0.6),
+            inset 0 1px 0 rgba(255, 255, 255, 0.45);
+          background-position: 100% 50%;
+        }
+        .cinetrip-cta-share {
+          animation: cinetripShareShift 7s ease-in-out infinite;
+        }
+        .cinetrip-cta-share:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 10px 24px rgba(14, 165, 233, 0.6),
+            inset 0 1px 0 rgba(255, 255, 255, 0.4);
+          background-position: 100% 50%;
+        }
         @keyframes cinetripGradientShift {
           0%,
           100% {
@@ -335,6 +373,24 @@ export default function CineTripCTA({ movieName, posterUrl, contentType }) {
           50% {
             box-shadow: 0 10px 30px rgba(236, 72, 153, 0.55),
               inset 0 1px 0 rgba(255, 255, 255, 0.35);
+          }
+        }
+        @keyframes cinetripWalkShift {
+          0%,
+          100% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
+        }
+        @keyframes cinetripShareShift {
+          0%,
+          100% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
           }
         }
       `}</style>
