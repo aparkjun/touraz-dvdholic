@@ -31,6 +31,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
+import { resolveAreaCode, areaLabel as toAreaLabel } from "@/lib/regionAreaCode";
 import {
   Sparkles,
   Search,
@@ -168,33 +169,86 @@ function WellnessInner() {
       try {
         setLoading(true);
         setErrored(false);
-        const url =
-          korRegionFromUrl && korRegionFromUrl.area
-            ? (() => {
-                const p = new URLSearchParams({ limit: "0", korArea: korRegionFromUrl.area });
-                if (korRegionFromUrl.sigungu) p.set("korSigungu", korRegionFromUrl.sigungu);
-                return `/api/v1/wellness?${p.toString()}`;
-              })()
-            : keyword.trim()
-              ? `/api/v1/wellness/search?q=${encodeURIComponent(keyword.trim())}&limit=0`
-              : `/api/v1/wellness?limit=0`;
-        const fetchOnce = () => axios.get(url, { timeout: WELLNESS_FETCH_TIMEOUT_MS });
-        let res;
+
+        const fetchJson = async (url) => {
+          const res = await axios.get(url, { timeout: WELLNESS_FETCH_TIMEOUT_MS });
+          if (res?.data?.success === false) return { ok: false, data: [] };
+          return {
+            ok: true,
+            data: Array.isArray(res?.data?.data) ? res.data.data : [],
+          };
+        };
+
+        const buildKorAreaUrl = (areaCode, sigungu) => {
+          const p = new URLSearchParams({ limit: "0", korArea: String(areaCode) });
+          if (sigungu) p.set("korSigungu", String(sigungu));
+          return `/api/v1/wellness?${p.toString()}`;
+        };
+
+        let primaryUrl;
+        if (korRegionFromUrl && korRegionFromUrl.area) {
+          primaryUrl = buildKorAreaUrl(korRegionFromUrl.area, korRegionFromUrl.sigungu);
+        } else if (keyword.trim()) {
+          primaryUrl = `/api/v1/wellness/search?q=${encodeURIComponent(keyword.trim())}&limit=0`;
+        } else {
+          primaryUrl = `/api/v1/wellness?limit=0`;
+        }
+
+        let result;
         try {
-          res = await fetchOnce();
+          result = await fetchJson(primaryUrl);
         } catch (_) {
           await new Promise((r) => setTimeout(r, 600));
-          res = await fetchOnce();
+          result = await fetchJson(primaryUrl);
         }
         if (cancelled) return;
-        if (res?.data?.success === false) {
+
+        // q 키워드 모드인데 0건이면 두 가지 폴백을 순차 시도:
+        //  (1) 키워드를 광역코드로 해석할 수 있으면 KorService 행정구역 기반 areaBasedList 로 재시도
+        //  (2) 그래도 안 되고 키워드가 "서울특별시"처럼 풀네임이면 짧은 라벨("서울")로 재검색
+        // 외부에서 ?q=서울특별시 같은 풀네임으로 진입한 케이스("총 0곳" 빈 화면) 흡수용.
+        if (
+          result.ok &&
+          result.data.length === 0 &&
+          !korRegionFromUrl &&
+          keyword.trim()
+        ) {
+          const code = resolveAreaCode(keyword.trim());
+          if (code) {
+            try {
+              const r2 = await fetchJson(buildKorAreaUrl(code, null));
+              if (!cancelled && r2.ok && r2.data.length > 0) {
+                result = r2;
+              }
+            } catch (_) {}
+          }
+          if (
+            !cancelled &&
+            result.ok &&
+            result.data.length === 0
+          ) {
+            const shortLabel = toAreaLabel(code);
+            if (shortLabel && shortLabel !== keyword.trim()) {
+              try {
+                const r3 = await fetchJson(
+                  `/api/v1/wellness/search?q=${encodeURIComponent(shortLabel)}&limit=0`
+                );
+                if (!cancelled && r3.ok && r3.data.length > 0) {
+                  result = r3;
+                }
+              } catch (_) {}
+            }
+          }
+        }
+        if (cancelled) return;
+
+        if (!result.ok) {
           setErrored(true);
           setSpots([]);
           return;
         }
-        const data = Array.isArray(res?.data?.data) ? res.data.data : [];
-        setSpots(data);
-        setVisibleCount(Math.min(PAGE_SIZE, data.length));
+        setSpots(result.data);
+        setVisibleCount(Math.min(PAGE_SIZE, result.data.length));
       } catch (e) {
         if (!cancelled) {
           setErrored(true);

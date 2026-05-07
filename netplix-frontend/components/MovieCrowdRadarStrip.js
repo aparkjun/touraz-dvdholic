@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import { Radar, MapPin, ArrowRight, Image as ImageIcon, Leaf, Sparkles } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
-import { areaLabel } from '@/lib/regionAreaCode';
+import { areaLabel, resolveAreaCode } from '@/lib/regionAreaCode';
 
 /**
  * Quiet Set Radar · 영화 상세 페이지용 혼잡도 배지 스트립.
@@ -117,8 +117,27 @@ export default function MovieCrowdRadarStrip({ movieName }) {
   ]
     .filter(Boolean)
     .join(' · ');
+  // q 키워드 폴백 시 KTO searchKeyword API 의 정확 매칭 특성상 "서울특별시" 보다 "서울"
+  // 같이 짧은 라벨이 hit rate 가 훨씬 높다. 그래서 areaCode → 짧은 라벨을 가장 먼저 시도.
   const wellnessQuery =
-    summary?.areaName || mapping?.regionName || areaLabel(mapping?.areaCode) || '';
+    areaLabel(mapping?.areaCode) || summary?.areaName || mapping?.regionName || '';
+
+  // 힐링 CTA 진입 경로 결정.
+  // 1순위: areaCode 가 있으면 백엔드 KorService areaBasedList 행정구역 필터(/wellness?korArea=) 사용.
+  //        searchKeyword 보다 데이터 hit rate 가 안정적이라 "총 0곳" 이슈가 없다.
+  // 2순위: areaCode 가 없으면 자유형식 지역명에서 광역코드를 다시 추정해 본다.
+  // 3순위: 그래도 실패하면 옛 ?q= 키워드 모드로 폴백 (이때라도 짧은 라벨이 q 에 들어간다).
+  const wellnessHref = (() => {
+    const directCode = mapping?.areaCode != null ? String(mapping.areaCode).trim() : '';
+    const resolvedCode =
+      directCode || resolveAreaCode(summary?.areaName) || resolveAreaCode(mapping?.regionName) || '';
+    if (resolvedCode) {
+      return `/wellness?korArea=${encodeURIComponent(resolvedCode)}`;
+    }
+    return wellnessQuery
+      ? `/wellness?q=${encodeURIComponent(wellnessQuery)}`
+      : '/wellness';
+  })();
 
   return (
     <section
@@ -421,7 +440,7 @@ export default function MovieCrowdRadarStrip({ movieName }) {
         >
           {summary?.best && (
             <Link
-              href={`/wellness?q=${encodeURIComponent(wellnessQuery)}`}
+              href={wellnessHref}
               title="이 지역의 힐링 스팟으로 한산한 날 회복하기"
               style={{
                 display: 'inline-flex',
