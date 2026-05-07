@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import WellnessRecoveryCalendar from "@/components/WellnessRecoveryCalendar";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
+import WellnessSpotDetailModal from "@/components/WellnessSpotDetailModal";
 
 // Leaflet SSR 이슈 방지: 클라이언트에서만 로딩.
 let L, MapContainer, TileLayer, Marker, Popup, useMap;
@@ -127,6 +128,7 @@ function WellnessInner() {
   const [mounted, setMounted] = useState(false);
   const [viewMode, setViewMode] = useState("list");
   const [spots, setSpots] = useState([]);
+  const [selectedSpot, setSelectedSpot] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errored, setErrored] = useState(false);
   const [searchInput, setSearchInput] = useState(searchParams.get("q") || "");
@@ -650,7 +652,7 @@ function WellnessInner() {
               <>
                 <div className="wel-grid">
                   {spots.slice(0, visibleCount).map((s) => (
-                    <WellnessCard key={s.id} spot={s} />
+                    <WellnessCard key={s.id} spot={s} onOpenDetail={setSelectedSpot} />
                   ))}
                 </div>
                 {visibleCount < spots.length && (
@@ -670,6 +672,10 @@ function WellnessInner() {
           </>
         )}
       </main>
+      <WellnessSpotDetailModal
+        spot={selectedSpot}
+        onClose={() => setSelectedSpot(null)}
+      />
     </div>
   );
 }
@@ -711,13 +717,26 @@ function MarkerPopup({ spot }) {
   );
 }
 
-function WellnessCard({ spot }) {
+function WellnessCard({ spot, onOpenDetail }) {
   const { t } = useTranslation();
   const mapUrl = spot.address
     ? `https://map.kakao.com/link/search/${encodeURIComponent(spot.address)}`
     : null;
+  const openDetail = () => onOpenDetail?.(spot);
   return (
-    <article className="wel-card">
+    <article
+      className="wel-card wel-card-interactive"
+      role="button"
+      tabIndex={0}
+      onClick={openDetail}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openDetail();
+        }
+      }}
+      aria-label={`${spot.name || ""} 상세 보기`}
+    >
       <div className="wel-img">
         {spot.imageUrl ? (
           <img
@@ -746,7 +765,13 @@ function WellnessCard({ spot }) {
           <div className="wel-meta">
             <MapPin size={12} />
             {mapUrl ? (
-              <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="wel-addr-link">
+              <a
+                href={mapUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="wel-addr-link"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {spot.address}
               </a>
             ) : (
@@ -758,6 +783,7 @@ function WellnessCard({ spot }) {
           <Phone size={12} />
           <span>{spot.tel || t("wellness.phoneNone")}</span>
         </div>
+        <div className="wel-card-hint">{t("wellness.cardTapHint")}</div>
       </div>
     </article>
   );
@@ -994,6 +1020,20 @@ const cssBlock = `
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   box-shadow: 0 2px 8px rgba(0,0,0,0.25);
   display: flex; flex-direction: column;
+}
+.wel-card-interactive {
+  cursor: pointer;
+  outline: none;
+}
+.wel-card-interactive:focus-visible {
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.55), 0 10px 24px rgba(0,0,0,0.4);
+}
+.wel-card-hint {
+  margin-top: 6px;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.38);
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 .wel-card:hover {
   transform: translateY(-3px);

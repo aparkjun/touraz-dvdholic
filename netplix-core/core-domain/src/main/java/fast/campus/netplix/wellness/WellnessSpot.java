@@ -23,6 +23,7 @@ import lombok.Getter;
  *   <li>areacode/sigungucode → areaCode/sigunguCode</li>
  *   <li>contenttypeid → contentTypeId ("28" 레저, "39" 음식점, "14" 문화시설 등)</li>
  *   <li>dist(locationBased 응답의 m 단위) → distanceKm (어댑터에서 Haversine 재계산)</li>
+ *   <li>homepage (목록에 있으면) → homepage — 없으면 null. 상세 전용 API 연동 시 보강 가능.</li>
  * </ul>
  *
  * <p>웰니스 관광정보는 공식 분류 카테고리(cat1="A02", cat2="A0206", cat3="A02061200" 웰니스관광)에
@@ -46,6 +47,8 @@ public class WellnessSpot {
     private final String areaCode;
     private final String sigunguCode;
     private final String contentTypeId;
+    /** 목록 API에 있으면 수집. 많은 항목은 비어 있음(상세 API 미연동). */
+    private final String homepage;
     /** locationBased 호출 시 호출자 좌표 기준 반경 내 km 거리(Haversine). 전체/키워드 호출 시 null. */
     private final Double distanceKm;
 }

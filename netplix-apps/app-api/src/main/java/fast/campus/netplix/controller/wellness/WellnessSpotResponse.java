@@ -20,6 +20,7 @@ public record WellnessSpotResponse(
         String areaCode,
         String sigunguCode,
         String contentTypeId,
+        String homepage,
         Double distanceKm
 ) {
     public static WellnessSpotResponse from(WellnessSpot s) {
@@ -38,6 +39,7 @@ public record WellnessSpotResponse(
                 s.getAreaCode(),
                 s.getSigunguCode(),
                 s.getContentTypeId(),
+                s.getHomepage(),
                 s.getDistanceKm()
         );
     }

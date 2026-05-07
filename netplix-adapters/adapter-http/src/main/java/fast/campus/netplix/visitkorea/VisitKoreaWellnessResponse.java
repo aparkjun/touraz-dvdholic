@@ -1,5 +1,6 @@
 package fast.campus.netplix.visitkorea;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
@@ -78,7 +79,12 @@ public class VisitKoreaWellnessResponse {
         private String baseAddr;
         private String detailAddr;
         private String zipCd;
+        /** 목록 API에서 전화번호 필드명이 스펙/버전에 따라 달라질 수 있어 별칭 허용. */
+        @JsonAlias({ "phone", "phoneno", "telNo", "contactTel", "officeTel" })
         private String tel;
+        /** 일부 목록 항목에서만 내려올 수 있음(KTO wellness item 스키마에 있으면 수집). */
+        @JsonAlias({ "homePage", "hmpgAddr", "url" })
+        private String homepage;
         private String orgImage;
         private String thumbImage;
         private String mapX;          // 경도(longitude)

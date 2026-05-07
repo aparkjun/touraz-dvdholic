@@ -445,6 +445,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
                 .areaCode(nullIfBlank(i.getLDongRegnCd()))
                 .sigunguCode(nullIfBlank(i.getLDongSignguCd()))
                 .contentTypeId(nullIfBlank(i.getContentTypeId()))
+                .homepage(normalizeHomepage(nullIfBlank(i.getHomepage())))
                 .build();
     }
 
@@ -466,6 +467,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
                 .areaCode(s.getAreaCode())
                 .sigunguCode(s.getSigunguCode())
                 .contentTypeId(s.getContentTypeId())
+                .homepage(s.getHomepage())
                 .distanceKm(Math.round(d * 100.0) / 100.0)
                 .build();
     }
@@ -488,6 +490,17 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
     }
 
     private static String nullIfBlank(String s) { return (s == null || s.isBlank()) ? null : s; }
+
+    /** 공공 API 홈페이지 값이 스킴 없이 도메인만 오는 경우가 많아 브라우저 안전 URL 로 보정. */
+    private static String normalizeHomepage(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String t = raw.trim();
+        if (t.startsWith("//")) return "https:" + t;
+        if (t.toLowerCase(Locale.ROOT).startsWith("http://") || t.toLowerCase(Locale.ROOT).startsWith("https://")) {
+            return t;
+        }
+        return "https://" + t;
+    }
 
     private static String joinAddr(String a1, String a2) {
         if ((a1 == null || a1.isBlank()) && (a2 == null || a2.isBlank())) return null;
