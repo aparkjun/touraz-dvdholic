@@ -564,10 +564,44 @@ function MovieImagesContent() {
       <div style={{ maxWidth: "960px", margin: "0 auto" }}>
         {/* 한 줄 메타 + 배지 */}
         {(getOneLineMeta(movie) || movie.voteAverage >= 7.5 || isRecentRelease(movie)) && (
-          <div style={{ padding: "10px 15px 12px", borderBottom: `1px solid ${palette.border}`, display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center", marginBottom: "12px" }}>
+          <div style={{ padding: "10px 15px 14px", borderBottom: `1px solid ${palette.border}`, display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center", alignItems: "center", marginBottom: "12px" }}>
             {getOneLineMeta(movie) && <span style={{ color: palette.textMuted, fontSize: "13px", fontWeight: 500 }}>{getOneLineMeta(movie)}</span>}
-            {movie.voteAverage >= 7.5 && <span style={{ padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, backgroundColor: "rgba(229, 193, 0, 0.2)", color: "#E5C100", border: "1px solid rgba(229, 193, 0, 0.4)" }}>⭐ {t("movieImages.highRating")}</span>}
-            {isRecentRelease(movie) && <span style={{ padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, backgroundColor: "rgba(0, 200, 83, 0.2)", color: "#00C853", border: "1px solid rgba(0, 200, 83, 0.4)" }}>🆕 {t("movieImages.recent")}</span>}
+            {movie.voteAverage >= 7.5 && (
+              <span
+                style={{
+                  padding: "5px 12px",
+                  borderRadius: "999px",
+                  fontSize: "12px",
+                  fontWeight: 800,
+                  letterSpacing: "0.3px",
+                  background: "linear-gradient(135deg, #FFD93D 0%, #FF8A00 100%)",
+                  color: "#1a0f00",
+                  border: "1px solid rgba(255, 217, 61, 0.9)",
+                  textShadow: "0 1px 0 rgba(255,255,255,0.25)",
+                  boxShadow: "0 0 0 1px rgba(255,217,61,0.25), 0 4px 14px rgba(255, 138, 0, 0.55), inset 0 1px 0 rgba(255,255,255,0.4)",
+                }}
+              >
+                ⭐ {t("movieImages.highRating")}
+              </span>
+            )}
+            {isRecentRelease(movie) && (
+              <span
+                style={{
+                  padding: "5px 12px",
+                  borderRadius: "999px",
+                  fontSize: "12px",
+                  fontWeight: 800,
+                  letterSpacing: "0.3px",
+                  background: "linear-gradient(135deg, #00E676 0%, #00B0FF 100%)",
+                  color: "#001a0d",
+                  border: "1px solid rgba(0, 230, 118, 0.9)",
+                  textShadow: "0 1px 0 rgba(255,255,255,0.25)",
+                  boxShadow: "0 0 0 1px rgba(0,230,118,0.25), 0 4px 14px rgba(0, 176, 255, 0.5), inset 0 1px 0 rgba(255,255,255,0.4)",
+                }}
+              >
+                🆕 {t("movieImages.recent")}
+              </span>
+            )}
           </div>
         )}
 
