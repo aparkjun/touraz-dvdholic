@@ -1784,8 +1784,16 @@ function DashboardContent() {
                 {catMovies.map((item, index) => {
                   const activeTab = getActiveTab(item.movieName);
                   const currentImagePath = activeTab === "poster" ? getPosterPath(item) : getBackdropPath(item);
+                  // 카테고리 단위 contentType 이 "all" 인 경우 (한국이 만든 콘텐츠 등 영화·DVD 혼합),
+                  // 개별 아이템의 contentType("movie"/"dvd")을 우선 사용해 상세 페이지로 정확히 전달.
+                  // 그렇지 않으면 영화 뱃지가 붙은 카드를 눌러도 ?contentType=all 로 이동해
+                  // 상세 페이지가 모든 분기를 DVD 로 처리하는 문제가 발생.
+                  const itemCt = String(item?.contentType || "").toLowerCase();
+                  const navCt = cat.contentType === "all"
+                    ? (itemCt === "movie" || itemCt === "dvd" ? itemCt : "movie")
+                    : cat.contentType;
                   const goToDetail = () => {
-                    router.push(`/dashboard/images?movieName=${encodeURIComponent(item.movieName)}&contentType=${cat.contentType}`);
+                    router.push(`/dashboard/images?movieName=${encodeURIComponent(item.movieName)}&contentType=${navCt}`);
                   };
                   return (
                     <div

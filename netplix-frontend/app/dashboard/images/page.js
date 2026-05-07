@@ -114,7 +114,7 @@ function MovieImagesContent() {
   const { t } = useTranslation();
   const searchParams = useSearchParams();
   const movieNameParam = searchParams.get("movieName");
-  const contentTypeParam = searchParams.get("contentType") || "dvd";
+  const contentTypeParam = searchParams.get("contentType");
 
   const [movie, setMovie] = useState(null);
   const [detailLoading, setDetailLoading] = useState(true);
@@ -128,7 +128,23 @@ function MovieImagesContent() {
     axios.get(`/api/v1/movie/${encodeURIComponent(movieNameParam)}/detail`)
       .then((res) => {
         if (res.data?.success && res.data.data) {
-          setMovie({ ...res.data.data, contentType: contentTypeParam });
+          const apiData = res.data.data;
+          // URL 의 contentType 은 "movie" / "dvd" 둘 중 하나여야 의미가 있다.
+          // "all" 처럼 모호한 값이거나 비어있으면 백엔드 응답의 contentType 을 사용하고,
+          // 그것마저 없으면 영화로 폴백한다.
+          // (예전엔 무조건 contentTypeParam 로 덮어써서 영화 뱃지가 붙은 항목을
+          //  ?contentType=all 로 진입해도 "DVD" 로 처리되어 어긋남 — '말이 없네요' 메시지 등.)
+          const param = String(contentTypeParam || "").toLowerCase();
+          const apiCt = String(apiData?.contentType || "").toLowerCase();
+          let resolvedCt;
+          if (param === "movie" || param === "dvd") {
+            resolvedCt = param;
+          } else if (apiCt === "movie" || apiCt === "dvd") {
+            resolvedCt = apiCt;
+          } else {
+            resolvedCt = "movie";
+          }
+          setMovie({ ...apiData, contentType: resolvedCt });
         }
       })
       .catch(() => {})
