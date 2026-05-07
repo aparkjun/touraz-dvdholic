@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, X, MapPin } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
+import useBackButtonClose from '@/lib/useBackButtonClose';
 
 /**
  * 관광공모전(사진) 수상작 갤러리 스트립.
@@ -36,6 +37,10 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
     setZoom(1);
     setPan({ x: 0, y: 0 });
   }, [activePhoto?.contentId]);
+
+  // 라이트박스가 열린 상태에서 브라우저/모바일 "뒤로 가기" 가 페이지 이동이 아닌
+  // 라이트박스 닫기로 동작하도록 history 항목을 관리한다.
+  useBackButtonClose(!!activePhoto, () => setActivePhoto(null));
 
   useEffect(() => {
     if (zoom <= 1.001) setPan({ x: 0, y: 0 });

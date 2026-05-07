@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
+import useBackButtonClose from "@/lib/useBackButtonClose";
 import {
   X,
   Play,
@@ -159,6 +160,9 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       document.body.style.overflow = prevOverflow;
     };
   }, [item, onClose]);
+
+  // 모달 열린 동안 시스템 "뒤로 가기" → 페이지 이동 대신 모달 닫기.
+  useBackButtonClose(!!item, onClose);
 
   if (!item) return null;
 

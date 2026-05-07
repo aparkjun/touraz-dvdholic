@@ -24,6 +24,7 @@ import { useTranslation } from "react-i18next";
 import Link from "next/link";
 import { useMedicalFavorites } from "@/lib/useMedicalFavorites";
 import { areaLabel, resolveAreaCode } from "@/lib/regionAreaCode";
+import useBackButtonClose from "@/lib/useBackButtonClose";
 import {
   X,
   ChevronLeft,
@@ -151,6 +152,9 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
       document.body.style.overflow = prev;
     };
   }, [onClose]);
+
+  // 모달 열린 동안 시스템 "뒤로 가기" → 페이지 이동 대신 모달 닫기.
+  useBackButtonClose(true, onClose);
 
   const handleShare = async () => {
     setShareError("");

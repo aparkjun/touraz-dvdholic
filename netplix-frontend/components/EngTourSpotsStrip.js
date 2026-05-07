@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
+import useBackButtonClose from '@/lib/useBackButtonClose';
 
 /**
  * 영어 모드 전용 "Travel Spots Around This Film" 스트립.
@@ -41,6 +42,9 @@ export default function EngTourSpotsStrip({ areaCode, regionLabel = '' }) {
   const [activeBucket, setActiveBucket] = useState('attractions');
   const [loading, setLoading] = useState(true);
   const [activePoi, setActivePoi] = useState(null);
+
+  // 상세 모달이 열려 있을 때 시스템 "뒤로 가기" → 페이지 이동 대신 모달 닫기.
+  useBackButtonClose(!!activePoi, () => setActivePoi(null));
 
   useEffect(() => {
     if (!isEn || !areaCode) {

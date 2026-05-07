@@ -18,6 +18,7 @@ import {
 import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
 import { KakaoMapLogo, NaverNLogo } from '@/components/BrandMapSearchIcons';
+import useBackButtonClose from '@/lib/useBackButtonClose';
 
 /**
  * CineTrip 상세 모달 / 반려동물 전용 페이지에서 공용으로 쓰는 "반려동물 친화 스팟" 스트립.
@@ -447,6 +448,9 @@ function PetFriendlyPoiDetailModal({ summary, bucket, onClose }) {
       window.removeEventListener('keydown', onKey);
     };
   }, [onClose]);
+
+  // 시스템 "뒤로 가기" → 페이지 이동 대신 모달만 닫기.
+  useBackButtonClose(true, onClose);
 
   useEffect(() => {
     if (!summary?.contentId) {

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { KakaoMapLogo, NaverNLogo, GoogleGLogo } from '@/components/BrandMapSearchIcons';
+import useBackButtonClose from '@/lib/useBackButtonClose';
 import ConcentrationForecastStrip from '@/components/ConcentrationForecastStrip';
 import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
 import AccessibleSpotsStrip from '@/components/AccessibleSpotsStrip';
@@ -105,6 +106,10 @@ export default function TravelCourseModal({
       window.removeEventListener('keydown', handler);
     };
   }, [onClose]);
+
+  // 모달이 열려 있는 동안 브라우저/모바일 "뒤로 가기"가 cine-trip 페이지를 떠나는 게 아니라
+  // 이 모달만 닫도록 history 항목을 관리.
+  useBackButtonClose(true, onClose);
 
   const regionMap = new Map();
   for (const m of mappings) {

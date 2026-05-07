@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "@/src/axiosConfig";
 import { useTranslation } from "react-i18next";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import useBackButtonClose from "@/lib/useBackButtonClose";
 
 /**
  * 관광사진갤러리 섹션 (공용 컴포넌트).
@@ -98,6 +99,11 @@ export default function TourGallerySection({
   }, [infinite, pageSize, items.length, visibleCount]);
 
   const handleClose = useCallback(() => setSelectedIndex(null), []);
+
+  // 라이트박스가 열린 상태에서 브라우저/모바일 "뒤로 가기" 가
+  // 페이지 이동이 아니라 라이트박스 닫기로 동작하도록 history 항목을 관리.
+  useBackButtonClose(selectedIndex !== null, handleClose);
+
   const handlePrev = useCallback(
     () => setSelectedIndex((p) => (p > 0 ? p - 1 : p)),
     []

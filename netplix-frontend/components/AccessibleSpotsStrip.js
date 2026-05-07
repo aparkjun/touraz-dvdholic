@@ -18,6 +18,7 @@ import {
 import axios from '@/lib/axiosConfig';
 import { KakaoMapLogo, NaverNLogo } from '@/components/BrandMapSearchIcons';
 import { useTranslation } from 'react-i18next';
+import useBackButtonClose from '@/lib/useBackButtonClose';
 
 /**
  * CineTrip 상세 모달용 "이 지역 무장애 스팟" 스트립.
@@ -453,6 +454,9 @@ function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
       window.removeEventListener('keydown', onKey);
     };
   }, [onClose]);
+
+  // 시스템 "뒤로 가기" → 페이지 이동 대신 모달만 닫기.
+  useBackButtonClose(true, onClose);
 
   useEffect(() => {
     if (!summary?.contentId) {
