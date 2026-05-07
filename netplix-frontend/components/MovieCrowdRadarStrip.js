@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Radar, Activity, MapPin, ArrowRight, Image as ImageIcon, Leaf } from 'lucide-react';
+import { Radar, Activity, MapPin, ArrowRight, Image as ImageIcon, Leaf, Sparkles } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
 import { areaLabel } from '@/lib/regionAreaCode';
@@ -11,17 +11,12 @@ import { areaLabel } from '@/lib/regionAreaCode';
 /**
  * Quiet Set Radar · 영화 상세 페이지용 혼잡도 배지 스트립.
  *
- * 동선:
- *   영화 상세 진입 → /api/v1/cine-trip/movie?name={movieName} 로 이 영화의 촬영지/배경지 매핑 조회
- *   → 신뢰도 가장 높은 매핑의 areaCode 를 추출
- *   → /api/v1/cine-trip/concentration?areaCode={X} 로 향후 7일 혼잡도 예측 수집
- *   → 평균 집중률을 계산해 "이번 주 촬영지 한가함/보통/혼잡" 배지로 요약
- *   → 7일 막대(미니 바) + "Quiet Set Radar 로 한산한 날 찾기" CTA 노출
- *
- * 숨김 조건(UX 간섭 방지):
- *   - 영화 → areaCode 매핑이 하나도 없으면 섹션 자체 숨김
- *   - 영어 모드(i18n) 에서는 혼잡도 데이터가 한국어 라벨만 제공되므로 숨김
- *   - 로딩 중 404/에러면 숨김 (영화 상세의 다른 콘텐츠에 간섭하지 않도록)
+ * 디자인 방향:
+ *  - 슬레이트 다크 베이스(#0b1220 → #0f172a) + 시안(#22d3ee) 액센트 1색 포인트로 절제.
+ *  - 정보 위계 3단(헤더 / 7일 미니 차트 / 액션 푸터)을 부드러운 디바이더로 명확히 분리.
+ *  - "가장 한가한 날(BEST)" 한 칸만 시안 컬러 + 글로우로 시선 잠금.
+ *  - 막대 위에 수치(%), 막대 아래에 두 줄 날짜(MM.DD / 요일) 노출 — 작아도 읽힘.
+ *  - 회전형 conic-gradient 같은 노이지한 장식 제거. 미세한 그리드 그라디언트만 잔향으로.
  */
 export default function MovieCrowdRadarStrip({ movieName }) {
   const { i18n } = useTranslation();
@@ -45,8 +40,6 @@ export default function MovieCrowdRadarStrip({ movieName }) {
         const res = await axios.get(
           `/api/v1/cine-trip/movie?name=${encodeURIComponent(movieName)}`
         );
-        // CineTripResponse 배열: [{ movie, mappings: [{areaCode, regionName, confidence, trendingScore, ...}], trendingScore }]
-        // 모든 아이템의 mappings 를 평탄화한 뒤 trendingScore/confidence 최고를 선택.
         const items = Array.isArray(res?.data?.data) ? res.data.data : [];
         const allMappings = [];
         items.forEach((it) => {
@@ -93,7 +86,6 @@ export default function MovieCrowdRadarStrip({ movieName }) {
     const avg = rates.reduce((s, v) => s + v, 0) / rates.length;
     const min = Math.min(...rates);
     const max = Math.max(...rates);
-    // 가장 한가한 날 찾기
     let bestIdx = 0;
     predictions.forEach((p, i) => {
       if ((p?.concentrationRate ?? 999) < (predictions[bestIdx]?.concentrationRate ?? 999)) {
@@ -118,72 +110,107 @@ export default function MovieCrowdRadarStrip({ movieName }) {
   if (!loading && (!mapping || !predictions.length)) return null;
 
   const level = summary ? rateLevel(summary.avg) : null;
+  const regionLabel = [
+    summary?.areaName || mapping?.regionName,
+    summary?.signguName,
+    summary?.spotName,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const wellnessQuery =
+    summary?.areaName || mapping?.regionName || areaLabel(mapping?.areaCode) || '';
 
   return (
     <section
       style={{
         margin: '0 15px 12px',
-        padding: '14px 16px',
-        borderRadius: 14,
+        borderRadius: 16,
         background:
-          'linear-gradient(135deg, rgba(34,211,238,0.10) 0%, rgba(99,102,241,0.10) 55%, rgba(244,63,94,0.10) 100%)',
-        border: '1px solid rgba(103,232,249,0.25)',
-        position: 'relative',
+          'linear-gradient(180deg, rgba(15,23,42,0.92) 0%, rgba(11,18,32,0.92) 100%)',
+        border: '1px solid rgba(148,163,184,0.14)',
+        boxShadow:
+          '0 18px 40px -24px rgba(2,6,23,0.85), inset 0 1px 0 rgba(255,255,255,0.04)',
+        backdropFilter: 'blur(14px) saturate(1.1)',
+        WebkitBackdropFilter: 'blur(14px) saturate(1.1)',
         overflow: 'hidden',
+        position: 'relative',
       }}
+      aria-label="Quiet Set Radar"
     >
+      {/* 카드 상단 시안 라이팅 — 헤어라인 */}
       <div
         aria-hidden
         style={{
           position: 'absolute',
-          inset: -60,
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 1,
           background:
-            'conic-gradient(from 0deg, rgba(34,211,238,0.08), rgba(99,102,241,0.08), rgba(244,63,94,0.08), rgba(34,211,238,0.08))',
-          animation: 'crowdradar-sweep 14s linear infinite',
-          filter: 'blur(40px)',
-          zIndex: 0,
+            'linear-gradient(90deg, transparent 0%, rgba(34,211,238,0.55) 50%, transparent 100%)',
         }}
       />
-      <div style={{ position: 'relative', zIndex: 1 }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            flexWrap: 'wrap',
-            marginBottom: 10,
-          }}
-        >
-          <div
+      {/* 카드 좌상단 시안 광원 — 미세 글로우 */}
+      <div
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: -80,
+          left: -40,
+          width: 220,
+          height: 220,
+          background:
+            'radial-gradient(closest-side, rgba(34,211,238,0.16), transparent 70%)',
+          filter: 'blur(8px)',
+          pointerEvents: 'none',
+        }}
+      />
+
+      {/* HEADER */}
+      <header
+        style={{
+          padding: '14px 16px 12px',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 12,
+          flexWrap: 'wrap',
+          position: 'relative',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 auto', minWidth: 0 }}>
+          <span
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              padding: '4px 10px',
+              padding: '3px 9px',
               borderRadius: 999,
-              background: 'rgba(103,232,249,0.12)',
-              border: '1px solid rgba(103,232,249,0.35)',
-              color: '#a7f3d0',
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.4px',
+              background: 'rgba(34,211,238,0.10)',
+              border: '1px solid rgba(34,211,238,0.30)',
+              color: '#67e8f9',
+              fontSize: 10.5,
+              fontWeight: 800,
+              letterSpacing: '0.12em',
+              alignSelf: 'flex-start',
+              textTransform: 'uppercase',
             }}
           >
-            <Radar size={12} />
-            QUIET SET RADAR
-          </div>
+            <Radar size={11} strokeWidth={2.5} />
+            Quiet Set Radar
+          </span>
           <h3
             style={{
               margin: 0,
-              fontSize: 15,
+              fontSize: 16,
               fontWeight: 800,
-              color: '#fff',
-              letterSpacing: '-0.2px',
+              color: '#f8fafc',
+              letterSpacing: '-0.3px',
+              lineHeight: 1.25,
             }}
           >
             이번 주 촬영지 한가함
           </h3>
-          {summary?.spotName && (
+          {regionLabel && (
             <Link
               href={`/cine-trip?area=${encodeURIComponent(mapping?.areaCode || '')}`}
               title="이 촬영지를 Cine-Trip 페이지에서 열기"
@@ -191,67 +218,97 @@ export default function MovieCrowdRadarStrip({ movieName }) {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 4,
-                padding: '3px 8px',
-                borderRadius: 10,
-                background: 'rgba(96,165,250,0.12)',
-                border: '1px solid rgba(96,165,250,0.28)',
-                color: '#cfe0ff',
-                fontSize: 11,
+                color: '#cbd5e1',
+                fontSize: 12,
                 fontWeight: 600,
                 textDecoration: 'none',
-                transition: 'all 0.15s',
+                opacity: 0.92,
+                alignSelf: 'flex-start',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(96,165,250,0.22)';
+                e.currentTarget.style.color = '#67e8f9';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(96,165,250,0.12)';
+                e.currentTarget.style.color = '#cbd5e1';
               }}
             >
               <MapPin size={11} />
-              {summary.areaName || mapping?.regionName}
-              {summary.signguName ? ` · ${summary.signguName}` : ''}
-              {summary.spotName ? ` · ${summary.spotName}` : ''}
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>
+                {regionLabel}
+              </span>
             </Link>
           )}
-          {level && (
+        </div>
+        {level && (
+          <div
+            style={{
+              display: 'inline-flex',
+              flexDirection: 'column',
+              alignItems: 'flex-end',
+              gap: 3,
+              padding: '8px 12px',
+              borderRadius: 12,
+              background: `${level.color}14`,
+              border: `1px solid ${level.color}55`,
+              minWidth: 88,
+            }}
+          >
             <span
               style={{
-                marginLeft: 'auto',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 6,
-                padding: '4px 10px',
-                borderRadius: 999,
-                background: `${level.color}22`,
-                border: `1px solid ${level.color}66`,
+                gap: 5,
                 color: level.color,
                 fontSize: 12,
-                fontWeight: 700,
+                fontWeight: 800,
+                letterSpacing: '-0.1px',
               }}
             >
               <Activity size={12} />
-              {level.label} · 평균 {summary.avg.toFixed(1)}
+              {level.label}
             </span>
-          )}
-        </div>
+            <span
+              style={{
+                fontSize: 10,
+                color: '#94a3b8',
+                fontWeight: 600,
+                letterSpacing: '0.02em',
+              }}
+            >
+              평균 {summary.avg.toFixed(1)}
+            </span>
+          </div>
+        )}
+      </header>
 
+      {/* 디바이더 */}
+      <div
+        aria-hidden
+        style={{
+          height: 1,
+          background:
+            'linear-gradient(90deg, transparent, rgba(148,163,184,0.18), transparent)',
+        }}
+      />
+
+      {/* CHART */}
+      <div style={{ padding: '16px 16px 12px' }}>
         {loading ? (
           <div
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(7, 1fr)',
-              gap: 6,
-              height: 64,
+              gap: 8,
+              height: 96,
             }}
           >
             {Array.from({ length: 7 }).map((_, i) => (
               <div
                 key={i}
                 style={{
-                  borderRadius: 6,
+                  borderRadius: 8,
                   background:
-                    'linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 100%)',
+                    'linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.10) 50%, rgba(255,255,255,0.04) 100%)',
                   backgroundSize: '200% 100%',
                   animation: 'crowdradar-shimmer 1.6s infinite',
                 }}
@@ -263,7 +320,8 @@ export default function MovieCrowdRadarStrip({ movieName }) {
             style={{
               display: 'grid',
               gridTemplateColumns: `repeat(${Math.max(1, Math.min(predictions.length, 7))}, 1fr)`,
-              gap: 6,
+              gap: 8,
+              alignItems: 'end',
             }}
           >
             {predictions.slice(0, 7).map((p, idx) => (
@@ -276,57 +334,130 @@ export default function MovieCrowdRadarStrip({ movieName }) {
             ))}
           </div>
         )}
+        {/* 범례 */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 6,
+            marginTop: 10,
+            fontSize: 10,
+            color: '#94a3b8',
+            letterSpacing: '0.02em',
+          }}
+        >
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <span
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 2,
+                background: 'linear-gradient(180deg, #22d3ee, #06b6d4)',
+                boxShadow: '0 0 0 2px rgba(34,211,238,0.18)',
+              }}
+            />
+            가장 한가
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {LEVELS.map((l) => (
+              <span
+                key={l.label}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                title={`< ${l.max}`}
+              >
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: 2,
+                    background: l.color,
+                    opacity: 0.85,
+                  }}
+                />
+                {l.label}
+              </span>
+            ))}
+          </span>
+        </div>
+      </div>
 
+      {/* 디바이더 */}
+      <div
+        aria-hidden
+        style={{
+          height: 1,
+          background:
+            'linear-gradient(90deg, transparent, rgba(148,163,184,0.14), transparent)',
+        }}
+      />
+
+      {/* FOOTER */}
+      <footer style={{ padding: '12px 16px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 8,
-            marginTop: 10,
             flexWrap: 'wrap',
           }}
         >
           {summary?.best && (
             <Link
-              href={`/wellness?q=${encodeURIComponent(
-                summary.areaName || mapping?.regionName || areaLabel(mapping?.areaCode) || ''
-              )}`}
+              href={`/wellness?q=${encodeURIComponent(wellnessQuery)}`}
               title="이 지역의 힐링 스팟으로 한산한 날 회복하기"
               style={{
-                fontSize: 12,
-                color: '#a7f3d0',
-                padding: '4px 10px',
-                borderRadius: 10,
-                background: 'rgba(52,211,153,0.10)',
-                border: '1px solid rgba(52,211,153,0.25)',
-                textDecoration: 'none',
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 5,
+                gap: 6,
+                padding: '6px 11px',
+                borderRadius: 10,
+                background: 'rgba(34,211,238,0.08)',
+                border: '1px solid rgba(34,211,238,0.28)',
+                color: '#a5f3fc',
+                fontSize: 12,
+                fontWeight: 700,
+                textDecoration: 'none',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(34,211,238,0.16)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(34,211,238,0.08)';
               }}
             >
-              <Leaf size={12} />
-              가장 한가한 날 · <b>{formatDateShort(summary.best.baseDate)}</b>
-              {' '}({summary.best.concentrationRate?.toFixed(1)}) 에 힐링
+              <Sparkles size={12} />
+              <span>
+                <b style={{ color: '#67e8f9', fontWeight: 800 }}>
+                  {formatDateShort(summary.best.baseDate)}
+                </b>{' '}
+                힐링
+              </span>
             </Link>
           )}
           <Link
-            href={`/photo-gallery?q=${encodeURIComponent(
-              summary?.areaName || mapping?.regionName || areaLabel(mapping?.areaCode) || ''
-            )}`}
+            href={`/photo-gallery?q=${encodeURIComponent(wellnessQuery)}`}
             title="이 지역 촬영지 사진 갤러리"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 5,
-              padding: '6px 12px',
-              borderRadius: 999,
-              background: 'rgba(244,63,94,0.12)',
-              border: '1px solid rgba(244,63,94,0.3)',
-              color: '#fecdd3',
+              gap: 6,
+              padding: '6px 11px',
+              borderRadius: 10,
+              background: 'rgba(148,163,184,0.08)',
+              border: '1px solid rgba(148,163,184,0.22)',
+              color: '#e2e8f0',
               fontSize: 12,
               fontWeight: 700,
               textDecoration: 'none',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(148,163,184,0.16)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(148,163,184,0.08)';
             }}
           >
             <ImageIcon size={12} />
@@ -339,27 +470,39 @@ export default function MovieCrowdRadarStrip({ movieName }) {
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              padding: '6px 12px',
+              padding: '7px 14px',
               borderRadius: 999,
-              background: 'linear-gradient(90deg, #22d3ee, #6366f1)',
+              background:
+                'linear-gradient(135deg, rgba(34,211,238,0.95), rgba(14,165,233,0.95))',
               color: '#0b1220',
               fontSize: 12,
               fontWeight: 800,
+              letterSpacing: '0.01em',
               textDecoration: 'none',
-              boxShadow: '0 8px 24px -12px rgba(34,211,238,0.7)',
+              boxShadow: '0 6px 18px -8px rgba(34,211,238,0.7)',
+              transition: 'transform 0.18s ease, box-shadow 0.18s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 10px 24px -8px rgba(34,211,238,0.85)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 6px 18px -8px rgba(34,211,238,0.7)';
             }}
           >
-            이 지역 30일 레이더 보기
+            30일 레이더
             <ArrowRight size={12} />
           </Link>
         </div>
-        <div style={{ fontSize: 10, color: '#6b7280', marginTop: 8 }}>
-          출처: 한국관광공사 관광지 집중률 방문자 추이 예측 (영화 매핑은 자체 큐레이션)
+        <div style={{ fontSize: 10, color: '#64748b', letterSpacing: '0.01em' }}>
+          출처: 한국관광공사 관광지 집중률 방문자 추이 예측 · 영화 매핑은 자체 큐레이션
         </div>
-      </div>
+      </footer>
+
       <style>{`
-        @keyframes crowdradar-sweep { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes crowdradar-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        @keyframes crowdradar-bar { from { transform: scaleY(0); } to { transform: scaleY(1); } }
       `}</style>
     </section>
   );
@@ -393,98 +536,142 @@ function MiniBar({ prediction, index, isBest = false }) {
   const rate = prediction?.concentrationRate ?? 0;
   const level = rateLevel(rate);
   const pct = Math.max(8, Math.min(100, rate));
-  // 가장 한가한 날은 등급 색상 대신 시그니처 청록(turquoise→cyan) 그라디언트로
-  // 강조해 다른 날들과 한눈에 구분되게 한다.
-  const barGradient = isBest
-    ? 'linear-gradient(180deg, #5eead4 0%, #06b6d4 60%, #0891b2 100%)'
-    : `linear-gradient(180deg, ${level.color}ff, ${level.color}88)`;
-  // 날짜 라벨도 다른 날들 (회색) 과 분리해 시안 색 + 굵게.
-  const labelColor = isBest ? '#67e8f9' : '#e5e7eb';
-  const labelWeight = isBest ? 800 : 700;
   const dateLabel = formatDateShort(prediction?.baseDate);
-  // 'MM.DD(요일)' → 'MM.DD' 와 '(요일)' 두 줄로 분리해 작은 폭에서도 읽히게.
   const datePart = dateLabel.replace(/\([^)]*\)$/, '');
   const dowMatch = dateLabel.match(/\(([^)]+)\)$/);
   const dowPart = dowMatch ? dowMatch[1] : '';
+
+  // BEST 칸은 시안 그라디언트 + 글로우, 나머지는 등급별 절제된 단색 그라디언트.
+  const barFill = isBest
+    ? 'linear-gradient(180deg, #67e8f9 0%, #22d3ee 50%, #0891b2 100%)'
+    : `linear-gradient(180deg, ${level.color}f2 0%, ${level.color}99 100%)`;
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.28) }}
+      transition={{ duration: 0.32, delay: Math.min(index * 0.05, 0.32) }}
       style={{
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 5,
+        gap: 6,
+        position: 'relative',
       }}
-      title={`${dateLabel} · ${rate?.toFixed?.(1) ?? '-'}${isBest ? ' · 가장 한가' : ''}`}
+      title={`${dateLabel} · 집중률 ${rate?.toFixed?.(1) ?? '-'}${isBest ? ' · 가장 한가' : ''}`}
     >
+      {/* 막대 위 수치 */}
+      <span
+        style={{
+          fontSize: 10,
+          fontWeight: 700,
+          color: isBest ? '#67e8f9' : '#cbd5e1',
+          letterSpacing: '-0.2px',
+          lineHeight: 1,
+          minHeight: 12,
+        }}
+      >
+        {Number.isFinite(rate) ? rate.toFixed(0) : '-'}
+      </span>
+
+      {/* 막대 트랙 */}
       <div
         style={{
           width: '100%',
-          height: 48,
-          borderRadius: 6,
-          background: 'rgba(255,255,255,0.04)',
+          height: 64,
+          borderRadius: 8,
+          background:
+            'linear-gradient(180deg, rgba(15,23,42,0.6) 0%, rgba(15,23,42,0.35) 100%)',
           border: isBest
-            ? '1.5px solid rgba(103,232,249,0.85)'
-            : '1px solid rgba(255,255,255,0.06)',
+            ? '1px solid rgba(103,232,249,0.6)'
+            : '1px solid rgba(148,163,184,0.12)',
           display: 'flex',
           alignItems: 'flex-end',
           overflow: 'hidden',
           boxShadow: isBest
-            ? '0 0 0 2px rgba(103,232,249,0.2), 0 6px 18px -6px rgba(34,211,238,0.6)'
-            : 'none',
+            ? '0 0 0 2px rgba(34,211,238,0.18), 0 6px 18px -8px rgba(34,211,238,0.55)'
+            : 'inset 0 1px 0 rgba(255,255,255,0.03)',
           position: 'relative',
         }}
       >
+        {/* 그리드 가이드라인 (눈금 25/50/75%) */}
+        {[75, 50, 25].map((g) => (
+          <span
+            key={g}
+            aria-hidden
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: `${g}%`,
+              height: 1,
+              background: 'rgba(148,163,184,0.08)',
+            }}
+          />
+        ))}
+
+        {/* 실제 막대 */}
         <div
           style={{
             width: '100%',
             height: `${pct}%`,
-            background: barGradient,
+            background: barFill,
+            transformOrigin: 'bottom',
+            animation: 'crowdradar-bar 0.5s cubic-bezier(0.22, 1, 0.36, 1) both',
+            animationDelay: `${Math.min(index * 0.05, 0.3)}s`,
+            borderRadius: '6px 6px 4px 4px',
           }}
         />
+
+        {/* BEST 표지 */}
         {isBest && (
           <span
             style={{
               position: 'absolute',
-              top: 2,
-              left: 2,
-              right: 2,
+              top: 4,
+              left: '50%',
+              transform: 'translateX(-50%)',
               fontSize: 9,
               fontWeight: 800,
               color: '#001a1f',
-              background: '#67e8f9',
-              borderRadius: 3,
-              padding: '1px 0',
-              textAlign: 'center',
-              letterSpacing: '0.3px',
-              lineHeight: 1.2,
-              textShadow: '0 1px 0 rgba(255,255,255,0.4)',
+              background:
+                'linear-gradient(135deg, #67e8f9, #06b6d4)',
+              borderRadius: 4,
+              padding: '1px 6px',
+              letterSpacing: '0.06em',
+              textShadow: '0 1px 0 rgba(255,255,255,0.35)',
+              boxShadow: '0 2px 6px rgba(34,211,238,0.45)',
             }}
           >
             BEST
           </span>
         )}
       </div>
+
+      {/* 날짜 라벨 (두 줄) */}
       <div
         style={{
-          fontSize: 11,
-          fontWeight: labelWeight,
-          color: labelColor,
-          lineHeight: 1.15,
-          letterSpacing: '-0.2px',
           textAlign: 'center',
+          lineHeight: 1.15,
           textShadow: '0 1px 2px rgba(0,0,0,0.45)',
         }}
       >
-        <div>{datePart}</div>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: isBest ? '#67e8f9' : '#e2e8f0',
+            letterSpacing: '-0.2px',
+          }}
+        >
+          {datePart}
+        </div>
         {dowPart && (
           <div
             style={{
               fontSize: 10,
-              fontWeight: 700,
-              color: isBest ? '#a5f3fc' : '#cbd5e1',
+              fontWeight: 600,
+              color: isBest ? '#a5f3fc' : '#94a3b8',
               marginTop: 1,
             }}
           >
