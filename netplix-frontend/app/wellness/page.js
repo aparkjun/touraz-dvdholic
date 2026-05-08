@@ -676,13 +676,11 @@ export default function WellnessPage() {
 }
 
 const cssBlock = `
-@import url('https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap');
 .wel-root {
   min-height: 100vh;
   position: relative;
   isolation: isolate;
   overflow-x: hidden;
-  font-family: "Gowun Batang", "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, sans-serif;
   background:
     radial-gradient(1200px 500px at 10% -10%, rgba(102, 118, 108, 0.16) 0%, transparent 60%),
     radial-gradient(1000px 400px at 100% 0%, rgba(115, 108, 128, 0.12) 0%, transparent 60%),
