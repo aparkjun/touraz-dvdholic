@@ -160,31 +160,53 @@ function pickInitialEnVoiceKey(list) {
   return pickInitialVoiceKey(list, TTS_EN_VOICE_STORAGE_KEY);
 }
 
-function applyTtsVoiceToUtter(utter, lang, koKey, enKey) {
+function applyTtsVoiceToUtter(utter, contentLang, koKey, enKey, lastPickerRow) {
   if (typeof window === "undefined" || !window.speechSynthesis) return;
   void window.speechSynthesis.getVoices();
   const all = window.speechSynthesis.getVoices();
-  const l = (lang || "").toLowerCase();
-  if (l.startsWith("ko")) {
-    if (koKey === TTS_KO_BUILTIN_KEY) return;
-    const koVoices = filterKoVoices(all);
-    if (!koVoices.length) return;
-    const voice =
-      (koKey && koVoices.find((v) => ttsVoiceKey(v) === koKey))
-      || koVoices.find((v) => v.default)
-      || koVoices[0];
-    utter.voice = voice;
-    return;
-  }
-  if (l.startsWith("en")) {
+  const content = (contentLang || "").toLowerCase();
+
+  const pickEnglishVoice = () => {
     const enVoices = filterEnVoices(all);
-    if (!enVoices.length) return;
+    if (!enVoices.length) return false;
     const voice =
       (enKey && enVoices.find((v) => ttsVoiceKey(v) === enKey))
       || enVoices.find((v) => v.default)
       || enVoices[0];
     utter.voice = voice;
+    const vl = (voice.lang || "").trim();
+    utter.lang = vl || "en-US";
+    return true;
+  };
+
+  const pickKoreanVoice = () => {
+    if (koKey === TTS_KO_BUILTIN_KEY) {
+      utter.voice = null;
+      utter.lang = content.startsWith("en") ? "en-US" : "ko-KR";
+      return true;
+    }
+    const koVoices = filterKoVoices(all);
+    if (!koVoices.length) return false;
+    const voice =
+      (koKey && koVoices.find((v) => ttsVoiceKey(v) === koKey))
+      || koVoices.find((v) => v.default)
+      || koVoices[0];
+    utter.voice = voice;
+    const vl = (voice.lang || "").trim();
+    utter.lang = vl || "ko-KR";
+    return true;
+  };
+
+  if (lastPickerRow === "en") {
+    pickEnglishVoice();
+    return;
   }
+  if (lastPickerRow === "ko") {
+    pickKoreanVoice();
+    return;
+  }
+  if (content.startsWith("en")) pickEnglishVoice();
+  else pickKoreanVoice();
 }
 
 /**
@@ -240,6 +262,8 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   const [enVoices, setEnVoices] = useState([]);
   const [ttsKoVoiceKey, setTtsKoVoiceKey] = useState("");
   const [ttsEnVoiceKey, setTtsEnVoiceKey] = useState("");
+  /** 마지막으로 건드린 보이스 줄 — 영어 줄을 고르면 한국어 대본도 선택한 영어 음성으로 읽음(null 이면 대본 언어에 맞춤) */
+  const [ttsLastPickerRow, setTtsLastPickerRow] = useState(null);
 
   // --- THEME 카드 → 연관 해설 이야기(STORY) 목록 상태 ---
   // Odii API 는 THEME 응답에 script 를 내려주지 않는다. 대신 STORY 가 tid 로 연결된다.
@@ -299,6 +323,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
     setActiveStoryPaused(false);
     setLiveStoryNativeId(null);
     setLoadedDesc(null);
+    setTtsLastPickerRow(null);
     if (typeof window !== "undefined" && window.speechSynthesis) {
       try { window.speechSynthesis.cancel(); } catch (_) { /* noop */ }
     }
@@ -458,6 +483,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
 
   const onTtsKoVoiceChange = (e) => {
     const key = e.target.value;
+    setTtsLastPickerRow("ko");
     setTtsKoVoiceKey(key);
     try {
       localStorage.setItem(TTS_KO_VOICE_STORAGE_KEY, key);
@@ -468,6 +494,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
 
   const onTtsEnVoiceChange = (e) => {
     const key = e.target.value;
+    setTtsLastPickerRow("en");
     setTtsEnVoiceKey(key);
     try {
       localStorage.setItem(TTS_EN_VOICE_STORAGE_KEY, key);
@@ -504,6 +531,11 @@ export default function AudioGuideDetailModal({ item, onClose }) {
     const raw = (item.language || i18n?.language || "ko").toLowerCase();
     return raw.startsWith("en") ? "en-US" : "ko-KR";
   })();
+  const ttsContentIsEn = ttsLang.toLowerCase().startsWith("en");
+  const koVoiceRowApply =
+    ttsLastPickerRow === "ko" || (ttsLastPickerRow === null && !ttsContentIsEn);
+  const enVoiceRowApply =
+    ttsLastPickerRow === "en" || (ttsLastPickerRow === null && ttsContentIsEn);
 
   const startTts = () => {
     if (!ttsSupported || !ttsText) return;
@@ -513,7 +545,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       utter.lang = ttsLang;
       utter.rate = 1;
       utter.pitch = 1;
-      applyTtsVoiceToUtter(utter, ttsLang, ttsKoSelectValue, ttsEnSelectValue);
+      applyTtsVoiceToUtter(utter, ttsLang, ttsKoSelectValue, ttsEnSelectValue, ttsLastPickerRow);
       utter.onend = () => { setTtsPlaying(false); setTtsPaused(false); };
       utter.onerror = () => { setTtsPlaying(false); setTtsPaused(false); };
       window.speechSynthesis.speak(utter);
@@ -561,10 +593,11 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       const raw = (story?.language || i18n?.language || "ko").toLowerCase();
-      utter.lang = raw.startsWith("en") ? "en-US" : "ko-KR";
+      const storyLang = raw.startsWith("en") ? "en-US" : "ko-KR";
+      utter.lang = storyLang;
       utter.rate = 1;
       utter.pitch = 1;
-      applyTtsVoiceToUtter(utter, utter.lang, ttsKoSelectValue, ttsEnSelectValue);
+      applyTtsVoiceToUtter(utter, storyLang, ttsKoSelectValue, ttsEnSelectValue, ttsLastPickerRow);
       utter.onend = () => { setActiveStoryId(null); setActiveStoryPaused(false); };
       utter.onerror = () => { setActiveStoryId(null); setActiveStoryPaused(false); };
       window.speechSynthesis.speak(utter);
@@ -766,6 +799,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
                   onChange={onTtsKoVoiceChange}
                   label={t("audioGuide.detail.tts.voiceLabelKo", "한국어 대본용")}
                   ariaLabel={t("audioGuide.detail.tts.voiceAriaKo", "한국어 해설 대본에 쓸 브라우저 음성")}
+                  isApplyRow={koVoiceRowApply}
                   firstOption={{
                     value: TTS_KO_BUILTIN_KEY,
                     label: t("audioGuide.detail.tts.voiceBrowserDefaultKo", "브라우저 기본 (이전과 동일)"),
@@ -780,6 +814,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
                   onChange={onTtsEnVoiceChange}
                   label={t("audioGuide.detail.tts.voiceLabelEn", "영어 대본용")}
                   ariaLabel={t("audioGuide.detail.tts.voiceAriaEn", "영어 해설 대본에 쓸 브라우저 음성")}
+                  isApplyRow={enVoiceRowApply}
                 />
               ) : null}
               {(koVoices.length > 0 && enVoices.length > 0) ? (
@@ -1052,17 +1087,17 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   );
 }
 
-function AgmLocaleVoicePicker({ fieldId, voices, value, onChange, label, ariaLabel, firstOption }) {
+function AgmLocaleVoicePicker({ fieldId, voices, value, onChange, label, ariaLabel, firstOption, isApplyRow }) {
   if (!voices?.length && !firstOption) return null;
   return (
-    <div className="agm-tts-voice-row">
+    <div className={`agm-tts-voice-row${isApplyRow ? " agm-tts-voice-row--apply" : ""}`}>
       <label htmlFor={fieldId} className="agm-tts-voice-label">
         <Mic size={13} className="agm-tts-voice-icon" aria-hidden />
         {label}
       </label>
       <select
         id={fieldId}
-        className="agm-tts-voice-select"
+        className={`agm-tts-voice-select${isApplyRow ? " agm-tts-voice-select--apply" : ""}`}
         value={value}
         onChange={onChange}
         aria-label={ariaLabel}
@@ -1197,6 +1232,16 @@ const modalCss = `
   font-size: 0.72rem;
   line-height: 1.45;
   color: rgba(244,241,255,0.72);
+}
+.agm-tts-voice-row--apply {
+  background: rgba(139, 92, 246, 0.22);
+  border-color: rgba(196, 181, 253, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.35);
+}
+.agm-tts-voice-select--apply {
+  border-color: rgba(196, 181, 253, 0.85);
+  background: rgba(24, 16, 48, 0.95);
+  color: #faf5ff;
 }
 .agm-tts-voice-row {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
