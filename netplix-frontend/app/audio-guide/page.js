@@ -426,7 +426,9 @@ function AudioGuidePageInner() {
 
   const togglePlay = (item) => {
     if (!item?.audioUrl) return;
-    if (playingId === item.id && audioRef.current) {
+    // 같은 항목 재클릭은 항상 정지. audioRef 가 비어 있어도 처리하지 않으면
+    // 상태만 재생 중인 채로 새 Audio 를 만들어 처음부터 다시 재생되는 버그가 난다.
+    if (playingId != null && String(playingId) === String(item.id)) {
       stopPlayback();
       return;
     }
@@ -842,7 +844,9 @@ function AudioGuidePageInner() {
             <AudioCard
               key={item.id}
               item={item}
-              playing={playingId === item.id}
+              playing={
+                playingId != null && String(playingId) === String(item.id)
+              }
               onToggle={() => togglePlay(item)}
               onOpen={() => setDetailItem(item)}
             />

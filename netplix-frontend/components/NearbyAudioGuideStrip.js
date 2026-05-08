@@ -110,8 +110,8 @@ export default function NearbyAudioGuideStrip({
 
   const togglePlay = (item) => {
     if (!item?.audioUrl) return;
-    // 재생 중인 항목을 다시 누르면 정지
-    if (playingId === item.id && audioRef.current) {
+    // 재생 중인 항목을 다시 누르면 정지 (ref 동기화가 어긋나도 새 트랙으로 덮어쓰지 않음)
+    if (playingId != null && String(playingId) === String(item.id)) {
       setPlayingId(null);
       const a = audioRef.current;
       audioRef.current = null;
@@ -240,7 +240,9 @@ export default function NearbyAudioGuideStrip({
               <AudioGuideMiniCard
                 key={s.id}
                 item={s}
-                playing={playingId === s.id}
+                playing={
+                  playingId != null && String(playingId) === String(s.id)
+                }
                 onToggle={() => togglePlay(s)}
                 onOpen={() => setDetailItem(s)}
               />

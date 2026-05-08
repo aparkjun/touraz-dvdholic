@@ -320,12 +320,16 @@ export default function AudioGuideDetailModal({ item, onClose }) {
         artworkUrl: item.imageUrl,
       });
     }
-    if (playing) {
+    const a = audioRef.current;
+    if (!a) return;
+    // React playing 과 실제 엘리먼트가 어긋나면 재클릭 시 pause 대신 play()만 다시 호출되어
+    // 로드가 다시 일어나 처음부터 재생되는 것처럼 느껴질 수 있다.
+    if (!a.paused) {
       setPlaying(false);
-      try { audioRef.current.pause(); } catch (_) { /* noop */ }
+      try { a.pause(); } catch (_) { /* noop */ }
     } else {
       setPlaying(true);
-      audioRef.current.play().catch(() => {
+      a.play().catch(() => {
         setPlaying(false);
         setAudioError(true);
       });
