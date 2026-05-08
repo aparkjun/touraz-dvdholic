@@ -409,18 +409,18 @@ function AudioGuidePageInner() {
     playingItemRef.current = null;
     setPlayProgress(0);
     setPlayDuration(0);
-    if (mediaSessionDetachRef.current) {
-      try {
-        mediaSessionDetachRef.current();
-      } catch {
-        /* noop */
-      }
-      mediaSessionDetachRef.current = null;
+    const detach = mediaSessionDetachRef.current;
+    mediaSessionDetachRef.current = null;
+    const a = audioRef.current;
+    audioRef.current = null;
+    if (a) {
+      try { a.pause(); } catch { /* noop */ }
+      try { a.src = ""; } catch { /* noop */ }
     }
-    if (audioRef.current) {
-      try { audioRef.current.pause(); } catch { /* noop */ }
-      audioRef.current.src = "";
-      audioRef.current = null;
+    if (detach) {
+      queueMicrotask(() => {
+        try { detach(); } catch { /* noop */ }
+      });
     }
   };
 
@@ -435,12 +435,15 @@ function AudioGuidePageInner() {
       audioRef.current = null;
     }
     if (mediaSessionDetachRef.current) {
-      try {
-        mediaSessionDetachRef.current();
-      } catch {
-        /* noop */
-      }
+      const d = mediaSessionDetachRef.current;
       mediaSessionDetachRef.current = null;
+      queueMicrotask(() => {
+        try {
+          d();
+        } catch {
+          /* noop */
+        }
+      });
     }
     const audio = new Audio(item.audioUrl);
     audio.preload = "auto";

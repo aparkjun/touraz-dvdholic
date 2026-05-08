@@ -113,16 +113,19 @@ export default function NearbyAudioGuideStrip({
     // 재생 중인 항목을 다시 누르면 정지
     if (playingId === item.id && audioRef.current) {
       setPlayingId(null);
-      if (mediaSessionDetachRef.current) {
-        try {
-          mediaSessionDetachRef.current();
-        } catch {
-          /* noop */
-        }
-        mediaSessionDetachRef.current = null;
-      }
-      try { audioRef.current.pause(); } catch { /* noop */ }
+      const a = audioRef.current;
       audioRef.current = null;
+      const d = mediaSessionDetachRef.current;
+      mediaSessionDetachRef.current = null;
+      if (a) {
+        try { a.pause(); } catch { /* noop */ }
+        try { a.src = ""; } catch { /* noop */ }
+      }
+      if (d) {
+        queueMicrotask(() => {
+          try { d(); } catch { /* noop */ }
+        });
+      }
       return;
     }
     if (audioRef.current) {
@@ -130,12 +133,15 @@ export default function NearbyAudioGuideStrip({
       audioRef.current = null;
     }
     if (mediaSessionDetachRef.current) {
-      try {
-        mediaSessionDetachRef.current();
-      } catch {
-        /* noop */
-      }
+      const d = mediaSessionDetachRef.current;
       mediaSessionDetachRef.current = null;
+      queueMicrotask(() => {
+        try {
+          d();
+        } catch {
+          /* noop */
+        }
+      });
     }
     try {
       const audio = new Audio(item.audioUrl);

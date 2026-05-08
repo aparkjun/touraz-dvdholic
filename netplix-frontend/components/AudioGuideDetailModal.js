@@ -250,8 +250,8 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       setLiveStoryNativeId(null);
       pauseAllStoryNativeAudios();
       if (audioRef.current) {
-        try { audioRef.current.pause(); } catch (_) { /* noop */ }
         setPlaying(false);
+        try { audioRef.current.pause(); } catch (_) { /* noop */ }
       }
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
@@ -321,8 +321,8 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       });
     }
     if (playing) {
-      audioRef.current.pause();
       setPlaying(false);
+      try { audioRef.current.pause(); } catch (_) { /* noop */ }
     } else {
       setPlaying(true);
       audioRef.current.play().catch(() => {
@@ -567,8 +567,8 @@ export default function AudioGuideDetailModal({ item, onClose }) {
                               onPlay={(e) => {
                                 stopStoryTts();
                                 if (audioRef.current) {
-                                  try { audioRef.current.pause(); } catch (_) { /* noop */ }
                                   setPlaying(false);
+                                  try { audioRef.current.pause(); } catch (_) { /* noop */ }
                                 }
                                 pauseAllStoryNativeAudios(e.currentTarget);
                                 setLiveStoryNativeId(s.id);
