@@ -180,16 +180,16 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   // “오디오가 하나만” 있는 것처럼 보인다. STORY 를 불러오는 중이거나 1건 이상이면 목록을 우선한다.
   const showThemeStoryList = isThemeCard && (storiesLoading || stories.length > 0);
   const showMainPlayer = hasAudio && (!isThemeCard || !showThemeStoryList);
-  const subtitleVoiceActive =
-    Boolean(hasAudio && showMainPlayer && playing)
-    || Boolean(hasScript && ttsSupported && ttsPlaying && !ttsPaused);
-  const themeStoriesVoiceActive =
-    Boolean(activeStoryId && !activeStoryPaused) || liveStoryNativeId != null;
   // description 은 리스트 lite 응답에서 빠져 있을 수 있으므로 loadedDesc 로 보강.
   const effectiveDescription = (item.description && String(item.description).trim())
     ? String(item.description)
     : (loadedDesc && String(loadedDesc).trim()) ? String(loadedDesc) : "";
   const hasScript = !!effectiveDescription;
+  const subtitleVoiceActive =
+    Boolean(hasAudio && showMainPlayer && playing)
+    || Boolean(hasScript && ttsSupported && ttsPlaying && !ttsPaused);
+  const themeStoriesVoiceActive =
+    Boolean(activeStoryId && !activeStoryPaused) || liveStoryNativeId != null;
   const hasCoords = typeof item.latitude === "number" && typeof item.longitude === "number";
 
   // TTS 에 사용할 텍스트: 스크립트 우선, 없으면 제목 + 카테고리.
