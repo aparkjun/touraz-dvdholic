@@ -199,25 +199,43 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     /**
      * 특정 THEME 에 연결된 STORY 목록 조회.
      *
-     * <p>Odii 응답 분석: storyBasedList item 의 {@code tid} 필드가 연관 THEME 의 id 를 가리킨다.
-     * 별도 전용 오퍼레이션이 공개되어 있지 않으므로, 이미 캐시된 전체 STORY 리스트에서
-     * {@code themeId} 로 필터링하여 반환한다. STORY 전체가 아직 캐시에 없으면
-     * {@link #fetchAll} 로 선적재한다.
-     *
-     * <p>선적재 이후에도 캐시는 type=STORY+lang 단위이므로 재조회 비용은 한 번만 발생.
+     * <p>Odii 응답: storyBasedList item 의 {@code tid}(또는 {@code linkTid}) 가 상위 THEME id.
+     * 전용 조회 API 가 없어 전체 STORY 캐시에서 필터한다. 캐시가 partial 이면 조인이 빗나가므로
+     * {@link #ensureFullStoryCacheForJoin} 으로 전체 적재를 보장한다.
      */
     @Override
     public List<AudioGuideItem> fetchStoriesByTheme(String themeId, String lang, int limit) {
         if (!isConfigured()) return List.of();
         if (themeId == null || themeId.isBlank()) return List.of();
         String l = normalize(lang);
-        List<AudioGuideItem> stories = fetchAll(AudioGuideItem.Type.STORY, l, Integer.MAX_VALUE);
+        ensureFullStoryCacheForJoin(l);
+        CacheSnapshot snap = cache.get(allKey(AudioGuideItem.Type.STORY, l));
+        List<AudioGuideItem> stories = snap != null ? snap.sites : List.of();
         if (stories.isEmpty()) return List.of();
         String key = themeId.trim();
         List<AudioGuideItem> matched = stories.stream()
-                .filter(s -> key.equals(s.getThemeId()))
+                .filter(s -> s.getThemeId() != null && key.equals(s.getThemeId().trim()))
                 .collect(Collectors.toList());
         return take(matched, limit);
+    }
+
+    /**
+     * THEME↔STORY 조인은 전체 STORY 목록이 필요하다. partial 캐시(첫 페이지만)에서는 조인이 틀어진다.
+     */
+    private void ensureFullStoryCacheForJoin(String lang) {
+        String cacheKey = allKey(AudioGuideItem.Type.STORY, lang);
+        CacheSnapshot snap = cache.get(cacheKey);
+        if (snap != null && !snap.partial && !snap.sites.isEmpty()) {
+            return;
+        }
+        if (snap != null && snap.partial) {
+            log.info("[ODII] STORY 캐시 partial ({}건) — stories-by-theme 위해 전체 동기 적재", snap.sites.size());
+        } else if (snap == null) {
+            log.info("[ODII] STORY 캐시 없음 — stories-by-theme 위해 전체 동기 적재");
+        } else {
+            log.info("[ODII] STORY 캐시 비어 있음 — stories-by-theme 위해 전체 동기 적재 재시도");
+        }
+        refreshAll(AudioGuideItem.Type.STORY, lang);
     }
 
     // =========================================================================
@@ -415,15 +433,28 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     // Mapping
     // =========================================================================
 
+    /** THEME: 자기 {@code tid}. STORY: 상위 관광지 id (보통 {@code tid}, 없으면 {@code linkTid}). */
+    private static String resolveThemeIdForDomain(VisitKoreaOdiiResponse.Item i, AudioGuideItem.Type type) {
+        if (type == AudioGuideItem.Type.THEME) {
+            return nullIfBlank(i.getTid());
+        }
+        String fromTid = nullIfBlank(i.getTid());
+        if (fromTid != null) {
+            return fromTid;
+        }
+        return nullIfBlank(i.getLinkTid());
+    }
+
     private static AudioGuideItem toDomain(VisitKoreaOdiiResponse.Item i, AudioGuideItem.Type type) {
         Double lat = parseDouble(i.getMapY());
         Double lng = parseDouble(i.getMapX());
         String id = (type == AudioGuideItem.Type.STORY)
                 ? (nullIfBlank(i.getStid()) != null ? i.getStid() : i.getTid())
                 : (nullIfBlank(i.getTid()) != null ? i.getTid() : i.getStid());
+        String themeRef = resolveThemeIdForDomain(i, type);
         return AudioGuideItem.builder()
                 .id(id)
-                .themeId(nullIfBlank(i.getTid()))
+                .themeId(themeRef)
                 .type(type)
                 .title(i.getTitle())
                 .audioTitle(nullIfBlank(i.getAudioTitle()))
