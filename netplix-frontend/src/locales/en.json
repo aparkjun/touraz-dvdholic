@@ -543,6 +543,7 @@
         "stop": "Stop",
         "note": "Voice quality depends on your browser/OS.",
         "voiceLabelKo": "Korean voice",
+        "voiceBrowserDefaultKo": "Browser default (same as before)",
         "voiceAriaKo": "Choose a Korean text-to-speech voice",
         "voiceLabelEn": "English voice",
         "voiceAriaEn": "Choose an English text-to-speech voice"

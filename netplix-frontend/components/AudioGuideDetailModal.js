@@ -43,11 +43,56 @@ import {
 
 const TTS_KO_VOICE_STORAGE_KEY = "audioGuideDetailModal.ttsVoiceKo";
 const TTS_EN_VOICE_STORAGE_KEY = "audioGuideDetailModal.ttsVoiceEn";
+/** utter.voice 미지정 — 보이스 피커 도입 전과 같이 브라우저·OS 가 lang 기준으로 고름 */
+const TTS_KO_BUILTIN_KEY = "__browser_default_ko__";
 
 /** 브라우저 voice 객체를 안정적으로 구별 */
 function ttsVoiceKey(v) {
   if (!v) return "";
   return v.voiceURI || `${v.name}|${v.lang}`;
+}
+
+/** `<select>` 옵션에 쓰는 표시문 — getVoices() 가 이름은 다르게 주면서 화면엔 똑같이 보일 때가 있어, 중복 제거 키와 반드시 동일 규칙 */
+function ttsVoiceOptionCaption(v) {
+  if (!v) return "";
+  const n = (v.name || "").trim();
+  if (n) return n;
+  return (v.lang || "").trim() || ttsVoiceKey(v);
+}
+
+/** 화면에 보이는 캡션 기준 중복 제거(NFKC·공백 정규화) — 목록에 글자까지 동일한 두 줄이 나오지 않게 */
+function ttsVoiceCaptionDedupeKey(v) {
+  let s = ttsVoiceOptionCaption(v);
+  try {
+    s = s.normalize("NFKC");
+  } catch (_) {
+    /* noop */
+  }
+  s = s.replace(/[\u00AD\u200B-\u200D\uFEFF]/g, "");
+  s = s.replace(/\s+/g, " ").trim().toLowerCase();
+  return s || ttsVoiceKey(v);
+}
+
+/** voiceURI 중복·화면 캡션 중복을 제거(OS/브라우저가 같은 음성을 두 줄로 줄이는 경우) */
+function dedupeTtsVoices(voices) {
+  if (!voices?.length) return [];
+  const uriSeen = new Set();
+  const step1 = [];
+  for (const v of voices) {
+    const u = v.voiceURI || "";
+    if (u) {
+      if (uriSeen.has(u)) continue;
+      uriSeen.add(u);
+    }
+    step1.push(v);
+  }
+  const byCaption = new Map();
+  for (const v of step1) {
+    const key = ttsVoiceCaptionDedupeKey(v);
+    const cur = byCaption.get(key);
+    if (!cur || (v.default && !cur.default)) byCaption.set(key, v);
+  }
+  return [...byCaption.values()];
 }
 
 function filterKoVoices(voices) {
@@ -59,7 +104,8 @@ function filterKoVoices(voices) {
     const n = (v.name || "").toLowerCase();
     return n.includes("korean") || n.includes("google ko") || n.includes("yuna") || n.includes("hee");
   });
-  return [...out].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
+  const deduped = dedupeTtsVoices(out);
+  return [...deduped].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
 }
 
 function filterEnVoices(voices) {
@@ -99,7 +145,15 @@ function pickInitialVoiceKey(list, storageKey) {
 }
 
 function pickInitialKoVoiceKey(list) {
-  return pickInitialVoiceKey(list, TTS_KO_VOICE_STORAGE_KEY);
+  let saved = "";
+  try {
+    saved = localStorage.getItem(TTS_KO_VOICE_STORAGE_KEY) || "";
+  } catch (_) {
+    /* noop */
+  }
+  if (saved === TTS_KO_BUILTIN_KEY) return TTS_KO_BUILTIN_KEY;
+  if (saved && list.some((v) => ttsVoiceKey(v) === saved)) return saved;
+  return TTS_KO_BUILTIN_KEY;
 }
 
 function pickInitialEnVoiceKey(list) {
@@ -108,12 +162,15 @@ function pickInitialEnVoiceKey(list) {
 
 function applyTtsVoiceToUtter(utter, lang, koVoices, koKey, enVoices, enKey) {
   const l = (lang || "").toLowerCase();
-  if (l.startsWith("ko") && koVoices?.length) {
-    const key = koKey && koVoices.some((v) => ttsVoiceKey(v) === koKey)
-      ? koKey
-      : ttsVoiceKey(koVoices.find((v) => v.default) || koVoices[0]);
-    const voice = koVoices.find((v) => ttsVoiceKey(v) === key);
-    if (voice) utter.voice = voice;
+  if (l.startsWith("ko")) {
+    if (koKey === TTS_KO_BUILTIN_KEY) return;
+    if (koVoices?.length) {
+      const key = koKey && koVoices.some((v) => ttsVoiceKey(v) === koKey)
+        ? koKey
+        : ttsVoiceKey(koVoices.find((v) => v.default) || koVoices[0]);
+      const voice = koVoices.find((v) => ttsVoiceKey(v) === key);
+      if (voice) utter.voice = voice;
+    }
     return;
   }
   if (l.startsWith("en") && enVoices?.length) {
@@ -209,7 +266,8 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       setKoVoices(koList);
       setEnVoices(enList);
       setTtsKoVoiceKey((prev) => {
-        if (!koList.length) return "";
+        if (!koList.length) return prev === TTS_KO_BUILTIN_KEY ? TTS_KO_BUILTIN_KEY : "";
+        if (prev === TTS_KO_BUILTIN_KEY) return TTS_KO_BUILTIN_KEY;
         if (prev && koList.some((v) => ttsVoiceKey(v) === prev)) return prev;
         return pickInitialKoVoiceKey(koList);
       });
@@ -381,9 +439,10 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   useBackButtonClose(!!item, onClose);
 
   const ttsKoSelectValue = useMemo(() => {
+    if (ttsKoVoiceKey === TTS_KO_BUILTIN_KEY) return TTS_KO_BUILTIN_KEY;
     if (!koVoices.length) return "";
     if (koVoices.some((v) => ttsVoiceKey(v) === ttsKoVoiceKey)) return ttsKoVoiceKey;
-    return ttsVoiceKey(koVoices[0]);
+    return TTS_KO_BUILTIN_KEY;
   }, [koVoices, ttsKoVoiceKey]);
 
   const ttsEnSelectValue = useMemo(() => {
@@ -702,6 +761,10 @@ export default function AudioGuideDetailModal({ item, onClose }) {
                   onChange={onTtsKoVoiceChange}
                   label={t("audioGuide.detail.tts.voiceLabelKo", "한국어 목소리")}
                   ariaLabel={t("audioGuide.detail.tts.voiceAriaKo", "브라우저 한국어 음성 선택")}
+                  firstOption={{
+                    value: TTS_KO_BUILTIN_KEY,
+                    label: t("audioGuide.detail.tts.voiceBrowserDefaultKo", "브라우저 기본 (이전과 동일)"),
+                  }}
                 />
               ) : null}
               {enVoices.length > 0 ? (
@@ -979,8 +1042,8 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   );
 }
 
-function AgmLocaleVoicePicker({ fieldId, voices, value, onChange, label, ariaLabel }) {
-  if (!voices?.length) return null;
+function AgmLocaleVoicePicker({ fieldId, voices, value, onChange, label, ariaLabel, firstOption }) {
+  if (!voices?.length && !firstOption) return null;
   return (
     <div className="agm-tts-voice-row">
       <label htmlFor={fieldId} className="agm-tts-voice-label">
@@ -994,11 +1057,14 @@ function AgmLocaleVoicePicker({ fieldId, voices, value, onChange, label, ariaLab
         onChange={onChange}
         aria-label={ariaLabel}
       >
-        {voices.map((v) => {
+        {firstOption ? (
+          <option value={firstOption.value}>{firstOption.label}</option>
+        ) : null}
+        {(voices || []).map((v) => {
           const key = ttsVoiceKey(v);
           return (
             <option key={key} value={key}>
-              {(v.name || "").trim() || v.lang}
+              {ttsVoiceOptionCaption(v)}
             </option>
           );
         })}

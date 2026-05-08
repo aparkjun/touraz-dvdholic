@@ -853,6 +853,7 @@
         "stop": "정지",
         "note": "음성 품질은 사용 중인 브라우저/OS 에 따라 달라져요.",
         "voiceLabelKo": "한국어 목소리",
+        "voiceBrowserDefaultKo": "브라우저 기본 (이전과 동일)",
         "voiceAriaKo": "브라우저 한국어 음성 선택",
         "voiceLabelEn": "영어 목소리",
         "voiceAriaEn": "브라우저 영어 음성 선택"
