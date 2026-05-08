@@ -32,9 +32,9 @@ import axios from "@/lib/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
+import VoiceMicIcon from "@/components/VoiceMicIcon";
 import {
   Headphones,
-  Mic2,
   Globe2,
   Search,
   LocateFixed,
@@ -483,6 +483,10 @@ function AudioGuidePageInner() {
   useEffect(() => () => stopPlayback(), []);
 
   const currentPlaying = playingItemRef.current;
+  const templeCourseActive =
+    !wantNearby
+    && type === "story"
+    && ["사찰", "불국사", "해인사", "통도사", "석굴암", "범어사"].includes(keyword);
   const visibleItems = useMemo(() => items.slice(0, visibleCount), [items, visibleCount]);
 
   return (
@@ -671,14 +675,14 @@ function AudioGuidePageInner() {
             }
           />
           <CourseCard
-            icon={<Mic2 size={18} />}
+            icon={<VoiceMicIcon active={templeCourseActive} size={18} />}
             theme="temple"
             title={t("audioGuide.courses.temple.title", "사찰 · Mindful Path")}
             desc={t(
               "audioGuide.courses.temple.desc",
               "불국사·해인사·통도사… 스님의 발걸음을 따라가는 명상의 오디오 트레일."
             )}
-            active={!wantNearby && type === "story" && ["사찰","불국사","해인사","통도사","석굴암","범어사"].includes(keyword)}
+            active={templeCourseActive}
             actionLabel={t("audioGuide.courses.temple.cta", "바로 재생")}
             onClick={() =>
               launchCourse({
@@ -870,7 +874,7 @@ function AudioGuidePageInner() {
                 />
               ) : (
                 <div className="agp-player-thumb agp-player-thumb-fallback">
-                  <Mic2 size={18} />
+                  <VoiceMicIcon active size={18} />
                 </div>
               )}
               <div className="agp-player-texts">
@@ -988,7 +992,7 @@ function AudioCard({ item, playing, onToggle, onOpen }) {
           />
         ) : (
           <div className="agp-card-img-fb">
-            <Mic2 size={36} />
+            <VoiceMicIcon active={playing} size={36} />
           </div>
         )}
         {item.distanceKm != null && (

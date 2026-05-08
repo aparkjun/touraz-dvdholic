@@ -27,7 +27,8 @@ import { useTranslation } from "react-i18next";
 import axios from "@/src/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
-import { Headphones, MapPin, Play, Pause, Clock, ArrowRight, Globe2, Mic2 } from "lucide-react";
+import VoiceMicIcon from "@/components/VoiceMicIcon";
+import { Headphones, MapPin, Play, Pause, Clock, ArrowRight, Globe2 } from "lucide-react";
 
 export default function NearbyAudioGuideStrip({
   lat,
@@ -269,7 +270,7 @@ function AudioGuideMiniCard({ item, playing, onToggle, onOpen }) {
           />
         ) : (
           <div className="nag-img-placeholder">
-            <Mic2 size={28} />
+            <VoiceMicIcon active={playing} size={28} />
           </div>
         )}
         {item.distanceKm != null && (

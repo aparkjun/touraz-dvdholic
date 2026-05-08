@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import useBackButtonClose from "@/lib/useBackButtonClose";
+import VoiceMicIcon from "@/components/VoiceMicIcon";
 import {
   X,
   Play,
@@ -28,7 +29,6 @@ import {
   VolumeX,
   MapPin,
   Clock,
-  Mic2,
   Globe2,
   ExternalLink,
   Tag,
@@ -63,6 +63,8 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   const [storiesLoading, setStoriesLoading] = useState(false);
   const [activeStoryId, setActiveStoryId] = useState(null);
   const [activeStoryPaused, setActiveStoryPaused] = useState(false);
+  /** STORY 행 `<audio>` 네이티브 재생 중인 항목 id (제목 옆 음성 GIF 동기화) */
+  const [liveStoryNativeId, setLiveStoryNativeId] = useState(null);
 
   // 리스트 응답은 lite(description 생략)로 내려오므로, STORY 상세에서만 필요한 script 를 지연 조회한다.
   const [loadedDesc, setLoadedDesc] = useState(null);
@@ -83,6 +85,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
     setTtsPaused(false);
     setActiveStoryId(null);
     setActiveStoryPaused(false);
+    setLiveStoryNativeId(null);
     setLoadedDesc(null);
     if (typeof window !== "undefined" && window.speechSynthesis) {
       try { window.speechSynthesis.cancel(); } catch (_) { /* noop */ }
@@ -177,6 +180,11 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   // “오디오가 하나만” 있는 것처럼 보인다. STORY 를 불러오는 중이거나 1건 이상이면 목록을 우선한다.
   const showThemeStoryList = isThemeCard && (storiesLoading || stories.length > 0);
   const showMainPlayer = hasAudio && (!isThemeCard || !showThemeStoryList);
+  const subtitleVoiceActive =
+    Boolean(hasAudio && showMainPlayer && playing)
+    || Boolean(hasScript && ttsSupported && ttsPlaying && !ttsPaused);
+  const themeStoriesVoiceActive =
+    Boolean(activeStoryId && !activeStoryPaused) || liveStoryNativeId != null;
   // description 은 리스트 lite 응답에서 빠져 있을 수 있으므로 loadedDesc 로 보강.
   const effectiveDescription = (item.description && String(item.description).trim())
     ? String(item.description)
@@ -239,6 +247,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       : [story?.audioTitle, story?.title, story?.themeCategory].filter(Boolean).join(". ");
     if (!text) return;
     try {
+      setLiveStoryNativeId(null);
       pauseAllStoryNativeAudios();
       if (audioRef.current) {
         try { audioRef.current.pause(); } catch (_) { /* noop */ }
@@ -275,6 +284,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   const togglePlay = () => {
     if (!hasAudio) return;
     stopStoryTts();
+    setLiveStoryNativeId(null);
     pauseAllStoryNativeAudios();
     if (!audioRef.current) {
       if (mediaSessionDetachRef.current) {
@@ -408,7 +418,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
           <h2 className="agm-title">{item.title}</h2>
           {item.audioTitle && item.audioTitle !== item.title && (
             <p className="agm-subtitle">
-              <Mic2 size={14} /> {item.audioTitle}
+              <VoiceMicIcon active={subtitleVoiceActive} size={14} /> {item.audioTitle}
             </p>
           )}
 
@@ -475,7 +485,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
             <div className="agm-theme-stories">
               <div className="agm-theme-stories-head">
                 <div className="agm-theme-stories-title">
-                  <Mic2 size={16} /> {t("audioGuide.detail.stories.title", "이 관광지의 해설 이야기")}
+                  <VoiceMicIcon active={themeStoriesVoiceActive} size={16} /> {t("audioGuide.detail.stories.title", "이 관광지의 해설 이야기")}
                 </div>
                 <div className="agm-theme-stories-sub">
                   {t("audioGuide.detail.stories.sub", "항목마다 제공 형태가 달라요. 오디오가 있으면 바로 재생하고, 없으면 브라우저 음성으로 대본을 들을 수 있어요.")}
@@ -555,6 +565,13 @@ export default function AudioGuideDetailModal({ item, onClose }) {
                                   setPlaying(false);
                                 }
                                 pauseAllStoryNativeAudios(e.currentTarget);
+                                setLiveStoryNativeId(s.id);
+                              }}
+                              onPause={() => {
+                                setLiveStoryNativeId((id) => (id === s.id ? null : id));
+                              }}
+                              onEnded={() => {
+                                setLiveStoryNativeId((id) => (id === s.id ? null : id));
                               }}
                             />
                           </div>
@@ -594,7 +611,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
                 )}
                 <div className="agm-tts-texts">
                   <div className="agm-tts-title">
-                    <Mic2 size={14} /> {t("audioGuide.detail.tts.title", "AI 음성으로 해설 듣기")}
+                    <VoiceMicIcon active={ttsPlaying && !ttsPaused} size={14} /> {t("audioGuide.detail.tts.title", "AI 음성으로 해설 듣기")}
                   </div>
                   <div className="agm-tts-sub">
                     {t("audioGuide.detail.tts.sub", "Odii 는 오디오 파일을 외부에 공개하지 않아요. 브라우저 음성 합성으로 대본을 읽어 드려요.")}
@@ -616,7 +633,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
             </div>
           ) : (
             <div className="agm-noaudio">
-              <Mic2 size={14} />
+              <VoiceMicIcon active={false} size={14} />
               {t("audioGuide.detail.noAudio", "이 항목에는 오디오 파일이 제공되지 않아요.")}
             </div>
           )}
