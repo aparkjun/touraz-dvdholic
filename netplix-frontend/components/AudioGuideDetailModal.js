@@ -14,7 +14,7 @@
  *  - onClose: 닫기 콜백 (필수)
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
@@ -38,7 +38,51 @@ import {
   Info,
   Loader2,
   Navigation,
+  Mic,
 } from "lucide-react";
+
+const TTS_KO_VOICE_STORAGE_KEY = "audioGuideDetailModal.ttsVoiceKo";
+
+/** 브라우저 voice 객체를 안정적으로 구별 */
+function ttsVoiceKey(v) {
+  if (!v) return "";
+  return v.voiceURI || `${v.name}|${v.lang}`;
+}
+
+function filterKoVoices(voices) {
+  if (!voices?.length) return [];
+  const out = voices.filter((v) => {
+    const l = (v.lang || "").toLowerCase();
+    if (l.startsWith("ko")) return true;
+    if (l.includes("ko-") || l.includes("kr")) return true;
+    const n = (v.name || "").toLowerCase();
+    return n.includes("korean") || n.includes("google ko") || n.includes("yuna") || n.includes("hee");
+  });
+  return [...out].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
+}
+
+function pickInitialKoVoiceKey(list) {
+  if (!list.length) return "";
+  let saved = "";
+  try {
+    saved = localStorage.getItem(TTS_KO_VOICE_STORAGE_KEY) || "";
+  } catch (_) {
+    /* noop */
+  }
+  if (saved && list.some((v) => ttsVoiceKey(v) === saved)) return saved;
+  const def = list.find((v) => v.default);
+  return ttsVoiceKey(def || list[0]);
+}
+
+function applyKoVoiceToUtter(utter, lang, koVoices, selectedKey) {
+  const l = (lang || "").toLowerCase();
+  if (!l.startsWith("ko") || !koVoices?.length) return;
+  const key = selectedKey && koVoices.some((v) => ttsVoiceKey(v) === selectedKey)
+    ? selectedKey
+    : ttsVoiceKey(koVoices.find((v) => v.default) || koVoices[0]);
+  const voice = koVoices.find((v) => ttsVoiceKey(v) === key);
+  if (voice) utter.voice = voice;
+}
 
 /**
  * Google Maps 길찾기 — origin 이 있으면 내 위치 기준, 없으면 목적지만(앱에서 출발지 선택).
@@ -74,6 +118,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   const { t, i18n } = useTranslation();
   const audioRef = useRef(null);
   const mediaSessionDetachRef = useRef(null);
+  const ttsVoiceSelectId = useId();
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -86,6 +131,9 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   const [ttsPlaying, setTtsPlaying] = useState(false);
   const [ttsPaused, setTtsPaused] = useState(false);
   const [ttsSupported, setTtsSupported] = useState(false);
+  /** 브라우저가 노출한 한국어(ko) TTS 음성 + 사용자 선택 키 */
+  const [koVoices, setKoVoices] = useState([]);
+  const [ttsKoVoiceKey, setTtsKoVoiceKey] = useState("");
 
   // --- THEME 카드 → 연관 해설 이야기(STORY) 목록 상태 ---
   // Odii API 는 THEME 응답에 script 를 내려주지 않는다. 대신 STORY 가 tid 로 연결된다.
@@ -104,6 +152,24 @@ export default function AudioGuideDetailModal({ item, onClose }) {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       setTtsSupported(true);
     }
+  }, []);
+
+  /** speechSynthesis 음성 목록(비동기 로드) — 한국어 보이스만 모아 선택 UI 에 제공 */
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return undefined;
+    const synth = window.speechSynthesis;
+    const refresh = () => {
+      const list = filterKoVoices(synth.getVoices());
+      setKoVoices(list);
+      setTtsKoVoiceKey((prev) => {
+        if (!list.length) return "";
+        if (prev && list.some((v) => ttsVoiceKey(v) === prev)) return prev;
+        return pickInitialKoVoiceKey(list);
+      });
+    };
+    refresh();
+    synth.addEventListener("voiceschanged", refresh);
+    return () => synth.removeEventListener("voiceschanged", refresh);
   }, []);
 
   // 새 item 이 열릴 때마다 오디오/TTS 리셋
@@ -262,6 +328,22 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   // 모달 열린 동안 시스템 "뒤로 가기" → 페이지 이동 대신 모달 닫기.
   useBackButtonClose(!!item, onClose);
 
+  const ttsKoSelectValue = useMemo(() => {
+    if (!koVoices.length) return "";
+    if (koVoices.some((v) => ttsVoiceKey(v) === ttsKoVoiceKey)) return ttsKoVoiceKey;
+    return ttsVoiceKey(koVoices[0]);
+  }, [koVoices, ttsKoVoiceKey]);
+
+  const onTtsKoVoiceChange = (e) => {
+    const key = e.target.value;
+    setTtsKoVoiceKey(key);
+    try {
+      localStorage.setItem(TTS_KO_VOICE_STORAGE_KEY, key);
+    } catch (_) {
+      /* noop */
+    }
+  };
+
   if (!item) return null;
 
   const hasAudio = !!item.audioUrl;
@@ -299,6 +381,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       utter.lang = ttsLang;
       utter.rate = 1;
       utter.pitch = 1;
+      applyKoVoiceToUtter(utter, ttsLang, koVoices, ttsKoSelectValue);
       utter.onend = () => { setTtsPlaying(false); setTtsPaused(false); };
       utter.onerror = () => { setTtsPlaying(false); setTtsPaused(false); };
       window.speechSynthesis.speak(utter);
@@ -349,6 +432,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       utter.lang = raw.startsWith("en") ? "en-US" : "ko-KR";
       utter.rate = 1;
       utter.pitch = 1;
+      applyKoVoiceToUtter(utter, utter.lang, koVoices, ttsKoSelectValue);
       utter.onend = () => { setActiveStoryId(null); setActiveStoryPaused(false); };
       utter.onerror = () => { setActiveStoryId(null); setActiveStoryPaused(false); };
       window.speechSynthesis.speak(utter);
@@ -539,6 +623,16 @@ export default function AudioGuideDetailModal({ item, onClose }) {
               </span>
             )}
           </div>
+
+          {ttsSupported && koVoices.length > 0 && (hasScript || isThemeCard) ? (
+            <AgmKoVoicePicker
+              t={t}
+              fieldId={ttsVoiceSelectId}
+              koVoices={koVoices}
+              value={ttsKoSelectValue}
+              onChange={onTtsKoVoiceChange}
+            />
+          ) : null}
 
           {showMainPlayer ? (
             <div className="agm-player">
@@ -802,6 +896,34 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   );
 }
 
+function AgmKoVoicePicker({ t, fieldId, koVoices, value, onChange }) {
+  if (!koVoices?.length) return null;
+  return (
+    <div className="agm-tts-voice-row">
+      <label htmlFor={fieldId} className="agm-tts-voice-label">
+        <Mic size={13} className="agm-tts-voice-icon" aria-hidden />
+        {t("audioGuide.detail.tts.voiceLabel", "한국어 목소리")}
+      </label>
+      <select
+        id={fieldId}
+        className="agm-tts-voice-select"
+        value={value}
+        onChange={onChange}
+        aria-label={t("audioGuide.detail.tts.voiceAria", "브라우저 한국어 음성 선택")}
+      >
+        {koVoices.map((v) => {
+          const key = ttsVoiceKey(v);
+          return (
+            <option key={key} value={key}>
+              {(v.name || "").trim() || v.lang}
+            </option>
+          );
+        })}
+      </select>
+    </div>
+  );
+}
+
 function formatPlayTime(raw) {
   if (!raw) return "";
   // "122" 같은 순수 초 값이면 mm:ss 로 변환, "mm:ss" 면 그대로
@@ -904,6 +1026,38 @@ const modalCss = `
   font-size: 0.78rem; font-weight: 600;
 }
 .agm-meta-addr { color: #fde68a; border-color: rgba(251,191,36,0.35); background: rgba(251,191,36,0.1); }
+
+.agm-tts-voice-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(167,139,250,0.08);
+  border: 1px solid rgba(167,139,250,0.28);
+}
+.agm-tts-voice-label {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 0.78rem; font-weight: 800; color: #e9d5ff;
+  flex-shrink: 0;
+}
+.agm-tts-voice-icon { opacity: 0.9; }
+.agm-tts-voice-select {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(167,139,250,0.45);
+  background: rgba(10,6,22,0.9);
+  color: #f4f1ff;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+.agm-tts-voice-select:focus {
+  outline: none;
+  border-color: rgba(251,191,36,0.65);
+  box-shadow: 0 0 0 2px rgba(251,191,36,0.2);
+}
 
 .agm-player {
   background: rgba(255,255,255,0.05);
