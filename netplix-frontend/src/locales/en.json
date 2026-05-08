@@ -542,8 +542,10 @@
         "pause": "Pause",
         "stop": "Stop",
         "note": "Voice quality depends on your browser/OS.",
-        "voiceLabel": "Korean voice",
-        "voiceAria": "Choose a Korean text-to-speech voice"
+        "voiceLabelKo": "Korean voice",
+        "voiceAriaKo": "Choose a Korean text-to-speech voice",
+        "voiceLabelEn": "English voice",
+        "voiceAriaEn": "Choose an English text-to-speech voice"
       },
       "stories": {
         "title": "Narration stories for this spot",

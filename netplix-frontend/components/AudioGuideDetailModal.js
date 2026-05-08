@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 
 const TTS_KO_VOICE_STORAGE_KEY = "audioGuideDetailModal.ttsVoiceKo";
+const TTS_EN_VOICE_STORAGE_KEY = "audioGuideDetailModal.ttsVoiceEn";
 
 /** 브라우저 voice 객체를 안정적으로 구별 */
 function ttsVoiceKey(v) {
@@ -61,11 +62,34 @@ function filterKoVoices(voices) {
   return [...out].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
 }
 
-function pickInitialKoVoiceKey(list) {
+function filterEnVoices(voices) {
+  if (!voices?.length) return [];
+  let out = voices.filter((v) => {
+    const l = (v.lang || "").toLowerCase();
+    if (l.startsWith("ko")) return false;
+    return l.startsWith("en");
+  });
+  if (out.length === 0) {
+    out = voices.filter((v) => {
+      const l = (v.lang || "").toLowerCase();
+      if (l.startsWith("ko")) return false;
+      const n = (v.name || "").toLowerCase();
+      return (
+        n.includes("english")
+        || n.includes("samantha")
+        || n.includes("google us")
+        || n.includes("google uk")
+      );
+    });
+  }
+  return [...out].sort((a, b) => (a.name || "").localeCompare(b.name || "", "en"));
+}
+
+function pickInitialVoiceKey(list, storageKey) {
   if (!list.length) return "";
   let saved = "";
   try {
-    saved = localStorage.getItem(TTS_KO_VOICE_STORAGE_KEY) || "";
+    saved = localStorage.getItem(storageKey) || "";
   } catch (_) {
     /* noop */
   }
@@ -74,14 +98,31 @@ function pickInitialKoVoiceKey(list) {
   return ttsVoiceKey(def || list[0]);
 }
 
-function applyKoVoiceToUtter(utter, lang, koVoices, selectedKey) {
+function pickInitialKoVoiceKey(list) {
+  return pickInitialVoiceKey(list, TTS_KO_VOICE_STORAGE_KEY);
+}
+
+function pickInitialEnVoiceKey(list) {
+  return pickInitialVoiceKey(list, TTS_EN_VOICE_STORAGE_KEY);
+}
+
+function applyTtsVoiceToUtter(utter, lang, koVoices, koKey, enVoices, enKey) {
   const l = (lang || "").toLowerCase();
-  if (!l.startsWith("ko") || !koVoices?.length) return;
-  const key = selectedKey && koVoices.some((v) => ttsVoiceKey(v) === selectedKey)
-    ? selectedKey
-    : ttsVoiceKey(koVoices.find((v) => v.default) || koVoices[0]);
-  const voice = koVoices.find((v) => ttsVoiceKey(v) === key);
-  if (voice) utter.voice = voice;
+  if (l.startsWith("ko") && koVoices?.length) {
+    const key = koKey && koVoices.some((v) => ttsVoiceKey(v) === koKey)
+      ? koKey
+      : ttsVoiceKey(koVoices.find((v) => v.default) || koVoices[0]);
+    const voice = koVoices.find((v) => ttsVoiceKey(v) === key);
+    if (voice) utter.voice = voice;
+    return;
+  }
+  if (l.startsWith("en") && enVoices?.length) {
+    const key = enKey && enVoices.some((v) => ttsVoiceKey(v) === enKey)
+      ? enKey
+      : ttsVoiceKey(enVoices.find((v) => v.default) || enVoices[0]);
+    const voice = enVoices.find((v) => ttsVoiceKey(v) === key);
+    if (voice) utter.voice = voice;
+  }
 }
 
 /**
@@ -119,6 +160,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   const audioRef = useRef(null);
   const mediaSessionDetachRef = useRef(null);
   const ttsVoiceSelectId = useId();
+  const ttsEnVoiceSelectId = useId();
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -131,9 +173,11 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   const [ttsPlaying, setTtsPlaying] = useState(false);
   const [ttsPaused, setTtsPaused] = useState(false);
   const [ttsSupported, setTtsSupported] = useState(false);
-  /** 브라우저가 노출한 한국어(ko) TTS 음성 + 사용자 선택 키 */
+  /** 브라우저가 노출한 ko / en TTS 음성 + 사용자 선택 키 */
   const [koVoices, setKoVoices] = useState([]);
+  const [enVoices, setEnVoices] = useState([]);
   const [ttsKoVoiceKey, setTtsKoVoiceKey] = useState("");
+  const [ttsEnVoiceKey, setTtsEnVoiceKey] = useState("");
 
   // --- THEME 카드 → 연관 해설 이야기(STORY) 목록 상태 ---
   // Odii API 는 THEME 응답에 script 를 내려주지 않는다. 대신 STORY 가 tid 로 연결된다.
@@ -154,17 +198,25 @@ export default function AudioGuideDetailModal({ item, onClose }) {
     }
   }, []);
 
-  /** speechSynthesis 음성 목록(비동기 로드) — 한국어 보이스만 모아 선택 UI 에 제공 */
+  /** speechSynthesis 음성 목록(비동기 로드) — 한국어·영어 보이스 분리 제공 */
   useEffect(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) return undefined;
     const synth = window.speechSynthesis;
     const refresh = () => {
-      const list = filterKoVoices(synth.getVoices());
-      setKoVoices(list);
+      const all = synth.getVoices();
+      const koList = filterKoVoices(all);
+      const enList = filterEnVoices(all);
+      setKoVoices(koList);
+      setEnVoices(enList);
       setTtsKoVoiceKey((prev) => {
-        if (!list.length) return "";
-        if (prev && list.some((v) => ttsVoiceKey(v) === prev)) return prev;
-        return pickInitialKoVoiceKey(list);
+        if (!koList.length) return "";
+        if (prev && koList.some((v) => ttsVoiceKey(v) === prev)) return prev;
+        return pickInitialKoVoiceKey(koList);
+      });
+      setTtsEnVoiceKey((prev) => {
+        if (!enList.length) return "";
+        if (prev && enList.some((v) => ttsVoiceKey(v) === prev)) return prev;
+        return pickInitialEnVoiceKey(enList);
       });
     };
     refresh();
@@ -334,11 +386,27 @@ export default function AudioGuideDetailModal({ item, onClose }) {
     return ttsVoiceKey(koVoices[0]);
   }, [koVoices, ttsKoVoiceKey]);
 
+  const ttsEnSelectValue = useMemo(() => {
+    if (!enVoices.length) return "";
+    if (enVoices.some((v) => ttsVoiceKey(v) === ttsEnVoiceKey)) return ttsEnVoiceKey;
+    return ttsVoiceKey(enVoices[0]);
+  }, [enVoices, ttsEnVoiceKey]);
+
   const onTtsKoVoiceChange = (e) => {
     const key = e.target.value;
     setTtsKoVoiceKey(key);
     try {
       localStorage.setItem(TTS_KO_VOICE_STORAGE_KEY, key);
+    } catch (_) {
+      /* noop */
+    }
+  };
+
+  const onTtsEnVoiceChange = (e) => {
+    const key = e.target.value;
+    setTtsEnVoiceKey(key);
+    try {
+      localStorage.setItem(TTS_EN_VOICE_STORAGE_KEY, key);
     } catch (_) {
       /* noop */
     }
@@ -381,7 +449,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       utter.lang = ttsLang;
       utter.rate = 1;
       utter.pitch = 1;
-      applyKoVoiceToUtter(utter, ttsLang, koVoices, ttsKoSelectValue);
+      applyTtsVoiceToUtter(utter, ttsLang, koVoices, ttsKoSelectValue, enVoices, ttsEnSelectValue);
       utter.onend = () => { setTtsPlaying(false); setTtsPaused(false); };
       utter.onerror = () => { setTtsPlaying(false); setTtsPaused(false); };
       window.speechSynthesis.speak(utter);
@@ -432,7 +500,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       utter.lang = raw.startsWith("en") ? "en-US" : "ko-KR";
       utter.rate = 1;
       utter.pitch = 1;
-      applyKoVoiceToUtter(utter, utter.lang, koVoices, ttsKoSelectValue);
+      applyTtsVoiceToUtter(utter, utter.lang, koVoices, ttsKoSelectValue, enVoices, ttsEnSelectValue);
       utter.onend = () => { setActiveStoryId(null); setActiveStoryPaused(false); };
       utter.onerror = () => { setActiveStoryId(null); setActiveStoryPaused(false); };
       window.speechSynthesis.speak(utter);
@@ -624,14 +692,29 @@ export default function AudioGuideDetailModal({ item, onClose }) {
             )}
           </div>
 
-          {ttsSupported && koVoices.length > 0 && (hasScript || isThemeCard) ? (
-            <AgmKoVoicePicker
-              t={t}
-              fieldId={ttsVoiceSelectId}
-              koVoices={koVoices}
-              value={ttsKoSelectValue}
-              onChange={onTtsKoVoiceChange}
-            />
+          {ttsSupported && (hasScript || isThemeCard) && (koVoices.length > 0 || enVoices.length > 0) ? (
+            <div className="agm-tts-voice-stack">
+              {koVoices.length > 0 ? (
+                <AgmLocaleVoicePicker
+                  fieldId={ttsVoiceSelectId}
+                  voices={koVoices}
+                  value={ttsKoSelectValue}
+                  onChange={onTtsKoVoiceChange}
+                  label={t("audioGuide.detail.tts.voiceLabelKo", "한국어 목소리")}
+                  ariaLabel={t("audioGuide.detail.tts.voiceAriaKo", "브라우저 한국어 음성 선택")}
+                />
+              ) : null}
+              {enVoices.length > 0 ? (
+                <AgmLocaleVoicePicker
+                  fieldId={ttsEnVoiceSelectId}
+                  voices={enVoices}
+                  value={ttsEnSelectValue}
+                  onChange={onTtsEnVoiceChange}
+                  label={t("audioGuide.detail.tts.voiceLabelEn", "영어 목소리")}
+                  ariaLabel={t("audioGuide.detail.tts.voiceAriaEn", "브라우저 영어 음성 선택")}
+                />
+              ) : null}
+            </div>
           ) : null}
 
           {showMainPlayer ? (
@@ -896,22 +979,22 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   );
 }
 
-function AgmKoVoicePicker({ t, fieldId, koVoices, value, onChange }) {
-  if (!koVoices?.length) return null;
+function AgmLocaleVoicePicker({ fieldId, voices, value, onChange, label, ariaLabel }) {
+  if (!voices?.length) return null;
   return (
     <div className="agm-tts-voice-row">
       <label htmlFor={fieldId} className="agm-tts-voice-label">
         <Mic size={13} className="agm-tts-voice-icon" aria-hidden />
-        {t("audioGuide.detail.tts.voiceLabel", "한국어 목소리")}
+        {label}
       </label>
       <select
         id={fieldId}
         className="agm-tts-voice-select"
         value={value}
         onChange={onChange}
-        aria-label={t("audioGuide.detail.tts.voiceAria", "브라우저 한국어 음성 선택")}
+        aria-label={ariaLabel}
       >
-        {koVoices.map((v) => {
+        {voices.map((v) => {
           const key = ttsVoiceKey(v);
           return (
             <option key={key} value={key}>
@@ -1027,9 +1110,15 @@ const modalCss = `
 }
 .agm-meta-addr { color: #fde68a; border-color: rgba(251,191,36,0.35); background: rgba(251,191,36,0.1); }
 
+.agm-tts-voice-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 0 14px;
+}
 .agm-tts-voice-row {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-  margin: 0 0 14px;
+  margin: 0;
   padding: 10px 12px;
   border-radius: 10px;
   background: rgba(167,139,250,0.08);
