@@ -6,6 +6,23 @@ import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { Film, Info, Star, Sparkles } from "lucide-react";
 
+/**
+ * middleware 가 최초 방문자를 `/?next=/원래경로` 로 보낼 때 사용.
+ * 오픈 리다이렉트 방지: 같은 오리진 상대 경로만 허용.
+ */
+function sanitizeInternalNext(raw) {
+  if (!raw || typeof raw !== "string") return null;
+  let s = raw.trim();
+  try {
+    s = decodeURIComponent(s);
+  } catch {
+    return null;
+  }
+  if (!s.startsWith("/") || s.startsWith("//")) return null;
+  if (s.includes("..") || /[\r\n]/.test(s)) return null;
+  return s;
+}
+
 function Main() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -29,6 +46,15 @@ function Main() {
     }, 4000);
     return () => clearInterval(interval);
   }, []);
+
+  // 최초 방문 시 middleware 리다이렉트 목적지(`next`)로 즉시 이동 (딥링크가 끊기지 않도록)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const next = sanitizeInternalNext(params.get("next"));
+    if (!next || next === "/") return;
+    router.replace(next);
+  }, [router]);
 
   const [particles, setParticles] = useState([]);
   useEffect(() => {

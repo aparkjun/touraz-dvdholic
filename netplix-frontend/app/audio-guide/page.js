@@ -103,14 +103,14 @@ function AudioGuidePageInner() {
   // URL -> state 동기화
   const initialType = (searchParams.get("type") || "theme").toLowerCase() === "story" ? "story" : "theme";
   const initialQ = searchParams.get("q") || "";
-  const initialNearby = searchParams.get("nearby") === "true";
+  const nearbyFromUrl = searchParams.get("nearby") === "true";
 
   const [type, setType] = useState(initialType);
   const [keyword, setKeyword] = useState(initialQ);
   const [keywordInput, setKeywordInput] = useState(initialQ);
   const [radiusKm, setRadiusKm] = useState(30);
   const [userCoords, setUserCoords] = useState(null); // { lat, lng }
-  const [wantNearby, setWantNearby] = useState(initialNearby);
+  const [wantNearby, setWantNearby] = useState(nearbyFromUrl);
   const [nearbyStatus, setNearbyStatus] = useState("idle"); // idle | locating | ready | denied | error
 
   const [items, setItems] = useState([]);
@@ -147,6 +147,8 @@ function AudioGuidePageInner() {
    * 차단하기 위한 시그니처 마커. `type:lang:keyword` 또는 `nearby:radius:lat:lng` 포맷.
    */
   const skipNextLoadRef = useRef(null);
+  /** `?nearby=true` 로 자동 위치 요청이 한 번만 나가도록 (SSR/클라이언트 타이밍 대비) */
+  const autoNearbyRequestedRef = useRef(false);
 
   // URL 동기화 helper
   const syncUrl = useCallback((next) => {
@@ -243,11 +245,17 @@ function AudioGuidePageInner() {
     );
   };
 
-  // 초기 내 주변 요청
+  // `?nearby=true` 일 때 브라우저 위치 권한 → 좌표 확보 후 주변 Odii 목록 조회
   useEffect(() => {
-    if (initialNearby && !userCoords) requestNearby();
+    if (!nearbyFromUrl) {
+      autoNearbyRequestedRef.current = false;
+      return;
+    }
+    if (userCoords || autoNearbyRequestedRef.current) return;
+    autoNearbyRequestedRef.current = true;
+    requestNearby();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [nearbyFromUrl, userCoords]);
 
   const onSubmitSearch = (e) => {
     e.preventDefault();
