@@ -18,6 +18,8 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -218,28 +220,89 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         if (!matched.isEmpty()) {
             return take(matched, limit);
         }
-        String hint = themeTitleHint != null ? themeTitleHint.trim() : "";
-        if (hint.length() >= 2) {
-            int kwLimit = Math.min(Math.max(limit * 5, 48), 120);
-            List<AudioGuideItem> kw = fetchByKeyword(AudioGuideItem.Type.STORY, l, hint, kwLimit);
-            matched = kw.stream()
-                    .filter(s -> themeIdMatches(s.getThemeId(), key))
+        List<String> hints = deriveStoryTitleHints(themeTitleHint);
+        if (hints.isEmpty()) {
+            return List.of();
+        }
+        int kwLimit = Math.min(Math.max(limit * 5, 48), 120);
+        Map<String, AudioGuideItem> mergedById = new LinkedHashMap<>();
+        for (String sub : hints) {
+            if (sub.length() < 2) {
+                continue;
+            }
+            List<AudioGuideItem> kw = fetchByKeyword(AudioGuideItem.Type.STORY, l, sub, kwLimit);
+            for (AudioGuideItem s : kw) {
+                mergedById.putIfAbsent(s.getId(), s);
+            }
+            if (mergedById.size() >= 500) {
+                break;
+            }
+        }
+        matched = mergedById.values().stream()
+                .filter(s -> themeIdMatches(s.getThemeId(), key))
+                .collect(Collectors.toList());
+        if (!matched.isEmpty()) {
+            log.info("[ODII] stories-by-theme: 다중 키워드 후보에서 tid 매칭 {}건 themeId={}", matched.size(), key);
+            return take(matched, limit);
+        }
+        // 코스형 긴 THEME 명("조천 → 교래 휴양림 → 수목원길")은 STORY 제목과 문자열이 달라 tid 없이 맞춰야 하는 경우가 많다.
+        for (String sub : hints) {
+            if (sub.length() < 2) {
+                continue;
+            }
+            matched = mergedById.values().stream()
+                    .filter(s -> storyItemTextContains(s, sub))
                     .collect(Collectors.toList());
             if (!matched.isEmpty()) {
-                log.info("[ODII] stories-by-theme: 전체캐시에 없던 tid — 키워드 검색으로 tid 매칭 {}건 themeId={}", matched.size(), key);
+                log.info("[ODII] stories-by-theme: 제목·audioTitle 부분 일치 {}건 themeId={} hint={}", matched.size(), key, sub);
                 return take(matched, limit);
-            }
-            if (hint.length() >= 4) {
-                matched = kw.stream()
-                        .filter(s -> s.getTitle() != null && s.getTitle().contains(hint))
-                        .collect(Collectors.toList());
-                if (!matched.isEmpty()) {
-                    log.info("[ODII] stories-by-theme: tid 불일치 — 제목 포함 폴백 {}건 themeId={} hint={}", matched.size(), key, hint);
-                    return take(matched, limit);
-                }
             }
         }
         return List.of();
+    }
+
+    /**
+     * THEME 제목 힌트를 storySearchList 용 키워드 후보로 쪼갠다.
+     * "A → B → C" 코스 명, 쉼표 구분, 공백 단어 등 Odii 검색·부분 일치에 쓴다.
+     */
+    private static List<String> deriveStoryTitleHints(String themeTitleHint) {
+        if (themeTitleHint == null || themeTitleHint.isBlank()) {
+            return List.of();
+        }
+        String h = themeTitleHint.trim().replace('\u00A0', ' ');
+        LinkedHashSet<String> acc = new LinkedHashSet<>();
+        acc.add(h);
+        for (String segment : h.split("\\s*[→➝＞>]\\s*")) {
+            String s = segment.trim();
+            if (s.length() >= 2) {
+                acc.add(s);
+            }
+        }
+        for (String segment : h.split("[,，]+")) {
+            String s = segment.trim();
+            if (s.length() >= 2) {
+                acc.add(s);
+            }
+        }
+        for (String segment : h.split("\\s+")) {
+            String s = segment.trim();
+            if (s.length() >= 3) {
+                acc.add(s);
+            }
+        }
+        List<String> out = new ArrayList<>(acc);
+        out.sort((a, b) -> Integer.compare(b.length(), a.length()));
+        return out;
+    }
+
+    private static boolean storyItemTextContains(AudioGuideItem s, String fragment) {
+        if (fragment == null || fragment.length() < 2) {
+            return false;
+        }
+        String t = (s.getTitle() != null ? s.getTitle() : "")
+                + " "
+                + (s.getAudioTitle() != null ? s.getAudioTitle() : "");
+        return t.contains(fragment);
     }
 
     /**
