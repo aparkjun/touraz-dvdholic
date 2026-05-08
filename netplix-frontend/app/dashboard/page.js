@@ -816,10 +816,10 @@ function DashboardContent() {
         position: "relative",
         isolation: "isolate",
         background:
-          "radial-gradient(1400px 700px at 18% -10%, rgba(139,92,246,0.22), transparent 60%)," +
-          "radial-gradient(1100px 560px at 100% -15%, rgba(59,130,246,0.18), transparent 60%)," +
-          "radial-gradient(900px 480px at 50% 110%, rgba(236,72,153,0.16), transparent 60%)," +
-          "linear-gradient(180deg, #07060f 0%, #0a0a1f 45%, #0d1a36 100%)",
+          "radial-gradient(1300px 620px at 20% -8%, rgba(158, 190, 210, 0.35), transparent 58%)," +
+          "radial-gradient(1000px 520px at 100% 0%, rgba(255, 228, 196, 0.28), transparent 55%)," +
+          "radial-gradient(880px 460px at 50% 100%, rgba(186, 214, 198, 0.22), transparent 60%)," +
+          "linear-gradient(180deg, #eef4f9 0%, #f7f2eb 46%, #ebf1f7 100%)",
         minHeight: "100vh",
         padding: isNative ? "20px 12px 80px" : "20px 12px 28px",
         fontFamily: detailFontFamily,
@@ -828,8 +828,8 @@ function DashboardContent() {
       }}
     >
       <AmbientBackdrop
-        palette={["#8b5cf6", "#ec4899", "#3b82f6", "#f59e0b", "#22d3ee"]}
-        intensity={0.95}
+        palette={["#9db8cc", "#d4c4ae", "#a8c9b8", "#b8c4d8"]}
+        intensity={0.38}
       />
       <div ref={contentTopRef} style={{ width: "100%", padding: "0 5px", position: "relative", zIndex: 1 }}>
         {/* Today's Popular - 오늘의 인기 MOVIE / DVD */}

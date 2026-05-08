@@ -368,6 +368,89 @@ optgroup {
   overscroll-behavior-x: none;
 }
 
+/*
+ * 여행·탐색 구간 (/dashboard, /cine-trip, …) — Magic MCP(21st.dev) “soft travel / warm pastel”
+ * 레퍼런스를 바탕으로 채도만 낮춘 데이라이트 그라디언트. 시네마 다크(/)와 대비.
+ */
+body.app-theme-travel {
+  background: #e2eaf0;
+  color: #1e293b;
+  --background: #e8eef4;
+  --foreground: #1e293b;
+  --card: rgba(255, 255, 255, 0.94);
+  --card-foreground: #1e293b;
+  --muted: rgba(241, 245, 249, 0.95);
+  --muted-foreground: #64748b;
+  --border: rgba(15, 23, 42, 0.1);
+  --ds-bg: #e8f0f6;
+  --ds-panel: rgba(255, 255, 255, 0.93);
+  --ds-panel-soft: rgba(248, 250, 252, 0.97);
+  --ds-border: rgba(15, 23, 42, 0.12);
+  --ds-text: #1e293b;
+  --ds-text-muted: #64748b;
+  --ds-primary: #e11d48;
+  --ds-primary-soft: rgba(225, 29, 72, 0.12);
+  --ds-secondary: #2563eb;
+  --ds-secondary-soft: rgba(37, 99, 235, 0.12);
+  --ds-shadow: 0 14px 36px rgba(15, 23, 42, 0.1);
+}
+
+.app-shell.app-theme-travel {
+  background:
+    radial-gradient(ellipse 120% 85% at 50% -15%, rgba(186, 212, 232, 0.5), transparent 56%),
+    radial-gradient(ellipse 90% 60% at 100% 25%, rgba(255, 235, 210, 0.4), transparent 52%),
+    radial-gradient(ellipse 75% 55% at 0% 88%, rgba(198, 220, 208, 0.35), transparent 50%),
+    linear-gradient(168deg, #eef5fa 0%, #f7f3ec 42%, #ebf1f7 100%);
+}
+
+.app-theme-travel .app-nav {
+  position: relative;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.9));
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  box-shadow: 0 4px 22px rgba(15, 23, 42, 0.07);
+}
+
+.app-theme-travel .app-nav::after {
+  content: "";
+  display: block;
+  position: absolute;
+  left: 0; right: 0; bottom: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.25), transparent);
+  pointer-events: none;
+}
+
+.app-theme-travel .app-nav-status span {
+  color: #475569;
+  background: rgba(148, 163, 184, 0.16);
+  border-color: rgba(100, 116, 139, 0.22);
+}
+
+.app-theme-travel .app-chip-secondary {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(100, 116, 139, 0.22);
+  color: #334155;
+}
+
+.app-theme-travel .app-chip-secondary:hover {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.app-theme-travel .app-menu-overlay {
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.app-theme-travel .app-hamburger {
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.35), rgba(253, 230, 138, 0.25));
+  border-color: rgba(180, 83, 9, 0.2);
+  color: #92400e;
+}
+
+.app-theme-travel .app-hamburger:hover {
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.55), rgba(253, 230, 138, 0.4));
+  border-color: rgba(180, 83, 9, 0.35);
+}
+
 .app-nav {
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 27, 75, 0.95));
   padding: 14px 0 14px; padding-top: calc(env(safe-area-inset-top, 0px) + 14px);

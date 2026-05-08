@@ -15,6 +15,16 @@ import MovieCrowdRadarStrip from "@/components/MovieCrowdRadarStrip";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 
 const baseUrl = "https://image.tmdb.org/t/p/original";
+
+/** 여행 구간 상세 페이지 바탕 — 대시보드·쉘과 동계열 데이라이트 */
+const TRAVEL_PAGE_BG =
+  "radial-gradient(1200px 580px at 28% 0%, rgba(175, 198, 218, 0.38), transparent 58%)," +
+  "radial-gradient(800px 420px at 85% 15%, rgba(255, 228, 200, 0.3), transparent 55%)," +
+  "radial-gradient(900px 480px at 50% 105%, rgba(186, 214, 198, 0.22), transparent 58%)," +
+  "linear-gradient(175deg, #eef4f9 0%, #f7f2eb 45%, #e8eef5 100%)";
+
+const TRAVEL_BACKDROP = { palette: ["#9db8cc", "#d4c4ae", "#a8c9b8", "#b8c4d8"], intensity: 0.36 };
+
 const palette = {
   text: "var(--ds-text)",
   textMuted: "var(--ds-text-muted)",
@@ -43,14 +53,14 @@ function ReviewCard({ review, palette, movieName, ct, onHelpful }) {
     <div style={{
       padding: "12px 14px",
       marginBottom: "8px",
-      backgroundColor: "rgba(255,255,255,0.04)",
-      border: "1px solid rgba(255,255,255,0.08)",
+      backgroundColor: "var(--ds-panel-soft)",
+      border: `1px solid var(--ds-border)`,
       borderRadius: "10px",
       backdropFilter: "blur(12px)",
       transition: "background-color 0.2s",
     }}>
       {review.oneLiner && (
-        <p style={{ color: "rgba(255,255,255,0.9)", fontSize: "14px", fontWeight: 600, margin: "0 0 6px", wordBreak: "keep-all" }}>
+        <p style={{ color: "var(--ds-text)", fontSize: "14px", fontWeight: 600, margin: "0 0 6px", wordBreak: "keep-all" }}>
           &ldquo;{review.oneLiner}&rdquo;
         </p>
       )}
@@ -61,10 +71,10 @@ function ReviewCard({ review, palette, movieName, ct, onHelpful }) {
             onClick={() => setOpen((p) => !p)}
             style={{
               padding: "5px 10px",
-              background: "rgba(255,107,107,0.12)",
-              border: "1px solid rgba(255,107,107,0.25)",
+              background: "var(--ds-primary-soft)",
+              border: "1px solid rgba(225, 29, 72, 0.25)",
               borderRadius: "6px",
-              color: "#ff8e6b",
+              color: "var(--ds-primary)",
               fontSize: "12px",
               fontWeight: 700,
               cursor: "pointer",
@@ -74,14 +84,14 @@ function ReviewCard({ review, palette, movieName, ct, onHelpful }) {
             {open ? t("movieImages.collapseReview") : t("movieImages.expandReview")}
           </button>
           {open && (
-            <p style={{ color: "rgba(255,255,255,0.5)", fontSize: "13px", lineHeight: 1.7, margin: "8px 0 0", whiteSpace: "pre-line", wordBreak: "keep-all" }}>
+            <p style={{ color: "var(--ds-text-muted)", fontSize: "13px", lineHeight: 1.7, margin: "8px 0 0", whiteSpace: "pre-line", wordBreak: "keep-all" }}>
               {review.fullReview}
             </p>
           )}
         </>
       )}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "8px" }}>
-        <span style={{ color: "rgba(255,255,255,0.35)", fontSize: "11px" }}>
+        <span style={{ color: "var(--ds-text-muted)", fontSize: "11px" }}>
           {review.userId?.startsWith("anon_") ? t("movieImages.anonymous") : review.userId}
         </span>
         <button
@@ -93,10 +103,10 @@ function ReviewCard({ review, palette, movieName, ct, onHelpful }) {
             alignItems: "center",
             gap: "4px",
             padding: "4px 10px",
-            background: liked ? "rgba(255,107,107,0.15)" : "rgba(255,255,255,0.06)",
-            border: `1px solid ${liked ? "rgba(255,107,107,0.35)" : "rgba(255,255,255,0.1)"}`,
+            background: liked ? "var(--ds-primary-soft)" : "rgba(15, 23, 42, 0.06)",
+            border: `1px solid ${liked ? "rgba(225, 29, 72, 0.35)" : "var(--ds-border)"}`,
             borderRadius: "8px",
-            color: liked ? "#ff6b6b" : "rgba(255,255,255,0.4)",
+            color: liked ? "var(--ds-primary)" : "var(--ds-text-muted)",
             fontSize: "12px",
             fontWeight: 700,
             cursor: liked ? "default" : "pointer",
@@ -362,14 +372,10 @@ function MovieImagesContent() {
           padding: "20px 16px 40px",
           color: palette.textMuted,
           minHeight: "100vh",
-          background:
-            "radial-gradient(1200px 600px at 30% 0%, rgba(236,72,153,0.18), transparent 60%)," +
-            " radial-gradient(800px 420px at 80% 20%, rgba(139,92,246,0.16), transparent 60%)," +
-            " radial-gradient(900px 480px at 50% 110%, rgba(245,158,11,0.10), transparent 60%)," +
-            " radial-gradient(125% 125% at 50% 90%, #000000 40%, #2b092b 100%)",
+          background: TRAVEL_PAGE_BG,
         }}
       >
-        <AmbientBackdrop palette={["#ec4899", "#a78bfa", "#f59e0b", "#22d3ee"]} intensity={0.85} />
+        <AmbientBackdrop {...TRAVEL_BACKDROP} />
         <div style={{ textAlign: "center", paddingTop: "40px" }}>
           <div style={{ width: "40px", height: "40px", border: "3px solid rgba(255,59,92,0.2)", borderTopColor: "#ff3b5c", borderRadius: "50%", margin: "0 auto 16px", animation: "spin 1s linear infinite" }} />
           <p>{t("movieImages.loadingDetail")}</p>
@@ -389,13 +395,10 @@ function MovieImagesContent() {
           padding: "20px 16px 40px",
           color: palette.textMuted,
           minHeight: "100vh",
-          background:
-            "radial-gradient(1200px 600px at 30% 0%, rgba(236,72,153,0.18), transparent 60%)," +
-            " radial-gradient(800px 420px at 80% 20%, rgba(139,92,246,0.16), transparent 60%)," +
-            " radial-gradient(125% 125% at 50% 90%, #000000 40%, #2b092b 100%)",
+          background: TRAVEL_PAGE_BG,
         }}
       >
-        <AmbientBackdrop palette={["#ec4899", "#a78bfa", "#f59e0b", "#22d3ee"]} intensity={0.8} />
+        <AmbientBackdrop {...TRAVEL_BACKDROP} />
         <div style={{ textAlign: "center", paddingTop: "40px" }}>
           <p>{t("movieImages.movieNotFound")}</p>
         </div>
@@ -410,15 +413,11 @@ function MovieImagesContent() {
         isolation: "isolate",
         overflow: "hidden",
         minHeight: "100vh",
-        background:
-          "radial-gradient(1200px 600px at 30% 0%, rgba(236,72,153,0.20), transparent 60%)," +
-          " radial-gradient(800px 420px at 80% 20%, rgba(139,92,246,0.16), transparent 60%)," +
-          " radial-gradient(900px 480px at 50% 110%, rgba(245,158,11,0.10), transparent 60%)," +
-          " radial-gradient(125% 125% at 50% 90%, #000000 40%, #2b092b 100%)",
+        background: TRAVEL_PAGE_BG,
         padding: "20px 16px 40px",
       }}
     >
-      <AmbientBackdrop palette={["#ec4899", "#a78bfa", "#f59e0b", "#22d3ee"]} intensity={0.85} />
+      <AmbientBackdrop {...TRAVEL_BACKDROP} />
       <h1 style={{ color: palette.text, fontSize: "22px", fontWeight: 800, marginBottom: "24px", textAlign: "center" }}>
         {displayName}
       </h1>

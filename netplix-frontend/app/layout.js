@@ -3,6 +3,7 @@ import "leaflet/dist/leaflet.css";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
 import Providers from "@/components/Providers";
+import AppRouteTheme from "@/components/AppRouteTheme";
 import FloatingBackButton from "@/components/FloatingBackButton";
 
 export const metadata = {
@@ -32,13 +33,15 @@ export default function RootLayout({ children }) {
       </head>
       <body suppressHydrationWarning>
         <Providers>
-          <div className="app-shell">
-            <NavBar />
-            <div className="app-route-wrap">
-              {children}
+          <AppRouteTheme>
+            <div className="app-shell">
+              <NavBar />
+              <div className="app-route-wrap">
+                {children}
+              </div>
+              <FloatingBackButton />
             </div>
-            <FloatingBackButton />
-          </div>
+          </AppRouteTheme>
         </Providers>
       </body>
     </html>
