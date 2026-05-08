@@ -40,8 +40,8 @@ import java.util.stream.Collectors;
  * </ul>
  *
  * <p>캐시 키는 type+lang 조합으로 분리 (예: "THEME:ko", "STORY:zh").
- * Odii GW 의 langCode — ko / en 은 그대로, 중·일은 포털 스펙상 {@code chs}(중문 간체),
- * {@code jpn}(일문) 으로 요청해야 하며 도메인/캐시는 zh / ja 로 통일한다.
+ * Odii GW 의 langCode query 는 공공데이터 명세대로 {@code KO}, {@code EN}, {@code ZH}(중문),
+ * {@code JA}(일문) — 도메인·캐시·프런트는 ko|en|zh|ja 로 통일하고 HTTP 에서만 위 값으로 변환한다.
  */
 @Slf4j
 @Component
@@ -450,10 +450,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         sb.append("&MobileApp=touraz-dvdholic");
         sb.append("&numOfRows=").append(rows);
         sb.append("&pageNo=").append(pageNo);
-        // Odii 는 langCode 를 필수 파라미터로 요구 (확인된 스펙:
-        //   resultCode=11, NO_MANDATORY_REQUEST_PARAMETERS_ERROR1(langCode)).
-        // Wellness/MdclTursmService 와 달리 langDivCd 가 아닌 langCode 임에 주의.
-        // 중·일은 GW 에서 chs / jpn (ko·en 과 달리 zh·ja 문자열은 무응답·0건인 경우가 많음).
+        // Odii GW langCode 공공데이터 명세: KO, EN, ZH(중문), JA(일문).
         sb.append("&langCode=").append(forOdiiQueryLang(lang));
         extraParams.forEach((k, v) -> sb.append('&').append(k).append('=')
                 .append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
@@ -635,7 +632,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         String n = lang.trim().toLowerCase(Locale.ROOT);
         // 흔한 별칭 (포털·클라이언트 호환)
         n = switch (n) {
-            case "cn", "chs", "cht", "zho" -> "zh";
+            case "cn", "chs", "cht", "zho", "zn" -> "zh";
             case "jp", "jpn" -> "ja";
             default -> n;
         };
@@ -643,17 +640,20 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     }
 
     /**
-     * API 요청 query 의 langCode 값. {@link #normalize} 가 넘기는 canonical(ko|en|zh|ja) 기준.
+     * Odii HTTP query 의 langCode. 명세: KO, EN, ZH, JA.
+     * {@link #normalize} 가 넘기는 canonical(ko|en|zh|ja) 기준.
      */
     private static String forOdiiQueryLang(String canonical) {
         return switch (canonical) {
-            case "zh" -> "chs";
-            case "ja" -> "jpn";
-            default -> canonical;
+            case "ko" -> "KO";
+            case "en" -> "EN";
+            case "zh" -> "ZH";
+            case "ja" -> "JA";
+            default -> "KO";
         };
     }
 
-    /** 응답 item 의 langCode/chs/jpn 등을 프런트·TTS 용 zh|ja|ko|en 으로 맞춤. */
+    /** 응답 item 의 langCode 를 프런트·TTS 용 zh|ja|ko|en 으로 맞춤. */
     private static String canonicalOdiiLang(String code) {
         if (code == null || code.isBlank()) return null;
         String c = code.trim().toLowerCase(Locale.ROOT);
