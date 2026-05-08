@@ -129,6 +129,9 @@ function filterEnVoices(voices) {
       );
     });
   }
+  return [...out].sort((a, b) => (a.name || "").localeCompare(b.name || "", "en"));
+}
+
 function filterZhVoices(voices) {
   if (!voices?.length) return [];
   const out = voices.filter((v) => {
