@@ -40,8 +40,8 @@ import java.util.stream.Collectors;
  * </ul>
  *
  * <p>캐시 키는 type+lang 조합으로 분리 (예: "THEME:ko", "STORY:zh").
- * Odii GW 는 명세에 KO·EN·ZH·JA 로 적히지만, 실제 HTTP 는 한·영 {@code ko}/{@code en},
- * 중·일 {@code ZH}/{@code JA} 조합이 맞는 경우가 많다(전부 대문자만 쓰면 en 이 0건이 될 수 있음).
+ * 프런트 {@code /audio-guide} 상단 세그먼트 라벨은 KO·EN·ZH·JA 이고, 서버 내부는 {@code ko|en|zh|ja} 다.
+ * Odii HTTP 의 {@code langCode} 는 GW 실측용으로 {@link #forOdiiQueryLang} 에서 별도 변환한다(라벨·명세 문구와 1:1이라고 가정하지 않음).
  */
 @Slf4j
 @Component
@@ -450,7 +450,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         sb.append("&MobileApp=touraz-dvdholic");
         sb.append("&numOfRows=").append(rows);
         sb.append("&pageNo=").append(pageNo);
-        // Odii langCode: 한·영 소문자 ko/en · 중 ZH · 일 JA (전부 대문자 KO/EN 금지 사례).
+        // langCode: UI 라벨과 무관 — ko/en 소문자 + 중일 ZH/JA (실측 기준, 필요 시 조정).
         sb.append("&langCode=").append(forOdiiQueryLang(lang));
         extraParams.forEach((k, v) -> sb.append('&').append(k).append('=')
                 .append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
@@ -640,7 +640,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     }
 
     /**
-     * Odii HTTP query 의 langCode. 한·영은 소문자, 중·일은 대문자(ZH, JA).
+     * Odii {@code langCode} 쿼리 값. 페이지 KO/EN/ZH/JA 라벨에 대응하는 canonical → GW 문자열 변환.
      */
     private static String forOdiiQueryLang(String canonical) {
         return switch (canonical) {
