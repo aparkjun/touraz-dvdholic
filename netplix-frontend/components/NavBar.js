@@ -55,6 +55,16 @@ export default function NavBar() {
             <LanguageToggle />
           </div>
         )}
+        {pathname === '/dashboard' && (
+          <>
+            <span className="app-nav-dashboard-promo app-nav-dashboard-promo--left">
+              DVD는 오전 2시
+            </span>
+            <span className="app-nav-dashboard-promo app-nav-dashboard-promo--right">
+              MOVIE는 오전 3시에 업데이트됩니다!
+            </span>
+          </>
+        )}
         <BrandLink isDashboard={pathname === '/dashboard'} isLoggedIn={isLoggedIn} />
         <AuthActions
           isLoggedIn={isLoggedIn}

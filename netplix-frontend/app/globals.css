@@ -476,6 +476,89 @@ body.app-theme-travel {
  * .app-brand 가 position: absolute 로 중앙에 떠 있으므로 z-index: 2 로
  * 클릭 가능 영역이 brand 아래로 가려지지 않게 보장. */
 .app-nav-leftmost { flex: 0 0 auto; margin-left: 12px; margin-right: auto; position: relative; display: flex; align-items: center; gap: 8px; z-index: 2; }
+
+/* /dashboard 전용 — 중앙 로고 양옆 광고 문구 (CSS 애니메이션으로 ‘GIF’ 느낌) */
+.app-nav-dashboard-promo {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  pointer-events: none;
+  font-size: clamp(9px, 2.5vw, 12px);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  background: linear-gradient(92deg, #fde68a, #fbbf24, #f59e0b, #fcd34d, #fde68a);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: nav-promo-shimmer 2.8s linear infinite, nav-promo-pulse 2s ease-in-out infinite;
+  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.35));
+}
+.app-nav-dashboard-promo--left {
+  left: max(8px, env(safe-area-inset-left, 0px));
+  max-width: min(30vw, 128px);
+  text-align: left;
+  transform: translateY(-50%);
+}
+.app-nav-dashboard-promo--right {
+  right: max(50px, calc(env(safe-area-inset-right, 0px) + 46px));
+  max-width: min(44vw, 240px);
+  text-align: right;
+  transform: translateY(-50%);
+  background: linear-gradient(92deg, #93c5fd, #60a5fa, #3b82f6, #93c5fd, #bfdbfe);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 0 6px rgba(96, 165, 250, 0.4));
+  animation: nav-promo-shimmer 3.2s linear infinite reverse, nav-promo-pulse 2.3s ease-in-out infinite;
+}
+@keyframes nav-promo-shimmer {
+  0% { background-position: 0% center; }
+  100% { background-position: 200% center; }
+}
+@keyframes nav-promo-pulse {
+  0%, 100% { opacity: 0.88; }
+  50% { opacity: 1; }
+}
+.app-theme-travel .app-nav-dashboard-promo {
+  filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.12));
+}
+.app-theme-travel .app-nav-dashboard-promo--left {
+  background: linear-gradient(92deg, #b45309, #d97706, #f59e0b, #b45309, #92400e);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+.app-theme-travel .app-nav-dashboard-promo--right {
+  background: linear-gradient(92deg, #1d4ed8, #2563eb, #3b82f6, #1e40af, #1d4ed8);
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 1px 2px rgba(30, 64, 175, 0.2));
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-nav-dashboard-promo {
+    animation: none;
+    -webkit-text-fill-color: #fbbf24;
+    color: #fbbf24;
+    background: none;
+  }
+  .app-nav-dashboard-promo--right {
+    -webkit-text-fill-color: #3b82f6;
+    color: #3b82f6;
+    background: none;
+  }
+  .app-theme-travel .app-nav-dashboard-promo {
+    -webkit-text-fill-color: #b45309;
+    color: #b45309;
+  }
+  .app-theme-travel .app-nav-dashboard-promo--right {
+    -webkit-text-fill-color: #1d4ed8;
+    color: #1d4ed8;
+  }
+}
 /* Landing(/) 전용 — 사장님 칩이 브랜드(뱀 아이콘)와 겹치지 않도록
  * 화면 우측 끝까지 밀되, 끝에 자석처럼 붙지 않도록 약 10px 정도 호흡을 둔다.
  * (.app-nav-inner padding-right 12px 를 -2px 로 상쇄 → 결과 10px 여백) */
@@ -629,6 +712,16 @@ body.app-theme-travel {
   .app-brand-film, .app-brand-dvd, .app-brand-snake { height: 24px; }
   .app-brand-dvd { height: 26px; }
   .app-brand-radar { width: 18px; height: 18px; }
+  .app-nav-dashboard-promo { font-size: clamp(8px, 2.4vw, 11px); }
+  .app-nav-dashboard-promo--left { max-width: min(28vw, 100px); }
+  .app-nav-dashboard-promo--right { max-width: min(40vw, 168px); }
+}
+@media (max-width: 380px) {
+  .app-nav-dashboard-promo--right {
+    white-space: normal;
+    max-width: 96px;
+    text-align: right;
+  }
 }
 
 @media (max-width: 768px) {
