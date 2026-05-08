@@ -481,7 +481,7 @@ function MovieImagesContent() {
           <img
             src={`${baseUrl}${posterPath}`}
             alt={`${movieName} ${t("movieImages.poster")}`}
-            style={{ width: "100%", borderRadius: "12px", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+            style={{ width: "100%", borderRadius: "12px", boxShadow: "0 10px 28px rgba(15, 23, 42, 0.12)" }}
             draggable={false}
           />
         )}
@@ -489,7 +489,7 @@ function MovieImagesContent() {
           <img
             src={`${baseUrl}${backdropPath}`}
             alt={`${movieName} ${t("movieImages.backdrop")}`}
-            style={{ width: "100%", borderRadius: "12px", boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}
+            style={{ width: "100%", borderRadius: "12px", boxShadow: "0 10px 28px rgba(15, 23, 42, 0.12)" }}
             draggable={false}
           />
         )}
@@ -553,28 +553,28 @@ function MovieImagesContent() {
         {/* OTT */}
         <div style={{
           padding: "18px 15px",
-          background: "linear-gradient(135deg, rgba(25,20,15,0.9), rgba(35,28,18,0.85))",
-          border: "1px solid rgba(210,170,70,0.2)",
-          borderLeft: "4px solid #D4A847",
+          background: "linear-gradient(135deg, rgba(255, 251, 235, 0.96), rgba(254, 249, 231, 0.92))",
+          border: "1px solid rgba(180, 83, 9, 0.14)",
+          borderLeft: "4px solid #ca8a04",
           borderRadius: "10px",
           marginBottom: "12px",
-          boxShadow: "0 2px 12px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,220,100,0.04)",
+          boxShadow: "0 4px 18px rgba(15, 23, 42, 0.08)",
         }}>
-          <span style={{ color: "#FFD54F", fontSize: "15px", fontWeight: 800, marginBottom: "8px", display: "block", letterSpacing: "0.3px" }}>📺 {t("movieImages.ottPlatforms")}</span>
+          <span style={{ color: "#a16207", fontSize: "15px", fontWeight: 800, marginBottom: "8px", display: "block", letterSpacing: "0.3px" }}>📺 {t("movieImages.ottPlatforms")}</span>
           {movie.ottProviders && movie.ottProviders.trim() ? (
             <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "12px" }}>
               {movie.ottProviders.split(/[,·]/).map((p, i) => (
-                <span key={i} style={{ padding: "6px 12px", background: "rgba(210,170,70,0.12)", border: "1px solid rgba(210,170,70,0.2)", borderRadius: "6px", fontSize: "14px", fontWeight: 600, color: "#FFD54F" }}>{p.trim()}</span>
+                <span key={i} style={{ padding: "6px 12px", background: "rgba(202, 138, 4, 0.1)", border: "1px solid rgba(202, 138, 4, 0.22)", borderRadius: "6px", fontSize: "14px", fontWeight: 600, color: "#a16207" }}>{p.trim()}</span>
               ))}
             </div>
           ) : (
-            <p style={{ color: "rgba(255,255,255,0.45)", fontSize: "14px", margin: "0 0 12px 0" }}>{t("movieImages.noOtt")}</p>
+            <p style={{ color: "var(--ds-text-muted)", fontSize: "14px", margin: "0 0 12px 0" }}>{t("movieImages.noOtt")}</p>
           )}
           {movie.movieName && (
             <a href={getYouTubeUrl(movie)} rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "6px", color: "inherit", fontSize: "15px", fontWeight: 700, textDecoration: "none" }}>
               <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 24, height: 24, borderRadius: 4, backgroundColor: "#E62117", color: "#fff", fontSize: "10px", lineHeight: 1, paddingLeft: 2 }}>▶</span>
-              <span style={{ color: "#fff", fontWeight: 600, letterSpacing: "-0.5px" }}>YouTube</span>
-              <span style={{ color: "#FFD54F" }}>{t("movieImages.watchTrailer")}</span>
+              <span style={{ color: "var(--ds-text)", fontWeight: 600, letterSpacing: "-0.5px" }}>YouTube</span>
+              <span style={{ color: "#ca8a04", fontWeight: 700 }}>{t("movieImages.watchTrailer")}</span>
             </a>
           )}
         </div>
@@ -687,8 +687,8 @@ function MovieImagesContent() {
         {/* 리뷰 섹션 (입력 + 기존 리뷰 목록) */}
         <div style={{
           padding: "0",
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.08)",
+          background: "var(--ds-panel-soft)",
+          border: "1px solid var(--ds-border)",
           borderRadius: "16px",
           marginBottom: "12px",
           backdropFilter: "blur(16px)",
@@ -696,10 +696,10 @@ function MovieImagesContent() {
         }}>
           <div style={{
             padding: "14px 18px",
-            background: "linear-gradient(135deg, rgba(255,107,107,0.1), rgba(255,142,83,0.08))",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
+            background: "linear-gradient(135deg, rgba(225, 29, 72, 0.08), rgba(251, 146, 60, 0.06))",
+            borderBottom: "1px solid var(--ds-border)",
           }}>
-            <span style={{ color: "#ff8e6b", fontSize: "15px", fontWeight: 800, display: "block" }}>✍️ {t("movieImages.writeReview")}</span>
+            <span style={{ color: "var(--ds-primary)", fontSize: "15px", fontWeight: 800, display: "block" }}>✍️ {t("movieImages.writeReview")}</span>
           </div>
 
           <div style={{ padding: "16px 18px" }}>
@@ -710,7 +710,7 @@ function MovieImagesContent() {
             )}
 
             <div style={{ marginBottom: "10px" }}>
-              <label style={{ color: "rgba(255,255,255,0.45)", fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "4px" }}>{t("movieImages.review")}</label>
+              <label style={{ color: "var(--ds-text-muted)", fontSize: "12px", fontWeight: 700, display: "block", marginBottom: "4px" }}>{t("movieImages.review")}</label>
               <input
                 type="text"
                 value={reviewOneLiner}
@@ -720,17 +720,17 @@ function MovieImagesContent() {
                 style={{
                   width: "100%",
                   padding: "10px 12px",
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid rgba(255,255,255,0.1)",
+                  background: "rgba(255, 255, 255, 0.85)",
+                  border: "1px solid var(--ds-border)",
                   borderRadius: "10px",
-                  color: "rgba(255,255,255,0.9)",
+                  color: "var(--ds-text)",
                   fontSize: "14px",
                   outline: "none",
                   boxSizing: "border-box",
                   transition: "border-color 0.2s, box-shadow 0.2s",
                 }}
-                onFocus={(e) => { e.target.style.borderColor = "rgba(255,107,107,0.5)"; e.target.style.boxShadow = "0 0 0 3px rgba(255,107,107,0.1)"; }}
-                onBlur={(e) => { e.target.style.borderColor = "rgba(255,255,255,0.1)"; e.target.style.boxShadow = "none"; }}
+                onFocus={(e) => { e.target.style.borderColor = "rgba(225, 29, 72, 0.45)"; e.target.style.boxShadow = "0 0 0 3px rgba(225, 29, 72, 0.12)"; }}
+                onBlur={(e) => { e.target.style.removeProperty("border-color"); e.target.style.removeProperty("box-shadow"); }}
               />
             </div>
 
@@ -744,11 +744,11 @@ function MovieImagesContent() {
                   gap: "6px",
                   padding: "8px 14px",
                   background: spoilerOpen
-                    ? "rgba(255,107,107,0.12)"
-                    : "rgba(255,255,255,0.04)",
-                  border: `1px solid ${spoilerOpen ? "rgba(255,107,107,0.3)" : "rgba(255,255,255,0.08)"}`,
+                    ? "rgba(225, 29, 72, 0.1)"
+                    : "rgba(15, 23, 42, 0.04)",
+                  border: `1px solid ${spoilerOpen ? "rgba(225, 29, 72, 0.28)" : "var(--ds-border)"}`,
                   borderRadius: "10px",
-                  color: spoilerOpen ? "#ff8e6b" : "rgba(255,255,255,0.4)",
+                  color: spoilerOpen ? "var(--ds-primary)" : "var(--ds-text-muted)",
                   fontSize: "13px",
                   fontWeight: 700,
                   cursor: "pointer",
@@ -776,10 +776,10 @@ function MovieImagesContent() {
                     style={{
                       width: "100%",
                       padding: "10px 12px",
-                      background: "rgba(255,255,255,0.06)",
-                      border: "1px solid rgba(255,255,255,0.1)",
+                      background: "rgba(255, 255, 255, 0.85)",
+                      border: "1px solid var(--ds-border)",
                       borderRadius: "10px",
-                      color: "rgba(255,255,255,0.9)",
+                      color: "var(--ds-text)",
                       fontSize: "14px",
                       lineHeight: 1.6,
                       outline: "none",
@@ -787,8 +787,8 @@ function MovieImagesContent() {
                       boxSizing: "border-box",
                       transition: "border-color 0.2s, box-shadow 0.2s",
                     }}
-                    onFocus={(e) => { e.target.style.borderColor = "rgba(255,107,107,0.5)"; e.target.style.boxShadow = "0 0 0 3px rgba(255,107,107,0.1)"; }}
-                    onBlur={(e) => { e.target.style.borderColor = "rgba(255,255,255,0.1)"; e.target.style.boxShadow = "none"; }}
+                    onFocus={(e) => { e.target.style.borderColor = "rgba(225, 29, 72, 0.45)"; e.target.style.boxShadow = "0 0 0 3px rgba(225, 29, 72, 0.12)"; }}
+                    onBlur={(e) => { e.target.style.removeProperty("border-color"); e.target.style.removeProperty("box-shadow"); }}
                   />
                 </div>
               </div>
@@ -823,15 +823,15 @@ function MovieImagesContent() {
         {reviews.length > 0 && (
           <div style={{
             padding: "0",
-            background: "rgba(255,255,255,0.02)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            background: "var(--ds-panel-soft)",
+            border: "1px solid var(--ds-border)",
             borderRadius: "16px",
             marginBottom: "12px",
             backdropFilter: "blur(16px)",
             overflow: "hidden",
           }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", flexWrap: "wrap", gap: "8px", background: "linear-gradient(135deg, rgba(255,107,107,0.08), rgba(255,142,83,0.06))", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-              <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "14px", fontWeight: 800 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 18px", flexWrap: "wrap", gap: "8px", background: "linear-gradient(135deg, rgba(225, 29, 72, 0.08), rgba(251, 146, 60, 0.06))", borderBottom: "1px solid var(--ds-border)" }}>
+              <span style={{ color: "var(--ds-text)", fontSize: "14px", fontWeight: 800 }}>
                 💬 {t("movieImages.reviewCount", { count: reviews.length })}
               </span>
               <div style={{ display: "flex", gap: "6px" }}>
@@ -846,9 +846,9 @@ function MovieImagesContent() {
                       fontSize: "12px",
                       fontWeight: 700,
                       cursor: "pointer",
-                      border: reviewSort === opt.key ? "1px solid rgba(255,107,107,0.4)" : "1px solid rgba(255,255,255,0.1)",
-                      background: reviewSort === opt.key ? "rgba(255,107,107,0.15)" : "rgba(255,255,255,0.04)",
-                      color: reviewSort === opt.key ? "#ff6b6b" : "rgba(255,255,255,0.4)",
+                      border: reviewSort === opt.key ? "1px solid rgba(225, 29, 72, 0.4)" : "1px solid var(--ds-border)",
+                      background: reviewSort === opt.key ? "rgba(225, 29, 72, 0.12)" : "rgba(15, 23, 42, 0.04)",
+                      color: reviewSort === opt.key ? "var(--ds-primary)" : "var(--ds-text-muted)",
                       transition: "all 0.2s",
                     }}
                   >
@@ -866,36 +866,36 @@ function MovieImagesContent() {
         )}
 
         {/* 상세 정보 */}
-        <div style={{ padding: "15px", backgroundColor: "#0f131c", borderRadius: "8px", marginBottom: "12px", fontFamily: "'D2Coding', 'D2 Coding', monospace" }}>
+        <div style={{ padding: "15px", backgroundColor: "var(--ds-panel)", border: `1px solid ${palette.border}`, borderRadius: "8px", marginBottom: "12px", boxShadow: "0 4px 14px rgba(15, 23, 42, 0.06)", fontFamily: "'D2Coding', 'D2 Coding', monospace" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", alignItems: "center" }}>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "center" }}>
-              <span style={{ padding: "5px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: 700, color: "#fff", backgroundColor: "rgba(255,255,255,0.08)", border: `1px solid ${palette.border}` }}>{t("movieImages.contentType")}: {(movie.contentType || "-").toUpperCase()}</span>
-              {typeof movie.isAdult === "boolean" && <span style={{ padding: "5px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: 700, color: "#fff", backgroundColor: movie.isAdult ? "rgba(229, 9, 20, 0.35)" : "rgba(76, 175, 80, 0.25)", border: `1px solid ${palette.border}` }}>{movie.isAdult ? t("movieImages.adultRating") : t("movieImages.generalRating")}</span>}
+              <span style={{ padding: "5px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: 700, color: "var(--ds-text)", backgroundColor: "rgba(15, 23, 42, 0.06)", border: `1px solid ${palette.border}` }}>{t("movieImages.contentType")}: {(movie.contentType || "-").toUpperCase()}</span>
+              {typeof movie.isAdult === "boolean" && <span style={{ padding: "5px 10px", borderRadius: "999px", fontSize: "12px", fontWeight: 700, color: "var(--ds-text)", backgroundColor: movie.isAdult ? "rgba(229, 9, 20, 0.35)" : "rgba(76, 175, 80, 0.25)", border: `1px solid ${palette.border}` }}>{movie.isAdult ? t("movieImages.adultRating") : t("movieImages.generalRating")}</span>}
             </div>
             {movie.voteAverage && (
               <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: "5px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "15px" }}>
-                  <span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>⭐ {t("movieImages.ratingLabel")}</span>
-                  <span style={{ color: "#fff", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.voteAverage.toFixed(1)} / 10 {formatVoteCount(movie.voteCount) && <span style={{ color: palette.textMuted, fontSize: "14px", marginLeft: "8px" }}>({formatVoteCount(movie.voteCount)} {t("movieImages.evaluation")})</span>}</span>
+                  <span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>⭐ {t("movieImages.ratingLabel")}</span>
+                  <span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.voteAverage.toFixed(1)} / 10 {formatVoteCount(movie.voteCount) && <span style={{ color: palette.textMuted, fontSize: "14px", marginLeft: "8px" }}>({formatVoteCount(movie.voteCount)} {t("movieImages.evaluation")})</span>}</span>
                 </div>
               </div>
             )}
-            {movie.releaseDate && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>📅 {ct === "movie" ? t("movieImages.releaseDateMovie") : t("movieImages.releaseDateDvd")}</span><span style={{ color: "#fff", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.releaseDate}</span></div>}
-            {!movie.releaseDate && movie.releasedAt && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>📅 {t("movieImages.releasedAt")}</span><span style={{ color: "#fff", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.releasedAt}</span></div>}
-            {movie.runtime && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>⏱️ {t("movieImages.runtimeLabel")}</span><span style={{ color: "#fff", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.runtime}{t("movieImages.min")}</span></div>}
-            {movie.genre && <div style={{ display: "flex", alignItems: "flex-start", gap: "15px", width: "100%" }}><span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🎭 {t("movieImages.genreLabel")}</span><span style={{ color: "#fff", fontSize: "20px", fontWeight: 300, whiteSpace: "pre-line", flex: 1, minWidth: 0 }}>{formatGenreForDisplay(movie.genre)}</span></div>}
-            {movie.director && <div style={{ display: "flex", alignItems: "flex-start", gap: "15px", width: "100%" }}><span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🎬 {t("movieImages.directorLabel")}</span><span style={{ color: "#fff", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.director}</span></div>}
-            {movie.cast && <div style={{ display: "flex", alignItems: "flex-start", gap: "15px", width: "100%" }}><span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🎭 {t("movieImages.castLabel")}</span><span style={{ color: "#fff", fontSize: "20px", lineHeight: 1.5, fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.cast}</span></div>}
-            {movie.certification && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🔞 {t("movieImages.certificationLabel")}</span><span style={{ color: "#fff", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.certification}</span></div>}
-            {movie.productionCountries && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🌍 {t("movieImages.productionCountries")}</span><span style={{ color: "#fff", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.productionCountries}</span></div>}
-            {movie.productionCompanies && <div style={{ display: "flex", alignItems: "flex-start", gap: "15px", width: "100%" }}><span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🏢 {t("movieImages.productionCompanies")}</span><span style={{ color: "#fff", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0, wordBreak: "break-word" }}>{movie.productionCompanies}</span></div>}
-            {movie.budget != null && movie.budget > 0 && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>💰 {t("movieImages.budget")}</span><span style={{ color: "#fff", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{formatCurrency(movie.budget)}</span></div>}
-            {movie.revenue != null && movie.revenue > 0 && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>📈 {t("movieImages.boxOffice")}</span><span style={{ color: "#fff", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{formatCurrency(movie.revenue)}</span></div>}
-            {movie.collection && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>📚 {t("movieImages.collection")}</span><span style={{ color: "#fff", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.collection}</span></div>}
-            {movie.spokenLanguages && <div style={{ display: "flex", alignItems: "flex-start", gap: "15px", width: "100%" }}><span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🗣️ {t("movieImages.spokenLanguages")}</span><span style={{ color: "#fff", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0, wordBreak: "break-word" }}>{movie.spokenLanguages}</span></div>}
-            {movie.homepage && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🔗 {t("movieImages.homepageLabel")}</span><a href={movie.homepage} target="_blank" rel="noopener noreferrer" style={{ color: "#5C6BC0", fontSize: "18px", fontWeight: 600, textDecoration: "none", flexShrink: 0, whiteSpace: "nowrap" }}>{t("movieImages.visitLink")}</a></div>}
-            {movie.originalTitle && movie.originalTitle !== movie.movieName && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🌐 {t("movieImages.originalTitle")}</span><span style={{ color: "#fff", fontSize: "18px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.originalTitle}</span></div>}
-            {movie.imdbId && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "#fff", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>📎 IMDB</span><a href={`https://www.imdb.com/title/${movie.imdbId}`} target="_blank" rel="noopener noreferrer" style={{ color: "#F5C518", fontSize: "14px", fontWeight: 600, textDecoration: "none", flexShrink: 0, whiteSpace: "nowrap" }}>{t("movieImages.viewOnImdb")}</a></div>}
+            {movie.releaseDate && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>📅 {ct === "movie" ? t("movieImages.releaseDateMovie") : t("movieImages.releaseDateDvd")}</span><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.releaseDate}</span></div>}
+            {!movie.releaseDate && movie.releasedAt && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>📅 {t("movieImages.releasedAt")}</span><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.releasedAt}</span></div>}
+            {movie.runtime && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>⏱️ {t("movieImages.runtimeLabel")}</span><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.runtime}{t("movieImages.min")}</span></div>}
+            {movie.genre && <div style={{ display: "flex", alignItems: "flex-start", gap: "15px", width: "100%" }}><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🎭 {t("movieImages.genreLabel")}</span><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: 300, whiteSpace: "pre-line", flex: 1, minWidth: 0 }}>{formatGenreForDisplay(movie.genre)}</span></div>}
+            {movie.director && <div style={{ display: "flex", alignItems: "flex-start", gap: "15px", width: "100%" }}><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🎬 {t("movieImages.directorLabel")}</span><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.director}</span></div>}
+            {movie.cast && <div style={{ display: "flex", alignItems: "flex-start", gap: "15px", width: "100%" }}><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🎭 {t("movieImages.castLabel")}</span><span style={{ color: "var(--ds-text)", fontSize: "20px", lineHeight: 1.5, fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.cast}</span></div>}
+            {movie.certification && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🔞 {t("movieImages.certificationLabel")}</span><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.certification}</span></div>}
+            {movie.productionCountries && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🌍 {t("movieImages.productionCountries")}</span><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.productionCountries}</span></div>}
+            {movie.productionCompanies && <div style={{ display: "flex", alignItems: "flex-start", gap: "15px", width: "100%" }}><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🏢 {t("movieImages.productionCompanies")}</span><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0, wordBreak: "break-word" }}>{movie.productionCompanies}</span></div>}
+            {movie.budget != null && movie.budget > 0 && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>💰 {t("movieImages.budget")}</span><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{formatCurrency(movie.budget)}</span></div>}
+            {movie.revenue != null && movie.revenue > 0 && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>📈 {t("movieImages.boxOffice")}</span><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{formatCurrency(movie.revenue)}</span></div>}
+            {movie.collection && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>📚 {t("movieImages.collection")}</span><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.collection}</span></div>}
+            {movie.spokenLanguages && <div style={{ display: "flex", alignItems: "flex-start", gap: "15px", width: "100%" }}><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🗣️ {t("movieImages.spokenLanguages")}</span><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: 300, flex: 1, minWidth: 0, wordBreak: "break-word" }}>{movie.spokenLanguages}</span></div>}
+            {movie.homepage && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🔗 {t("movieImages.homepageLabel")}</span><a href={movie.homepage} target="_blank" rel="noopener noreferrer" style={{ color: "#5C6BC0", fontSize: "18px", fontWeight: 600, textDecoration: "none", flexShrink: 0, whiteSpace: "nowrap" }}>{t("movieImages.visitLink")}</a></div>}
+            {movie.originalTitle && movie.originalTitle !== movie.movieName && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>🌐 {t("movieImages.originalTitle")}</span><span style={{ color: "var(--ds-text)", fontSize: "18px", fontWeight: 300, flex: 1, minWidth: 0 }}>{movie.originalTitle}</span></div>}
+            {movie.imdbId && <div style={{ display: "flex", alignItems: "center", gap: "15px", width: "100%" }}><span style={{ color: "var(--ds-text)", fontSize: "20px", fontWeight: "bold", flexShrink: 0, whiteSpace: "nowrap" }}>📎 IMDB</span><a href={`https://www.imdb.com/title/${movie.imdbId}`} target="_blank" rel="noopener noreferrer" style={{ color: "#F5C518", fontSize: "14px", fontWeight: 600, textDecoration: "none", flexShrink: 0, whiteSpace: "nowrap" }}>{t("movieImages.viewOnImdb")}</a></div>}
           </div>
         </div>
 
@@ -917,41 +917,41 @@ function MovieImagesContent() {
             <button onClick={like} disabled={voteLoading} style={{ border: "none", background: "none", padding: 0, width: 48, height: 48, cursor: voteLoading ? "wait" : "pointer", opacity: voteLoading ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <img src="https://img.icons8.com/emoji/96/red-heart.png" alt={t("movieImages.like")} style={{ width: 48, height: 48, objectFit: "contain" }} />
             </button>
-            <span style={{ color: "#fff", fontSize: "12px", fontWeight: "bold" }}>{likeCount}</span>
+            <span style={{ color: "var(--ds-text)", fontSize: "12px", fontWeight: "bold" }}>{likeCount}</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
             <button onClick={unlike} disabled={voteLoading} style={{ border: "none", background: "none", padding: 0, width: 48, height: 48, cursor: voteLoading ? "wait" : "pointer", opacity: voteLoading ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <img src="https://img.icons8.com/fluency/96/thumbs-down.png" alt={t("movieImages.dislike")} style={{ width: 48, height: 48, objectFit: "contain" }} />
             </button>
-            <span style={{ color: "#fff", fontSize: "12px", fontWeight: "bold" }}>{unlikeCount}</span>
+            <span style={{ color: "var(--ds-text)", fontSize: "12px", fontWeight: "bold" }}>{unlikeCount}</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
             <button onClick={meh} disabled={voteLoading} style={{ border: "none", background: "none", padding: 0, width: 48, height: 48, cursor: voteLoading ? "wait" : "pointer", opacity: voteLoading ? 0.6 : 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
               <img src="/kaonashi.png" alt={t("movieImages.meh")} style={{ width: 36, height: 36, objectFit: "contain" }} />
             </button>
-            <span style={{ color: "#fff", fontSize: "12px", fontWeight: "bold" }}>{mehCount}</span>
+            <span style={{ color: "var(--ds-text)", fontSize: "12px", fontWeight: "bold" }}>{mehCount}</span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ color: "#fff", fontSize: "12px", fontWeight: "bold", minWidth: 42, textAlign: "right" }}>{t("movieImages.like")}</span>
-              <div style={{ width: 64, height: 10, backgroundColor: "#333", borderRadius: 4, overflow: "hidden" }}>
+              <span style={{ color: "var(--ds-text)", fontSize: "12px", fontWeight: "bold", minWidth: 42, textAlign: "right" }}>{t("movieImages.like")}</span>
+              <div style={{ width: 64, height: 10, backgroundColor: "rgba(15, 23, 42, 0.1)", borderRadius: 4, overflow: "hidden" }}>
                 <div style={{ width: `${likeCount + unlikeCount + mehCount > 0 ? (likeCount / (likeCount + unlikeCount + mehCount)) * 100 : 0}%`, height: "100%", backgroundColor: "#ff0000", borderRadius: 4, transition: "none" }} />
               </div>
-              <span style={{ color: "#fff", fontSize: "11px", fontWeight: "bold", minWidth: 20 }}>{likeCount}</span>
+              <span style={{ color: "var(--ds-text)", fontSize: "11px", fontWeight: "bold", minWidth: 20 }}>{likeCount}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ color: "#fff", fontSize: "12px", fontWeight: "bold", minWidth: 42, textAlign: "right" }}>{t("movieImages.dislike")}</span>
-              <div style={{ width: 64, height: 10, backgroundColor: "#333", borderRadius: 4, overflow: "hidden" }}>
+              <span style={{ color: "var(--ds-text)", fontSize: "12px", fontWeight: "bold", minWidth: 42, textAlign: "right" }}>{t("movieImages.dislike")}</span>
+              <div style={{ width: 64, height: 10, backgroundColor: "rgba(15, 23, 42, 0.1)", borderRadius: 4, overflow: "hidden" }}>
                 <div style={{ width: `${likeCount + unlikeCount + mehCount > 0 ? (unlikeCount / (likeCount + unlikeCount + mehCount)) * 100 : 0}%`, height: "100%", backgroundColor: "#FFC107", borderRadius: 4, transition: "none" }} />
               </div>
-              <span style={{ color: "#fff", fontSize: "11px", fontWeight: "bold", minWidth: 20 }}>{unlikeCount}</span>
+              <span style={{ color: "var(--ds-text)", fontSize: "11px", fontWeight: "bold", minWidth: 20 }}>{unlikeCount}</span>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-              <span style={{ color: "#fff", fontSize: "12px", fontWeight: "bold", minWidth: 42, textAlign: "right" }}>{t("movieImages.meh")}</span>
-              <div style={{ width: 64, height: 10, backgroundColor: "#333", borderRadius: 4, overflow: "hidden" }}>
+              <span style={{ color: "var(--ds-text)", fontSize: "12px", fontWeight: "bold", minWidth: 42, textAlign: "right" }}>{t("movieImages.meh")}</span>
+              <div style={{ width: 64, height: 10, backgroundColor: "rgba(15, 23, 42, 0.1)", borderRadius: 4, overflow: "hidden" }}>
                 <div style={{ width: `${likeCount + unlikeCount + mehCount > 0 ? (mehCount / (likeCount + unlikeCount + mehCount)) * 100 : 0}%`, height: "100%", backgroundColor: "#9c27b0", borderRadius: 4, transition: "none" }} />
               </div>
-              <span style={{ color: "#fff", fontSize: "11px", fontWeight: "bold", minWidth: 20 }}>{mehCount}</span>
+              <span style={{ color: "var(--ds-text)", fontSize: "11px", fontWeight: "bold", minWidth: 20 }}>{mehCount}</span>
             </div>
           </div>
           </div>
