@@ -39,7 +39,8 @@ import java.util.stream.Collectors;
  *   <li>serviceKey/URL 미설정 · 403 Forbidden · 비-JSON 응답 → 빈 리스트 반환</li>
  * </ul>
  *
- * <p>캐시 키는 type+lang 조합으로 분리 (예: "THEME:ko", "STORY:en").
+ * <p>캐시 키는 type+lang 조합으로 분리 (예: "THEME:ko", "STORY:zh").
+ * Odii GW 는 langCode 에 한·영·중·일(소문자 ko, en, zh, ja)을 사용한다.
  */
 @Slf4j
 @Component
@@ -55,7 +56,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     // 키워드 검색 결과는 일반적으로 수백 건 이내지만 안전하게 여유.
     private static final int MAX_PAGES_KEYWORD = 30;
     private static final int LOCATION_PAGE_ROWS = 50;
-    private static final Set<String> SUPPORTED_LANGS = Set.of("ko", "en");
+    private static final Set<String> SUPPORTED_LANGS = Set.of("ko", "en", "zh", "ja");
 
     private final HttpClient httpClient;
 
@@ -629,6 +630,12 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     private static String normalize(String lang) {
         if (lang == null) return "ko";
         String n = lang.trim().toLowerCase(Locale.ROOT);
+        // 흔한 별칭 (포털·클라이언트 호환)
+        n = switch (n) {
+            case "cn", "chs", "zho" -> "zh";
+            case "jp", "jpn" -> "ja";
+            default -> n;
+        };
         return SUPPORTED_LANGS.contains(n) ? n : "ko";
     }
 

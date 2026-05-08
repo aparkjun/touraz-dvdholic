@@ -19,7 +19,7 @@ import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import useBackButtonClose from "@/lib/useBackButtonClose";
-import { getAudioGuideOdiiLang } from "@/lib/audioGuideOdiiLang";
+import { getAudioGuideOdiiLang, isValidOdiiLang, defaultOdiiLangFromUiLang } from "@/lib/audioGuideOdiiLang";
 import VoiceMicIcon from "@/components/VoiceMicIcon";
 import {
   X,
@@ -129,7 +129,22 @@ function filterEnVoices(voices) {
       );
     });
   }
-  return [...out].sort((a, b) => (a.name || "").localeCompare(b.name || "", "en"));
+function filterZhVoices(voices) {
+  if (!voices?.length) return [];
+  const out = voices.filter((v) => {
+    const l = (v.lang || "").toLowerCase();
+    return l.startsWith("zh") || l.startsWith("cmn");
+  });
+  return [...out].sort((a, b) => (a.name || "").localeCompare(b.name || "", "zh-Hans"));
+}
+
+function filterJaVoices(voices) {
+  if (!voices?.length) return [];
+  const out = voices.filter((v) => {
+    const l = (v.lang || "").toLowerCase();
+    return l.startsWith("ja");
+  });
+  return [...out].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ja"));
 }
 
 function pickInitialVoiceKey(list, storageKey) {
@@ -166,6 +181,21 @@ function applyTtsVoiceToUtter(utter, contentLang, koKey, enKey, lastPickerRow) {
   void window.speechSynthesis.getVoices();
   const all = window.speechSynthesis.getVoices();
   const content = (contentLang || "").toLowerCase();
+
+  if (content.startsWith("zh")) {
+    const zhVoices = filterZhVoices(all);
+    const voice = zhVoices.find((v) => v.default) || zhVoices[0];
+    utter.voice = voice || null;
+    utter.lang = voice?.lang?.trim() || "zh-CN";
+    return;
+  }
+  if (content.startsWith("ja")) {
+    const jaVoices = filterJaVoices(all);
+    const voice = jaVoices.find((v) => v.default) || jaVoices[0];
+    utter.voice = voice || null;
+    utter.lang = voice?.lang?.trim() || "ja-JP";
+    return;
+  }
 
   const pickEnglishVoice = () => {
     const enVoices = filterEnVoices(all);
@@ -243,10 +273,8 @@ function buildKakaoDirectionsUrl({ destLat, destLng, destName, userPos, startNam
 export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLangProp }) {
   const { t, i18n } = useTranslation();
   const odiiLang = useMemo(() => {
-    if (odiiLangProp === "en" || odiiLangProp === "ko") return odiiLangProp;
-    return getAudioGuideOdiiLang(
-      (i18n?.language || "ko").toLowerCase().startsWith("en") ? "en" : "ko"
-    );
+    if (isValidOdiiLang(odiiLangProp)) return odiiLangProp;
+    return getAudioGuideOdiiLang(defaultOdiiLangFromUiLang(i18n?.language));
   }, [odiiLangProp, i18n?.language]);
   const audioRef = useRef(null);
   const mediaSessionDetachRef = useRef(null);
@@ -536,11 +564,16 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
     : [item.title, item.audioTitle, item.themeCategory].filter(Boolean).join(". ");
   const ttsLang = (() => {
     const raw = (item.language || odiiLang || i18n?.language || "ko").toLowerCase();
-    return raw.startsWith("en") ? "en-US" : "ko-KR";
+    if (raw.startsWith("en")) return "en-US";
+    if (raw.startsWith("zh")) return "zh-CN";
+    if (raw.startsWith("ja")) return "ja-JP";
+    return "ko-KR";
   })();
   const ttsContentIsEn = ttsLang.toLowerCase().startsWith("en");
+  const ttsContentIsZh = ttsLang.toLowerCase().startsWith("zh");
+  const ttsContentIsJa = ttsLang.toLowerCase().startsWith("ja");
   const koVoiceRowApply =
-    ttsLastPickerRow === "ko" || (ttsLastPickerRow === null && !ttsContentIsEn);
+    ttsLastPickerRow === "ko" || (ttsLastPickerRow === null && !ttsContentIsEn && !ttsContentIsZh && !ttsContentIsJa);
   const enVoiceRowApply =
     ttsLastPickerRow === "en" || (ttsLastPickerRow === null && ttsContentIsEn);
 
@@ -600,7 +633,13 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       const raw = (story?.language || odiiLang || i18n?.language || "ko").toLowerCase();
-      const storyLang = raw.startsWith("en") ? "en-US" : "ko-KR";
+      const storyLang = raw.startsWith("en")
+        ? "en-US"
+        : raw.startsWith("zh")
+          ? "zh-CN"
+          : raw.startsWith("ja")
+            ? "ja-JP"
+            : "ko-KR";
       utter.lang = storyLang;
       utter.rate = 1;
       utter.pitch = 1;
@@ -796,7 +835,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
             )}
           </div>
 
-          {ttsSupported && (hasScript || isThemeCard) && (koVoices.length > 0 || enVoices.length > 0) ? (
+          {ttsSupported && (hasScript || isThemeCard) && (koVoices.length > 0 || enVoices.length > 0 || ttsContentIsZh || ttsContentIsJa) ? (
             <div className="agm-tts-voice-stack">
               {koVoices.length > 0 ? (
                 <AgmLocaleVoicePicker
@@ -823,6 +862,14 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
                   ariaLabel={t("audioGuide.detail.tts.voiceAriaEn", "영어 해설 대본에 쓸 브라우저 음성")}
                   isApplyRow={enVoiceRowApply}
                 />
+              ) : null}
+              {(ttsContentIsZh || ttsContentIsJa) && koVoices.length === 0 && enVoices.length === 0 ? (
+                <p className="agm-tts-voice-hint">
+                  {t(
+                    "audioGuide.detail.tts.zhJaBuiltinHint",
+                    "中文·日本語 해설은 브라우저 기본 음성으로 재생돼요."
+                  )}
+                </p>
               ) : null}
               {(koVoices.length > 0 && enVoices.length > 0) ? (
                 <p className="agm-tts-voice-hint">

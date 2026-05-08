@@ -8,7 +8,7 @@
  *  - 눈 피로(정주행 번아웃) 해소 → 귀 중심 미디어 소비
  *
  * <p>데이터 소스:
- *  - GET /api/v1/audio-guide?type=theme|story&lang=ko|en (Based)
+ *  - GET /api/v1/audio-guide?type=theme|story&lang=ko|en|zh|ja (Based)
  *  - GET /api/v1/audio-guide/nearby?type&lang&lat&lon&radius (LocationBased)
  *  - GET /api/v1/audio-guide/search?type&lang&q=            (Search)
  *
@@ -29,7 +29,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
-import { getAudioGuideOdiiLang, setAudioGuideOdiiLang } from "@/lib/audioGuideOdiiLang";
+import {
+  getAudioGuideOdiiLang,
+  setAudioGuideOdiiLang,
+  defaultOdiiLangFromUiLang,
+  isValidOdiiLang,
+} from "@/lib/audioGuideOdiiLang";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
@@ -64,35 +69,69 @@ const RADIUS_OPTIONS = [10, 30, 50]; // km
  * Odii 검색에서 자주 매칭되는 역사/문화/자연/K-드라마 관련 키워드.
  */
 const THEME_SHORTCUTS = [
-  { key: "역사",       ko: "역사",          en: "History" },
-  { key: "문화",       ko: "문화",          en: "Culture" },
-  { key: "자연",       ko: "자연",          en: "Nature" },
-  { key: "궁궐",       ko: "궁궐",          en: "Palace" },
-  { key: "사찰",       ko: "사찰",          en: "Temple" },
-  { key: "민속",       ko: "민속",          en: "Folk" },
-  { key: "드라마",     ko: "K-드라마",      en: "K-Drama" },
-  { key: "영화",       ko: "영화",          en: "Film Location" },
+  { key: "역사", ko: "역사", en: "History", zh: "历史", ja: "歴史" },
+  { key: "문화", ko: "문화", en: "Culture", zh: "文化", ja: "文化" },
+  { key: "자연", ko: "자연", en: "Nature", zh: "自然", ja: "自然" },
+  { key: "궁궐", ko: "궁궐", en: "Palace", zh: "宫殿", ja: "宮殿" },
+  { key: "사찰", ko: "사찰", en: "Temple", zh: "寺庙", ja: "寺院" },
+  { key: "민속", ko: "민속", en: "Folk", zh: "民俗", ja: "民俗" },
+  { key: "드라마", ko: "K-드라마", en: "K-Drama", zh: "K-电视剧", ja: "K-ドラマ" },
+  { key: "영화", ko: "영화", en: "Film Location", zh: "电影", ja: "映画" },
 ];
 
-// keyword: KTO 오디오가이드 API 검색용 한글, code: i18n 라벨 키
+// keyword: Odii 검색 기본(한글). zh/ja 는 같은 언어권 검색어(공모전·다국어 데이터 대응).
 const REGION_SHORTCUTS = [
-  { keyword: "서울", code: "1" },
-  { keyword: "부산", code: "6" },
-  { keyword: "인천", code: "2" },
-  { keyword: "대구", code: "4" },
-  { keyword: "대전", code: "3" },
-  { keyword: "광주", code: "5" },
-  { keyword: "울산", code: "7" },
-  { keyword: "경기", code: "31" },
-  { keyword: "강원", code: "32" },
-  { keyword: "충북", code: "33" },
-  { keyword: "충남", code: "34" },
-  { keyword: "전북", code: "35" },
-  { keyword: "전남", code: "36" },
-  { keyword: "경북", code: "37" },
-  { keyword: "경남", code: "38" },
-  { keyword: "제주", code: "39" },
+  { keyword: "서울", zh: "首尔", ja: "ソウル", code: "1" },
+  { keyword: "부산", zh: "釜山", ja: "釜山", code: "6" },
+  { keyword: "인천", zh: "仁川", ja: "仁川", code: "2" },
+  { keyword: "대구", zh: "大邱", ja: "大邱", code: "4" },
+  { keyword: "대전", zh: "大田", ja: "大田", code: "3" },
+  { keyword: "광주", zh: "光州", ja: "光州", code: "5" },
+  { keyword: "울산", zh: "蔚山", ja: "蔚山", code: "7" },
+  { keyword: "경기", zh: "京畿", ja: "キョンギ", code: "31" },
+  { keyword: "강원", zh: "江原", ja: "カンウォン", code: "32" },
+  { keyword: "충북", zh: "忠清北道", ja: "忠北", code: "33" },
+  { keyword: "충남", zh: "忠清南道", ja: "忠南", code: "34" },
+  { keyword: "전북", zh: "全罗北道", ja: "全北", code: "35" },
+  { keyword: "전남", zh: "全罗南道", ja: "全南", code: "36" },
+  { keyword: "경북", zh: "庆尚北道", ja: "庆北", code: "37" },
+  { keyword: "경남", zh: "庆尚南道", ja: "庆南", code: "38" },
+  { keyword: "제주", zh: "济州", ja: "済州", code: "39" },
 ];
+
+function odiiThemeSearchLabel(sc, odiiLang) {
+  if (odiiLang === "en") return sc.en;
+  if (odiiLang === "zh") return sc.zh;
+  if (odiiLang === "ja") return sc.ja;
+  return sc.ko;
+}
+
+function regionSearchKeyword(r, odiiLang) {
+  if (odiiLang === "zh" && r.zh) return r.zh;
+  if (odiiLang === "ja" && r.ja) return r.ja;
+  return r.keyword;
+}
+
+const COURSE_FILM_KEYWORDS = {
+  ko: ["드라마", "영화", "촬영", "로케", "명장면"],
+  en: ["drama", "film", "movie"],
+  zh: ["电视剧", "电影", "拍摄", "外景", "名场面"],
+  ja: ["ドラマ", "映画", "ロケ", "名シーン"],
+};
+
+const COURSE_PALACE_KEYWORDS = {
+  ko: ["경복궁", "창덕궁", "덕수궁", "종묘", "궁궐", "조선"],
+  en: ["palace", "royal", "Gyeongbok", "Changdeok"],
+  zh: ["景福宫", "昌德宫", "德寿宫", "宗庙", "宫殿", "朝鲜"],
+  ja: ["景福宮", "昌德宮", "德寿宮", "宗廟", "宮殿", "朝鮮"],
+};
+
+const COURSE_TEMPLE_KEYWORDS = {
+  ko: ["불국사", "해인사", "통도사", "석굴암", "범어사", "사찰"],
+  en: ["temple", "Bulguksa", "Haeinsa", "Tongdosa"],
+  zh: ["佛国寺", "海印寺", "通度寺", "石窟庵", "梵鱼寺", "寺庙"],
+  ja: ["仏国寺", "海印寺", "通度寺", "石窟庵", "梵魚寺", "寺院"],
+};
 
 function AudioGuidePageInner() {
   const { t, i18n } = useTranslation();
@@ -100,15 +139,15 @@ function AudioGuidePageInner() {
   const searchParams = useSearchParams();
 
   const activeLang = (i18n?.language || "ko").toLowerCase().startsWith("en") ? "en" : "ko";
-  /** Odii API langCode — 영문 해설·대본을 쓰려면 en (공공데이터 Odii / EngService2 와 별개 채널) */
+  /** Odii API langCode — ko|en|zh|ja (GW 스펙, UI i18n 과 독립) */
   const [odiiLang, setOdiiLangState] = useState("ko");
   useEffect(() => {
-    setOdiiLangState(getAudioGuideOdiiLang(activeLang));
-  }, [activeLang]);
+    setOdiiLangState(getAudioGuideOdiiLang(defaultOdiiLangFromUiLang(i18n?.language)));
+  }, [i18n?.language]);
   const onOdiiLangChange = (next) => {
-    const v = next === "en" ? "en" : "ko";
-    setOdiiLangState(v);
-    setAudioGuideOdiiLang(v);
+    if (!isValidOdiiLang(next)) return;
+    setOdiiLangState(next);
+    setAudioGuideOdiiLang(next);
   };
 
   // URL -> state 동기화
@@ -284,7 +323,7 @@ function AudioGuidePageInner() {
   };
 
   const applyShortcutKeyword = (sc) => {
-    const q = odiiLang === "en" ? sc.en : sc.ko;
+    const q = odiiThemeSearchLabel(sc, odiiLang);
     setKeywordInput(q);
     setKeyword(q);
     setWantNearby(false);
@@ -509,14 +548,18 @@ function AudioGuidePageInner() {
 
   useEffect(() => () => stopPlayback(), []);
 
+  const filmCourseKeywordHints = COURSE_FILM_KEYWORDS[odiiLang] || COURSE_FILM_KEYWORDS.ko;
+  const palaceCourseKeywordHints = COURSE_PALACE_KEYWORDS[odiiLang] || COURSE_PALACE_KEYWORDS.ko;
+  const templeCourseKeywordList = COURSE_TEMPLE_KEYWORDS[odiiLang] || COURSE_TEMPLE_KEYWORDS.ko;
+
   const currentPlaying = playingItemRef.current;
   const templeCourseActive =
     !wantNearby
     && type === "story"
-    && (
-      ["사찰", "불국사", "해인사", "통도사", "석굴암", "범어사"].includes(keyword)
-      || (odiiLang === "en" && ["temple", "bulguksa", "haeinsa", "tongdosa"].some((k) => (keyword || "").toLowerCase().includes(k)))
-    );
+    && templeCourseKeywordList.some((k) => {
+      const kw = keyword || "";
+      return kw === k || kw.includes(k);
+    });
   const visibleItems = useMemo(() => items.slice(0, visibleCount), [items, visibleCount]);
 
   return (
@@ -552,6 +595,20 @@ function AudioGuidePageInner() {
                 onClick={() => onOdiiLangChange("en")}
               >
                 EN
+              </button>
+              <button
+                type="button"
+                className={`agp-odii-sg ${odiiLang === "zh" ? "agp-odii-sg-on" : ""}`}
+                onClick={() => onOdiiLangChange("zh")}
+              >
+                ZH
+              </button>
+              <button
+                type="button"
+                className={`agp-odii-sg ${odiiLang === "ja" ? "agp-odii-sg-on" : ""}`}
+                onClick={() => onOdiiLangChange("ja")}
+              >
+                JA
               </button>
             </div>
           </div>
@@ -669,7 +726,7 @@ function AudioGuidePageInner() {
               "영화·K-드라마 속 그 장면, 그 장소. 감독이 왜 이 배경을 골랐는지 현장에서 귀로 듣기."
             )}
             active={!wantNearby && type === "story" && (
-              ["드라마", "영화", "촬영", "로케", "명장면"].includes(keyword)
+              filmCourseKeywordHints.includes(keyword)
               || (odiiLang === "en" && ["drama", "film", "movie"].includes((keyword || "").toLowerCase()))
             )}
             actionLabel={t("audioGuide.courses.film.cta", "바로 재생")}
@@ -677,10 +734,7 @@ function AudioGuidePageInner() {
               launchCourse({
                 kind: "keyword",
                 title: t("audioGuide.courses.film.title", "촬영지 · Cine Set Trail"),
-                // Odii story 탭 키워드 커버리지에 맞춘 폴백 체인
-                keywords: odiiLang === "en"
-                  ? ["drama", "film", "movie"]
-                  : ["드라마", "영화", "촬영", "로케", "명장면"],
+                keywords: COURSE_FILM_KEYWORDS[odiiLang] || COURSE_FILM_KEYWORDS.ko,
               })
             }
           />
@@ -717,17 +771,17 @@ function AudioGuidePageInner() {
               "경복궁·창덕궁·덕수궁의 담장 너머 왕실 이야기. 걸으며 듣는 조선의 하루."
             )}
             active={!wantNearby && type === "story" && (
-              ["궁궐", "경복궁", "창덕궁", "덕수궁", "종묘", "조선"].includes(keyword)
+              palaceCourseKeywordHints.includes(keyword)
               || (odiiLang === "en" && ["palace", "gyeongbok", "changdeok", "deoksug", "jongmyo"].some((k) => (keyword || "").toLowerCase().includes(k)))
+              || (odiiLang === "zh" && ["宫殿", "景福宫", "昌德宫"].some((k) => (keyword || "").includes(k)))
+              || (odiiLang === "ja" && ["宮殿", "景福宮", "昌德宮"].some((k) => (keyword || "").includes(k)))
             )}
             actionLabel={t("audioGuide.courses.palace.cta", "바로 재생")}
             onClick={() =>
               launchCourse({
                 kind: "keyword",
                 title: t("audioGuide.courses.palace.title", "궁궐 · Royal Whisper"),
-                keywords: odiiLang === "en"
-                  ? ["palace", "royal", "Gyeongbok", "Changdeok"]
-                  : ["경복궁", "창덕궁", "덕수궁", "종묘", "궁궐", "조선"],
+                keywords: COURSE_PALACE_KEYWORDS[odiiLang] || COURSE_PALACE_KEYWORDS.ko,
               })
             }
           />
@@ -745,9 +799,7 @@ function AudioGuidePageInner() {
               launchCourse({
                 kind: "keyword",
                 title: t("audioGuide.courses.temple.title", "사찰 · Mindful Path"),
-                keywords: odiiLang === "en"
-                  ? ["temple", "Bulguksa", "Haeinsa", "Tongdosa"]
-                  : ["불국사", "해인사", "통도사", "석굴암", "범어사", "사찰"],
+                keywords: COURSE_TEMPLE_KEYWORDS[odiiLang] || COURSE_TEMPLE_KEYWORDS.ko,
               })
             }
           />
@@ -837,7 +889,7 @@ function AudioGuidePageInner() {
         <div className="agp-chips-row">
           <span className="agp-chips-label">{t("audioGuide.chips.theme", "테마")}</span>
           {THEME_SHORTCUTS.map((sc) => {
-            const label = odiiLang === "en" ? sc.en : sc.ko;
+            const label = odiiThemeSearchLabel(sc, odiiLang);
             const on = keyword === label;
             return (
               <button
@@ -854,13 +906,14 @@ function AudioGuidePageInner() {
         <div className="agp-chips-row">
           <span className="agp-chips-label">{t("audioGuide.chips.region", "지역")}</span>
           {REGION_SHORTCUTS.map((r) => {
-            const on = keyword === r.keyword;
+            const regionKeyword = regionSearchKeyword(r, odiiLang);
+            const on = keyword === regionKeyword;
             return (
               <button
                 key={r.code}
                 type="button"
                 className={`agp-chip ${on ? "agp-chip-on" : ""}`}
-                onClick={() => applyRegion(r.keyword)}
+                onClick={() => applyRegion(regionKeyword)}
               >
                 {t(`regionShortcuts.${r.code}`, r.keyword)}
               </button>

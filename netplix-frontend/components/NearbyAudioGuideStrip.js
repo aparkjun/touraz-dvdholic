@@ -26,7 +26,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import axios from "@/src/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
-import { getAudioGuideOdiiLang, subscribeAudioGuideOdiiLang } from "@/lib/audioGuideOdiiLang";
+import { getAudioGuideOdiiLang, defaultOdiiLangFromUiLang } from "@/lib/audioGuideOdiiLang";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
 import VoiceMicIcon from "@/components/VoiceMicIcon";
 import { Headphones, MapPin, Play, Pause, Clock, ArrowRight, Globe2 } from "lucide-react";
@@ -55,9 +55,7 @@ export default function NearbyAudioGuideStrip({
   const [odiiLangRev, setOdiiLangRev] = useState(0);
   useEffect(() => subscribeAudioGuideOdiiLang(() => setOdiiLangRev((n) => n + 1)), []);
 
-  const lang = getAudioGuideOdiiLang(
-    (i18n?.language || "ko").toLowerCase().startsWith("en") ? "en" : "ko"
-  );
+  const lang = getAudioGuideOdiiLang(defaultOdiiLangFromUiLang(i18n?.language));
   const useCoords = typeof lat === "number" && typeof lng === "number"
     && !Number.isNaN(lat) && !Number.isNaN(lng);
   const useKeyword = !useCoords && !!(keyword && keyword.trim());

@@ -18,7 +18,7 @@ import java.util.Locale;
  *
  * <p>퍼블릭 엔드포인트:
  * <ul>
- *   <li>GET /api/v1/audio-guide?type=theme|story&lang=ko|en&limit= - 전체</li>
+ *   <li>GET /api/v1/audio-guide?type=theme|story&lang=ko|en|zh|ja&limit= - 전체</li>
  *   <li>GET /api/v1/audio-guide/nearby?type=&lang=&lat=&lon=&radius=&limit= - 좌표 주변</li>
  *   <li>GET /api/v1/audio-guide/search?type=&lang=&q=&limit= - 키워드 검색</li>
  * </ul>
