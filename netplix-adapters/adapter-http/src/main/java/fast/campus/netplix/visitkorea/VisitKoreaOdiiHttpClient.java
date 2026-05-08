@@ -40,7 +40,8 @@ import java.util.stream.Collectors;
  * </ul>
  *
  * <p>캐시 키는 type+lang 조합으로 분리 (예: "THEME:ko", "STORY:zh").
- * Odii GW 는 langCode 에 한·영·중·일(소문자 ko, en, zh, ja)을 사용한다.
+ * Odii GW 의 langCode — ko / en 은 그대로, 중·일은 포털 스펙상 {@code chs}(중문 간체),
+ * {@code jpn}(일문) 으로 요청해야 하며 도메인/캐시는 zh / ja 로 통일한다.
  */
 @Slf4j
 @Component
@@ -138,7 +139,8 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             return take(snap.sites, limit);
         }
 
-        if (snap == null) {
+        // 빈 스냅샷(잘못된 langCode·일시 오류 등)은 만료로만 보지 않고 매번 동기 재조회한다.
+        if (snap == null || snap.sites.isEmpty()) {
             PageResult first = requestPage(basedUrl(type), Map.of(), type, l, 1);
             if (first == null) return List.of();
             List<AudioGuideItem> partial = Collections.unmodifiableList(new ArrayList<>(first.items));
@@ -185,7 +187,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             return take(snap.sites, limit);
         }
 
-        if (snap == null) {
+        if (snap == null || snap.sites.isEmpty()) {
             PageResult first = requestPage(searchUrl(type), Map.of("keyword", keyword.trim()), type, l, 1);
             if (first == null) return List.of();
             List<AudioGuideItem> partial = Collections.unmodifiableList(new ArrayList<>(first.items));
@@ -451,7 +453,8 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         // Odii 는 langCode 를 필수 파라미터로 요구 (확인된 스펙:
         //   resultCode=11, NO_MANDATORY_REQUEST_PARAMETERS_ERROR1(langCode)).
         // Wellness/MdclTursmService 와 달리 langDivCd 가 아닌 langCode 임에 주의.
-        sb.append("&langCode=").append(lang);
+        // 중·일은 GW 에서 chs / jpn (ko·en 과 달리 zh·ja 문자열은 무응답·0건인 경우가 많음).
+        sb.append("&langCode=").append(forOdiiQueryLang(lang));
         extraParams.forEach((k, v) -> sb.append('&').append(k).append('=')
                 .append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
 
@@ -572,7 +575,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 .latitude(lat)
                 .longitude(lng)
                 .themeCategory(nullIfBlank(i.getThemeCategory()))
-                .language(nullIfBlank(i.getLangCode()))
+                .language(canonicalOdiiLang(nullIfBlank(i.getLangCode())))
                 .build();
     }
 
@@ -632,11 +635,33 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         String n = lang.trim().toLowerCase(Locale.ROOT);
         // 흔한 별칭 (포털·클라이언트 호환)
         n = switch (n) {
-            case "cn", "chs", "zho" -> "zh";
+            case "cn", "chs", "cht", "zho" -> "zh";
             case "jp", "jpn" -> "ja";
             default -> n;
         };
         return SUPPORTED_LANGS.contains(n) ? n : "ko";
+    }
+
+    /**
+     * API 요청 query 의 langCode 값. {@link #normalize} 가 넘기는 canonical(ko|en|zh|ja) 기준.
+     */
+    private static String forOdiiQueryLang(String canonical) {
+        return switch (canonical) {
+            case "zh" -> "chs";
+            case "ja" -> "jpn";
+            default -> canonical;
+        };
+    }
+
+    /** 응답 item 의 langCode/chs/jpn 등을 프런트·TTS 용 zh|ja|ko|en 으로 맞춤. */
+    private static String canonicalOdiiLang(String code) {
+        if (code == null || code.isBlank()) return null;
+        String c = code.trim().toLowerCase(Locale.ROOT);
+        if (c.equals("chs") || c.equals("cht") || c.equals("cn") || c.startsWith("zh")) return "zh";
+        if (c.equals("jpn") || c.equals("jp") || c.startsWith("ja")) return "ja";
+        if (c.equals("kor") || c.equals("ko")) return "ko";
+        if (c.equals("eng") || c.equals("en")) return "en";
+        return c;
     }
 
     private static String allKey(AudioGuideItem.Type type, String lang) {
