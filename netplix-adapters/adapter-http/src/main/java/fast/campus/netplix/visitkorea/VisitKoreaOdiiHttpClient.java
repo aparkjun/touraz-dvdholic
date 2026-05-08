@@ -40,8 +40,8 @@ import java.util.stream.Collectors;
  * </ul>
  *
  * <p>캐시 키는 type+lang 조합으로 분리 (예: "THEME:ko", "STORY:zh").
- * Odii GW 의 langCode query 는 공공데이터 명세대로 {@code KO}, {@code EN}, {@code ZH}(중문),
- * {@code JA}(일문) — 도메인·캐시·프런트는 ko|en|zh|ja 로 통일하고 HTTP 에서만 위 값으로 변환한다.
+ * Odii GW 는 명세에 KO·EN·ZH·JA 로 적히지만, 실제 HTTP 는 한·영 {@code ko}/{@code en},
+ * 중·일 {@code ZH}/{@code JA} 조합이 맞는 경우가 많다(전부 대문자만 쓰면 en 이 0건이 될 수 있음).
  */
 @Slf4j
 @Component
@@ -450,7 +450,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         sb.append("&MobileApp=touraz-dvdholic");
         sb.append("&numOfRows=").append(rows);
         sb.append("&pageNo=").append(pageNo);
-        // Odii GW langCode 공공데이터 명세: KO, EN, ZH(중문), JA(일문).
+        // Odii langCode: 한·영 소문자 ko/en · 중 ZH · 일 JA (전부 대문자 KO/EN 금지 사례).
         sb.append("&langCode=").append(forOdiiQueryLang(lang));
         extraParams.forEach((k, v) -> sb.append('&').append(k).append('=')
                 .append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
@@ -640,16 +640,15 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     }
 
     /**
-     * Odii HTTP query 의 langCode. 명세: KO, EN, ZH, JA.
-     * {@link #normalize} 가 넘기는 canonical(ko|en|zh|ja) 기준.
+     * Odii HTTP query 의 langCode. 한·영은 소문자, 중·일은 대문자(ZH, JA).
      */
     private static String forOdiiQueryLang(String canonical) {
         return switch (canonical) {
-            case "ko" -> "KO";
-            case "en" -> "EN";
+            case "ko" -> "ko";
+            case "en" -> "en";
             case "zh" -> "ZH";
             case "ja" -> "JA";
-            default -> "KO";
+            default -> "ko";
         };
     }
 
