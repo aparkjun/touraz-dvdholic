@@ -296,6 +296,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
         mediaSessionDetachRef.current = null;
       }
       const audio = new Audio(item.audioUrl);
+      audio.preload = "auto";
       audio.muted = muted;
       audio.addEventListener("ended", () => {
         setPlaying(false);
@@ -323,9 +324,11 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       audioRef.current.pause();
       setPlaying(false);
     } else {
-      audioRef.current.play()
-        .then(() => setPlaying(true))
-        .catch(() => setAudioError(true));
+      setPlaying(true);
+      audioRef.current.play().catch(() => {
+        setPlaying(false);
+        setAudioError(true);
+      });
     }
   };
 
@@ -333,7 +336,10 @@ export default function AudioGuideDetailModal({ item, onClose }) {
     if (!audioRef.current) return;
     audioRef.current.currentTime = 0;
     setProgress(0);
-    audioRef.current.play().then(() => setPlaying(true)).catch(() => { /* noop */ });
+    setPlaying(true);
+    audioRef.current.play().catch(() => {
+      setPlaying(false);
+    });
   };
 
   const toggleMute = () => {

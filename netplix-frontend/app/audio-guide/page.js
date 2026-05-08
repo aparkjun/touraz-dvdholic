@@ -405,6 +405,10 @@ function AudioGuidePageInner() {
 
   // === 재생 제어 ===
   const stopPlayback = () => {
+    setPlayingId(null);
+    playingItemRef.current = null;
+    setPlayProgress(0);
+    setPlayDuration(0);
     if (mediaSessionDetachRef.current) {
       try {
         mediaSessionDetachRef.current();
@@ -418,10 +422,6 @@ function AudioGuidePageInner() {
       audioRef.current.src = "";
       audioRef.current = null;
     }
-    playingItemRef.current = null;
-    setPlayingId(null);
-    setPlayProgress(0);
-    setPlayDuration(0);
   };
 
   const togglePlay = (item) => {
@@ -443,6 +443,7 @@ function AudioGuidePageInner() {
       mediaSessionDetachRef.current = null;
     }
     const audio = new Audio(item.audioUrl);
+    audio.preload = "auto";
     audio.muted = muted;
     audio.addEventListener("ended", () => {
       if (audioRef.current === audio) stopPlayback();
@@ -456,13 +457,15 @@ function AudioGuidePageInner() {
     audio.addEventListener("timeupdate", () => {
       if (audioRef.current === audio) setPlayProgress(audio.currentTime || 0);
     });
-    audio.play().catch(() => { /* autoplay block 등 */ });
     audioRef.current = audio;
     playingItemRef.current = item;
     setPlayingId(item.id);
     mediaSessionDetachRef.current = attachAudioMediaSession(audio, {
       title: item.audioTitle || item.title,
       artworkUrl: item.imageUrl,
+    });
+    audio.play().catch(() => {
+      stopPlayback();
     });
   };
 

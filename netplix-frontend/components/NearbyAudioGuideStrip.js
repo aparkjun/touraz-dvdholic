@@ -112,6 +112,7 @@ export default function NearbyAudioGuideStrip({
     if (!item?.audioUrl) return;
     // 재생 중인 항목을 다시 누르면 정지
     if (playingId === item.id && audioRef.current) {
+      setPlayingId(null);
       if (mediaSessionDetachRef.current) {
         try {
           mediaSessionDetachRef.current();
@@ -120,9 +121,8 @@ export default function NearbyAudioGuideStrip({
         }
         mediaSessionDetachRef.current = null;
       }
-      audioRef.current.pause();
+      try { audioRef.current.pause(); } catch { /* noop */ }
       audioRef.current = null;
-      setPlayingId(null);
       return;
     }
     if (audioRef.current) {
@@ -139,6 +139,7 @@ export default function NearbyAudioGuideStrip({
     }
     try {
       const audio = new Audio(item.audioUrl);
+      audio.preload = "auto";
       audio.addEventListener("ended", () => {
         if (audioRef.current === audio) {
           if (mediaSessionDetachRef.current) {
@@ -167,12 +168,25 @@ export default function NearbyAudioGuideStrip({
           setPlayingId(null);
         }
       });
-      audio.play().catch(() => { /* autoplay block 등 */ });
       audioRef.current = audio;
       setPlayingId(item.id);
       mediaSessionDetachRef.current = attachAudioMediaSession(audio, {
         title: item.audioTitle || item.title,
         artworkUrl: item.imageUrl,
+      });
+      audio.play().catch(() => {
+        if (audioRef.current === audio) {
+          if (mediaSessionDetachRef.current) {
+            try {
+              mediaSessionDetachRef.current();
+            } catch {
+              /* noop */
+            }
+            mediaSessionDetachRef.current = null;
+          }
+          audioRef.current = null;
+          setPlayingId(null);
+        }
       });
     } catch (_) { /* noop */ }
   };
