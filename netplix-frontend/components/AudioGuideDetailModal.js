@@ -5,7 +5,7 @@
  *
  * <p>/audio-guide 페이지와 NearbyAudioGuideStrip 양쪽에서 공통 사용한다.
  *  - 카드 클릭 시 이 모달이 열려 큰 이미지 · 스크립트 전문 · 재생 컨트롤 제공
- *  - 좌표가 있으면 Google/Kakao Map 바로가기 제공
+ *  - 좌표가 있으면 Google/Kakao Map 바로가기 · 대중교통 길찾기(내 위치→목적지) 제공
  *  - ESC 키 / 배경 클릭 / X 버튼으로 닫기
  *  - 모달이 닫힐 때 재생 자동 정지
  *
@@ -14,7 +14,7 @@
  *  - onClose: 닫기 콜백 (필수)
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
@@ -37,7 +37,38 @@ import {
   Square,
   Info,
   Loader2,
+  Navigation,
 } from "lucide-react";
+
+/**
+ * Google Maps 길찾기 — origin 이 있으면 내 위치 기준, 없으면 목적지만(앱에서 출발지 선택).
+ * travelmode=transit: 대중교통 안내.
+ */
+function buildGoogleDirectionsUrl({ destLat, destLng, userPos }) {
+  if (destLat == null || destLng == null) return null;
+  const params = new URLSearchParams();
+  params.set("api", "1");
+  params.set("destination", `${destLat},${destLng}`);
+  if (userPos?.lat != null && userPos?.lng != null) {
+    params.set("origin", `${userPos.lat},${userPos.lng}`);
+  }
+  params.set("travelmode", "transit");
+  return `https://www.google.com/maps/dir/?${params.toString()}`;
+}
+
+/**
+ * 카카오맵 길찾기 — 공식 웹 URL.
+ * @see https://apis.map.kakao.com/web/guide/#routeurl
+ */
+function buildKakaoDirectionsUrl({ destLat, destLng, destName, userPos, startName }) {
+  if (destLat == null || destLng == null) return null;
+  const d = destName && String(destName).trim() ? String(destName).trim() : "Destination";
+  if (userPos?.lat != null && userPos?.lng != null) {
+    const s = startName && String(startName).trim() ? String(startName).trim() : "Start";
+    return `https://map.kakao.com/link/by/traffic/${encodeURIComponent(s)},${userPos.lat},${userPos.lng}/${encodeURIComponent(d)},${destLat},${destLng}`;
+  }
+  return `https://map.kakao.com/link/to/${encodeURIComponent(d)},${destLat},${destLng}`;
+}
 
 export default function AudioGuideDetailModal({ item, onClose }) {
   const { t, i18n } = useTranslation();
@@ -153,6 +184,65 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       .catch(() => { /* noop */ });
     return () => { cancelled = true; };
   }, [item?.id, item?.type, item?.description, i18n?.language]);
+
+  /** 길찾기 링크의 출발지(현재 위치) — 좌표형 목적지가 있을 때만 요청 */
+  const [userNavPos, setUserNavPos] = useState(null);
+  const [navLocState, setNavLocState] = useState("idle");
+
+  useEffect(() => {
+    if (!item || typeof item.latitude !== "number" || typeof item.longitude !== "number") {
+      setUserNavPos(null);
+      setNavLocState("idle");
+      return undefined;
+    }
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      setUserNavPos(null);
+      setNavLocState("unsupported");
+      return undefined;
+    }
+    let cancelled = false;
+    setUserNavPos(null);
+    setNavLocState("loading");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (cancelled) return;
+        setUserNavPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setNavLocState("ready");
+      },
+      () => {
+        if (cancelled) return;
+        setUserNavPos(null);
+        setNavLocState("denied");
+      },
+      { enableHighAccuracy: false, timeout: 12_000, maximumAge: 180_000 }
+    );
+    return () => { cancelled = true; };
+  }, [item?.id, item?.latitude, item?.longitude]);
+
+  const googleDirectionsUrl = useMemo(() => {
+    if (!item || typeof item.latitude !== "number" || typeof item.longitude !== "number") return null;
+    return buildGoogleDirectionsUrl({
+      destLat: item.latitude,
+      destLng: item.longitude,
+      userPos: userNavPos,
+    });
+  }, [item?.id, item?.latitude, item?.longitude, userNavPos]);
+
+  const kakaoDirectionsUrl = useMemo(() => {
+    if (!item || typeof item.latitude !== "number" || typeof item.longitude !== "number") return null;
+    const destName =
+      (item.title && String(item.title).trim())
+      || (item.audioTitle && String(item.audioTitle).trim())
+      || t("audioGuide.detail.directionsDestFallback", "목적지");
+    const startName = t("audioGuide.detail.directionsStartCurrent", "내 위치");
+    return buildKakaoDirectionsUrl({
+      destLat: item.latitude,
+      destLng: item.longitude,
+      destName,
+      userPos: userNavPos,
+      startName,
+    });
+  }, [item?.id, item?.latitude, item?.longitude, item?.title, item?.audioTitle, userNavPos, t]);
 
   // ESC 닫기 + 배경 스크롤 잠금
   useEffect(() => {
@@ -656,13 +746,54 @@ export default function AudioGuideDetailModal({ item, onClose }) {
           )}
 
           {hasCoords && (
-            <div className="agm-map-actions">
-              <a href={googleMapUrl} target="_blank" rel="noreferrer" className="agm-map-btn agm-map-google">
-                <ExternalLink size={13} /> {t("audioGuide.detail.openGoogleMap", "구글 지도에서 보기")}
-              </a>
-              <a href={kakaoMapUrl} target="_blank" rel="noreferrer" className="agm-map-btn agm-map-kakao">
-                <ExternalLink size={13} /> {t("audioGuide.detail.openKakaoMap", "카카오맵에서 보기")}
-              </a>
+            <div className="agm-map-block">
+              <div className="agm-map-heading">
+                {t("audioGuide.detail.directionsSection", "길찾기 (대중교통)")}
+              </div>
+              <div className="agm-map-actions">
+                {googleDirectionsUrl && (
+                  <a
+                    href={googleDirectionsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="agm-map-btn agm-map-dir agm-map-google"
+                  >
+                    <Navigation size={13} /> {t("audioGuide.detail.directionsGoogle", "Google 지도 길찾기")}
+                  </a>
+                )}
+                {kakaoDirectionsUrl && (
+                  <a
+                    href={kakaoDirectionsUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="agm-map-btn agm-map-dir agm-map-kakao"
+                  >
+                    <Navigation size={13} /> {t("audioGuide.detail.directionsKakao", "카카오맵 길찾기")}
+                  </a>
+                )}
+              </div>
+              {navLocState === "loading" && (
+                <p className="agm-map-hint">
+                  {t("audioGuide.detail.directionsLocating", "내 위치를 불러오면 출발지가 채워져요…")}
+                </p>
+              )}
+              {navLocState === "denied" && (
+                <p className="agm-map-hint agm-map-hint-warn">
+                  {t("audioGuide.detail.directionsDeniedHint", "위치 권한이 없으면 앱에서 출발지를 직접 지정해 주세요.")}
+                </p>
+              )}
+
+              <div className="agm-map-heading">
+                {t("audioGuide.detail.mapViewSection", "지도에서 보기")}
+              </div>
+              <div className="agm-map-actions">
+                <a href={googleMapUrl} target="_blank" rel="noreferrer" className="agm-map-btn agm-map-google">
+                  <ExternalLink size={13} /> {t("audioGuide.detail.openGoogleMap", "구글 지도에서 보기")}
+                </a>
+                <a href={kakaoMapUrl} target="_blank" rel="noreferrer" className="agm-map-btn agm-map-kakao">
+                  <ExternalLink size={13} /> {t("audioGuide.detail.openKakaoMap", "카카오맵에서 보기")}
+                </a>
+              </div>
             </div>
           )}
         </div>
@@ -974,6 +1105,23 @@ const modalCss = `
   line-height: 1.65; color: #e8e3f8; font-size: 0.92rem;
 }
 
+.agm-map-block { margin-top: 4px; }
+.agm-map-heading {
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #c4b5fd;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 16px 0 8px;
+}
+.agm-map-block > .agm-map-heading:first-child { margin-top: 0; }
+.agm-map-hint {
+  font-size: 0.78rem;
+  color: #a8a0c8;
+  margin: 8px 0 0;
+  line-height: 1.35;
+}
+.agm-map-hint-warn { color: #fde68a; }
 .agm-map-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .agm-map-btn {
   display: inline-flex; align-items: center; gap: 5px;
@@ -983,6 +1131,7 @@ const modalCss = `
   transition: transform 0.15s ease, filter 0.15s ease;
 }
 .agm-map-btn:hover { transform: translateY(-1px); filter: brightness(1.1); }
+.agm-map-dir { border-style: dashed; opacity: 0.98; }
 .agm-map-google {
   background: linear-gradient(135deg, #34a853 0%, #1a73e8 100%);
   color: #fff;
