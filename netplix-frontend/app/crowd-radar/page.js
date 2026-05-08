@@ -19,7 +19,7 @@
  *  - 관광지 카드 그리드 (30일 sparkline + 최저일 배지 + 영화 매칭 배지)
  */
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useId, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
@@ -103,12 +103,13 @@ function matchMovies(spotName) {
   return out;
 }
 
+/** 혼잡도 단계색 — 네온 대신 채도 낮은 세이지·앰버·코랄 (눈 피로·기괴함 완화) */
 function levelColor(rate) {
-  if (rate == null) return "#555";
-  if (rate < 30) return "#10b981";
-  if (rate < 60) return "#f59e0b";
-  if (rate < 85) return "#fb7185";
-  return "#ef4444";
+  if (rate == null) return "#64748b";
+  if (rate < 30) return "#6d9e86";
+  if (rate < 60) return "#d4a855";
+  if (rate < 85) return "#d8877a";
+  return "#c47272";
 }
 
 function levelLabel(rate, t) {
@@ -351,9 +352,12 @@ function CrowdRadarInner() {
 
   return (
     <div style={styles.page}>
-      <AmbientBackdrop palette={["#22d3ee", "#6366f1", "#f472b6", "#34d399"]} intensity={0.8} />
+      <AmbientBackdrop
+        palette={["#6b8494", "#8b8b9e", "#9a9078", "#7a9a88"]}
+        intensity={0.4}
+      />
       <div style={styles.bgGrid} aria-hidden />
-      <div style={styles.bgRadarSweep} aria-hidden />
+      <div style={styles.bgSoftGlow} aria-hidden />
 
       <div style={styles.wrap}>
         <button
@@ -366,7 +370,7 @@ function CrowdRadarInner() {
 
         <header style={styles.hero}>
           <div style={styles.heroRadar}>
-            <Radar size={40} color="#67e8f9" strokeWidth={2.2} />
+            <Radar size={40} color="#9eb6c4" strokeWidth={2.2} />
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={styles.tag}>
@@ -396,7 +400,7 @@ function CrowdRadarInner() {
           style={styles.helpBar}
           aria-expanded={helpOpen}
         >
-          <Info size={13} color="#67e8f9" />
+          <Info size={13} color="#9eb6c4" />
           <span style={styles.helpLine}>
             {t(
               "crowdRadar.help.summary",
@@ -424,7 +428,7 @@ function CrowdRadarInner() {
 
         {loading ? (
           <div style={styles.loadingBox}>
-            <Loader2 size={28} className="cr-spin" color="#67e8f9" />
+            <Loader2 size={28} className="cr-spin" color="#9eb6c4" />
             <div style={{ marginTop: 10, color: "#bbb", fontSize: 14 }}>
               {t("crowdRadar.loading", "전국 관광지 30일 집중률을 수집 중이에요...")}
             </div>
@@ -438,7 +442,7 @@ function CrowdRadarInner() {
             {stats && (
               <section style={styles.statsGrid}>
                 <StatCard
-                  icon={<TrendingDown size={18} color="#10b981" />}
+                  icon={<TrendingDown size={18} color="#6d9e86" />}
                   label={t("crowdRadar.stats.quietest", "가장 한산한 촬영지")}
                   value={stats.quietest?.spotName || "-"}
                   sub={
@@ -446,10 +450,10 @@ function CrowdRadarInner() {
                       ? `${fmtMMDD(stats.quietest.minInRange.date, dowList)} · ${formatRate(stats.quietest.minInRange.rate)}`
                       : "-"
                   }
-                  color="#10b981"
+                  color="#6d9e86"
                 />
                 <StatCard
-                  icon={<TrendingUp size={18} color="#ef4444" />}
+                  icon={<TrendingUp size={18} color="#c47272" />}
                   label={t("crowdRadar.stats.busiest", "가장 붐비는 촬영지")}
                   value={stats.busiest?.spotName || "-"}
                   sub={
@@ -457,14 +461,14 @@ function CrowdRadarInner() {
                       ? `${fmtMMDD(stats.busiest.maxInRange.date, dowList)} · ${formatRate(stats.busiest.maxInRange.rate)}`
                       : "-"
                   }
-                  color="#ef4444"
+                  color="#c47272"
                 />
                 <StatCard
-                  icon={<CalendarDays size={18} color="#a5b4fc" />}
+                  icon={<CalendarDays size={18} color="#98a7c8" />}
                   label={t("crowdRadar.stats.avg", "선택 구간 평균 집중률")}
                   value={formatRate(stats.avg)}
                   sub={`${stats.total}${t("crowdRadar.stats.spotCount", "개 촬영지 수집")}`}
-                  color="#a5b4fc"
+                  color="#98a7c8"
                 />
               </section>
             )}
@@ -563,11 +567,6 @@ function CrowdRadarInner() {
           from { transform: rotate(0deg); }
           to   { transform: rotate(360deg); }
         }
-        @keyframes cr-sweep {
-          0%   { transform: rotate(0deg); opacity: 0.7; }
-          50%  { opacity: 0.35; }
-          100% { transform: rotate(360deg); opacity: 0.7; }
-        }
       `}</style>
       <style jsx global>{`
         .cr-spin { animation: cr-spin 1s linear infinite; }
@@ -620,7 +619,6 @@ function SpotCard({ spot, rank, preset }) {
   const dowList = t("crowdRadarPage.dow", { returnObjects: true, defaultValue: ["일","월","화","수","목","금","토"] });
   const series = spot.series;
   const color = levelColor(spot.scoreInRange);
-  const maxRate = series.length ? Math.max(...series.map((x) => x.rate), 10) : 100;
 
   const range = rangeForPreset(preset);
   const isInRange = (d) => !range || (d >= range.start && d <= range.end);
@@ -634,7 +632,7 @@ function SpotCard({ spot, rank, preset }) {
         padding: 16,
         borderRadius: 14,
         background: "rgba(15,23,42,0.85)",
-        border: "1px solid rgba(103,232,249,0.18)",
+        border: "1px solid rgba(148, 163, 184, 0.2)",
         color: "#fff",
         display: "flex",
         flexDirection: "column",
@@ -690,15 +688,15 @@ function SpotCard({ spot, rank, preset }) {
         {spot.spotName}
       </h3>
 
-      <Sparkline series={series} isInRange={isInRange} maxRate={maxRate} />
+      <Sparkline series={series} isInRange={isInRange} />
 
       {spot.minEntry && (
         <div style={{ display: "flex", gap: 10, fontSize: 11, flexWrap: "wrap" }}>
-          <span style={{ color: "#34d399" }}>
+          <span style={{ color: "#7aab90" }}>
             <TrendingDown size={11} style={{ verticalAlign: "text-top" }} />{" "}
             {t("crowdRadar.spot.min", "최저")} {fmtMMDD(spot.minEntry.date, dowList)} · {formatRate(spot.minEntry.rate)}
           </span>
-          <span style={{ color: "#f87171" }}>
+          <span style={{ color: "#c9958c" }}>
             <TrendingUp size={11} style={{ verticalAlign: "text-top" }} />{" "}
             {t("crowdRadar.spot.max", "최고")} {fmtMMDD(spot.maxEntry.date, dowList)} · {formatRate(spot.maxEntry.rate)}
           </span>
@@ -719,7 +717,7 @@ function SpotCard({ spot, rank, preset }) {
           <span
             style={{
               fontSize: 11,
-              color: "#a5b4fc",
+              color: "#a8b4cc",
               display: "inline-flex",
               alignItems: "center",
               gap: 4,
@@ -734,9 +732,9 @@ function SpotCard({ spot, rank, preset }) {
                 fontSize: 11,
                 padding: "3px 8px",
                 borderRadius: 10,
-                background: "rgba(165,180,252,0.12)",
-                color: "#c7d2fe",
-                border: "1px solid rgba(165,180,252,0.25)",
+                background: "rgba(152, 167, 200, 0.12)",
+                color: "#c8d0e4",
+                border: "1px solid rgba(152, 167, 200, 0.28)",
               }}
             >
               {m}
@@ -748,12 +746,37 @@ function SpotCard({ spot, rank, preset }) {
   );
 }
 
-function Sparkline({ series, isInRange, maxRate }) {
+/** 스파크라인용 부드러운 곡선 (다수 카드에서 id 충돌 없이 gradId 사용) */
+function smoothSparkPath(pts, H, padY) {
+  if (!pts.length) return { line: "", area: "" };
+  const base = H - padY;
+  if (pts.length === 1) {
+    const p = pts[0];
+    const line = `M${p.x},${p.y}`;
+    return { line, area: `${line} L${p.x},${base} L${p.x},${base} Z` };
+  }
+  let d = `M${pts[0].x},${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const x0 = pts[i].x;
+    const y0 = pts[i].y;
+    const x1 = pts[i + 1].x;
+    const y1 = pts[i + 1].y;
+    const mx = (x0 + x1) / 2;
+    d += ` C${mx},${y0} ${mx},${y1} ${x1},${y1}`;
+  }
+  const last = pts[pts.length - 1];
+  const first = pts[0];
+  return { line: d, area: `${d} L${last.x},${base} L${first.x},${base} Z` };
+}
+
+function Sparkline({ series, isInRange }) {
+  const rawId = useId();
+  const gradId = `cr-spark-${rawId.replace(/[^a-zA-Z0-9_-]/g, "")}`;
   if (!series || series.length === 0) return null;
   const W = 280;
-  const H = 56;
+  const H = 58;
   const padX = 2;
-  const padY = 4;
+  const padY = 5;
   const step = series.length > 1 ? (W - 2 * padX) / (series.length - 1) : 0;
 
   const pts = series.map((p, i) => {
@@ -762,35 +785,34 @@ function Sparkline({ series, isInRange, maxRate }) {
     return { x, y, p };
   });
 
-  const path = pts.reduce(
-    (acc, pt, i) => acc + (i === 0 ? `M${pt.x},${pt.y}` : ` L${pt.x},${pt.y}`),
-    ""
-  );
-  const areaPath = path + ` L${padX + (series.length - 1) * step},${H - padY} L${padX},${H - padY} Z`;
+  const { line: linePath, area: areaPath } = smoothSparkPath(pts, H, padY);
+  const lineColor = "#8aa8b4";
+  const lineSoft = "#a3bac4";
 
   return (
     <svg
       viewBox={`0 0 ${W} ${H}`}
       width="100%"
-      height="56"
+      height="58"
       preserveAspectRatio="none"
       aria-hidden
       style={{ display: "block" }}
     >
       <defs>
-        <linearGradient id="cr-area" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="#67e8f9" stopOpacity="0.55" />
-          <stop offset="100%" stopColor="#67e8f9" stopOpacity="0.04" />
+        <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor={lineSoft} stopOpacity="0.32" />
+          <stop offset="100%" stopColor={lineSoft} stopOpacity="0.03" />
         </linearGradient>
       </defs>
-      <path d={areaPath} fill="url(#cr-area)" />
+      <path d={areaPath} fill={`url(#${gradId})`} />
       <path
-        d={path}
+        d={linePath}
         fill="none"
-        stroke="#67e8f9"
-        strokeWidth={1.5}
+        stroke={lineColor}
+        strokeWidth={1.35}
         strokeLinejoin="round"
         strokeLinecap="round"
+        opacity={0.92}
       />
       {pts.map((pt, i) => {
         const rate = pt.p.rate;
@@ -801,9 +823,11 @@ function Sparkline({ series, isInRange, maxRate }) {
             key={i}
             cx={pt.x}
             cy={pt.y}
-            r={inRange ? 2.2 : 1.2}
+            r={inRange ? 2 : 1.1}
             fill={color}
-            opacity={inRange ? 1 : 0.45}
+            opacity={inRange ? 0.95 : 0.38}
+            stroke="rgba(15,23,42,0.35)"
+            strokeWidth={0.35}
           />
         );
       })}
@@ -816,31 +840,25 @@ const styles = {
     position: "relative",
     isolation: "isolate",
     minHeight: "100vh",
-    color: "#fff",
+    color: "#f1f5f9",
     background:
-      "radial-gradient(1200px 600px at 0% 0%, rgba(34,211,238,0.18), transparent 60%),\n       radial-gradient(1000px 500px at 100% 100%, rgba(99,102,241,0.16), transparent 60%),\n       radial-gradient(900px 480px at 50% 110%, rgba(244,114,182,0.10), transparent 60%),\n       linear-gradient(180deg, #050712 0%, #0b1220 50%, #050712 100%)",
+      "radial-gradient(1100px 560px at 0% 0%, rgba(107, 132, 148, 0.14), transparent 58%),\n       radial-gradient(900px 480px at 100% 100%, rgba(120, 115, 140, 0.1), transparent 55%),\n       radial-gradient(800px 420px at 50% 110%, rgba(122, 138, 120, 0.08), transparent 60%),\n       linear-gradient(180deg, #0a0e14 0%, #0f141c 48%, #0a0e14 100%)",
     overflow: "hidden",
   },
   bgGrid: {
     position: "absolute",
     inset: 0,
     background:
-      "linear-gradient(rgba(103,232,249,0.06) 1px, transparent 1px) 0 0 / 28px 28px,\n       linear-gradient(90deg, rgba(103,232,249,0.06) 1px, transparent 1px) 0 0 / 28px 28px",
+      "linear-gradient(rgba(148, 163, 184, 0.045) 1px, transparent 1px) 0 0 / 32px 32px,\n       linear-gradient(90deg, rgba(148, 163, 184, 0.045) 1px, transparent 1px) 0 0 / 32px 32px",
     pointerEvents: "none",
-    opacity: 0.4,
+    opacity: 0.55,
     zIndex: 0,
   },
-  bgRadarSweep: {
+  bgSoftGlow: {
     position: "absolute",
-    top: -220,
-    right: -220,
-    width: 620,
-    height: 620,
+    inset: 0,
     background:
-      "conic-gradient(from 0deg, rgba(34,211,238,0.35), transparent 25%, transparent 75%, rgba(34,211,238,0.35))",
-    borderRadius: "50%",
-    filter: "blur(2px)",
-    animation: "cr-sweep 8s linear infinite",
+      "radial-gradient(ellipse 75% 55% at 90% -5%, rgba(158, 182, 196, 0.1), transparent 52%),\n       radial-gradient(ellipse 60% 45% at 0% 100%, rgba(130, 145, 160, 0.08), transparent 50%)",
     pointerEvents: "none",
     zIndex: 0,
   },
@@ -859,8 +877,8 @@ const styles = {
     padding: "6px 10px",
     borderRadius: 999,
     background: "rgba(15,23,42,0.5)",
-    color: "#a5f3fc",
-    border: "1px solid rgba(103,232,249,0.35)",
+    color: "#c5d5df",
+    border: "1px solid rgba(148, 163, 184, 0.35)",
     cursor: "pointer",
     marginBottom: 14,
   },
@@ -871,8 +889,8 @@ const styles = {
     padding: 22,
     borderRadius: 20,
     background:
-      "linear-gradient(135deg, rgba(34,211,238,0.08) 0%, rgba(99,102,241,0.06) 55%, rgba(244,63,94,0.06) 100%)",
-    border: "1px solid rgba(103,232,249,0.25)",
+      "linear-gradient(135deg, rgba(107, 132, 148, 0.12) 0%, rgba(115, 115, 135, 0.08) 52%, rgba(140, 120, 120, 0.06) 100%)",
+    border: "1px solid rgba(148, 163, 184, 0.22)",
     marginBottom: 18,
     flexWrap: "wrap",
   },
@@ -884,9 +902,9 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     background:
-      "linear-gradient(135deg, rgba(34,211,238,0.18), rgba(99,102,241,0.18))",
-    border: "1px solid rgba(103,232,249,0.35)",
-    boxShadow: "0 12px 30px -12px rgba(34,211,238,0.55)",
+      "linear-gradient(135deg, rgba(158, 182, 196, 0.16), rgba(130, 140, 168, 0.14))",
+    border: "1px solid rgba(148, 163, 184, 0.28)",
+    boxShadow: "0 12px 28px -14px rgba(30, 41, 59, 0.65)",
     flexShrink: 0,
   },
   tag: {
@@ -895,7 +913,7 @@ const styles = {
     gap: 6,
     fontSize: 11,
     letterSpacing: "0.12em",
-    color: "#67e8f9",
+    color: "#a8bcc8",
     textTransform: "uppercase",
     fontWeight: 700,
   },
@@ -903,14 +921,14 @@ const styles = {
     fontSize: 24,
     fontWeight: 900,
     margin: "6px 0 6px",
-    background: "linear-gradient(90deg, #67e8f9 0%, #a5b4fc 55%, #fda4af 100%)",
+    background: "linear-gradient(90deg, #c5d4dc 0%, #b8c0d4 45%, #d4c4c8 100%)",
     WebkitBackgroundClip: "text",
     backgroundClip: "text",
     WebkitTextFillColor: "transparent",
     color: "transparent",
     lineHeight: 1.2,
   },
-  subtitle: { fontSize: 13.5, color: "#cbd5e1", lineHeight: 1.55, margin: 0 },
+  subtitle: { fontSize: 13.5, color: "#b4c0ce", lineHeight: 1.55, margin: 0 },
   helpBar: {
     display: "flex",
     alignItems: "center",
@@ -920,8 +938,8 @@ const styles = {
     marginBottom: 8,
     borderRadius: 10,
     background: "rgba(15,23,42,0.55)",
-    border: "1px solid rgba(103,232,249,0.18)",
-    color: "#cbd5e1",
+    border: "1px solid rgba(148, 163, 184, 0.22)",
+    color: "#b4c0ce",
     fontSize: 12.5,
     cursor: "pointer",
     textAlign: "left",
@@ -941,10 +959,10 @@ const styles = {
     marginTop: -4,
     marginBottom: 14,
     fontSize: 12,
-    color: "#cbd5e1",
+    color: "#b4c0ce",
     borderRadius: 10,
     background: "rgba(15,23,42,0.35)",
-    border: "1px dashed rgba(103,232,249,0.18)",
+    border: "1px dashed rgba(148, 163, 184, 0.22)",
   },
   helpItem: {
     display: "inline-flex",
@@ -956,14 +974,14 @@ const styles = {
     textAlign: "center",
     borderRadius: 14,
     background: "rgba(15,23,42,0.55)",
-    border: "1px solid rgba(103,232,249,0.18)",
+    border: "1px solid rgba(148, 163, 184, 0.2)",
   },
   errBox: {
     padding: 20,
     borderRadius: 12,
-    color: "#fca5a5",
-    background: "rgba(239,68,68,0.08)",
-    border: "1px solid rgba(239,68,68,0.3)",
+    color: "#e8b4b4",
+    background: "rgba(196, 114, 114, 0.08)",
+    border: "1px solid rgba(196, 114, 114, 0.28)",
     fontSize: 13,
   },
   statsGrid: {
@@ -979,7 +997,7 @@ const styles = {
     padding: 14,
     borderRadius: 14,
     background: "rgba(15,23,42,0.55)",
-    border: "1px solid rgba(103,232,249,0.14)",
+    border: "1px solid rgba(148, 163, 184, 0.16)",
     marginBottom: 18,
   },
   chipRow: {
@@ -1001,19 +1019,19 @@ const styles = {
     cursor: "pointer",
   },
   chipActive: {
-    background: "rgba(103,232,249,0.22)",
-    color: "#e0f2fe",
-    border: "1px solid rgba(103,232,249,0.5)",
+    background: "rgba(158, 182, 196, 0.2)",
+    color: "#e8eef2",
+    border: "1px solid rgba(158, 182, 196, 0.4)",
   },
   chipActiveQuiet: {
-    background: "rgba(16,185,129,0.22)",
-    color: "#d1fae5",
-    border: "1px solid rgba(16,185,129,0.5)",
+    background: "rgba(109, 158, 134, 0.22)",
+    color: "#ddebe2",
+    border: "1px solid rgba(109, 158, 134, 0.45)",
   },
   chipActiveBusy: {
-    background: "rgba(244,63,94,0.22)",
-    color: "#fecdd3",
-    border: "1px solid rgba(244,63,94,0.5)",
+    background: "rgba(196, 114, 114, 0.18)",
+    color: "#f3e4e4",
+    border: "1px solid rgba(196, 114, 114, 0.42)",
   },
   emptyBox: {
     padding: 30,
@@ -1051,7 +1069,7 @@ export default function CrowdRadarPage() {
           style={{
             minHeight: "100vh",
             background:
-              "radial-gradient(1200px 600px at 20% -10%, rgba(34,211,238,0.08), transparent), radial-gradient(125% 125% at 50% 100%, #000 40%, #0b1220 100%)",
+              "radial-gradient(1100px 520px at 18% -8%, rgba(107, 132, 148, 0.1), transparent), radial-gradient(125% 125% at 50% 100%, #080c10 35%, #0f141c 100%)",
           }}
         />
       }
