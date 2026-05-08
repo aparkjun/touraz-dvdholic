@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CalendarHeart, Sparkles, ArrowRight, Leaf } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
@@ -215,6 +216,8 @@ export default function WellnessRecoveryCalendar() {
 
 function QuietDayCard({ r, rank, delay }) {
   const { t, i18n } = useTranslation();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const color = levelColor(r.concentrationRate);
   const qs = new URLSearchParams();
   if (r.areaCode != null && String(r.areaCode).trim() !== '') {
@@ -226,11 +229,28 @@ function QuietDayCard({ r, rank, delay }) {
   if (r.areaName) qs.set('q', r.areaName);
   const dest = qs.toString() ? `/wellness?${qs.toString()}` : '/wellness';
 
+  /** 이미 같은 필터로 이 페이지에 있으면 Link 네비게이션이 무시되어 “반응 없음”처럼 보임 → 목록으로 스크롤 */
+  const onCardClick = (e) => {
+    if (pathname !== '/wellness') return;
+    const qPart = dest.includes('?') ? dest.split('?')[1] : '';
+    const target = new URLSearchParams(qPart);
+    const current = new URLSearchParams(searchParams.toString());
+    const keys = ['korArea', 'korSigungu', 'q'];
+    const same = keys.every((k) => (target.get(k) ?? '') === (current.get(k) ?? ''));
+    if (!same) return;
+    e.preventDefault();
+    document.getElementById('wellness-spots-anchor')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  };
+
   return (
     <Link
       href={dest}
       prefetch={true}
       scroll
+      onClick={onCardClick}
       title={t('wellnessCalendar.cardTooltip', '아래 목록을 이 행정구역(지도·데이터 원본 코드)만 보이게 바꿉니다. 새로 고침(F5)과는 다른 동작입니다.')}
       style={{
         display: 'block',
