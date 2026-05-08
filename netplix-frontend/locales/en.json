@@ -852,11 +852,12 @@
         "pause": "Pause",
         "stop": "Stop",
         "note": "Voice quality depends on your browser/OS.",
-        "voiceLabelKo": "Korean voice",
+        "voiceLabelKo": "Voice for Korean script",
         "voiceBrowserDefaultKo": "Browser default (same as before)",
-        "voiceAriaKo": "Choose a Korean text-to-speech voice",
-        "voiceLabelEn": "English voice",
-        "voiceAriaEn": "Choose an English text-to-speech voice"
+        "voiceAriaKo": "Text-to-speech voice for Korean narration",
+        "voiceLabelEn": "Voice for English script",
+        "voiceAriaEn": "Text-to-speech voice for English narration",
+        "voiceStackHint": "Korean narration uses the top setting; English narration uses the bottom one. Changing only the English row while listening to Korean will not change the voice you hear."
       },
       "stories": {
         "title": "Narration stories for this spot",

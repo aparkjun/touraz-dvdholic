@@ -160,25 +160,30 @@ function pickInitialEnVoiceKey(list) {
   return pickInitialVoiceKey(list, TTS_EN_VOICE_STORAGE_KEY);
 }
 
-function applyTtsVoiceToUtter(utter, lang, koVoices, koKey, enVoices, enKey) {
+function applyTtsVoiceToUtter(utter, lang, koKey, enKey) {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  void window.speechSynthesis.getVoices();
+  const all = window.speechSynthesis.getVoices();
   const l = (lang || "").toLowerCase();
   if (l.startsWith("ko")) {
     if (koKey === TTS_KO_BUILTIN_KEY) return;
-    if (koVoices?.length) {
-      const key = koKey && koVoices.some((v) => ttsVoiceKey(v) === koKey)
-        ? koKey
-        : ttsVoiceKey(koVoices.find((v) => v.default) || koVoices[0]);
-      const voice = koVoices.find((v) => ttsVoiceKey(v) === key);
-      if (voice) utter.voice = voice;
-    }
+    const koVoices = filterKoVoices(all);
+    if (!koVoices.length) return;
+    const voice =
+      (koKey && koVoices.find((v) => ttsVoiceKey(v) === koKey))
+      || koVoices.find((v) => v.default)
+      || koVoices[0];
+    utter.voice = voice;
     return;
   }
-  if (l.startsWith("en") && enVoices?.length) {
-    const key = enKey && enVoices.some((v) => ttsVoiceKey(v) === enKey)
-      ? enKey
-      : ttsVoiceKey(enVoices.find((v) => v.default) || enVoices[0]);
-    const voice = enVoices.find((v) => ttsVoiceKey(v) === key);
-    if (voice) utter.voice = voice;
+  if (l.startsWith("en")) {
+    const enVoices = filterEnVoices(all);
+    if (!enVoices.length) return;
+    const voice =
+      (enKey && enVoices.find((v) => ttsVoiceKey(v) === enKey))
+      || enVoices.find((v) => v.default)
+      || enVoices[0];
+    utter.voice = voice;
   }
 }
 
@@ -508,7 +513,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       utter.lang = ttsLang;
       utter.rate = 1;
       utter.pitch = 1;
-      applyTtsVoiceToUtter(utter, ttsLang, koVoices, ttsKoSelectValue, enVoices, ttsEnSelectValue);
+      applyTtsVoiceToUtter(utter, ttsLang, ttsKoSelectValue, ttsEnSelectValue);
       utter.onend = () => { setTtsPlaying(false); setTtsPaused(false); };
       utter.onerror = () => { setTtsPlaying(false); setTtsPaused(false); };
       window.speechSynthesis.speak(utter);
@@ -559,7 +564,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       utter.lang = raw.startsWith("en") ? "en-US" : "ko-KR";
       utter.rate = 1;
       utter.pitch = 1;
-      applyTtsVoiceToUtter(utter, utter.lang, koVoices, ttsKoSelectValue, enVoices, ttsEnSelectValue);
+      applyTtsVoiceToUtter(utter, utter.lang, ttsKoSelectValue, ttsEnSelectValue);
       utter.onend = () => { setActiveStoryId(null); setActiveStoryPaused(false); };
       utter.onerror = () => { setActiveStoryId(null); setActiveStoryPaused(false); };
       window.speechSynthesis.speak(utter);
@@ -759,8 +764,8 @@ export default function AudioGuideDetailModal({ item, onClose }) {
                   voices={koVoices}
                   value={ttsKoSelectValue}
                   onChange={onTtsKoVoiceChange}
-                  label={t("audioGuide.detail.tts.voiceLabelKo", "한국어 목소리")}
-                  ariaLabel={t("audioGuide.detail.tts.voiceAriaKo", "브라우저 한국어 음성 선택")}
+                  label={t("audioGuide.detail.tts.voiceLabelKo", "한국어 대본용")}
+                  ariaLabel={t("audioGuide.detail.tts.voiceAriaKo", "한국어 해설 대본에 쓸 브라우저 음성")}
                   firstOption={{
                     value: TTS_KO_BUILTIN_KEY,
                     label: t("audioGuide.detail.tts.voiceBrowserDefaultKo", "브라우저 기본 (이전과 동일)"),
@@ -773,9 +778,14 @@ export default function AudioGuideDetailModal({ item, onClose }) {
                   voices={enVoices}
                   value={ttsEnSelectValue}
                   onChange={onTtsEnVoiceChange}
-                  label={t("audioGuide.detail.tts.voiceLabelEn", "영어 목소리")}
-                  ariaLabel={t("audioGuide.detail.tts.voiceAriaEn", "브라우저 영어 음성 선택")}
+                  label={t("audioGuide.detail.tts.voiceLabelEn", "영어 대본용")}
+                  ariaLabel={t("audioGuide.detail.tts.voiceAriaEn", "영어 해설 대본에 쓸 브라우저 음성")}
                 />
+              ) : null}
+              {(koVoices.length > 0 && enVoices.length > 0) ? (
+                <p className="agm-tts-voice-hint">
+                  {t("audioGuide.detail.tts.voiceStackHint", "지금 듣는 해설이 한국어이면 위쪽, 영어이면 아래쪽 음성이 적용돼요. 한국어 해설에 영어만 선택해 두면 바뀌지 않아요.")}
+                </p>
               ) : null}
             </div>
           ) : null}
@@ -1181,6 +1191,12 @@ const modalCss = `
   flex-direction: column;
   gap: 8px;
   margin: 0 0 14px;
+}
+.agm-tts-voice-hint {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: rgba(244,241,255,0.72);
 }
 .agm-tts-voice-row {
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
