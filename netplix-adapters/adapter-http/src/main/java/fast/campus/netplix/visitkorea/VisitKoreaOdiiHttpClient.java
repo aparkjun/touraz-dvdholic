@@ -47,9 +47,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     private static final int MAX_PAGE_SIZE = 100;
     private static final String ALL_KEY_PREFIX = "__ALL__:";
     private static final int MAX_KEYWORD_CACHE = 64;
-    // 확인된 totalCount: themeBasedList 약 2,231건, storyBasedList 는 그 이상 가능.
-    // 100건/페이지 × 60페이지 = 6,000건 상한 → 여유 버퍼 확보.
-    private static final int MAX_PAGES_ALL = 60;
+    // 확인된 totalCount: themeBasedList 약 2,231건, storyBasedList 는 공공 API 기준 6,000건 초과.
+    // 100건/페이지 × 100페이지 = 10,000건 상한 → 스토리 풀 적재 시 누락 방지.
+    private static final int MAX_PAGES_ALL = 100;
     // 키워드 검색 결과는 일반적으로 수백 건 이내지만 안전하게 여유.
     private static final int MAX_PAGES_KEYWORD = 30;
     private static final int LOCATION_PAGE_ROWS = 50;
