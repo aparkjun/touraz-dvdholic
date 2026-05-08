@@ -806,7 +806,9 @@
     "hero": {
       "badge": "Cine Audio Trail · Odii",
       "title": "Films in theaters · Stories on location by ear",
-      "sub": "Rest your eyes and travel with your ears. Listen to site narration and hidden tales on location with KTO's audio guide."
+      "sub": "Rest your eyes and travel with your ears. Listen to site narration and hidden tales on location with KTO's audio guide.",
+      "odiiData": "Guide data language",
+      "odiiDataAria": "KTO Odii API language for scripts and search"
     },
     "search": {
       "placeholder": "Search spots, stories, keywords (e.g. Gyeongbokgung, folk, K-Drama)",

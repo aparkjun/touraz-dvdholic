@@ -29,6 +29,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
+import { getAudioGuideOdiiLang, setAudioGuideOdiiLang } from "@/lib/audioGuideOdiiLang";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
@@ -99,6 +100,16 @@ function AudioGuidePageInner() {
   const searchParams = useSearchParams();
 
   const activeLang = (i18n?.language || "ko").toLowerCase().startsWith("en") ? "en" : "ko";
+  /** Odii API langCode — 영문 해설·대본을 쓰려면 en (공공데이터 Odii / EngService2 와 별개 채널) */
+  const [odiiLang, setOdiiLangState] = useState("ko");
+  useEffect(() => {
+    setOdiiLangState(getAudioGuideOdiiLang(activeLang));
+  }, [activeLang]);
+  const onOdiiLangChange = (next) => {
+    const v = next === "en" ? "en" : "ko";
+    setOdiiLangState(v);
+    setAudioGuideOdiiLang(v);
+  };
 
   // URL -> state 동기화
   const initialType = (searchParams.get("type") || "theme").toLowerCase() === "story" ? "story" : "theme";
@@ -166,8 +177,8 @@ function AudioGuidePageInner() {
     // (사용자의 Play 제스처 컨텍스트를 이미 소비했기 때문에 여기서 다시 덮어쓰면
     //  Audio.play() 가 차단되거나 재생 중인 트랙이 중단될 수 있다.)
     const currentSig = wantNearby && userCoords
-      ? `nearby:${radiusKm}:${userCoords.lat}:${userCoords.lng}:${type}:${activeLang}`
-      : `${type}:${activeLang}:${keyword.trim()}`;
+      ? `nearby:${radiusKm}:${userCoords.lat}:${userCoords.lng}:${type}:${odiiLang}`
+      : `${type}:${odiiLang}:${keyword.trim()}`;
     if (skipNextLoadRef.current === currentSig) {
       skipNextLoadRef.current = null;
       return;
@@ -182,7 +193,7 @@ function AudioGuidePageInner() {
         url = `/api/v1/audio-guide/nearby`;
         params = {
           type,
-          lang: activeLang,
+          lang: odiiLang,
           lat: userCoords.lat,
           lon: userCoords.lng,
           radius: radiusKm * 1000,
@@ -190,10 +201,10 @@ function AudioGuidePageInner() {
         };
       } else if (keyword.trim()) {
         url = `/api/v1/audio-guide/search`;
-        params = { type, lang: activeLang, q: keyword.trim(), limit: 0 };
+        params = { type, lang: odiiLang, q: keyword.trim(), limit: 0 };
       } else {
         url = `/api/v1/audio-guide`;
-        params = { type, lang: activeLang, limit: 0 };
+        params = { type, lang: odiiLang, limit: 0 };
       }
       const res = await axios.get(url, { params });
       const list = Array.isArray(res?.data?.data) ? res.data.data : [];
@@ -205,7 +216,7 @@ function AudioGuidePageInner() {
     } finally {
       setLoading(false);
     }
-  }, [type, activeLang, keyword, wantNearby, userCoords, radiusKm]);
+  }, [type, odiiLang, keyword, wantNearby, userCoords, radiusKm]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -273,7 +284,7 @@ function AudioGuidePageInner() {
   };
 
   const applyShortcutKeyword = (sc) => {
-    const q = activeLang === "en" ? sc.en : sc.ko;
+    const q = odiiLang === "en" ? sc.en : sc.ko;
     setKeywordInput(q);
     setKeyword(q);
     setWantNearby(false);
@@ -329,7 +340,7 @@ function AudioGuidePageInner() {
       for (const q of tryList) {
         if (!q) continue;
         const res = await axios.get(`/api/v1/audio-guide/search`, {
-          params: { type: "story", lang: activeLang, q, limit: 0 },
+          params: { type: "story", lang: odiiLang, q, limit: 0 },
         });
         const list = Array.isArray(res?.data?.data) ? res.data.data : [];
         if (list.length === 0) continue;
@@ -342,7 +353,7 @@ function AudioGuidePageInner() {
         setLoading(false);
         syncUrl({ type: "story", keyword: q });
         // load useEffect 가 동일한 시그니처로 재fetch 하려는 걸 차단
-        skipNextLoadRef.current = `story:${activeLang}:${q}`;
+        skipNextLoadRef.current = `story:${odiiLang}:${q}`;
 
         // 첫 오디오 또는 대본 가진 트랙을 바로 재생
         const firstPlayable = list.find((x) => !!x?.audioUrl);
@@ -502,7 +513,10 @@ function AudioGuidePageInner() {
   const templeCourseActive =
     !wantNearby
     && type === "story"
-    && ["사찰", "불국사", "해인사", "통도사", "석굴암", "범어사"].includes(keyword);
+    && (
+      ["사찰", "불국사", "해인사", "통도사", "석굴암", "범어사"].includes(keyword)
+      || (odiiLang === "en" && ["temple", "bulguksa", "haeinsa", "tongdosa"].some((k) => (keyword || "").toLowerCase().includes(k)))
+    );
   const visibleItems = useMemo(() => items.slice(0, visibleCount), [items, visibleCount]);
 
   return (
@@ -521,8 +535,25 @@ function AudioGuidePageInner() {
             )}
             <span>{t("audioGuide.hero.badge", "Cine Audio Trail · Odii")}</span>
             <span className="agp-lang-pill" style={{ borderColor: "#c4b5fd", color: "#e9d5ff" }}>
-              <Globe2 size={10} /> {activeLang.toUpperCase()}
+              <Globe2 size={10} /> UI {activeLang.toUpperCase()}
             </span>
+            <div className="agp-odii-lang" role="group" aria-label={t("audioGuide.hero.odiiDataAria", "관광공사 오디오 가이드 데이터 언어")}>
+              <span className="agp-odii-lang-label">{t("audioGuide.hero.odiiData", "해설·검색 데이터")}</span>
+              <button
+                type="button"
+                className={`agp-odii-sg ${odiiLang === "ko" ? "agp-odii-sg-on" : ""}`}
+                onClick={() => onOdiiLangChange("ko")}
+              >
+                KO
+              </button>
+              <button
+                type="button"
+                className={`agp-odii-sg ${odiiLang === "en" ? "agp-odii-sg-on" : ""}`}
+                onClick={() => onOdiiLangChange("en")}
+              >
+                EN
+              </button>
+            </div>
           </div>
           <h1 className="agp-hero-title">
             {t("audioGuide.hero.title", "영화는 극장에서 · 이야기는 현지에서 귀로 듣기")}
@@ -637,14 +668,17 @@ function AudioGuidePageInner() {
               "audioGuide.courses.film.desc",
               "영화·K-드라마 속 그 장면, 그 장소. 감독이 왜 이 배경을 골랐는지 현장에서 귀로 듣기."
             )}
-            active={!wantNearby && type === "story" && ["드라마","영화","촬영","로케","명장면"].includes(keyword)}
+            active={!wantNearby && type === "story" && (
+              ["드라마", "영화", "촬영", "로케", "명장면"].includes(keyword)
+              || (odiiLang === "en" && ["drama", "film", "movie"].includes((keyword || "").toLowerCase()))
+            )}
             actionLabel={t("audioGuide.courses.film.cta", "바로 재생")}
             onClick={() =>
               launchCourse({
                 kind: "keyword",
                 title: t("audioGuide.courses.film.title", "촬영지 · Cine Set Trail"),
                 // Odii story 탭 키워드 커버리지에 맞춘 폴백 체인
-                keywords: activeLang === "en"
+                keywords: odiiLang === "en"
                   ? ["drama", "film", "movie"]
                   : ["드라마", "영화", "촬영", "로케", "명장면"],
               })
@@ -682,13 +716,16 @@ function AudioGuidePageInner() {
               "audioGuide.courses.palace.desc",
               "경복궁·창덕궁·덕수궁의 담장 너머 왕실 이야기. 걸으며 듣는 조선의 하루."
             )}
-            active={!wantNearby && type === "story" && ["궁궐","경복궁","창덕궁","덕수궁","종묘","조선"].includes(keyword)}
+            active={!wantNearby && type === "story" && (
+              ["궁궐", "경복궁", "창덕궁", "덕수궁", "종묘", "조선"].includes(keyword)
+              || (odiiLang === "en" && ["palace", "gyeongbok", "changdeok", "deoksug", "jongmyo"].some((k) => (keyword || "").toLowerCase().includes(k)))
+            )}
             actionLabel={t("audioGuide.courses.palace.cta", "바로 재생")}
             onClick={() =>
               launchCourse({
                 kind: "keyword",
                 title: t("audioGuide.courses.palace.title", "궁궐 · Royal Whisper"),
-                keywords: activeLang === "en"
+                keywords: odiiLang === "en"
                   ? ["palace", "royal", "Gyeongbok", "Changdeok"]
                   : ["경복궁", "창덕궁", "덕수궁", "종묘", "궁궐", "조선"],
               })
@@ -708,7 +745,7 @@ function AudioGuidePageInner() {
               launchCourse({
                 kind: "keyword",
                 title: t("audioGuide.courses.temple.title", "사찰 · Mindful Path"),
-                keywords: activeLang === "en"
+                keywords: odiiLang === "en"
                   ? ["temple", "Bulguksa", "Haeinsa", "Tongdosa"]
                   : ["불국사", "해인사", "통도사", "석굴암", "범어사", "사찰"],
               })
@@ -800,7 +837,7 @@ function AudioGuidePageInner() {
         <div className="agp-chips-row">
           <span className="agp-chips-label">{t("audioGuide.chips.theme", "테마")}</span>
           {THEME_SHORTCUTS.map((sc) => {
-            const label = activeLang === "en" ? sc.en : sc.ko;
+            const label = odiiLang === "en" ? sc.en : sc.ko;
             const on = keyword === label;
             return (
               <button
@@ -944,6 +981,7 @@ function AudioGuidePageInner() {
         <AudioGuideDetailModal
           item={detailItem}
           onClose={() => setDetailItem(null)}
+          odiiLang={odiiLang}
         />
       )}
     </div>
@@ -1306,7 +1344,7 @@ const agpCss = `
 }
 .agp-hero-inner { max-width: 980px; margin: 0 auto; }
 .agp-hero-badge {
-  display: inline-flex; align-items: center; gap: 8px;
+  display: inline-flex; align-items: center; flex-wrap: wrap; gap: 8px;
   padding: 5px 11px; border-radius: 999px;
   background: rgba(167,139,250,0.15);
   border: 1px solid rgba(167,139,250,0.35);
@@ -1320,6 +1358,37 @@ const agpCss = `
   border: 1px solid currentColor;
   background: rgba(0,0,0,0.3);
   letter-spacing: 0.04em;
+}
+.agp-odii-lang {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-left: 4px;
+  padding: 2px 4px 2px 8px;
+  border-radius: 999px;
+  background: rgba(8,4,22,0.45);
+  border: 1px solid rgba(196,181,253,0.4);
+}
+.agp-odii-lang-label {
+  font-size: 0.62rem;
+  font-weight: 750;
+  color: rgba(233,213,255,0.88);
+  letter-spacing: -0.02em;
+}
+.agp-odii-sg {
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(167,139,250,0.35);
+  background: rgba(20,12,40,0.6);
+  color: #e9d5ff;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+}
+.agp-odii-sg-on {
+  background: linear-gradient(135deg, rgba(139,92,246,0.95), rgba(167,139,250,0.75));
+  border-color: rgba(253,230,138,0.5);
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(253,230,138,0.25);
 }
 .agp-hero-title {
   margin: 14px 0 6px;

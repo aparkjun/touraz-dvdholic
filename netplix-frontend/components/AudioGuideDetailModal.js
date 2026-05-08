@@ -19,6 +19,7 @@ import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import useBackButtonClose from "@/lib/useBackButtonClose";
+import { getAudioGuideOdiiLang } from "@/lib/audioGuideOdiiLang";
 import VoiceMicIcon from "@/components/VoiceMicIcon";
 import {
   X,
@@ -239,8 +240,14 @@ function buildKakaoDirectionsUrl({ destLat, destLng, destName, userPos, startNam
   return `https://map.kakao.com/link/to/${encodeURIComponent(d)},${destLat},${destLng}`;
 }
 
-export default function AudioGuideDetailModal({ item, onClose }) {
+export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLangProp }) {
   const { t, i18n } = useTranslation();
+  const odiiLang = useMemo(() => {
+    if (odiiLangProp === "en" || odiiLangProp === "ko") return odiiLangProp;
+    return getAudioGuideOdiiLang(
+      (i18n?.language || "ko").toLowerCase().startsWith("en") ? "en" : "ko"
+    );
+  }, [odiiLangProp, i18n?.language]);
   const audioRef = useRef(null);
   const mediaSessionDetachRef = useRef(null);
   const ttsVoiceSelectId = useId();
@@ -351,7 +358,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
     }
     let cancelled = false;
     setStoriesLoading(true);
-    const effectiveLang = (i18n?.language || "ko").toLowerCase().startsWith("en") ? "en" : "ko";
+    const effectiveLang = odiiLang;
     axios
       .get("/api/v1/audio-guide/stories-by-theme", {
         params: {
@@ -369,7 +376,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       .catch(() => { if (!cancelled) setStories([]); })
       .finally(() => { if (!cancelled) setStoriesLoading(false); });
     return () => { cancelled = true; };
-  }, [item?.id, item?.type, i18n?.language]);
+  }, [item?.id, item?.type, odiiLang]);
 
   // STORY 카드 상세 조회: 리스트는 lite 로 내려오므로 description 이 없으면 여기서 보강.
   // THEME 카드는 원본 응답에도 script 가 없어 조회해도 받을 값이 없으므로 생략.
@@ -377,7 +384,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
     if (!item || item.type !== "STORY" || !item.id) return undefined;
     if (item.description && String(item.description).trim()) return undefined;
     let cancelled = false;
-    const effectiveLang = (i18n?.language || "ko").toLowerCase().startsWith("en") ? "en" : "ko";
+    const effectiveLang = odiiLang;
     axios
       .get("/api/v1/audio-guide/detail", {
         params: { type: "story", lang: effectiveLang, id: item.id },
@@ -389,7 +396,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       })
       .catch(() => { /* noop */ });
     return () => { cancelled = true; };
-  }, [item?.id, item?.type, item?.description, i18n?.language]);
+  }, [item?.id, item?.type, item?.description, odiiLang]);
 
   /** 길찾기 링크의 출발지(현재 위치) — 좌표형 목적지가 있을 때만 요청 */
   const [userNavPos, setUserNavPos] = useState(null);
@@ -528,7 +535,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
     ? effectiveDescription
     : [item.title, item.audioTitle, item.themeCategory].filter(Boolean).join(". ");
   const ttsLang = (() => {
-    const raw = (item.language || i18n?.language || "ko").toLowerCase();
+    const raw = (item.language || odiiLang || i18n?.language || "ko").toLowerCase();
     return raw.startsWith("en") ? "en-US" : "ko-KR";
   })();
   const ttsContentIsEn = ttsLang.toLowerCase().startsWith("en");
@@ -592,7 +599,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       }
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
-      const raw = (story?.language || i18n?.language || "ko").toLowerCase();
+      const raw = (story?.language || odiiLang || i18n?.language || "ko").toLowerCase();
       const storyLang = raw.startsWith("en") ? "en-US" : "ko-KR";
       utter.lang = storyLang;
       utter.rate = 1;

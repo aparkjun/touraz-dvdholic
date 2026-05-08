@@ -26,6 +26,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import axios from "@/src/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
+import { getAudioGuideOdiiLang, subscribeAudioGuideOdiiLang } from "@/lib/audioGuideOdiiLang";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
 import VoiceMicIcon from "@/components/VoiceMicIcon";
 import { Headphones, MapPin, Play, Pause, Clock, ArrowRight, Globe2 } from "lucide-react";
@@ -51,7 +52,12 @@ export default function NearbyAudioGuideStrip({
   // 미니카드 클릭 시 열리는 상세 모달 대상
   const [detailItem, setDetailItem] = useState(null);
 
-  const lang = (i18n?.language || "ko").toLowerCase().startsWith("en") ? "en" : "ko";
+  const [odiiLangRev, setOdiiLangRev] = useState(0);
+  useEffect(() => subscribeAudioGuideOdiiLang(() => setOdiiLangRev((n) => n + 1)), []);
+
+  const lang = getAudioGuideOdiiLang(
+    (i18n?.language || "ko").toLowerCase().startsWith("en") ? "en" : "ko"
+  );
   const useCoords = typeof lat === "number" && typeof lng === "number"
     && !Number.isNaN(lat) && !Number.isNaN(lng);
   const useKeyword = !useCoords && !!(keyword && keyword.trim());
@@ -88,7 +94,7 @@ export default function NearbyAudioGuideStrip({
     }
     run();
     return () => { cancelled = true; };
-  }, [useCoords, useKeyword, lat, lng, keyword, type, radiusM, limit, lang]);
+  }, [useCoords, useKeyword, lat, lng, keyword, type, radiusM, limit, lang, odiiLangRev]);
 
   useEffect(() => () => {
     if (mediaSessionDetachRef.current) {
@@ -253,6 +259,7 @@ export default function NearbyAudioGuideStrip({
         <AudioGuideDetailModal
           item={detailItem}
           onClose={() => setDetailItem(null)}
+          odiiLang={lang}
         />
       )}
     </section>
