@@ -369,7 +369,7 @@ optgroup {
 }
 
 /*
- * 여행·탐색 구간 (/dashboard/images, /cine-trip, …) — “soft travel / warm pastel” 데이라이트.
+ * 여행·탐색 구간 (/dashboard, /cine-trip, …) — Magic MCP(21st.dev) “soft travel / warm pastel”
  * 레퍼런스를 바탕으로 채도만 낮춘 데이라이트 그라디언트. 시네마 다크(/)와 대비.
  */
 body.app-theme-travel {
