@@ -172,6 +172,11 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   if (!item) return null;
 
   const hasAudio = !!item.audioUrl;
+  const isThemeCard = item.type === "THEME";
+  // THEME + 대표 audioUrl 만 있을 때 상단 플레이어가 먼저 그려지면 연관 STORY 블록이 통째로 생략되어
+  // “오디오가 하나만” 있는 것처럼 보인다. STORY 를 불러오는 중이거나 1건 이상이면 목록을 우선한다.
+  const showThemeStoryList = isThemeCard && (storiesLoading || stories.length > 0);
+  const showMainPlayer = hasAudio && (!isThemeCard || !showThemeStoryList);
   // description 은 리스트 lite 응답에서 빠져 있을 수 있으므로 loadedDesc 로 보강.
   const effectiveDescription = (item.description && String(item.description).trim())
     ? String(item.description)
@@ -219,6 +224,14 @@ export default function AudioGuideDetailModal({ item, onClose }) {
   };
 
   // --- 스토리 행별 TTS 핸들러 ---
+  const pauseAllStoryNativeAudios = (except) => {
+    if (typeof document === "undefined") return;
+    document.querySelectorAll(".agm-story-native").forEach((el) => {
+      if (except && el === except) return;
+      try { el.pause(); } catch (_) { /* noop */ }
+    });
+  };
+
   const playStoryTts = (story) => {
     if (!ttsSupported) return;
     const text = (story?.description && String(story.description).trim())
@@ -226,6 +239,11 @@ export default function AudioGuideDetailModal({ item, onClose }) {
       : [story?.audioTitle, story?.title, story?.themeCategory].filter(Boolean).join(". ");
     if (!text) return;
     try {
+      pauseAllStoryNativeAudios();
+      if (audioRef.current) {
+        try { audioRef.current.pause(); } catch (_) { /* noop */ }
+        setPlaying(false);
+      }
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
       const raw = (story?.language || i18n?.language || "ko").toLowerCase();
@@ -256,6 +274,8 @@ export default function AudioGuideDetailModal({ item, onClose }) {
 
   const togglePlay = () => {
     if (!hasAudio) return;
+    stopStoryTts();
+    pauseAllStoryNativeAudios();
     if (!audioRef.current) {
       if (mediaSessionDetachRef.current) {
         try {
@@ -410,7 +430,7 @@ export default function AudioGuideDetailModal({ item, onClose }) {
             )}
           </div>
 
-          {hasAudio ? (
+          {showMainPlayer ? (
             <div className="agm-player">
               <div className="agm-player-top">
                 <button
@@ -448,17 +468,17 @@ export default function AudioGuideDetailModal({ item, onClose }) {
                 </p>
               )}
             </div>
-          ) : item.type === "THEME" && ttsSupported ? (
+          ) : isThemeCard ? (
             // Odii API 는 THEME(관광지) 응답에 script 를 내려주지 않고,
             // STORY(이야기) 응답에만 해설 대본이 있다. 여러 STORY 가 tid 로 THEME 에 연결되므로
-            // 이 관광지와 연결된 이야기들을 나열해 각자 TTS 재생 버튼을 제공한다.
+            // 이 관광지와 연결된 이야기들을 나열한다. STORY 에 audioUrl 이 있으면 네이티브 재생, 없으면 TTS.
             <div className="agm-theme-stories">
               <div className="agm-theme-stories-head">
                 <div className="agm-theme-stories-title">
                   <Mic2 size={16} /> {t("audioGuide.detail.stories.title", "이 관광지의 해설 이야기")}
                 </div>
                 <div className="agm-theme-stories-sub">
-                  {t("audioGuide.detail.stories.sub", "Odii 는 오디오 파일을 공개하지 않아요. 관련 해설 이야기를 골라 AI 음성으로 들어보세요.")}
+                  {t("audioGuide.detail.stories.sub", "항목마다 제공 형태가 달라요. 오디오가 있으면 바로 재생하고, 없으면 브라우저 음성으로 대본을 들을 수 있어요.")}
                 </div>
               </div>
               {storiesLoading ? (
@@ -477,50 +497,79 @@ export default function AudioGuideDetailModal({ item, onClose }) {
                     const isActive = activeStoryId === s.id;
                     const isPlaying = isActive && !activeStoryPaused;
                     const label = s.audioTitle || s.title || "";
+                    const storyAudio = s.audioUrl && String(s.audioUrl).trim() ? String(s.audioUrl).trim() : "";
+                    const showTtsBtn = !storyAudio && ttsSupported;
                     return (
-                      <li key={s.id} className={`agm-story-row${isActive ? " active" : ""}`}>
-                        <button
-                          type="button"
-                          className="agm-story-play"
-                          onClick={() => {
-                            if (!isActive) return playStoryTts(s);
-                            if (activeStoryPaused) return resumeStoryTts();
-                            return pauseStoryTts();
-                          }}
-                          aria-label={isPlaying ? "pause" : "play"}
-                        >
-                          {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-                        </button>
-                        <div className="agm-story-meta">
-                          <div className="agm-story-title">{label}</div>
-                          <div className="agm-story-sub">
-                            {s.playTimeText && (
-                              <span><Clock size={10} /> {formatPlayTime(s.playTimeText)}</span>
-                            )}
-                            {s.themeCategory && (
-                              <span><Tag size={10} /> {s.themeCategory}</span>
-                            )}
+                      <li key={s.id} className={`agm-story-row${isActive && showTtsBtn ? " active" : ""}`}>
+                        <div className="agm-story-row-main">
+                          {showTtsBtn ? (
+                            <button
+                              type="button"
+                              className="agm-story-play"
+                              onClick={() => {
+                                if (!isActive) return playStoryTts(s);
+                                if (activeStoryPaused) return resumeStoryTts();
+                                return pauseStoryTts();
+                              }}
+                              aria-label={isPlaying ? "pause" : "play"}
+                            >
+                              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+                            </button>
+                          ) : null}
+                          <div className="agm-story-meta">
+                            <div className="agm-story-title">{label}</div>
+                            <div className="agm-story-sub">
+                              {s.playTimeText && (
+                                <span><Clock size={10} /> {formatPlayTime(s.playTimeText)}</span>
+                              )}
+                              {s.themeCategory && (
+                                <span><Tag size={10} /> {s.themeCategory}</span>
+                              )}
+                              {!storyAudio && !ttsSupported && (
+                                <span><Info size={10} /> {t("audioGuide.detail.stories.noPlay", "이 항목은 이 브라우저에서 바로 재생할 수 없어요.")}</span>
+                              )}
+                            </div>
                           </div>
+                          {isActive && showTtsBtn ? (
+                            <button
+                              type="button"
+                              className="agm-story-stop"
+                              onClick={stopStoryTts}
+                              aria-label={t("audioGuide.detail.tts.stop", "정지")}
+                            >
+                              <Square size={12} />
+                            </button>
+                          ) : null}
                         </div>
-                        {isActive && (
-                          <button
-                            type="button"
-                            className="agm-story-stop"
-                            onClick={stopStoryTts}
-                            aria-label={t("audioGuide.detail.tts.stop", "정지")}
-                          >
-                            <Square size={12} />
-                          </button>
-                        )}
+                        {storyAudio ? (
+                          <div className="agm-story-audio-wrap">
+                            <audio
+                              className="agm-story-native"
+                              controls
+                              preload="metadata"
+                              src={storyAudio}
+                              onPlay={(e) => {
+                                stopStoryTts();
+                                if (audioRef.current) {
+                                  try { audioRef.current.pause(); } catch (_) { /* noop */ }
+                                  setPlaying(false);
+                                }
+                                pauseAllStoryNativeAudios(e.currentTarget);
+                              }}
+                            />
+                          </div>
+                        ) : null}
                       </li>
                     );
                   })}
                 </ul>
               )}
-              <div className="agm-tts-meta">
-                <Info size={11} />
-                {t("audioGuide.detail.tts.note", "음성 품질은 사용 중인 브라우저/OS 에 따라 달라져요.")}
-              </div>
+              {ttsSupported ? (
+                <div className="agm-tts-meta">
+                  <Info size={11} />
+                  {t("audioGuide.detail.tts.note", "음성 품질은 사용 중인 브라우저/OS 에 따라 달라져요.")}
+                </div>
+              ) : null}
             </div>
           ) : hasScript && ttsSupported ? (
             // Odii 공공 OpenAPI 가 audioUrl 을 비공개로 제공하므로,
@@ -827,12 +876,26 @@ const modalCss = `
   max-height: 280px; overflow-y: auto;
 }
 .agm-story-row {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; flex-direction: column; gap: 6px;
   padding: 8px 10px;
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 10px;
   transition: background 0.15s ease, border-color 0.15s ease;
+}
+.agm-story-row-main {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+.agm-story-audio-wrap {
+  width: 100%;
+  min-width: 0;
+}
+.agm-story-native {
+  width: 100%;
+  height: 36px;
+  vertical-align: middle;
 }
 .agm-story-row:hover { background: rgba(167,139,250,0.12); border-color: rgba(167,139,250,0.35); }
 .agm-story-row.active {
