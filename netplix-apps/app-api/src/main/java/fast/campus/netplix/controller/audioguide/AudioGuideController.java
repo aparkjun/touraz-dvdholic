@@ -103,9 +103,10 @@ public class AudioGuideController {
     @GetMapping("/stories-by-theme")
     public NetplixApiResponse<List<AudioGuideItemResponse>> storiesByTheme(
             @RequestParam String themeId,
+            @RequestParam(required = false) String themeTitle,
             @RequestParam(defaultValue = "ko") String lang,
             @RequestParam(defaultValue = "20") int limit) {
-        List<AudioGuideItemResponse> body = useCase.storiesByTheme(themeId, lang, limit).stream()
+        List<AudioGuideItemResponse> body = useCase.storiesByTheme(themeId, themeTitle, lang, limit).stream()
                 .map(AudioGuideItemResponse::from).toList();
         return NetplixApiResponse.ok(body);
     }

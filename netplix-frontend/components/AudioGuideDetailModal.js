@@ -114,7 +114,12 @@ export default function AudioGuideDetailModal({ item, onClose }) {
     const effectiveLang = (i18n?.language || "ko").toLowerCase().startsWith("en") ? "en" : "ko";
     axios
       .get("/api/v1/audio-guide/stories-by-theme", {
-        params: { themeId: item.id, lang: effectiveLang, limit: 30 },
+        params: {
+          themeId: item.themeId || item.id,
+          themeTitle: item.title,
+          lang: effectiveLang,
+          limit: 30,
+        },
       })
       .then((res) => {
         if (cancelled) return;

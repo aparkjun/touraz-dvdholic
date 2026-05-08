@@ -204,19 +204,42 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
      * {@link #ensureFullStoryCacheForJoin} 으로 전체 적재를 보장한다.
      */
     @Override
-    public List<AudioGuideItem> fetchStoriesByTheme(String themeId, String lang, int limit) {
+    public List<AudioGuideItem> fetchStoriesByTheme(String themeId, String themeTitleHint, String lang, int limit) {
         if (!isConfigured()) return List.of();
         if (themeId == null || themeId.isBlank()) return List.of();
         String l = normalize(lang);
+        String key = themeId.trim();
         ensureFullStoryCacheForJoin(l);
         CacheSnapshot snap = cache.get(allKey(AudioGuideItem.Type.STORY, l));
         List<AudioGuideItem> stories = snap != null ? snap.sites : List.of();
-        if (stories.isEmpty()) return List.of();
-        String key = themeId.trim();
         List<AudioGuideItem> matched = stories.stream()
-                .filter(s -> s.getThemeId() != null && key.equals(s.getThemeId().trim()))
+                .filter(s -> themeIdMatches(s.getThemeId(), key))
                 .collect(Collectors.toList());
-        return take(matched, limit);
+        if (!matched.isEmpty()) {
+            return take(matched, limit);
+        }
+        String hint = themeTitleHint != null ? themeTitleHint.trim() : "";
+        if (hint.length() >= 2) {
+            int kwLimit = Math.min(Math.max(limit * 5, 48), 120);
+            List<AudioGuideItem> kw = fetchByKeyword(AudioGuideItem.Type.STORY, l, hint, kwLimit);
+            matched = kw.stream()
+                    .filter(s -> themeIdMatches(s.getThemeId(), key))
+                    .collect(Collectors.toList());
+            if (!matched.isEmpty()) {
+                log.info("[ODII] stories-by-theme: 전체캐시에 없던 tid — 키워드 검색으로 tid 매칭 {}건 themeId={}", matched.size(), key);
+                return take(matched, limit);
+            }
+            if (hint.length() >= 4) {
+                matched = kw.stream()
+                        .filter(s -> s.getTitle() != null && s.getTitle().contains(hint))
+                        .collect(Collectors.toList());
+                if (!matched.isEmpty()) {
+                    log.info("[ODII] stories-by-theme: tid 불일치 — 제목 포함 폴백 {}건 themeId={} hint={}", matched.size(), key, hint);
+                    return take(matched, limit);
+                }
+            }
+        }
+        return List.of();
     }
 
     /**
@@ -433,16 +456,35 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     // Mapping
     // =========================================================================
 
-    /** THEME: 자기 {@code tid}. STORY: 상위 관광지 id (보통 {@code tid}, 없으면 {@code linkTid}). */
+    /** THEME 카드 id 와 STORY 의 tid/linkTid 정규 비교 (공백·대소문자·선행 0). */
+    private static boolean themeIdMatches(String storyThemeId, String requestedThemeId) {
+        if (storyThemeId == null || requestedThemeId == null) return false;
+        String a = storyThemeId.trim();
+        String b = requestedThemeId.trim();
+        if (a.isEmpty() || b.isEmpty()) return false;
+        if (a.equals(b)) return true;
+        if (a.equalsIgnoreCase(b)) return true;
+        try {
+            if (a.matches("\\d+") && b.matches("\\d+") && Long.parseLong(a) == Long.parseLong(b)) {
+                return true;
+            }
+        } catch (NumberFormatException ignored) {
+            /* noop */
+        }
+        return false;
+    }
+
+    /** THEME: 자기 {@code tid}. STORY: 상위 관광지 id — 분리 필드 {@code linkTid} 우선, 없으면 {@code tid}. */
     private static String resolveThemeIdForDomain(VisitKoreaOdiiResponse.Item i, AudioGuideItem.Type type) {
         if (type == AudioGuideItem.Type.THEME) {
             return nullIfBlank(i.getTid());
         }
-        String fromTid = nullIfBlank(i.getTid());
-        if (fromTid != null) {
-            return fromTid;
+        String link = nullIfBlank(i.getLinkTid());
+        String t = nullIfBlank(i.getTid());
+        if (link != null) {
+            return link;
         }
-        return nullIfBlank(i.getLinkTid());
+        return t;
     }
 
     private static AudioGuideItem toDomain(VisitKoreaOdiiResponse.Item i, AudioGuideItem.Type type) {
