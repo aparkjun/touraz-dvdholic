@@ -498,7 +498,11 @@ function AudioGuidePageInner() {
       <header className="agp-hero">
         <div className="agp-hero-inner">
           <div className="agp-hero-badge">
-            <Headphones size={14} />
+            {playingId ? (
+              <VoiceMicIcon active size={14} />
+            ) : (
+              <Headphones size={14} />
+            )}
             <span>{t("audioGuide.hero.badge", "Cine Audio Trail · Odii")}</span>
             <span className="agp-lang-pill" style={{ borderColor: "#c4b5fd", color: "#e9d5ff" }}>
               <Globe2 size={10} /> {activeLang.toUpperCase()}
