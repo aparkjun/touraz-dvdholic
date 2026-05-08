@@ -40,8 +40,8 @@ import java.util.stream.Collectors;
  * </ul>
  *
  * <p>캐시 키는 type+lang 조합으로 분리 (예: "THEME:ko", "STORY:zh").
- * 프런트 {@code /audio-guide} 상단 세그먼트 라벨은 KO·EN·ZH·JA 이고, 서버 내부는 {@code ko|en|zh|ja} 다.
- * Odii HTTP 의 {@code langCode} 는 GW 실측용으로 {@link #forOdiiQueryLang} 에서 별도 변환한다(라벨·명세 문구와 1:1이라고 가정하지 않음).
+ * 프런트 {@code /audio-guide} 상단 라벨은 KO·EN·ZH·JA 이고, 내부·{@code langCode} 쿼리는 소문자
+ * {@code ko|en|zh|ja} 로 통일한다(대문자 ZH/JA 를 섞어 보내면 0건이 되는 GW 가 있음).
  */
 @Slf4j
 @Component
@@ -450,7 +450,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         sb.append("&MobileApp=touraz-dvdholic");
         sb.append("&numOfRows=").append(rows);
         sb.append("&pageNo=").append(pageNo);
-        // langCode: UI 라벨과 무관 — ko/en 소문자 + 중일 ZH/JA (실측 기준, 필요 시 조정).
+        // langCode=ko|en|zh|ja 소문자 (GW 비호환 시 Heroku 로그의 [ODII] resultCode 확인).
         sb.append("&langCode=").append(forOdiiQueryLang(lang));
         extraParams.forEach((k, v) -> sb.append('&').append(k).append('=')
                 .append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
@@ -497,8 +497,19 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             return null;
         }
 
-        if (parsed == null || parsed.getResponse() == null
-                || parsed.getResponse().getBody() == null) {
+        if (parsed == null || parsed.getResponse() == null) {
+            return new PageResult(List.of(), 0);
+        }
+        VisitKoreaOdiiResponse.Header apiHeader = parsed.getResponse().getHeader();
+        if (apiHeader != null && apiHeader.getResultCode() != null
+                && !"0000".equals(apiHeader.getResultCode().trim())) {
+            log.warn("[ODII] resultCode={} resultMsg={} type={} page={} lang={} langCode={}",
+                    apiHeader.getResultCode(), apiHeader.getResultMsg(),
+                    type, pageNo, lang, forOdiiQueryLang(lang));
+        }
+        if (parsed.getResponse().getBody() == null) {
+            log.warn("[ODII] response.body=null type={} page={} lang={} langCode={}",
+                    type, pageNo, lang, forOdiiQueryLang(lang));
             return new PageResult(List.of(), 0);
         }
 
@@ -632,7 +643,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         String n = lang.trim().toLowerCase(Locale.ROOT);
         // 흔한 별칭 (포털·클라이언트 호환)
         n = switch (n) {
-            case "cn", "chs", "cht", "zho", "zn" -> "zh";
+            case "cn", "chs", "cht", "zho" -> "zh";
             case "jp", "jpn" -> "ja";
             default -> n;
         };
@@ -640,14 +651,14 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     }
 
     /**
-     * Odii {@code langCode} 쿼리 값. 페이지 KO/EN/ZH/JA 라벨에 대응하는 canonical → GW 문자열 변환.
+     * Odii {@code langCode} 쿼리. canonical(ko|en|zh|ja) 를 GW 가 받는 그대로 소문자로 전달한다.
      */
     private static String forOdiiQueryLang(String canonical) {
+        if (canonical == null || canonical.isBlank()) {
+            return "ko";
+        }
         return switch (canonical) {
-            case "ko" -> "ko";
-            case "en" -> "en";
-            case "zh" -> "ZH";
-            case "ja" -> "JA";
+            case "ko", "en", "zh", "ja" -> canonical;
             default -> "ko";
         };
     }
