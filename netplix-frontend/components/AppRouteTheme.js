@@ -4,11 +4,11 @@ import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 /**
- * 대시보드 CTA로 이어지는 여행·탐색 구간: 쉘/바디를 밝은 "전환" 테마로.
- * 메인(/)·로그인 등 시네마 다크 존은 제외.
+ * CTA로 이어지는 여행·탐색 구간: 쉘/바디를 밝은 "전환" 테마로.
+ * 메인(/)·/dashboard(랭킹 허브)·로그인 등은 다크 유지. 상세(/dashboard/images)만 데이라이트.
  */
 const TRAVEL_PREFIXES = [
-  "/dashboard",
+  "/dashboard/images",
   "/cine-trip",
   "/wellness",
   "/crowd-radar",
