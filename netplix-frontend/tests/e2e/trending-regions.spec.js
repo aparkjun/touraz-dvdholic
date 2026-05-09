@@ -52,7 +52,7 @@ test.describe('TrendingRegionsWidget period toggle', () => {
     await expect(page.getByRole('heading', { name: '인기 지역' })).toBeVisible();
     await expect(page.getByText('서울')).toBeVisible();
     await expect(page.getByText('부산')).toBeVisible();
-    await expect(page.getByText('1,200')).toBeVisible();
+    await expect(page.getByText('1,200건')).toBeVisible();
   });
 
   test('이번주 탭 → 다른 지역 목록', async ({ page }) => {
@@ -64,7 +64,7 @@ test.describe('TrendingRegionsWidget period toggle', () => {
     await expect(page.getByRole('tab', { name: '이번주' })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByText('강원')).toBeVisible();
     await expect(page.getByText('제주')).toBeVisible();
-    await expect(page.getByText('1,200')).toHaveCount(0);
+    await expect(page.getByText('1,200건')).toHaveCount(0);
   });
 
   test('이번달 탭 → 전북/전남/경북', async ({ page }) => {

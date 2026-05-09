@@ -528,7 +528,9 @@
     },
     "errorLoad": "불러오기 실패",
     "empty": "목록 없음",
-    "periodScoreHint": "이 기간 탭 기준 가중 지표(순위 산정용)"
+    "periodScoreHint": "이 기간 탭 기준 가중 지표(순위 산정용)",
+    "searchVolumeFormatted": "{{count}}건",
+    "searchVolumeHint": "관광 관심도 검색량 지표입니다. 방문 인원(명)이 아닙니다."
   },
   "dashboardCta": {
     "cineTrip": {

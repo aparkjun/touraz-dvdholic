@@ -528,7 +528,9 @@
     },
     "errorLoad": "Could not load",
     "empty": "No data",
-    "periodScoreHint": "Period-weighted score used for this tab’s ranking"
+    "periodScoreHint": "Period-weighted score used for this tab’s ranking",
+    "searchVolumeFormatted": "{{count}} searches",
+    "searchVolumeHint": "Tourism search-interest index from KTO data — not visitor headcount."
   },
   "dashboardCta": {
     "cineTrip": {

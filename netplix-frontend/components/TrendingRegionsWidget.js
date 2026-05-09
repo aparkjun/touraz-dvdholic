@@ -261,6 +261,10 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
                       </div>
                     ) : hasVolume ? (
                       <div
+                        title={t(
+                          'trendingRegions.searchVolumeHint',
+                          '관광 관심도 검색량 지표입니다. 방문 인원(명)이 아닙니다.'
+                        )}
                         style={{
                           fontSize: 12,
                           fontWeight: 500,
@@ -269,7 +273,9 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
                           flexShrink: 0,
                         }}
                       >
-                        {volume.toLocaleString()}
+                        {t('trendingRegions.searchVolumeFormatted', {
+                          count: volume.toLocaleString(),
+                        })}
                       </div>
                     ) : null}
                   </div>
