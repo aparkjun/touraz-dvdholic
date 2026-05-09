@@ -346,7 +346,7 @@
     "audioCuePrimary": "“{{title}}” — tourism audio picked from Odii for your searched region.",
     "audioCueSecondary": "Now playing: {{audioTitle}}",
     "audioPausedLabel": "Paused: {{audioTitle}}",
-    "audioRegionalDisclaimer": "The photo’s subject may differ from this narration’s place. We widen Odii search using region tokens inside your keyword (e.g. Daegu / Gyeongbuk).",
+    "audioRegionalDisclaimer": "The photo’s subject may still differ from this narration’s place. We widen Odii search using region tokens, then rank Odii items by overlap between photo title/location/keywords and Odii title/address/category (no RAG needed).",
     "pauseAudio": "Pause",
     "resumeAudio": "Resume",
     "audioEnded": "This clip finished. Open another photo for another pick from the same regional pool.",

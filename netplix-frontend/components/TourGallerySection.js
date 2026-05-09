@@ -15,7 +15,7 @@ import {
 import {
   filterPlayableAudioGuides,
   sortAudioGuidesStable,
-  pickRegionalAudioTrackIndex,
+  pickBestOdiiForGalleryPhoto,
   buildOdiiSearchFallbackQueries,
   mergeAudioGuideItemsById,
 } from "@/lib/photoGalleryRegionalAudio";
@@ -194,12 +194,16 @@ export default function TourGallerySection({
       return;
     }
 
-    const idx = pickRegionalAudioTrackIndex(
+    const galleryItem =
+      selectedIndex != null && items[selectedIndex]
+        ? items[selectedIndex]
+        : null;
+    const track = pickBestOdiiForGalleryPhoto(
+      galleryItem,
       playable,
       effectiveSoundKeyword,
       selectedIndex
     );
-    const track = playable[idx];
 
     setPlayingCue({
       kind: "playing",
@@ -287,6 +291,7 @@ export default function TourGallerySection({
     effectiveSoundKeyword,
     audioLoading,
     audioItems,
+    items,
     stopGalleryAudio,
   ]);
 

@@ -1,9 +1,9 @@
 /**
- * 관광사진 갤러리 × 오디오 가이드(Odii) 연결용 규칙.
+ * 관광사진 갤러리 × 오디오 가이드(Odii) 연결.
  *
- * - 한 지역(검색 키워드)마다 Odii 검색 결과 중 audioUrl 이 있는 항목만 사용.
- * - 지역 문자열로 안정적인 시작 인덱스를 정하고, 사진 그리드 인덱스만큼 순환해
- *   같은 지역 풀 안에서 사진마다 다른 트랙이 나가도록 한다.
+ * - Odii 후보 중 audioUrl 이 있는 항목만 재생.
+ * - 기본: **사진(title·촬영지·검색키워드) ↔ Odii(title·audioTitle·주소·카테고리)** 유사도로 최적 1건 선택 (RAG 불필요).
+ * - 유사도가 전부 0이면 결정적 폴백: 해시(지역|사진텍스트) + 그리드 인덱스 (난수 아님).
  */
 
 export function djb2Hash(str) {
@@ -36,6 +36,129 @@ export function pickRegionalAudioTrackIndex(playable, regionKey, photoIndex = 0)
   const base = djb2Hash(regionKey) % playable.length;
   const off = Math.abs(parseInt(photoIndex, 10) || 0);
   return (base + off) % playable.length;
+}
+
+const MATCH_STOPWORDS = new Set([
+  "관광",
+  "전경",
+  "풍경",
+  "사진",
+  "야경",
+  "한국",
+  "아름다운",
+  "아름다움",
+  "경치",
+]);
+
+function normalizeMatchText(s) {
+  return String(s || "")
+    .normalize("NFC")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function galleryMatchCorpus(item) {
+  return [item?.title, item?.photoLocation, item?.searchKeyword]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function odiiMatchCorpus(o) {
+  return [o?.title, o?.audioTitle, o?.address, o?.themeCategory]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** 제목·주소 등에서 2글자 이상 토큰 추출 */
+export function tokenizeForMatch(text) {
+  const s = normalizeMatchText(text);
+  if (!s) return [];
+  const parts = s.split(/[^\p{L}\p{N}]+/u).filter((t) => t.length >= 2);
+  return [...new Set(parts)].filter((t) => !MATCH_STOPWORDS.has(t));
+}
+
+/**
+ * 사진 한 건과 Odii 한 건의 정렬적 유사도 (0 이상 정수).
+ * @param {string} regionKeyword 검색어(지역 토큰 과가중 방지에 사용)
+ */
+export function scoreGalleryOdiiPair(galleryItem, odiiItem, regionKeyword = "") {
+  const gAll = normalizeMatchText(galleryMatchCorpus(galleryItem));
+  const oAll = normalizeMatchText(odiiMatchCorpus(odiiItem));
+  if (!gAll || !oAll) return 0;
+
+  const regionToks = new Set(tokenizeForMatch(regionKeyword));
+
+  let score = 0;
+  const gTitle = normalizeMatchText(galleryItem?.title || "");
+  const oTitle = normalizeMatchText(odiiItem?.title || "");
+  const oAudioTitle = normalizeMatchText(odiiItem?.audioTitle || "");
+
+  if (gTitle.length >= 2) {
+    if (gTitle === oTitle || gTitle === oAudioTitle) score += 520;
+    if (oTitle && (oTitle.includes(gTitle) || gTitle.includes(oTitle))) score += 340;
+    if (oAudioTitle && (oAudioTitle.includes(gTitle) || gTitle.includes(oAudioTitle))) score += 320;
+  }
+
+  const gToks = tokenizeForMatch(galleryMatchCorpus(galleryItem));
+  for (const tok of gToks) {
+    if (!oAll.includes(tok)) continue;
+    let w;
+    if (regionToks.has(tok)) w = Math.min(10 + tok.length * 4, 36);
+    else if (tok.length <= 2) w = 14;
+    else w = Math.min(tok.length * 10, 96);
+    score += w;
+  }
+
+  const loc = normalizeMatchText(galleryItem?.photoLocation || "");
+  const addr = normalizeMatchText(odiiItem?.address || "");
+  if (loc.length >= 4 && addr.length >= 4) {
+    for (const tok of tokenizeForMatch(loc)) {
+      if (tok.length >= 3 && addr.includes(tok)) {
+        score += regionToks.has(tok) ? 12 : 44;
+      }
+    }
+  }
+
+  return score;
+}
+
+/**
+ * 재생 가능 Odii 목록에서 현재 사진과 가장 잘 맞는 1건.
+ * @param {object|null} galleryItem TourGallery 아이템
+ * @param {object[]} playableOdiiItems audioUrl 있는 Odii 목록
+ */
+export function pickBestOdiiForGalleryPhoto(
+  galleryItem,
+  playableOdiiItems,
+  regionKeyword,
+  photoIndex = 0
+) {
+  const list = Array.isArray(playableOdiiItems) ? playableOdiiItems : [];
+  if (!list.length) return null;
+
+  const rk = String(regionKeyword || "").trim();
+  const stable = sortAudioGuidesStable(list);
+  let best = stable[0];
+  let bestScore = scoreGalleryOdiiPair(galleryItem, best, rk);
+
+  for (let i = 1; i < stable.length; i += 1) {
+    const odii = stable[i];
+    const s = scoreGalleryOdiiPair(galleryItem, odii, rk);
+    if (s > bestScore) {
+      bestScore = s;
+      best = odii;
+    }
+  }
+
+  if (bestScore <= 0) {
+    const corpus = galleryMatchCorpus(galleryItem || {});
+    const fbKey = `${rk}|${corpus}`;
+    const idx = pickRegionalAudioTrackIndex(stable, fbKey, photoIndex);
+    return stable[idx] ?? best;
+  }
+
+  return best;
 }
 
 /** 관광사진 검색어·시설명에 자주 붙는 시·도 문자열 (긴 것부터 매칭) */
