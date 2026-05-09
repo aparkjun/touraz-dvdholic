@@ -77,12 +77,25 @@ public class WeatherController {
         String raw = shortRegFetch.raw();
         if (raw == null) {
             out.put("configured", false);
-            out.put(
-                    "message",
-                    "기상청 API허브 호출에 실패했습니다. 인증키 종류(허브용)·단기/초단기(격자) 활용승인·네트워크를 확인하세요.");
+            int att = shortRegFetch.attempts();
+            int cat = shortRegFetch.catalogTextResponsesSkipped();
+            String userMessage;
+            if (att > 0 && att == cat) {
+                userMessage =
+                        "기상청 API허브가 예보 JSON 대신 「예보구역 목록」(#로 시작하는 텍스트)만 반환했습니다. "
+                                + "API허브 마이페이지에서 「단기 개황·JSON(disp=1)」 등 실제 단기 예보 데이터 API 활용승인이 있는지 확인하세요. "
+                                + "「단기 예보구역 조회」만 승인된 경우 이 증상이 날 수 있습니다. 초단기 격자(dfs_vsrt_grd)는 별도 신청입니다.";
+            } else {
+                userMessage =
+                        "기상청 API허브 호출에 실패했습니다. 인증키 종류(허브용)·단기/초단기(격자) 활용승인·네트워크를 확인하세요.";
+            }
+            out.put("message", userMessage);
             Map<String, Object> diag = new LinkedHashMap<>();
-            diag.put("attempts", shortRegFetch.attempts());
-            diag.put("catalogTextResponsesSkipped", shortRegFetch.catalogTextResponsesSkipped());
+            diag.put("attempts", att);
+            diag.put("catalogTextResponsesSkipped", cat);
+            if (att > 0 && att == cat) {
+                diag.put("likelyCause", "hub_returned_zone_catalog_only");
+            }
             if (shortRegFetch.lastHttpStatus() != null) {
                 diag.put("httpStatus", shortRegFetch.lastHttpStatus());
             }
