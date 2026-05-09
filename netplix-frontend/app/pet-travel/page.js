@@ -169,7 +169,11 @@ export default function PetTravelPage() {
         fontFamily: 'var(--font-app)',
         position: 'relative',
         isolation: 'isolate',
-        overflow: 'hidden',
+        /* 모바일: overflow:hidden 이 문서 세로 스크롤·자식 레이아웃과 충돌해 PET-Cinema 아래가 비어 보이는
+         * 증상이 있어 가로만 막고 세로는 visible 로 둔다. */
+        overflowX: 'hidden',
+        overflowY: 'visible',
+        touchAction: 'pan-y pinch-zoom',
         background:
           'linear-gradient(180deg, #7dd3fc 0%, #5eead4 45%, #99f6e4 75%, #ecfeff 100%)',
       }}
@@ -659,10 +663,10 @@ export default function PetTravelPage() {
           NATIONAL_AREA_CODES.map((code, idx) => (
             <motion.section
               key={code}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 1, y: 0 }}
               whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.15 }}
-              transition={{ duration: 0.5, delay: idx * 0.06 }}
+              viewport={{ once: true, amount: 0.02, margin: '0px 0px 120px 0px' }}
+              transition={{ duration: 0.35, delay: Math.min(idx * 0.04, 0.4) }}
               style={{
                 marginBottom: 28,
                 padding: 18,
@@ -722,9 +726,9 @@ export default function PetTravelPage() {
         ) : (
           <motion.section
             key={selected}
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 1, y: 0 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
+            transition={{ duration: 0.3 }}
             style={{
               padding: 18,
               borderRadius: 20,
