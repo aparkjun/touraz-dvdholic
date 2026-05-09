@@ -496,17 +496,18 @@ body.app-theme-travel {
   animation: nav-promo-shimmer 2.8s linear infinite, nav-promo-pulse 2s ease-in-out infinite;
   filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.35));
 }
+/* 로고(.app-brand)가 네비 바 정중앙(50%) — 각 문구는 로고 기준 좌·우 반쪽 구역의 가로 중앙 */
 .app-nav-dashboard-promo--left {
-  left: max(8px, env(safe-area-inset-left, 0px));
-  max-width: min(30vw, 128px);
-  text-align: left;
-  transform: translateY(-50%);
+  left: calc(25% + env(safe-area-inset-left, 0px) / 2);
+  max-width: min(calc(50vw - 56px), 140px);
+  text-align: center;
+  transform: translate(-50%, -50%);
 }
 .app-nav-dashboard-promo--right {
-  right: max(50px, calc(env(safe-area-inset-right, 0px) + 46px));
-  max-width: min(44vw, 240px);
-  text-align: right;
-  transform: translateY(-50%);
+  left: calc(75% - env(safe-area-inset-right, 0px) / 2);
+  max-width: min(calc(50vw - 72px), 220px);
+  text-align: center;
+  transform: translate(-50%, -50%);
   background: linear-gradient(92deg, #93c5fd, #60a5fa, #3b82f6, #93c5fd, #bfdbfe);
   background-size: 220% auto;
   -webkit-background-clip: text;
@@ -713,14 +714,14 @@ body.app-theme-travel {
   .app-brand-dvd { height: 26px; }
   .app-brand-radar { width: 18px; height: 18px; }
   .app-nav-dashboard-promo { font-size: clamp(8px, 2.4vw, 11px); }
-  .app-nav-dashboard-promo--left { max-width: min(28vw, 100px); }
-  .app-nav-dashboard-promo--right { max-width: min(40vw, 168px); }
+  .app-nav-dashboard-promo--left { max-width: min(calc(50vw - 52px), 108px); }
+  .app-nav-dashboard-promo--right { max-width: min(calc(50vw - 68px), 152px); }
 }
 @media (max-width: 380px) {
   .app-nav-dashboard-promo--right {
     white-space: normal;
-    max-width: 96px;
-    text-align: right;
+    max-width: min(calc(50vw - 64px), 104px);
+    text-align: center;
   }
 }
 
