@@ -507,12 +507,27 @@
     "naverSearchSuffix": "영화"
   },
   "trendingRegions": {
-    "today": { "label": "오늘", "title": "오늘 뜨는 지역", "subtitle": "관광공사 검색량 급등 기준" },
-    "week": { "label": "이번주", "title": "이번주 뜨는 지역", "subtitle": "관광수요·경쟁력 가중 지수" },
-    "month": { "label": "이번달", "title": "이번달 뜨는 지역", "subtitle": "문화·관광자원 종합 점수" },
-    "tabsAriaLabel": "트렌딩 지역 기간 선택",
-    "errorLoad": "데이터를 불러올 수 없어요",
-    "empty": "아직 집계된 지역이 없어요"
+    "heading": "인기 지역",
+    "tabsAriaLabel": "기간",
+    "shortcutsPanelTitle": "여행 바로가기",
+    "shortcutsAriaLabel": "여행 바로가기",
+    "today": { "label": "오늘" },
+    "week": { "label": "이번주" },
+    "month": { "label": "이번달" },
+    "shortcuts": {
+      "cineTrip": "CineTrip",
+      "petTravel": "Pet",
+      "trekking": "둘레길",
+      "photoGallery": "갤러리",
+      "camping": "캠핑",
+      "wellness": "힐링",
+      "medical": "의료",
+      "audio": "오디오",
+      "radar": "혼잡도",
+      "related": "연관"
+    },
+    "errorLoad": "불러오기 실패",
+    "empty": "목록 없음"
   },
   "dashboardCta": {
     "cineTrip": {

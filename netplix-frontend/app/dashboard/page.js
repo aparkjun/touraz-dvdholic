@@ -10,6 +10,7 @@ import { showBanner, getTrackingStatus } from "@/lib/admob";
 import { getMovieTitle, getPosterPath, getBackdropPath } from "@/lib/movieLang";
 import useDragScrollAll from "@/lib/useDragScroll";
 import TrendingRegionsWidget from "@/components/TrendingRegionsWidget";
+import DashboardTravelShortcuts from "@/components/DashboardTravelShortcuts";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 
 function CategorySentinel({ cat, isLoadingMore, loadMoreCategory, palette }) {
@@ -939,9 +940,18 @@ function DashboardContent() {
           </div>
         )}
 
-        {/* CineTrip - 오늘 뜨는 지역 (관광 검색량 기반) */}
-        <div style={{ marginBottom: "24px", display: "flex", justifyContent: "center" }}>
+        {/* 인기 지역 + 여행 CTA — 별도 카드로 분리 */}
+        <div
+          style={{
+            marginBottom: "24px",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "14px",
+          }}
+        >
           <TrendingRegionsWidget limit={5} />
+          <DashboardTravelShortcuts />
         </div>
 
         {/* This Week's / This Month's Popular */}

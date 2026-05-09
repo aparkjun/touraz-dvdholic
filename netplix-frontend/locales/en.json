@@ -507,12 +507,27 @@
     "naverSearchSuffix": "movie"
   },
   "trendingRegions": {
-    "today": { "label": "Today", "title": "Trending today", "subtitle": "Surge in KTO search volume" },
-    "week": { "label": "This week", "title": "Trending this week", "subtitle": "Tourism demand × competitiveness" },
-    "month": { "label": "This month", "title": "Trending this month", "subtitle": "Culture & tourism composite" },
-    "tabsAriaLabel": "Choose trending period",
-    "errorLoad": "Couldn't load data",
-    "empty": "No regions ranked yet"
+    "heading": "Trending",
+    "tabsAriaLabel": "Period",
+    "shortcutsPanelTitle": "Travel shortcuts",
+    "shortcutsAriaLabel": "Travel links",
+    "today": { "label": "Today" },
+    "week": { "label": "Week" },
+    "month": { "label": "Month" },
+    "shortcuts": {
+      "cineTrip": "CineTrip",
+      "petTravel": "Pet",
+      "trekking": "Trails",
+      "photoGallery": "Photos",
+      "camping": "Camping",
+      "wellness": "Wellness",
+      "medical": "Medical",
+      "audio": "Audio",
+      "radar": "Crowds",
+      "related": "Related"
+    },
+    "errorLoad": "Could not load",
+    "empty": "No data"
   },
   "dashboardCta": {
     "cineTrip": {

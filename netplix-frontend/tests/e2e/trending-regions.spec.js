@@ -46,38 +46,35 @@ test.describe('TrendingRegionsWidget period toggle', () => {
     await mockTrending(page);
   });
 
-  test('기본 로드 — today 기간의 지역이 노출되고 타이틀이 "오늘 뜨는 지역"', async ({ page }) => {
+  test('기본 로드 — today 지역 노출 + 제목', async ({ page }) => {
     await page.goto('/test-trending');
 
-    await expect(page.getByRole('heading', { name: '오늘 뜨는 지역' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '인기 지역' })).toBeVisible();
     await expect(page.getByText('서울')).toBeVisible();
     await expect(page.getByText('부산')).toBeVisible();
-    // searchVolume 표시 (toLocaleString)
     await expect(page.getByText('1,200')).toBeVisible();
   });
 
-  test('이번주 탭 클릭 → 부제/제목 전환 + 다른 지역 목록', async ({ page }) => {
+  test('이번주 탭 → 다른 지역 목록', async ({ page }) => {
     await page.goto('/test-trending');
 
     await page.getByRole('tab', { name: '이번주' }).click();
 
-    await expect(page.getByRole('heading', { name: '이번주 뜨는 지역' })).toBeVisible();
-    await expect(page.getByText('관광수요·경쟁력 가중 지수')).toBeVisible();
+    await expect(page.getByRole('heading', { name: '인기 지역' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: '이번주' })).toHaveAttribute('aria-selected', 'true');
     await expect(page.getByText('강원')).toBeVisible();
     await expect(page.getByText('제주')).toBeVisible();
-    // week 페이로드는 searchVolume=null → 숫자 배지가 숨겨져야 함
     await expect(page.getByText('1,200')).toHaveCount(0);
   });
 
-  test('이번달 탭 → 전북/전남/경북 + ARIA 선택상태', async ({ page }) => {
+  test('이번달 탭 → 전북/전남/경북', async ({ page }) => {
     await page.goto('/test-trending');
 
     const monthTab = page.getByRole('tab', { name: '이번달' });
     await monthTab.click();
     await expect(monthTab).toHaveAttribute('aria-selected', 'true');
 
-    await expect(page.getByRole('heading', { name: '이번달 뜨는 지역' })).toBeVisible();
-    await expect(page.getByText('문화·관광자원 종합 점수')).toBeVisible();
+    await expect(page.getByRole('heading', { name: '인기 지역' })).toBeVisible();
     await expect(page.getByText('전북')).toBeVisible();
     await expect(page.getByText('전남')).toBeVisible();
   });
