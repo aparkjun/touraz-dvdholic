@@ -48,7 +48,7 @@ export default function NavBar() {
   const isLandingPage = pathname === '/';
 
   return (
-    <nav className="app-nav">
+    <nav className={`app-nav${pathname === '/dashboard' ? ' app-nav--dashboard' : ''}`}>
       <div className="app-nav-inner">
         {isLandingPage && (
           <div className="app-nav-leftmost">

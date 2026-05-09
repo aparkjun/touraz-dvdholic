@@ -459,6 +459,12 @@ body.app-theme-travel {
   min-height: calc(env(safe-area-inset-top, 0px) + 64px);
 }
 
+/* /dashboard — 프로모 문구 폰트 확대 시 세로 여유 */
+.app-nav.app-nav--dashboard {
+  padding-bottom: 18px;
+  min-height: calc(env(safe-area-inset-top, 0px) + 76px);
+}
+
 .app-nav-inner {
   width: 100%; margin: 0 auto; display: flex; align-items: center; justify-content: flex-end;
   padding: 0 12px; flex-wrap: nowrap; position: relative;
@@ -483,7 +489,7 @@ body.app-theme-travel {
   top: 50%;
   z-index: 2;
   pointer-events: none;
-  font-size: clamp(9px, 2.5vw, 12px);
+  font-size: clamp(18px, 5vw, 24px);
   font-weight: 800;
   line-height: 1.2;
   letter-spacing: -0.02em;
@@ -494,25 +500,25 @@ body.app-theme-travel {
   background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: nav-promo-shimmer 2.8s linear infinite, nav-promo-pulse 2s ease-in-out infinite;
-  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.35));
+  filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.4));
 }
 /* 로고(.app-brand)가 네비 바 정중앙(50%) — 각 문구는 로고 기준 좌·우 반쪽 구역의 가로 중앙 */
 .app-nav-dashboard-promo--left {
   left: calc(25% + env(safe-area-inset-left, 0px) / 2);
-  max-width: min(calc(50vw - 56px), 140px);
+  max-width: min(calc(50vw - 56px), 280px);
   text-align: center;
   transform: translate(-50%, -50%);
 }
 .app-nav-dashboard-promo--right {
   left: calc(75% - env(safe-area-inset-right, 0px) / 2);
-  max-width: min(calc(50vw - 72px), 220px);
+  max-width: min(calc(50vw - 72px), 440px);
   text-align: center;
   transform: translate(-50%, -50%);
   background: linear-gradient(92deg, #93c5fd, #60a5fa, #3b82f6, #93c5fd, #bfdbfe);
   background-size: 220% auto;
   -webkit-background-clip: text;
   background-clip: text;
-  filter: drop-shadow(0 0 6px rgba(96, 165, 250, 0.4));
+  filter: drop-shadow(0 0 10px rgba(96, 165, 250, 0.45));
   animation: nav-promo-shimmer 3.2s linear infinite reverse, nav-promo-pulse 2.3s ease-in-out infinite;
 }
 @keyframes nav-promo-shimmer {
@@ -713,14 +719,14 @@ body.app-theme-travel {
   .app-brand-film, .app-brand-dvd, .app-brand-snake { height: 24px; }
   .app-brand-dvd { height: 26px; }
   .app-brand-radar { width: 18px; height: 18px; }
-  .app-nav-dashboard-promo { font-size: clamp(8px, 2.4vw, 11px); }
-  .app-nav-dashboard-promo--left { max-width: min(calc(50vw - 52px), 108px); }
-  .app-nav-dashboard-promo--right { max-width: min(calc(50vw - 68px), 152px); }
+  .app-nav-dashboard-promo { font-size: clamp(16px, 4.8vw, 22px); }
+  .app-nav-dashboard-promo--left { max-width: min(calc(50vw - 52px), 216px); }
+  .app-nav-dashboard-promo--right { max-width: min(calc(50vw - 68px), 304px); }
 }
 @media (max-width: 380px) {
   .app-nav-dashboard-promo--right {
     white-space: normal;
-    max-width: min(calc(50vw - 64px), 104px);
+    max-width: min(calc(50vw - 64px), 208px);
     text-align: center;
   }
 }
