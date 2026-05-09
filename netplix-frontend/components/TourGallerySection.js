@@ -3,8 +3,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "@/src/axiosConfig";
 import { useTranslation } from "react-i18next";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { X, ChevronLeft, ChevronRight, Headphones } from "lucide-react";
 import useBackButtonClose from "@/lib/useBackButtonClose";
+import { attachAudioMediaSession } from "@/lib/audioMediaSession";
+import {
+  getAudioGuideOdiiLang,
+  defaultOdiiLangFromUiLang,
+  subscribeAudioGuideOdiiLang,
+} from "@/lib/audioGuideOdiiLang";
+import {
+  filterPlayableAudioGuides,
+  sortAudioGuidesStable,
+  pickRegionalAudioTrackIndex,
+} from "@/lib/photoGalleryRegionalAudio";
 
 /**
  * 관광사진갤러리 섹션 (공용 컴포넌트).
@@ -13,6 +25,9 @@ import useBackButtonClose from "@/lib/useBackButtonClose";
  *  - 영화 상세: keyword = 촬영지/지역명
  *  - /cine-trip 지역 상세: keyword = 지역명
  *  - DVD 매장 상세: keyword = 시·도명
+ *
+ * <p>선택: soundLayerEnabled + 검색 키워드가 있으면 Odii(/api/v1/audio-guide/search) 후보 중
+ * 지역 문자열 해시로 시작점을 정하고, 사진 카드 인덱스만큼 순환해 트랙을 고른다.
  *
  * <p>정책:
  *  - 응답이 빈 배열이면 섹션 자체를 렌더링하지 않아 UX 공백을 없앰
@@ -34,14 +49,222 @@ export default function TourGallerySection({
   // 6,000장 규모 데이터에서 DOM 부담을 줄이기 위해 /photo-gallery 에서 켜 사용.
   infinite = false,
   pageSize = 60,
+  /** 사진 클릭 시 관광공사 오디오 가이드(Odii)와 연동 */
+  soundLayerEnabled = false,
+  /** Odii 검색어. 미입력 시 keyword 와 동일하게 사용 */
+  soundSearchKeyword,
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errored, setErrored] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const sentinelRef = useRef(null);
+
+  const [odiiLangRev, setOdiiLangRev] = useState(0);
+  useEffect(() => subscribeAudioGuideOdiiLang(() => setOdiiLangRev((n) => n + 1)), []);
+
+  const lang = getAudioGuideOdiiLang(defaultOdiiLangFromUiLang(i18n?.language));
+  const effectiveSoundKeyword = useMemo(() => {
+    const raw =
+      soundSearchKeyword !== undefined && soundSearchKeyword !== null
+        ? soundSearchKeyword
+        : keyword;
+    return String(raw || "").trim();
+  }, [soundSearchKeyword, keyword]);
+
+  const [audioItems, setAudioItems] = useState([]);
+  const [audioLoading, setAudioLoading] = useState(false);
+  const galleryAudioRef = useRef(null);
+  const galleryMediaSessionDetachRef = useRef(null);
+  const [playingCue, setPlayingCue] = useState(null);
+
+  const stopGalleryAudio = useCallback(() => {
+    if (galleryMediaSessionDetachRef.current) {
+      try {
+        galleryMediaSessionDetachRef.current();
+      } catch {
+        /* noop */
+      }
+      galleryMediaSessionDetachRef.current = null;
+    }
+    if (galleryAudioRef.current) {
+      try {
+        galleryAudioRef.current.pause();
+      } catch {
+        /* noop */
+      }
+      try {
+        galleryAudioRef.current.src = "";
+      } catch {
+        /* noop */
+      }
+      galleryAudioRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function run() {
+      if (!soundLayerEnabled || !effectiveSoundKeyword) {
+        setAudioItems([]);
+        setAudioLoading(false);
+        return;
+      }
+      try {
+        setAudioLoading(true);
+        const res = await axios.get("/api/v1/audio-guide/search", {
+          params: {
+            type: "theme",
+            lang,
+            q: effectiveSoundKeyword,
+            limit: 48,
+          },
+        });
+        if (cancelled) return;
+        const data = Array.isArray(res?.data?.data) ? res.data.data : [];
+        setAudioItems(data);
+      } catch {
+        if (!cancelled) setAudioItems([]);
+      } finally {
+        if (!cancelled) setAudioLoading(false);
+      }
+    }
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [soundLayerEnabled, effectiveSoundKeyword, lang, odiiLangRev]);
+
+  useEffect(() => () => stopGalleryAudio(), [stopGalleryAudio]);
+
+  useEffect(() => {
+    if (!soundLayerEnabled) {
+      stopGalleryAudio();
+      setPlayingCue(null);
+      return;
+    }
+    if (selectedIndex === null) {
+      stopGalleryAudio();
+      setPlayingCue(null);
+      return;
+    }
+    if (!effectiveSoundKeyword) {
+      stopGalleryAudio();
+      setPlayingCue({ kind: "noRegion" });
+      return;
+    }
+    if (audioLoading) {
+      stopGalleryAudio();
+      setPlayingCue(null);
+      return;
+    }
+    const playable = sortAudioGuidesStable(filterPlayableAudioGuides(audioItems));
+    stopGalleryAudio();
+
+    if (!playable.length) {
+      setPlayingCue({
+        kind: "empty",
+        regionKey: effectiveSoundKeyword,
+      });
+      return;
+    }
+
+    const idx = pickRegionalAudioTrackIndex(
+      playable,
+      effectiveSoundKeyword,
+      selectedIndex
+    );
+    const track = playable[idx];
+    const headline = t("photoGalleryPage.audioCueHead");
+    const linePrimary = t("photoGalleryPage.audioCuePrimary", {
+      title: track.title || track.audioTitle || "",
+    });
+    const lineSecondary = t("photoGalleryPage.audioCueSecondary", {
+      audioTitle: track.audioTitle || track.title || "",
+    });
+
+    setPlayingCue({
+      kind: "playing",
+      regionKey: effectiveSoundKeyword,
+      track,
+      headline,
+      linePrimary,
+      lineSecondary,
+    });
+
+    try {
+      const audio = new Audio(track.audioUrl);
+      audio.preload = "auto";
+      audio.addEventListener("ended", () => {
+        if (galleryAudioRef.current === audio) {
+          if (galleryMediaSessionDetachRef.current) {
+            try {
+              galleryMediaSessionDetachRef.current();
+            } catch {
+              /* noop */
+            }
+            galleryMediaSessionDetachRef.current = null;
+          }
+          galleryAudioRef.current = null;
+        }
+      });
+      audio.addEventListener("error", () => {
+        if (galleryAudioRef.current === audio) {
+          if (galleryMediaSessionDetachRef.current) {
+            try {
+              galleryMediaSessionDetachRef.current();
+            } catch {
+              /* noop */
+            }
+            galleryMediaSessionDetachRef.current = null;
+          }
+          galleryAudioRef.current = null;
+          setPlayingCue({
+            kind: "error",
+            regionKey: effectiveSoundKeyword,
+          });
+        }
+      });
+      galleryAudioRef.current = audio;
+      galleryMediaSessionDetachRef.current = attachAudioMediaSession(audio, {
+        title: track.audioTitle || track.title,
+        artworkUrl: track.imageUrl,
+      });
+      audio.play().catch(() => {
+        if (galleryAudioRef.current === audio) {
+          if (galleryMediaSessionDetachRef.current) {
+            try {
+              galleryMediaSessionDetachRef.current();
+            } catch {
+              /* noop */
+            }
+            galleryMediaSessionDetachRef.current = null;
+          }
+          galleryAudioRef.current = null;
+          setPlayingCue({
+            kind: "error",
+            regionKey: effectiveSoundKeyword,
+          });
+        }
+      });
+    } catch {
+      setPlayingCue({
+        kind: "error",
+        regionKey: effectiveSoundKeyword,
+      });
+    }
+  }, [
+    soundLayerEnabled,
+    selectedIndex,
+    effectiveSoundKeyword,
+    audioLoading,
+    audioItems,
+    lang,
+    stopGalleryAudio,
+    t,
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,6 +378,12 @@ export default function TourGallerySection({
           )}
         </h2>
         {subtitle && <p className="tg-sub">{subtitle}</p>}
+        {soundLayerEnabled && effectiveSoundKeyword && (
+          <p className="tg-sound-hint">
+            <Headphones size={14} aria-hidden className="tg-sound-hint-ic" />
+            <span>{t("photoGalleryPage.gallerySoundHint")}</span>
+          </p>
+        )}
       </div>
 
       <div className="tg-grid">
@@ -231,14 +460,60 @@ export default function TourGallerySection({
           onClose={handleClose}
           onPrev={handlePrev}
           onNext={handleNext}
+          soundLayerEnabled={soundLayerEnabled}
+          playingCue={playingCue}
+          effectiveSoundKeyword={effectiveSoundKeyword}
         />
       )}
     </section>
   );
 }
 
-function Lightbox({ item, hasPrev, hasNext, onClose, onPrev, onNext }) {
+function Lightbox({
+  item,
+  hasPrev,
+  hasNext,
+  onClose,
+  onPrev,
+  onNext,
+  soundLayerEnabled,
+  playingCue,
+  effectiveSoundKeyword,
+}) {
   const { t } = useTranslation();
+  const audioGuideHref =
+    effectiveSoundKeyword && effectiveSoundKeyword.trim()
+      ? `/audio-guide?q=${encodeURIComponent(effectiveSoundKeyword.trim())}`
+      : "/audio-guide";
+
+  const cueBlock =
+    soundLayerEnabled && playingCue ? (
+      <div className="tg-lb-audio">
+        {playingCue.kind === "playing" && playingCue.track && effectiveSoundKeyword && (
+          <>
+            <div className="tg-lb-audio-badge">
+              <Headphones size={14} aria-hidden />
+              <span>{playingCue.headline}</span>
+            </div>
+            <div className="tg-lb-audio-primary">{playingCue.linePrimary}</div>
+            <div className="tg-lb-audio-secondary">{playingCue.lineSecondary}</div>
+            <Link href={audioGuideHref} className="tg-lb-audio-link">
+              {t("photoGalleryPage.openAudioGuide")}
+            </Link>
+          </>
+        )}
+        {playingCue.kind === "noRegion" && (
+          <div className="tg-lb-audio-muted">{t("photoGalleryPage.audioCueNeedRegion")}</div>
+        )}
+        {playingCue.kind === "empty" && (
+          <div className="tg-lb-audio-muted">{t("photoGalleryPage.audioCueEmpty")}</div>
+        )}
+        {playingCue.kind === "error" && (
+          <div className="tg-lb-audio-muted">{t("photoGalleryPage.audioCueError")}</div>
+        )}
+      </div>
+    ) : null;
+
   return (
     <div
       className="tg-lb-overlay"
@@ -261,6 +536,7 @@ function Lightbox({ item, hasPrev, hasNext, onClose, onPrev, onNext }) {
             {item.photoMonth ? ` · 📅 ${formatMonth(item.photoMonth)}` : ""}
             {item.photographer ? ` · 📷 ${item.photographer}` : ""}
           </div>
+          {cueBlock}
         </div>
         <button
           className="tg-lb-btn tg-lb-close"
@@ -324,6 +600,21 @@ const cssBlock = `
   margin: 4px 0 0;
   font-size: 0.85rem;
   color: #9aa0a6;
+}
+.tg-sound-hint {
+  margin: 10px 4px 0;
+  font-size: 0.82rem;
+  color: #67e8f9;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 760px;
+  line-height: 1.45;
+}
+.tg-sound-hint-ic {
+  flex-shrink: 0;
+  margin-top: 2px;
+  opacity: 0.9;
 }
 .tg-grid {
   display: grid;
@@ -485,6 +776,53 @@ const cssBlock = `
   margin-top: 2px;
   font-size: 0.85rem;
   color: #bdbdbd;
+}
+.tg-lb-audio {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(34, 211, 238, 0.07);
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  text-align: left;
+}
+.tg-lb-audio-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #a5f3fc;
+  margin-bottom: 8px;
+}
+.tg-lb-audio-primary {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f0fdff;
+  line-height: 1.35;
+}
+.tg-lb-audio-secondary {
+  margin-top: 6px;
+  font-size: 0.82rem;
+  color: #c5fcf9;
+  line-height: 1.45;
+}
+.tg-lb-audio-link {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fde047;
+  text-decoration: underline;
+}
+.tg-lb-audio-link:hover {
+  color: #fef08a;
+}
+.tg-lb-audio-muted {
+  font-size: 0.84rem;
+  color: #d6d3d1;
+  line-height: 1.45;
 }
 .tg-lb-btn {
   position: absolute;

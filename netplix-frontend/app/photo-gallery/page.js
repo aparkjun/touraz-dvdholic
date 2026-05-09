@@ -9,6 +9,7 @@
  * 기능:
  *  - 검색창: 키워드로 갤러리 재조회 (엔터 또는 버튼)
  *  - 지역 단축 버튼: 서울·부산·제주 등을 원클릭으로 교체 검색
+ *  - 보기 모드: 「사진만」 / 「사진 + 소리」(Odii 검색 결과와 연동, 라이트박스에서 재생)
  *  - TourGallerySection 재사용: keyword 가 빈 상태면 allowEmpty=true 로 전체 최신순 노출
  *
  * 접근 경로:
@@ -18,7 +19,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Search, Camera } from "lucide-react";
+import { Search, Camera, Headphones, Image as ImageIcon } from "lucide-react";
 import TourGallerySection from "@/components/TourGallerySection";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 
@@ -54,6 +55,8 @@ function PhotoGalleryInner() {
 
   const [input, setInput] = useState(initialQ);
   const [keyword, setKeyword] = useState(initialQ);
+  /** 사진만 보기 | 사진 + 관광공사 오디오 가이드(Odii) 연동 */
+  const [layerMode, setLayerMode] = useState("photos");
 
   // URL 쿼리(?q=) 변경 시 내부 상태 동기화
   useEffect(() => {
@@ -95,8 +98,39 @@ function PhotoGalleryInner() {
             {t("photoGalleryPage.pageTitle")}
           </h1>
           <p className="pgp-sub">
-            {t("photoGalleryPage.pageSubtitle")}
+            {layerMode === "sound"
+              ? t("photoGalleryPage.pageSubtitleSound")
+              : t("photoGalleryPage.pageSubtitle")}
           </p>
+
+          <div
+            className="pgp-layer"
+            role="group"
+            aria-label={t("photoGalleryPage.layerGroupAria")}
+          >
+            <button
+              type="button"
+              className={`pgp-layer-btn ${layerMode === "photos" ? "pgp-layer-active" : ""}`}
+              onClick={() => setLayerMode("photos")}
+            >
+              <ImageIcon size={15} aria-hidden />
+              {t("photoGalleryPage.layerPhotosOnly")}
+            </button>
+            <button
+              type="button"
+              className={`pgp-layer-btn ${layerMode === "sound" ? "pgp-layer-active" : ""}`}
+              onClick={() => setLayerMode("sound")}
+            >
+              <Headphones size={15} aria-hidden />
+              {t("photoGalleryPage.layerPhotosPlusSound")}
+            </button>
+          </div>
+
+          {layerMode === "sound" && !keyword.trim() && (
+            <p className="pgp-layer-banner" role="status">
+              {t("photoGalleryPage.layerSoundNeedRegion")}
+            </p>
+          )}
 
           <form className="pgp-search" onSubmit={onSubmit} role="search">
             <Search size={16} className="pgp-search-icon" aria-hidden />
@@ -144,6 +178,7 @@ function PhotoGalleryInner() {
           allowEmpty
           infinite
           pageSize={60}
+          soundLayerEnabled={layerMode === "sound"}
         />
         {/* 섹션이 숨겨진(0건) 경우를 위한 빈 상태 안내 */}
         <NoResultsHint keyword={keyword} />
@@ -255,6 +290,48 @@ const cssBlock = `
   font-size: 0.95rem;
   max-width: 760px;
   line-height: 1.5;
+}
+.pgp-layer {
+  display: inline-flex;
+  gap: 0;
+  padding: 4px;
+  margin-bottom: 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.pgp-layer-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: #bbb;
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.pgp-layer-btn:hover {
+  color: #fff;
+}
+.pgp-layer-active {
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.22) 0%, rgba(167, 139, 250, 0.22) 100%);
+  color: #fff;
+  box-shadow: 0 2px 12px rgba(34, 211, 238, 0.15);
+}
+.pgp-layer-banner {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  color: #e0f2fe;
+  background: rgba(34, 211, 238, 0.12);
+  border: 1px solid rgba(34, 211, 238, 0.28);
+  max-width: 720px;
+  line-height: 1.45;
 }
 .pgp-search {
   display: flex;

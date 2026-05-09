@@ -335,7 +335,20 @@
     "latest": "Latest photos nationwide",
     "empty": "No photos to show yet",
     "emptyForKeyword": "No photos found for ‘{{keyword}}’",
-    "emptyHint": "Please try a different keyword, or check back again shortly."
+    "emptyHint": "Please try a different keyword, or check back again shortly.",
+    "pageSubtitleSound": "Pick a region, open a photo, and hear an Odii tourism audio clip matched to that area — like following a film location story with your ears.",
+    "layerGroupAria": "View mode",
+    "layerPhotosOnly": "Photos only",
+    "layerPhotosPlusSound": "Photos + sound",
+    "layerSoundNeedRegion": "Choose a region chip or enter a search keyword to link Odii audio.",
+    "gallerySoundHint": "Opening a photo plays one guided track from this region’s Odii results.",
+    "audioCueHead": "Odii · on-location audio",
+    "audioCuePrimary": "“{{title}}” — tourism narration from the same landscapes behind classic scenes.",
+    "audioCueSecondary": "Now playing: {{audioTitle}}",
+    "openAudioGuide": "Browse audio guides",
+    "audioCueEmpty": "No streamable audio matched this region right now.",
+    "audioCueError": "Could not start playback.",
+    "audioCueNeedRegion": "Nationwide mode has no region keyword — tap a region chip first."
   },
   "camping": {
     "pageTitle": "Find Campsites Nationwide",
