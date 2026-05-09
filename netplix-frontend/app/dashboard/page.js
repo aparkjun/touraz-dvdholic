@@ -1698,10 +1698,11 @@ function DashboardContent() {
           const isLoadingMore = loadingMore[cat.id];
           const totalCount = catData?.totalCount;
           const currentCount = catMovies.length;
-          if (catMovies.length === 0) return null;
           // 백엔드가 반환하는 totalCount 가 있으면 그 수치를, 없으면 현재 로드된 개수를 표시.
           const displayCount =
             typeof totalCount === "number" && totalCount > 0 ? totalCount : currentCount;
+          // 음악 행은 API가 빈 목록을 주어도 브릿지 CTA(오디오 가이드·CineTrip)를 유지해야 함
+          if (catMovies.length === 0 && cat.id !== "music") return null;
           return (
             <div key={cat.id} style={{ marginBottom: "24px" }}>
               <h3 style={{ color: palette.text, fontSize: "18px", fontWeight: 700, marginBottom: "12px", textAlign: "center" }}>

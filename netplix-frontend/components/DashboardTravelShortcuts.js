@@ -78,7 +78,8 @@ export default function DashboardTravelShortcuts() {
         ))}
       </nav>
 
-      <style jsx>{`
+      {/* scoped styled-jsx는 next/link의 <a>에 jsx 해시가 안 붙어 CTA 셀 스타일이 빠질 수 있음 → global */}
+      <style jsx global>{`
         .dts-shortcuts {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -117,7 +118,7 @@ export default function DashboardTravelShortcuts() {
           align-items: center;
           justify-content: center;
         }
-        .dts-shortcut-icon-wrap :global(svg) {
+        .dts-shortcut-icon-wrap svg {
           display: block;
           flex-shrink: 0;
           opacity: 0.95;
