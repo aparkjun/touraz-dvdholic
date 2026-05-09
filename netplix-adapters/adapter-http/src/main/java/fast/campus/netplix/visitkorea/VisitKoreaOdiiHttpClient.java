@@ -310,8 +310,11 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         if (!"ko".equals(l)) {
             AudioGuideItem anchorTheme = findCachedThemeForBridge(l, key);
             if (anchorTheme != null && anchorTheme.getLatitude() != null && anchorTheme.getLongitude() != null) {
-                appendKoThemeIdsNearCoordinates(
-                        anchorTheme.getLatitude(), anchorTheme.getLongitude(), 0.45, bridgeThemeCandidates);
+                double lat = anchorTheme.getLatitude();
+                double lng = anchorTheme.getLongitude();
+                appendKoThemeIdsNearCoordinates(lat, lng, 0.45, bridgeThemeCandidates);
+                appendKoThemeIdsNearCoordinates(lat, lng, 1.5, bridgeThemeCandidates);
+                appendKoThemeIdsNearCoordinates(lat, lng, 4.0, bridgeThemeCandidates);
             }
         }
         ensureFullStoryCacheForJoin(l);
@@ -466,7 +469,8 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         ensureFullStoryCacheForJoin(targetLang);
         CacheSnapshot locSnap = cache.get(allKey(AudioGuideItem.Type.STORY, targetLang));
         if (locSnap == null || locSnap.sites.isEmpty()) {
-            return List.of();
+            log.warn("[ODII] stories-by-theme bridge: lang={} STORY 캐시 비어 있음 — KO 원문 반환", targetLang);
+            return koStoriesByOrderedIds(koSnap, orderedStoryIds, limit);
         }
         Map<String, AudioGuideItem> localizedById = locSnap.sites.stream()
                 .collect(Collectors.toMap(AudioGuideItem::getId, s -> s, (a, b) -> a));
@@ -497,6 +501,31 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             }
             if (hit != null) {
                 out.add(hit);
+            }
+        }
+        if (out.isEmpty()) {
+            log.warn("[ODII] stories-by-theme bridge: lang={} 로컬 스토리 id 미매칭 {}건 — KO 원문 반환",
+                    targetLang, orderedStoryIds.size());
+            return koStoriesByOrderedIds(koSnap, orderedStoryIds, limit);
+        }
+        return take(out, limit);
+    }
+
+    /** KO 브리지에서 만든 id 순서대로 KO STORY 레코드만 반환한다 (zh/ja 레코드 부재 시 폴백). */
+    private List<AudioGuideItem> koStoriesByOrderedIds(CacheSnapshot koSnap, List<String> orderedStoryIds, int limit) {
+        if (koSnap == null || koSnap.sites == null || orderedStoryIds == null || orderedStoryIds.isEmpty()) {
+            return List.of();
+        }
+        Map<String, AudioGuideItem> koById = koSnap.sites.stream()
+                .collect(Collectors.toMap(AudioGuideItem::getId, s -> s, (a, b) -> a));
+        List<AudioGuideItem> out = new ArrayList<>();
+        for (String sid : orderedStoryIds) {
+            if (sid == null || sid.isBlank()) {
+                continue;
+            }
+            AudioGuideItem k = koById.get(sid);
+            if (k != null) {
+                out.add(k);
             }
         }
         return take(out, limit);
