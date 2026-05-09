@@ -416,7 +416,7 @@ body.app-theme-travel {
   box-shadow: 0 4px 22px rgba(15, 23, 42, 0.07);
 }
 
-/* 메인(/) · 로그인 · 회원가입 — 순백 네비. 반투명 글래스는 다크 바디가 비쳐 뱀 GIF(screen 블렌드) 주변이 얼룩처럼 보일 수 있음 */
+/* 메인(/) · 로그인 · 회원가입 · /admin — 순백 네비. 반투명 글래스는 다크 바디가 비쳐 뱀 GIF(screen 블렌드) 주변이 얼룩처럼 보일 수 있음 */
 .app-nav.app-nav--landing-light {
   position: relative;
   background: #ffffff;
