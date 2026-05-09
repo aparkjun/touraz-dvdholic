@@ -538,6 +538,12 @@ body.app-theme-travel {
 }
 
 .app-nav-actions { flex: 0 0 auto; margin-right: 12px; position: relative; display: flex; align-items: center; gap: 8px; }
+/* 대시보드 네비: 햄버거 왼쪽 날씨 캡션 — 좁은 폭에서 줄바꿈·축소 허용 */
+.app-nav-dashboard-weather {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: min(152px, 42vw);
+}
 /* 메인(랜딩) 페이지 전용: 네비 맨 왼쪽에 EN/KO 토글을 단독 노출.
  * .app-nav-inner 가 justify-content: flex-end 라서 margin-right: auto 로 좌측 고정.
  * .app-brand 가 position: absolute 로 중앙에 떠 있으므로 z-index: 2 로

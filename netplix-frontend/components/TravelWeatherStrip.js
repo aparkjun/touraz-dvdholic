@@ -120,7 +120,7 @@ export default function TravelWeatherStrip() {
   if (!d || !presentation) return null;
 
   const { Icon, iconProps, chipDay, chipHours, ariaLabel, kind } = presentation;
-  const timelineAria = formatTimelineAria(timeline.slots);
+  const timelineAria = formatTimelineAria(timeline.slots, t);
   const sectionAria = [ariaLabel, timelineAria].filter(Boolean).join('. ');
   const iconSize = kind === 'rain' || kind === 'vague' || kind === 'maybe' ? 28 : 26;
   const halo =

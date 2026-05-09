@@ -1,27 +1,35 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Cloud, CloudRain, Sun } from 'lucide-react';
+import { Cloud, CloudRain, CloudSnow, CloudSun, Sun } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 
+/** 빠른 1회 시도 (다른 화면·테스트용) */
 export function getGeoOnce() {
+  return geoTryOnce({ enableHighAccuracy: false, maximumAge: 600000, timeoutMs: 3500 });
+}
+
+/**
+ * 대시보드 날씨용: 먼저 캐시·저전력으로 빠르게 받고, 실패 시 고정밀·긴 타임아웃으로 한 번 더 시도.
+ * 허용만 되어 있으면 서버에 lat/lng 전달 → 가장 가까운 단기 reg + 초단시 보조.
+ */
+export async function getGeoForWeather() {
+  let p = await geoTryOnce({ enableHighAccuracy: false, maximumAge: 600000, timeoutMs: 4000 });
+  if (p?.coords) return p;
+  p = await geoTryOnce({ enableHighAccuracy: true, maximumAge: 120000, timeoutMs: 12000 });
+  return p?.coords ? p : null;
+}
+
+function geoTryOnce({ enableHighAccuracy, maximumAge, timeoutMs }) {
   return new Promise((resolve) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       resolve(null);
       return;
     }
-    const done = (v) => resolve(v);
-    const timer = setTimeout(() => done(null), 2600);
     navigator.geolocation.getCurrentPosition(
-      (p) => {
-        clearTimeout(timer);
-        done(p);
-      },
-      () => {
-        clearTimeout(timer);
-        done(null);
-      },
-      { enableHighAccuracy: false, maximumAge: 420000, timeout: 2500 }
+      (p) => resolve(p),
+      () => resolve(null),
+      { enableHighAccuracy, maximumAge, timeout: timeoutMs }
     );
   });
 }
@@ -78,7 +86,39 @@ function normalizeRowFromMerged(row) {
     time: row.time,
     pop: row.pop ?? null,
     pty: row.pty != null ? String(row.pty) : '0',
+    sky: row.sky != null ? String(row.sky) : undefined,
+    tmp: row.tmp ?? null,
   };
+}
+
+/** 기상청 단기 SKY·PTY 코드 → 짧은 하늘·강수 상태 문구 (네비·스트립용) */
+export function skyStateLabel(sky, pty, wet, t) {
+  const ps = pty != null ? String(pty) : '0';
+  if (wet || isWetPty(ps)) {
+    if (ps === '1') return t('travelWeather.ptyRain', '비');
+    if (ps === '2') return t('travelWeather.ptyRainSnow', '비 또는 눈');
+    if (ps === '3') return t('travelWeather.ptySnow', '눈');
+    if (ps === '4') return t('travelWeather.ptyShower', '소나기');
+    return t('travelWeather.statePrecip', '강수');
+  }
+  const sk = sky != null ? String(sky) : '';
+  if (sk === '1') return t('travelWeather.skyClear', '맑음');
+  if (sk === '3') return t('travelWeather.skyMostlyCloud', '구름 많음');
+  if (sk === '4') return t('travelWeather.skyOvercast', '흐림');
+  return t('travelWeather.skyUnknown', '하늘 상태 미제공');
+}
+
+function getFirstUpcomingMergedRow(merged, now = new Date()) {
+  if (!Array.isArray(merged) || merged.length === 0) return null;
+  const nowParts = nowYyyymmddHour(now);
+  const upcoming = merged.filter((s) => {
+    if (s.date > nowParts.yyyymmdd) return true;
+    if (s.date < nowParts.yyyymmdd) return false;
+    const h = hourFromTime(s.time);
+    return h != null && h >= nowParts.hour;
+  });
+  const list = upcoming.length ? upcoming : merged;
+  return list[0];
 }
 
 function isWetPty(pty) {
@@ -102,6 +142,13 @@ function nowYyyymmddHour(d = new Date()) {
 
 function iconForMergedRow(row) {
   if (isRainyRow(row)) {
+    const ps = String(row.pty ?? '0');
+    if (ps === '3' || ps === '2') {
+      return {
+        Icon: CloudSnow,
+        iconProps: { strokeWidth: 1.55, color: '#0284c7' },
+      };
+    }
     return {
       Icon: CloudRain,
       iconProps: { strokeWidth: 1.5, color: '#0369a1' },
@@ -114,6 +161,18 @@ function iconForMergedRow(row) {
       iconProps: { strokeWidth: 1.5, color: '#ca8a04' },
     };
   }
+  if (sk === '3') {
+    return {
+      Icon: CloudSun,
+      iconProps: { strokeWidth: 1.45, color: '#ca8a04' },
+    };
+  }
+  if (sk === '4') {
+    return {
+      Icon: Cloud,
+      iconProps: { strokeWidth: 1.5, color: '#475569' },
+    };
+  }
   return {
     Icon: Cloud,
     iconProps: { strokeWidth: 1.5, color: '#64748b' },
@@ -121,12 +180,14 @@ function iconForMergedRow(row) {
 }
 
 /**
- * @returns {{ slots: Array<{ date: string, time: string, hour: number, tmp: number|null, wet: boolean, Icon: import('react').ComponentType, iconProps: object }>, source?: 'vsrt'|'shortReg' }}
+ * @returns {{ slots: Array<{ date: string, time: string, hour: number, tmp: number|null, pop: number|null, wet: boolean, sky?: string, pty: string, Icon: import('react').ComponentType, iconProps: object }>, source?: 'vsrt'|'shortReg' }}
+ * opts.skipVsrt — true 이면 단기(series)만 사용해 슬롯 구성(초단기 슬롯과 나란히 쓰기 위함).
  */
 export function buildTravelWeatherTimeline(series, opts = {}) {
   const maxSlots = opts.maxSlots ?? 8;
   const vsrt = opts.vsrtHourly;
-  if (Array.isArray(vsrt) && vsrt.length > 0) {
+  const skipVsrt = opts.skipVsrt === true;
+  if (!skipVsrt && Array.isArray(vsrt) && vsrt.length > 0) {
     const mergedShort = mergeSeriesBySlot(Array.isArray(series) ? series : []);
     const byKey = new Map(mergedShort.map((r) => [`${r.date}|${r.time}`, r]));
     const slots = [];
@@ -152,7 +213,10 @@ export function buildTravelWeatherTimeline(series, opts = {}) {
         time,
         hour: h,
         tmp: row.tmp != null ? row.tmp : null,
+        pop: row.pop != null ? row.pop : null,
         wet: isRainyRow(row),
+        sky: row.sky != null ? String(row.sky) : undefined,
+        pty: row.pty != null ? String(row.pty) : '0',
         Icon,
         iconProps,
       });
@@ -184,7 +248,10 @@ export function buildTravelWeatherTimeline(series, opts = {}) {
       time: row.time,
       hour: h,
       tmp: row.tmp != null ? row.tmp : null,
+      pop: row.pop != null ? row.pop : null,
       wet: isRainyRow(row),
+      sky: row.sky != null ? String(row.sky) : undefined,
+      pty: row.pty != null ? String(row.pty) : '0',
       Icon,
       iconProps,
     });
@@ -192,21 +259,108 @@ export function buildTravelWeatherTimeline(series, opts = {}) {
   return { slots, source: slots.length ? 'shortReg' : undefined };
 }
 
-/** 스크린리더용 — 시각·기온·강수 여부 요약 */
-export function formatTimelineAria(slots) {
+/** API 응답(reg·regLabel·regFromGeo) → 네비 첫 줄 지역 문구 */
+export function buildDashboardRegionLine(weatherApiData, t) {
+  if (!weatherApiData || weatherApiData.configured === false) {
+    return { regionLine: '', regionHint: '' };
+  }
+  const regLabel = weatherApiData.regLabel;
+  const reg = weatherApiData.reg;
+  const fromGeo = weatherApiData.regFromGeo === true;
+  const dist = weatherApiData.regDistanceKm;
+
+  let regionLine = '';
+  if (regLabel != null && String(regLabel).trim()) {
+    const place = String(regLabel).trim();
+    regionLine = fromGeo
+      ? t('travelWeather.navRegionNearYou', '{{place}} · 내 위치', { place })
+      : place;
+  } else if (reg != null && String(reg).trim()) {
+    regionLine = t('travelWeather.navRegionCode', '예보구역 {{code}}', { code: String(reg).trim() });
+  }
+
+  let regionHint = regionLine;
+  if (regionLine && fromGeo && typeof dist === 'number') {
+    regionHint = `${regionLine} · ${t('travelWeather.navRegionGeoKm', '격자까지 약 {{km}}km', { km: dist })}`;
+  }
+  return { regionLine, regionHint };
+}
+
+/** 대시보드 네비 캡션: 지역 / 요일·주말 / 기상상태 / 시각·기온 / 출처 (@param weatherApiData — short-reg 응답 data) */
+export function buildDashboardNavCaption(presentation, timeline, t, weatherApiData) {
+  const { regionLine, regionHint } = buildDashboardRegionLine(weatherApiData, t);
+  const slots = timeline?.slots;
+  if (Array.isArray(slots) && slots.length > 0) {
+    const s = slots[0];
+    const day = dayLabel(s.date, t);
+    const y = parseInt(s.date.slice(0, 4), 10);
+    const mo = parseInt(s.date.slice(4, 6), 10) - 1;
+    const dNum = parseInt(s.date.slice(6, 8), 10);
+    const dow = new Date(y, mo, dNum).getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    const weekendHint = isWeekend ? t('travelWeather.weekendShort', '주말') : '';
+    const line1 = [day, weekendHint].filter(Boolean).join(' · ');
+    const line2 = skyStateLabel(s.sky, s.pty, s.wet, t);
+    const line3 =
+      s.tmp != null
+        ? t('travelWeather.navHourTemp', '{{h}}시 {{tmp}}°', { h: s.hour, tmp: s.tmp })
+        : t('travelWeather.navHourOnly', '{{h}}시', { h: s.hour });
+    const sourceNote =
+      timeline?.source === 'vsrt'
+        ? t('travelWeather.navSourceVsrt', '초단기(1h)')
+        : t('travelWeather.navSourceShort', '단기');
+    return { regionLine, regionHint, line1, line2, line3, foot: sourceNote };
+  }
+  if (presentation) {
+    const line1 = presentation.chipDay || t('travelWeather.dayToday', '오늘');
+    const line2 =
+      presentation.stateLabel ||
+      (presentation.kind === 'dry'
+        ? t('travelWeather.navDryShort', '맑음 쪽')
+        : presentation.kind === 'rain' || presentation.kind === 'maybe' || presentation.kind === 'vague'
+          ? t('travelWeather.navWetShort', '비 가능')
+          : '');
+    const line3 = presentation.chipHours || '';
+    if (line2 || line3) {
+      return {
+        regionLine,
+        regionHint,
+        line1,
+        line2: line2 || t('travelWeather.navWeather', '날씨'),
+        line3,
+        foot: t('travelWeather.navSourceShort', '단기'),
+      };
+    }
+  }
+  return {
+    regionLine,
+    regionHint,
+    line1: t('travelWeather.dayToday', '오늘'),
+    line2: t('travelWeather.navWeather', '날씨'),
+    line3: '',
+    foot: '',
+  };
+}
+
+/** 스크린리더용 — 시각·기온·하늘·강수 상태 요약 */
+export function formatTimelineAria(slots, t) {
   if (!slots || !slots.length) return '';
   return slots
     .slice(0, 8)
     .map((s) => {
       let p = `${s.hour}시`;
       if (s.tmp != null) p += ` ${s.tmp}도`;
-      if (s.wet) p += ' 비 또는 눈 가능';
+      if (typeof t === 'function') {
+        p += ` ${skyStateLabel(s.sky, s.pty, s.wet, t)}`;
+      } else if (s.wet) {
+        p += ' 비 또는 눈 가능';
+      }
       return p;
     })
     .join(', ');
 }
 
-function dayLabel(yyyymmdd, t) {
+export function dayLabel(yyyymmdd, t) {
   if (yyyymmdd.length !== 8) return '';
   const y = parseInt(yyyymmdd.slice(0, 4), 10);
   const mo = parseInt(yyyymmdd.slice(4, 6), 10) - 1;
@@ -223,7 +377,7 @@ function dayLabel(yyyymmdd, t) {
 
 function flattenFirstForecastLike(node, depth = 0) {
   if (depth > 8 || node == null || typeof node !== 'object') return {};
-  const keys = ['POP', 'pop', 'PTY', 'pty', 'TMP', 'tmp', 'T1H'];
+  const keys = ['POP', 'pop', 'PTY', 'pty', 'TMP', 'tmp', 'T1H', 'SKY', 'sky'];
   const out = {};
   for (const k of keys) {
     if (node[k] != null && node[k] !== '') out[k] = node[k];
@@ -244,7 +398,7 @@ function flattenFirstForecastLike(node, depth = 0) {
 }
 
 /**
- * @returns {{ kind: 'rain'|'dry'|'maybe'|'vague'|'idle', Icon: import('react').ComponentType, iconProps: object, chipDay?: string, chipHours?: string, ariaLabel: string }}
+ * @returns {{ kind: 'rain'|'dry'|'maybe'|'vague'|'idle', Icon: import('react').ComponentType, iconProps: object, stateLabel?: string, chipDay?: string, chipHours?: string, ariaLabel: string }}
  */
 export function deriveTravelWeatherPresentation(series, payload, t) {
   if (Array.isArray(series) && series.length) {
@@ -255,11 +409,15 @@ export function deriveTravelWeatherPresentation(series, payload, t) {
     });
     const wet = rows.filter(isRainyRow);
     if (!wet.length) {
+      const pick = getFirstUpcomingMergedRow(merged) || merged[0];
+      const { Icon, iconProps } = iconForMergedRow(pick);
+      const stateLabel = skyStateLabel(pick.sky, pick.pty, false, t);
       return {
         kind: 'dry',
-        Icon: Sun,
-        iconProps: { strokeWidth: 1.5, color: '#ca8a04', style: { filter: 'drop-shadow(0 1px 2px rgba(202,138,4,0.25))' } },
-        ariaLabel: t('travelWeather.ariaDry', '가까운 예보에서 강수는 없어 보입니다. 야외 일정 참고용입니다.'),
+        Icon,
+        iconProps,
+        stateLabel,
+        ariaLabel: `${stateLabel}. ${t('travelWeather.ariaDry', '가까운 예보에서 강수는 없어 보입니다. 야외 일정 참고용입니다.')}`,
       };
     }
     const byDate = {};
@@ -274,13 +432,16 @@ export function deriveTravelWeatherPresentation(series, payload, t) {
     const h1 = hourFromTime(slots[slots.length - 1].time);
     const endHour = h1 != null ? Math.min(23, h1 + 3) : h0 != null ? h0 + 3 : null;
     const day = dayLabel(first, t);
+    const wetPick = merged.find((m) => m.date === first && wet.some((w) => w.time === m.time && isRainyRow(m))) || merged.find((m) => m.date === first && isRainyRow(m));
+    const rainState = wetPick ? skyStateLabel(wetPick.sky, wetPick.pty, true, t) : t('travelWeather.statePrecip', '강수');
     if (h0 != null && endHour != null) {
       return {
         kind: 'rain',
         Icon: CloudRain,
         iconProps: { strokeWidth: 1.65, color: '#0369a1', style: { filter: 'drop-shadow(0 2px 6px rgba(3,105,161,0.2))' } },
+        stateLabel: rainState,
         chipDay: day,
-        chipHours: `${h0}–${endHour}`,
+        chipHours: `${h0}–${endHour}시`,
         ariaLabel: t('travelWeather.ariaRainWindow', '{{day}} {{from}}시부터 {{to}}시 사이 비 가능성이 있습니다.', {
           day,
           from: h0,
@@ -292,6 +453,7 @@ export function deriveTravelWeatherPresentation(series, payload, t) {
       kind: 'vague',
       Icon: CloudRain,
       iconProps: { strokeWidth: 1.65, color: '#475569', opacity: 0.9 },
+      stateLabel: rainState,
       chipDay: day,
       ariaLabel: t('travelWeather.ariaRainVague', '{{day}} 강수 가능성이 있습니다.', { day }),
     };
@@ -299,12 +461,20 @@ export function deriveTravelWeatherPresentation(series, payload, t) {
 
   const flat = flattenFirstForecastLike(payload);
   const pop = toNum(flat.POP ?? flat.pop);
-  const pty = flat.PTY ?? flat.pty;
-  if (isWetPty(pty) || (pop != null && pop >= 45)) {
+  const ptyRaw = flat.PTY ?? flat.pty;
+  const skyRaw = flat.SKY ?? flat.sky;
+  const ptyStr = ptyRaw != null && String(ptyRaw) !== '' ? String(ptyRaw) : '0';
+  const skyStr = skyRaw != null && String(skyRaw) !== '' ? String(skyRaw) : undefined;
+  const pseudo = { sky: skyStr, pty: ptyStr, pop: pop ?? null };
+
+  if (isWetPty(ptyStr) || (pop != null && pop >= 45)) {
+    const { Icon, iconProps } = iconForMergedRow(pseudo);
+    const stateLabel = skyStateLabel(skyStr, ptyStr, true, t);
     return {
       kind: 'maybe',
-      Icon: CloudRain,
-      iconProps: { strokeWidth: 1.65, color: '#0369a1' },
+      Icon,
+      iconProps,
+      stateLabel,
       chipHours: pop != null ? `${pop}%` : undefined,
       ariaLabel:
         pop != null
@@ -313,19 +483,25 @@ export function deriveTravelWeatherPresentation(series, payload, t) {
     };
   }
   if (pop != null) {
+    const { Icon, iconProps } = iconForMergedRow(pseudo);
+    const stateLabel = skyStateLabel(skyStr, '0', false, t);
     return {
       kind: 'dry',
-      Icon: Sun,
-      iconProps: { strokeWidth: 1.5, color: '#ca8a04' },
+      Icon,
+      iconProps,
+      stateLabel,
       chipHours: `${pop}%`,
       ariaLabel: t('travelWeather.ariaDryPop', '강수 확률 {{n}}퍼센트입니다.', { n: pop }),
     };
   }
+  const { Icon, iconProps } = iconForMergedRow(pseudo);
+  const stateLabel = skyStateLabel(skyStr, '0', false, t);
   return {
     kind: 'dry',
-    Icon: Cloud,
-    iconProps: { strokeWidth: 1.5, color: '#64748b' },
-    ariaLabel: t('travelWeather.ariaDryNeutral', '특별한 강수 예보는 없습니다.'),
+    Icon,
+    iconProps,
+    stateLabel,
+    ariaLabel: `${stateLabel}. ${t('travelWeather.ariaDryNeutral', '특별한 강수 예보는 없습니다.')}`,
   };
 }
 
@@ -335,7 +511,7 @@ export function useTravelWeatherShortReg() {
   useEffect(() => {
     let alive = true;
     (async () => {
-      const pos = await getGeoOnce();
+      const pos = await getGeoForWeather();
       const params = pos ? { lat: pos.coords.latitude, lng: pos.coords.longitude } : {};
       try {
         const res = await axios.get('/api/v1/weather/short-reg', { params });
