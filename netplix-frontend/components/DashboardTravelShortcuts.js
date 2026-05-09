@@ -81,13 +81,13 @@ export default function DashboardTravelShortcuts() {
         .dts-shortcut-link {
           position: relative;
           display: flex;
-          flex-direction: column;
+          flex-direction: row;
           align-items: center;
           justify-content: center;
-          gap: 6px;
+          gap: 8px;
           aspect-ratio: 1;
           min-width: 0;
-          padding: 8px 6px;
+          padding: 8px 10px;
           border-radius: 10px;
           border: 1px solid rgba(255, 255, 255, 0.1);
           background: rgba(255, 255, 255, 0.04);
@@ -97,13 +97,16 @@ export default function DashboardTravelShortcuts() {
         }
         .dts-shortcut-link :global(svg) {
           flex-shrink: 0;
+          display: block;
           opacity: 0.95;
         }
         .dts-shortcut-label {
           font-size: 10px;
           font-weight: 600;
-          line-height: 1.2;
-          text-align: center;
+          line-height: 1.15;
+          text-align: left;
+          flex: 1;
+          min-width: 0;
           max-width: 100%;
           display: -webkit-box;
           -webkit-line-clamp: 2;
