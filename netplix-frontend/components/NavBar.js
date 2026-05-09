@@ -47,8 +47,13 @@ export default function NavBar() {
   //  useTranslation 을 쓰는 모든 페이지/컴포넌트가 즉시 재렌더링된다.)
   const isLandingPage = pathname === '/';
 
+  const navClass =
+    'app-nav' +
+    (pathname === '/dashboard' ? ' app-nav--dashboard' : '') +
+    (isLandingPage ? ' app-nav--landing-light' : '');
+
   return (
-    <nav className={`app-nav${pathname === '/dashboard' ? ' app-nav--dashboard' : ''}`}>
+    <nav className={navClass}>
       <div className={`app-nav-inner${pathname === '/dashboard' ? ' app-nav-inner--dashboard' : ''}`}>
         {isLandingPage && (
           <div className="app-nav-leftmost">
