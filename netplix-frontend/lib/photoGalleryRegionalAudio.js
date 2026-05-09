@@ -37,3 +37,67 @@ export function pickRegionalAudioTrackIndex(playable, regionKey, photoIndex = 0)
   const off = Math.abs(parseInt(photoIndex, 10) || 0);
   return (base + off) % playable.length;
 }
+
+/** 관광사진 검색어·시설명에 자주 붙는 시·도 문자열 (긴 것부터 매칭) */
+const ODII_REGION_SEARCH_TOKENS = [
+  "경상북도",
+  "경상남도",
+  "전라북도",
+  "전라남도",
+  "충청북도",
+  "충청남도",
+  "제주특별자치도",
+  "서울",
+  "부산",
+  "인천",
+  "대구",
+  "광주",
+  "대전",
+  "울산",
+  "세종",
+  "경기",
+  "강원",
+  "충북",
+  "충남",
+  "전북",
+  "전남",
+  "경북",
+  "경남",
+  "제주",
+];
+
+/**
+ * Odii 검색용 폴백 쿼리 목록: 원문 키워드 + 문자열에 포함된 지역 토큰.
+ * 예: "대구경북디자인센터" → ["대구경북디자인센터", "경북", "대구"]
+ */
+export function buildOdiiSearchFallbackQueries(primaryKeyword) {
+  const k = String(primaryKeyword || "").trim();
+  if (!k) return [];
+  const out = [];
+  const push = (s) => {
+    const v = String(s || "").trim();
+    if (v && !out.includes(v)) out.push(v);
+  };
+  push(k);
+  const sorted = [...ODII_REGION_SEARCH_TOKENS].sort(
+    (a, b) => b.length - a.length
+  );
+  for (const tok of sorted) {
+    if (k.includes(tok)) push(tok);
+  }
+  return out;
+}
+
+/** id 기준으로 오디오 가이드 항목 병합 (중복 제거) */
+export function mergeAudioGuideItemsById(existing, incoming) {
+  const map = new Map();
+  for (const x of existing || []) {
+    if (x != null && x.id != null) map.set(String(x.id), x);
+  }
+  for (const x of incoming || []) {
+    if (x != null && x.id != null && !map.has(String(x.id))) {
+      map.set(String(x.id), x);
+    }
+  }
+  return [...map.values()];
+}

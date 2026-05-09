@@ -16,6 +16,8 @@ import {
   filterPlayableAudioGuides,
   sortAudioGuidesStable,
   pickRegionalAudioTrackIndex,
+  buildOdiiSearchFallbackQueries,
+  mergeAudioGuideItemsById,
 } from "@/lib/photoGalleryRegionalAudio";
 
 /**
@@ -114,17 +116,36 @@ export default function TourGallerySection({
       }
       try {
         setAudioLoading(true);
-        const res = await axios.get("/api/v1/audio-guide/search", {
-          params: {
-            type: "theme",
-            lang,
-            q: effectiveSoundKeyword,
-            limit: 48,
-          },
-        });
+        const queries = buildOdiiSearchFallbackQueries(effectiveSoundKeyword);
+        let merged = [];
+
+        const fetchType = async (type) => {
+          for (const q of queries) {
+            if (cancelled) return;
+            try {
+              const res = await axios.get("/api/v1/audio-guide/search", {
+                params: {
+                  type,
+                  lang,
+                  q,
+                  limit: 48,
+                },
+              });
+              const data = Array.isArray(res?.data?.data) ? res.data.data : [];
+              merged = mergeAudioGuideItemsById(merged, data);
+              if (filterPlayableAudioGuides(merged).length > 0) return;
+            } catch {
+              /* 다음 쿼리 시도 */
+            }
+          }
+        };
+
+        await fetchType("theme");
         if (cancelled) return;
-        const data = Array.isArray(res?.data?.data) ? res.data.data : [];
-        setAudioItems(data);
+        if (!filterPlayableAudioGuides(merged).length) {
+          await fetchType("story");
+        }
+        if (!cancelled) setAudioItems(merged);
       } catch {
         if (!cancelled) setAudioItems([]);
       } finally {
