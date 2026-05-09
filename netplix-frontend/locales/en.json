@@ -541,7 +541,7 @@
     "regionTablistAria": "Choose forecast area",
     "panelLoadingRegion": "Loading this area…",
     "panelRegionError": "Couldn't load this area. Tap the tab again later.",
-    "panelKmaUnavailable": "Forecasts use KMA API Hub (apihub.kma.go.kr), not only data.go.kr. Set KMA_API_KEY (or KMA_AUTH_API_KEY) in Heroku Config Vars with the hub key, then restart the dyno.",
+    "panelKmaUnavailable": "Short- and ultra-short-term forecasts need a KMA API Hub (apihub.kma.go.kr) key. In Heroku Config Vars, set KMA_API_KEY (or KMA_AUTH_API_KEY) to your hub-issued key and restart the dyno. A data.go.kr public data portal key alone may not work.",
     "tabMine": "Near me",
     "panelPopShort": "POP {{n}}%",
     "panelVsrtGrid": "Nowcast grid nx={{nx}} ny={{ny}}",
