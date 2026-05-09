@@ -465,9 +465,9 @@
   },
   "petCinema": {
     "headerTitle": "Films to watch with your pet",
-    "headerSubtitle": "After today's walk, one film on the couch",
-    "viewMovieInfo": "View movie info",
-    "cardAria": "Open {{title}} movie info in a new tab",
+    "headerSubtitle": "Continue the mood from your trip — film × travel in one flow",
+    "viewMovieInfo": "Open movie details in app",
+    "cardAria": "Go to {{title}} movie detail page",
     "picks": {
       "maum": { "title": "Maum-i", "subtitle": "Korea · 2006", "blurb": "A road movie about Jindo dog \"Maum-i\" and a brother & sister", "tag": "Dog · Korea" },
       "sugar": { "title": "Lump of Sugar", "subtitle": "Korea · 2006", "blurb": "A girl's coming-of-age story with race horse Cheondoong", "tag": "Family · Korea" },
@@ -562,7 +562,7 @@
     "heroBadge": "KTO · Pet-friendly Travel",
     "heroTitle": "Sunshine, paws, and wide open roads",
     "heroSubtitle1": "If you've been cooped up indoors, it's time to feel the spring breeze on four paws.",
-    "heroSubtitle2": "Browse pet-friendly attractions, lodging, and restaurants across regions at a glance.",
+    "heroSubtitle2": "Pet-friendly spots in each region, plus films tied to that area, Photo Korea contest winners, the tourism photo gallery, and Durunubi trails — woven together on one screen.",
     "feature1Title": "Pet-friendly venues",
     "feature1Desc": "Parks, beaches, walking paths",
     "feature2Title": "Safe travel tips",
@@ -570,19 +570,23 @@
     "feature3Title": "Outdoor activities",
     "feature3Desc": "Nature exploration under the sun",
     "bannerTitle": "Ready for a breath of fresh air?",
-    "bannerBody": "Tap a region tab to choose where to go today. All info is provided by the Korea Tourism Organization.",
+    "bannerBody": "Pick pet-friendly places below, then follow film curation, Photo Korea winners, the tourism photo gallery, and trails — in order. Source: Korea Tourism Organization.",
     "cinemaTitle": "Films set in {{region}} — perfect to revisit with your pet",
+    "comboFilmBadge": "Film×Trip",
+    "cinemaComboTitle": "Films set in {{region}} · curated with travel in mind",
+    "photoContestStripTitle": "{{region}} · Photo Korea contest winners",
+    "galleryStripTitle": "{{region}} · tourism scenery photos",
     "petCinemaBadge": "PetCinema",
     "walkTitle": "Trails great for a walk with your pet",
     "walkSubtitle": "Duruunubi courses around {{region}}",
     "petWalkBadge": "PetWalk",
-    "dataSource": "© KTO Pet-friendly Travel (KorPetTourService)",
+    "dataSource": "Data · KorPetTour, Photo Korea winners (PhokoAwrd), Tourism Photo Gallery (PhotoGalleryService1), Korea Trails (Durunubi), film-linked curation",
     "areaAll": "Nationwide",
     "areaHintAll": "Major regions summary",
     "areas": {
       "1": "Seoul", "2": "Incheon", "3": "Daejeon", "4": "Daegu", "5": "Gwangju", "6": "Busan",
       "7": "Ulsan", "8": "Sejong", "31": "Gyeonggi", "32": "Gangwon", "33": "Chungbuk", "34": "Chungnam",
-      "35": "Gyeongbuk", "36": "Gyeongnam", "37": "Jeonbuk", "38": "Jeonnam", "39": "Jeju"
+      "35": "Jeonbuk", "36": "Jeonnam", "37": "Gyeongbuk", "38": "Gyeongnam", "39": "Jeju"
     }
   },
   "trekking": {

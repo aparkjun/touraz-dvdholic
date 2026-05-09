@@ -1,8 +1,9 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Clapperboard, Heart, ExternalLink } from 'lucide-react';
+import { Clapperboard, Heart, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 /**
@@ -14,62 +15,57 @@ import { useTranslation } from 'react-i18next';
  * - 공모전 컨텍스트를 고려해 한국 영화(마음이, 각설탕, 마리 이야기) 비중을 높였다.
  * - 포스터 자동 조회에 의존하지 않고 영화별 고유 그라디언트 + 이모지 아트 카드로
  *   구성해 일관된 톤을 유지한다.
- * - 카드 클릭 시 기존 영화 이미지 페이지(`/dashboard/images`)로 이동해, 사용자의
- *   탐색 경로 안에서 자연스럽게 이어진다.
+ * - 카드 클릭 시 `/dashboard/images` 로 이동해 TMDB·앱 메타 API 를 활용한다.
  */
-// 클릭 시 이동할 외부 정보 페이지(네이버 영화 검색). 쿼리는 title+연도로 구체화하여
-// 오작동 없이 정확한 상세 페이지가 상단에 뜨도록 한다.
-const buildNaverMovieUrl = (query) =>
-  `https://search.naver.com/search.naver?where=nexearch&query=${encodeURIComponent(query)}`;
-
+/** DB/TMDB 조회용 한글 제목(표시 문구와 분리 — 번역 모드에서도 매칭 안정). */
 const PET_CINEMA_PICKS = [
   {
     id: 'maum',
+    detailMovieName: '마음이',
     fallback: { title: '마음이', subtitle: '한국 · 2006', blurb: '진돗개 "마음이" 와 남매의 자전거 로드무비', tag: '반려견 · 한국' },
     emoji: '🐕‍🦺',
     gradient: 'linear-gradient(135deg, #fbbf24 0%, #f97316 55%, #dc2626 100%)',
     accent: '#fef3c7',
-    searchQuery: '마음이 영화 2006',
   },
   {
     id: 'sugar',
+    detailMovieName: '각설탕',
     fallback: { title: '각설탕', subtitle: '한국 · 2006', blurb: '소녀와 경주마 "천둥" 의 청춘 성장기', tag: '가족 · 한국' },
     emoji: '🐎',
     gradient: 'linear-gradient(135deg, #0ea5e9 0%, #14b8a6 50%, #22c55e 100%)',
     accent: '#ccfbf1',
-    searchQuery: '각설탕 영화 2006',
   },
   {
     id: 'mari',
+    detailMovieName: '마리 이야기',
     fallback: { title: '마리 이야기', subtitle: '한국 애니 · 2002', blurb: '어린 날 친구가 되어준 하얀 고양이의 기억', tag: '애니 · 한국' },
     emoji: '🐈',
     gradient: 'linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f472b6 100%)',
     accent: '#fce7f3',
-    searchQuery: '마리이야기 애니메이션 2002',
   },
   {
     id: 'hachi',
+    detailMovieName: '하치이야기',
     fallback: { title: '하치 이야기', subtitle: 'Hachi · 2009', blurb: '주인을 기다린 전설의 견공 아키타', tag: '실화 · 견공' },
     emoji: '🐕',
     gradient: 'linear-gradient(135deg, #1e3a8a 0%, #7c3aed 55%, #db2777 100%)',
     accent: '#e0e7ff',
-    searchQuery: '하치 이야기 영화 2009',
   },
   {
     id: 'marley',
+    detailMovieName: '말리와 나',
     fallback: { title: '말리와 나', subtitle: 'Marley & Me · 2008', blurb: '장난꾸러기 골든 리트리버가 만든 가족의 12년', tag: '가족 · 리트리버' },
     emoji: '🐶',
     gradient: 'linear-gradient(135deg, #f59e0b 0%, #10b981 50%, #0ea5e9 100%)',
     accent: '#d1fae5',
-    searchQuery: '말리와 나 영화 2008',
   },
   {
     id: 'isle',
+    detailMovieName: '개들의 섬',
     fallback: { title: '개들의 섬', subtitle: 'Isle of Dogs · 2018', blurb: '추방된 개들과 소년이 만든 기묘한 모험', tag: '모험 · 애니' },
     emoji: '🦴',
     gradient: 'linear-gradient(135deg, #c2410c 0%, #a855f7 55%, #0284c7 100%)',
     accent: '#fed7aa',
-    searchQuery: '개들의 섬 영화 2018 웨스 앤더슨',
   },
 ];
 
@@ -174,34 +170,40 @@ function PetCinemaCard({ pick, index }) {
   const subtitle = t(`petCinema.picks.${pick.id}.subtitle`, pick.fallback.subtitle);
   const blurb = t(`petCinema.picks.${pick.id}.blurb`, pick.fallback.blurb);
   const tag = t(`petCinema.picks.${pick.id}.tag`, pick.fallback.tag);
-  const href = buildNaverMovieUrl(pick.searchQuery || `${pick.fallback.title} 영화`);
+  const movieKey = pick.detailMovieName || pick.fallback.title;
+  const href = `/dashboard/images?movieName=${encodeURIComponent(movieKey)}&contentType=movie`;
 
   return (
-    <motion.a
+    <Link
       href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      aria-label={t('petCinema.cardAria', '{{title}} 영화 정보 새 탭으로 보기', { title })}
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.3) }}
-      whileHover={{ y: -5 }}
+      prefetch={false}
+      aria-label={t('petCinema.cardAria', '{{title}} 영화 상세로 이동', { title })}
       style={{
         flex: '0 0 auto',
         width: 220,
-        padding: 0,
-        borderRadius: 16,
-        overflow: 'hidden',
         textDecoration: 'none',
-        border: 'none',
-        cursor: 'pointer',
-        background: pick.gradient,
-        boxShadow:
-          '0 14px 28px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255,255,255,0.25)',
-        textAlign: 'left',
-        position: 'relative',
+        color: 'inherit',
       }}
     >
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: Math.min(index * 0.05, 0.3) }}
+        whileHover={{ y: -5 }}
+        style={{
+          width: '100%',
+          padding: 0,
+          borderRadius: 16,
+          overflow: 'hidden',
+          border: 'none',
+          cursor: 'pointer',
+          background: pick.gradient,
+          boxShadow:
+            '0 14px 28px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255,255,255,0.25)',
+          textAlign: 'left',
+          position: 'relative',
+        }}
+      >
       <div
         aria-hidden
         style={{
@@ -307,9 +309,10 @@ function PetCinemaCard({ pick, index }) {
             backdropFilter: 'blur(4px)',
           }}
         >
-          {t('petCinema.viewMovieInfo', '영화 정보 보기')} <ExternalLink size={11} />
+          {t('petCinema.viewMovieInfo', '앱에서 상세 보기')} <ChevronRight size={11} strokeWidth={2.5} />
         </div>
       </div>
-    </motion.a>
+      </motion.div>
+    </Link>
   );
 }

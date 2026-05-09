@@ -17,6 +17,8 @@ import PetFriendlySpotsStrip from '@/components/PetFriendlySpotsStrip';
 import NearbyCineTripStrip from '@/components/NearbyCineTripStrip';
 import NearbyTrekkingStrip from '@/components/NearbyTrekkingStrip';
 import PetCinemaCurationStrip from '@/components/PetCinemaCurationStrip';
+import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
+import TourGallerySection from '@/components/TourGallerySection';
 import useDragScrollAll from '@/lib/useDragScroll';
 import AmbientBackdrop from '@/components/AmbientBackdrop';
 
@@ -24,7 +26,8 @@ import AmbientBackdrop from '@/components/AmbientBackdrop';
  * 반려동물 동반여행 전용 랜딩 페이지 (Sunshine / Teal 테마).
  *
  * - 영화/DVD 탭(다크 시네마틱)과 대비되는 밝고 싱그러운 야외 분위기.
- * - 한국관광공사 KorPetTourService 데이터를 지역별로 탐색 (PetFriendlySpotsStrip 재사용).
+ * - 한국관광공사 데이터(KorPetTour · 관광사진갤러리 · 관광공모전 수상작 · 두루누비)와
+ *   지역 연계 영화 큐레이션을 한 화면에서 조합(영화×여행)해 공모전 데모에 맞춘다.
  * - 햇살 · 구름 · 발자국 · 잎사귀 · 빛 입자 등 모션 요소로 "밖으로 나가고 싶은" 무드.
  */
 const AREA_CODES = [
@@ -34,10 +37,10 @@ const AREA_CODES = [
   { code: '31', label: '경기' },
   { code: '39', label: '제주' },
   { code: '32', label: '강원' },
-  { code: '35', label: '경북' },
-  { code: '36', label: '경남' },
-  { code: '37', label: '전북' },
-  { code: '38', label: '전남' },
+  { code: '35', label: '전북' },
+  { code: '36', label: '전남' },
+  { code: '37', label: '경북' },
+  { code: '38', label: '경남' },
   { code: '2', label: '인천' },
   { code: '3', label: '대전' },
   { code: '4', label: '대구' },
@@ -649,7 +652,7 @@ export default function PetTravelPage() {
           />
         </motion.div>
 
-        {/* 옵션 2: Pet-Cinema 큐레이션 — 반려와 함께 보기 좋은 영화 */}
+        {/* Pet-Cinema: 영화 큐레이션 — 여행·공모전 이미지와 같은 무드로 조합 */}
         <PetCinemaCurationStrip />
 
         {selected == null ? (
@@ -677,17 +680,34 @@ export default function PetTravelPage() {
               />
 
               <div style={{ height: 14 }} />
-              {/* 옵션 1: 이 동네 배경 영화 */}
               <NearbyCineTripStrip
                 areaCode={code}
                 theme="light"
-                badgeLabel={t('petTravel.petCinemaBadge', 'PetCinema')}
-                title={t('petTravel.cinemaTitle', '{{region}} 배경, 반려와 돌아와 보면 좋은 영화', { region: areaLabelI18n(code) })}
-                limit={8}
+                badgeLabel={t('petTravel.comboFilmBadge', 'Film×Trip')}
+                title={t('petTravel.cinemaComboTitle', '{{region}} 배경 영화 · 여행과 같이 보는 큐레이션', { region: areaLabelI18n(code) })}
+                limit={10}
               />
 
               <div style={{ height: 14 }} />
-              {/* 옵션 3: 반려와 산책 삼아 걷기 좋은 코스 */}
+              <PhotoGalleryStrip
+                areaCode={code}
+                limit={24}
+                title={t('petTravel.photoContestStripTitle', '{{region}} 관광공모전 수상 사진', { region: areaLabelI18n(code) })}
+              />
+
+              <div style={{ height: 14 }} />
+              <TourGallerySection
+                keyword={areaLabelI18n(code)}
+                title={t('petTravel.galleryStripTitle', '{{region}} 관광 풍경 사진', { region: areaLabelI18n(code) })}
+                subtitle={t('tourGallery.poweredBy')}
+                limit={48}
+                infinite
+                pageSize={36}
+                accent="#0d9488"
+              />
+
+              <div style={{ height: 14 }} />
+              {/* 두루누비 · 같은 지역에서 산책 코스로 여행 동선 확장 */}
               <NearbyTrekkingStrip
                 areaCode={code}
                 regionName={areaLabelI18n(code)}
@@ -724,9 +744,27 @@ export default function PetTravelPage() {
             <NearbyCineTripStrip
               areaCode={selected}
               theme="light"
-              badgeLabel={t('petTravel.petCinemaBadge', 'PetCinema')}
-              title={t('petTravel.cinemaTitle', '{{region}} 배경, 반려와 돌아와 보면 좋은 영화', { region: areaLabelI18n(selected) })}
-              limit={8}
+              badgeLabel={t('petTravel.comboFilmBadge', 'Film×Trip')}
+              title={t('petTravel.cinemaComboTitle', '{{region}} 배경 영화 · 여행과 같이 보는 큐레이션', { region: areaLabelI18n(selected) })}
+              limit={10}
+            />
+
+            <div style={{ height: 14 }} />
+            <PhotoGalleryStrip
+              areaCode={selected}
+              limit={24}
+              title={t('petTravel.photoContestStripTitle', '{{region}} 관광공모전 수상 사진', { region: areaLabelI18n(selected) })}
+            />
+
+            <div style={{ height: 14 }} />
+            <TourGallerySection
+              keyword={areaLabelI18n(selected)}
+              title={t('petTravel.galleryStripTitle', '{{region}} 관광 풍경 사진', { region: areaLabelI18n(selected) })}
+              subtitle={t('tourGallery.poweredBy')}
+              limit={48}
+              infinite
+              pageSize={36}
+              accent="#0d9488"
             />
 
             <div style={{ height: 14 }} />

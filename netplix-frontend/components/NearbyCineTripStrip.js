@@ -1,23 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Film, Sparkles, ArrowRight, MapPin } from 'lucide-react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import axios from '@/lib/axiosConfig';
 import { sigunToAreaCode, areaCodeToLabel } from '@/lib/regionMap';
-
-/**
- * 영화명을 네이버 영화 검색 URL 로 변환.
- * CineTrip 지역 매핑 DB 에는 있지만 영화 원본 DB(/api/v1/movie/{name}/detail) 에
- * 없는 영화(예: 국제시장)를 클릭했을 때의 fallback 으로 사용.
- */
-const buildNaverMovieUrl = (name, suffix = '영화') =>
-  `https://search.naver.com/search.naver?where=nexearch&query=${encodeURIComponent(
-    `${name} ${suffix}`
-  )}`;
 
 /**
  * 두루누비 트레킹 코스 카드에서 펼쳐지는
@@ -196,79 +185,52 @@ export default function NearbyCineTripStrip({
 
 function MoviePosterCard({ item, index }) {
   const { t } = useTranslation();
-  const router = useRouter();
   const movie = item?.movie || {};
   const mapping = (item?.mappings || [])[0];
   const mappingTypeKey = MAPPING_TYPE_KEY[mapping?.mappingType];
   const tagLabel = mappingTypeKey
     ? t(mappingTypeKey, MAPPING_TYPE_FALLBACK[mapping?.mappingType])
     : '';
-  const [checking, setChecking] = useState(false);
 
-  /**
-   * 1) `/api/v1/movie/{name}/detail` 로 영화 원본 DB 존재 여부 사전 확인
-   * 2) 있으면 기존처럼 /dashboard/images 로 라우팅
-   * 3) 없거나 실패 시 네이버 영화 검색 결과를 새 탭으로 띄움 → "영화 정보를
-   *    찾을 수 없습니다" 데드엔드 방지
-   */
-  const onClick = async (e) => {
-    if (!movie.movieName) return;
-    if (checking) return;
-    e.preventDefault();
-    setChecking(true);
+  const name = movie.movieName;
+  const ct = movie.contentType || 'movie';
 
-    const name = movie.movieName;
-    const ct = movie.contentType || 'movie';
-    const internalUrl = `/dashboard/images?movieName=${encodeURIComponent(
-      name
-    )}&contentType=${encodeURIComponent(ct)}`;
+  if (!name) {
+    return null;
+  }
 
-    try {
-      const res = await axios.get(
-        `/api/v1/movie/${encodeURIComponent(name)}/detail`,
-        { timeout: 4000 }
-      );
-      const data = res?.data?.data;
-      const hasDetail =
-        data && (data.movieName || data.id || data.tmdbId || data.posterPath);
-      if (hasDetail) {
-        router.push(internalUrl);
-      } else {
-        window.open(buildNaverMovieUrl(name, t('nearbyCineTrip.naverSearchSuffix', '영화')), '_blank', 'noopener,noreferrer');
-      }
-    } catch {
-      window.open(buildNaverMovieUrl(name, t('nearbyCineTrip.naverSearchSuffix', '영화')), '_blank', 'noopener,noreferrer');
-    } finally {
-      setChecking(false);
-    }
-  };
+  const internalUrl = `/dashboard/images?movieName=${encodeURIComponent(name)}&contentType=${encodeURIComponent(ct)}`;
 
   return (
-    <motion.button
-      type="button"
-      onClick={onClick}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.3) }}
-      whileHover={{ scale: checking ? 1 : 1.04, y: checking ? 0 : -3 }}
-      disabled={checking}
+    <Link
+      href={internalUrl}
+      prefetch={false}
+      title={name}
       style={{
         flex: '0 0 auto',
         width: 130,
-        padding: 0,
-        borderRadius: 12,
-        overflow: 'hidden',
-        border: '1px solid rgba(255,255,255,0.08)',
-        background: '#0f0f0f',
-        cursor: checking ? 'wait' : 'pointer',
-        opacity: checking ? 0.65 : 1,
-        transition: 'opacity 0.2s ease',
-        display: 'flex',
-        flexDirection: 'column',
-        textAlign: 'left',
+        textDecoration: 'none',
+        color: 'inherit',
       }}
-      title={movie.movieName || ''}
     >
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.3) }}
+        whileHover={{ scale: 1.04, y: -3 }}
+        style={{
+          width: '100%',
+          padding: 0,
+          borderRadius: 12,
+          overflow: 'hidden',
+          border: '1px solid rgba(255,255,255,0.08)',
+          background: '#0f0f0f',
+          cursor: 'pointer',
+          display: 'flex',
+          flexDirection: 'column',
+          textAlign: 'left',
+        }}
+      >
       <div style={{ position: 'relative', width: '100%', aspectRatio: '2 / 3', overflow: 'hidden' }}>
         <img
           src={posterSrc(movie.posterPath)}
@@ -341,6 +303,7 @@ function MoviePosterCard({ item, index }) {
           </div>
         )}
       </div>
-    </motion.button>
+      </motion.div>
+    </Link>
   );
 }

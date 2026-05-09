@@ -465,9 +465,9 @@
   },
   "petCinema": {
     "headerTitle": "반려와 함께 보면 좋은 영화 큐레이션",
-    "headerSubtitle": "산책 다녀온 저녁, 소파 위에서 한 편",
-    "viewMovieInfo": "영화 정보 보기",
-    "cardAria": "{{title}} 영화 정보 새 탭으로 보기",
+    "headerSubtitle": "여행에서 본 풍경과 같은 무드를, 산책 후 소파에서 이어 보세요 · 영화×여행 조합",
+    "viewMovieInfo": "앱에서 영화 상세 보기",
+    "cardAria": "{{title}} 영화 상세 페이지로 이동",
     "picks": {
       "maum": { "title": "마음이", "subtitle": "한국 · 2006", "blurb": "진돗개 \"마음이\" 와 남매의 자전거 로드무비", "tag": "반려견 · 한국" },
       "sugar": { "title": "각설탕", "subtitle": "한국 · 2006", "blurb": "소녀와 경주마 \"천둥\" 의 청춘 성장기", "tag": "가족 · 한국" },
@@ -562,7 +562,7 @@
     "heroBadge": "한국관광공사 · 반려동물 동반여행",
     "heroTitle": "햇살 가득, 함께 떠나요",
     "heroSubtitle1": "방 안에만 머물렀다면, 이제는 네 발로 봄바람을 느낄 차례.",
-    "heroSubtitle2": "지역별 반려동물 동반 가능한 관광지·숙소·음식점을 한눈에 확인하세요.",
+    "heroSubtitle2": "반려 동반 여행지와 같은 지역의 영화·관광공모전 사진·관광 갤러리·두루누비까지 한 화면에서 연결합니다.",
     "feature1Title": "반려동물 동반 가능",
     "feature1Desc": "공원·해변·산책로 명소",
     "feature2Title": "안전한 여행 팁",
@@ -570,19 +570,23 @@
     "feature3Title": "야외 액티비티",
     "feature3Desc": "햇살 아래 자연 탐험",
     "bannerTitle": "신선한 바람 한 모금, 준비되셨나요?",
-    "bannerBody": "지역 탭을 눌러 오늘 떠날 장소를 골라보세요. 모든 정보는 한국관광공사에서 제공합니다.",
+    "bannerBody": "아래에서 반려 동반 장소를 고르고, 같은 지역의 영화 큐레이션·포토코리아 관광공모전 수상작·관광사진갤러리·두루누비를 차례로 엮어 보세요. 출처: 한국관광공사.",
     "cinemaTitle": "{{region}} 배경, 반려와 돌아와 보면 좋은 영화",
+    "comboFilmBadge": "Film×Trip",
+    "cinemaComboTitle": "{{region}} 배경 영화 · 여행과 같이 보는 큐레이션",
+    "photoContestStripTitle": "{{region}} 관광공모전 수상 사진",
+    "galleryStripTitle": "{{region}} 관광 풍경 사진",
     "petCinemaBadge": "PetCinema",
     "walkTitle": "반려와 산책 삼아 걷기 좋은 코스",
     "walkSubtitle": "{{region}} 인근 두루누비 코스",
     "petWalkBadge": "PetWalk",
-    "dataSource": "© 한국관광공사 반려동물 동반여행 정보 (KorPetTourService)",
+    "dataSource": "데이터 · 영화 연계 큐레이션 — 한국관광공사 반려동반 여행(KorPetTour), 포토코리아 관광공모전 수상작(PhokoAwrd), 관광사진갤러리(PhotoGalleryService1), 코리아둘레길(Durunubi) 등",
     "areaAll": "전국",
     "areaHintAll": "주요 지역 요약",
     "areas": {
       "1": "서울", "2": "인천", "3": "대전", "4": "대구", "5": "광주", "6": "부산",
       "7": "울산", "8": "세종", "31": "경기", "32": "강원", "33": "충북", "34": "충남",
-      "35": "경북", "36": "경남", "37": "전북", "38": "전남", "39": "제주"
+      "35": "전북", "36": "전남", "37": "경북", "38": "경남", "39": "제주"
     }
   },
   "trekking": {
