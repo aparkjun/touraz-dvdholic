@@ -64,9 +64,15 @@ export default function DashboardTravelShortcuts() {
       <nav className="dts-shortcuts">
         {TRAVEL_SHORTCUTS.map(({ href, shortcutKey, Icon }) => (
           <Link key={href} href={href} className="dts-shortcut-link">
-            {Icon ? <Icon size={20} strokeWidth={2} aria-hidden /> : null}
-            <span className="dts-shortcut-label">
-              {t(`trendingRegions.shortcuts.${shortcutKey}`, shortcutKey)}
+            <span className="dts-shortcut-row">
+              {Icon ? (
+                <span className="dts-shortcut-icon-wrap" aria-hidden>
+                  <Icon size={18} strokeWidth={2} />
+                </span>
+              ) : null}
+              <span className="dts-shortcut-label">
+                {t(`trendingRegions.shortcuts.${shortcutKey}`, shortcutKey)}
+              </span>
             </span>
           </Link>
         ))}
@@ -81,10 +87,8 @@ export default function DashboardTravelShortcuts() {
         .dts-shortcut-link {
           position: relative;
           display: flex;
-          flex-direction: row;
           align-items: center;
           justify-content: center;
-          gap: 8px;
           aspect-ratio: 1;
           min-width: 0;
           padding: 8px 10px;
@@ -95,24 +99,44 @@ export default function DashboardTravelShortcuts() {
           text-decoration: none;
           transition: background 0.15s ease, border-color 0.15s ease;
         }
-        .dts-shortcut-link :global(svg) {
+        /* 아이콘 옆 수평 한 줄(세로 중앙 공통선) 정렬 */
+        .dts-shortcut-row {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          width: 100%;
+          min-width: 0;
+        }
+        .dts-shortcut-icon-wrap {
           flex-shrink: 0;
+          width: 22px;
+          height: 22px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .dts-shortcut-icon-wrap :global(svg) {
           display: block;
+          flex-shrink: 0;
           opacity: 0.95;
         }
         .dts-shortcut-label {
+          margin: 0;
+          padding: 0;
           font-size: 10px;
           font-weight: 600;
-          line-height: 1.15;
+          line-height: 1.2;
           text-align: left;
           flex: 1;
           min-width: 0;
-          max-width: 100%;
+          overflow: hidden;
+          word-break: keep-all;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
-          overflow: hidden;
-          word-break: keep-all;
+          align-self: center;
         }
         .dts-shortcut-link:hover {
           background: rgba(99, 102, 241, 0.12);
