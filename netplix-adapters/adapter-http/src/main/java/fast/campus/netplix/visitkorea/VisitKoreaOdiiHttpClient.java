@@ -92,8 +92,18 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
 
     private final Map<String, CacheSnapshot> cache = new ConcurrentHashMap<>();
 
-    /** canonical zh|ja → GW 에 실제로 통과한 langCode (프로브 1회). */
+    /** canonical ko 제외 언어 → GW 에 실제로 통과한 langCode (프로브 1회). */
     private final ConcurrentHashMap<String, String> resolvedOdiiQueryLangByCanonical = new ConcurrentHashMap<>();
+
+    /**
+     * 전역 synchronized 금지: KO 스토리 등 대량 페이지 적재가 EN/ZH/JA 적재와 같은 락을 잡으면
+     * 요청 스레드가 수십 초 대기·타임아웃 후 빈 응답(0건)처럼 보일 수 있다.
+     */
+    private final ConcurrentHashMap<String, Object> refreshMonitors = new ConcurrentHashMap<>();
+
+    private Object monitorFor(String lockKey) {
+        return refreshMonitors.computeIfAbsent(lockKey, k -> new Object());
+    }
 
     @Override
     public boolean isConfigured() {
@@ -405,30 +415,43 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         });
     }
 
-    private synchronized void refreshAll(AudioGuideItem.Type type, String lang) {
-        List<AudioGuideItem> sites = requestAllPages(basedUrl(type), Map.of(), type, lang, MAX_PAGES_ALL);
-        if (sites == null) {
-            log.warn("[ODII] type={} lang={} 전체 로드 실패 - 캐시 유지", type, lang);
-            return;
+    private void refreshAll(AudioGuideItem.Type type, String lang) {
+        String cacheKey = allKey(type, lang);
+        synchronized (monitorFor(cacheKey)) {
+            CacheSnapshot existing = cache.get(cacheKey);
+            if (existing != null && !existing.partial && !isStale(existing)) {
+                return;
+            }
+            List<AudioGuideItem> sites = requestAllPages(basedUrl(type), Map.of(), type, lang, MAX_PAGES_ALL);
+            if (sites == null) {
+                log.warn("[ODII] type={} lang={} 전체 로드 실패 - 캐시 유지", type, lang);
+                return;
+            }
+            cache.put(cacheKey, new CacheSnapshot(sites, Instant.now().toEpochMilli(), false));
+            log.info("[ODII] type={} lang={} 전체 캐시 갱신 - {} 건", type, lang, sites.size());
         }
-        cache.put(allKey(type, lang), new CacheSnapshot(sites, Instant.now().toEpochMilli(), false));
-        log.info("[ODII] type={} lang={} 전체 캐시 갱신 - {} 건", type, lang, sites.size());
     }
 
-    private synchronized void refreshByKeyword(AudioGuideItem.Type type, String lang, String keyword, String cacheKey) {
-        List<AudioGuideItem> sites = requestAllPages(searchUrl(type), Map.of("keyword", keyword), type, lang, MAX_PAGES_KEYWORD);
-        if (sites == null) {
-            log.warn("[ODII] type={} lang={} keyword={} 로드 실패 - 캐시 저장 스킵", type, lang, keyword);
-            return;
+    private void refreshByKeyword(AudioGuideItem.Type type, String lang, String keyword, String cacheKey) {
+        synchronized (monitorFor(cacheKey)) {
+            CacheSnapshot existing = cache.get(cacheKey);
+            if (existing != null && !existing.partial && !isStale(existing)) {
+                return;
+            }
+            List<AudioGuideItem> sites = requestAllPages(searchUrl(type), Map.of("keyword", keyword), type, lang, MAX_PAGES_KEYWORD);
+            if (sites == null) {
+                log.warn("[ODII] type={} lang={} keyword={} 로드 실패 - 캐시 저장 스킵", type, lang, keyword);
+                return;
+            }
+            if (cache.size() >= MAX_KEYWORD_CACHE) {
+                cache.entrySet().stream()
+                        .filter(e -> !e.getKey().startsWith(ALL_KEY_PREFIX))
+                        .min((a, b) -> Long.compare(a.getValue().loadedAtEpochMs, b.getValue().loadedAtEpochMs))
+                        .ifPresent(e -> cache.remove(e.getKey()));
+            }
+            cache.put(cacheKey, new CacheSnapshot(sites, Instant.now().toEpochMilli(), false));
+            log.info("[ODII] type={} lang={} 키워드={} 캐시 갱신 - {} 건", type, lang, keyword, sites.size());
         }
-        if (cache.size() >= MAX_KEYWORD_CACHE) {
-            cache.entrySet().stream()
-                    .filter(e -> !e.getKey().startsWith(ALL_KEY_PREFIX))
-                    .min((a, b) -> Long.compare(a.getValue().loadedAtEpochMs, b.getValue().loadedAtEpochMs))
-                    .ifPresent(e -> cache.remove(e.getKey()));
-        }
-        cache.put(cacheKey, new CacheSnapshot(sites, Instant.now().toEpochMilli(), false));
-        log.info("[ODII] type={} lang={} 키워드={} 캐시 갱신 - {} 건", type, lang, keyword, sites.size());
     }
 
     // =========================================================================
@@ -566,15 +589,16 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     }
 
     /**
-     * GW 가 허용하는 중·일 langCode 표기가 버전마다 달라, 각 canonical 에 대해 목록 1페이지로 한 번만 프로브한다.
+     * 공공 GW 가 허용하는 {@code langCode} 표기가 엔드포인트·버전별로 달라질 수 있어,
+     * ko 는 고정이고 en/zh/ja 는 목록 1페이지로 한 번만 프로브해 캐시한다.
      */
     private String resolveOdiiQueryLangForRequest(AudioGuideItem.Type type, String canonicalLang) {
         if (canonicalLang == null || canonicalLang.isBlank()) {
             return "ko";
         }
         return switch (canonicalLang) {
-            case "ko", "en" -> canonicalLang;
-            case "zh", "ja" -> resolvedOdiiQueryLangByCanonical.computeIfAbsent(
+            case "ko" -> "ko";
+            case "en", "zh", "ja" -> resolvedOdiiQueryLangByCanonical.computeIfAbsent(
                     canonicalLang, c -> probeOdiiLangCode(type, c));
             default -> "ko";
         };
@@ -583,6 +607,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     private String probeOdiiLangCode(AudioGuideItem.Type type, String canonical) {
         String base = basedUrl(type);
         String[] candidates = switch (canonical) {
+            case "en" -> new String[]{"en", "eng"};
             case "zh" -> new String[]{"zh", "chs", "cht", "cn"};
             case "ja" -> new String[]{"ja", "jp", "jpn"};
             default -> new String[]{"ko"};
@@ -597,7 +622,12 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         }
         log.warn("[ODII] GW langCode 후보 전부 0건 canonical={} candidates={} type={}",
                 canonical, Arrays.toString(candidates), type);
-        return "zh".equals(canonical) ? "zh" : "ja".equals(canonical) ? "ja" : "ko";
+        return switch (canonical) {
+            case "zh" -> "zh";
+            case "ja" -> "ja";
+            case "en" -> "en";
+            default -> "ko";
+        };
     }
 
     // =========================================================================
