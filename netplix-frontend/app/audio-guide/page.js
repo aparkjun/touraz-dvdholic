@@ -224,7 +224,7 @@ function AudioGuidePageInner() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await axios.get("/api/v1/audio-guide/odii-status");
+        const res = await axios.get("/api/v1/audio-guide", { params: { odiiStatus: true } });
         const d = res?.data?.data;
         if (cancelled || !d || typeof d.odiiApiKeyConfigured !== "boolean") return;
         setOdiiMeta({

@@ -21,7 +21,7 @@ import java.util.Map;
  *
  * <p>퍼블릭 엔드포인트:
  * <ul>
- *   <li>GET /api/v1/audio-guide/odii-status - Odii API 키 설정 여부 (키 미노출)</li>
+ *   <li>GET /api/v1/audio-guide?odiiStatus=true — Odii API 키 설정 여부 (키 미노출)</li>
  *   <li>GET /api/v1/audio-guide?type=theme|story&lang=ko|en|zh|ja&limit= - 전체</li>
  *   <li>GET /api/v1/audio-guide/nearby?type=&lang=&lat=&lon=&radius=&limit= - 좌표 주변</li>
  *   <li>GET /api/v1/audio-guide/search?type=&lang=&q=&limit= - 키워드 검색</li>
@@ -37,8 +37,8 @@ public class AudioGuideController {
 
     private final GetAudioGuideItemsUseCase useCase;
 
-    /** Odii 서비스키 설정 여부 — 목록 0건일 때 키 미설정 여부만 즉시 알림 (외부 Odii 호출 없음) */
-    @GetMapping("/odii-status")
+    /** Odii 서비스키 설정 여부 — 목록 0건일 때 키 미설정 안내 (외부 Odii 호출 없음). 경로 하위 세그먼트는 일부 프록시에서 누락되어 쿼리로 제공한다. */
+    @GetMapping(params = "odiiStatus=true")
     public NetplixApiResponse<Map<String, Object>> odiiStatus() {
         Map<String, Object> body = new HashMap<>();
         AudioGuideOdiiMeta m = useCase.odiiMeta();
