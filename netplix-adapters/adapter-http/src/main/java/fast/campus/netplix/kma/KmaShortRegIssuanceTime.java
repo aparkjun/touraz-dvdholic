@@ -44,6 +44,14 @@ public final class KmaShortRegIssuanceTime {
         return list;
     }
 
+    /**
+     * {@link #candidatesNewestFirst()}가 비었을 때(이론상 드묾) 마지막 수단으로 사용하는 tmfc.
+     */
+    public static String conservativeFallbackTmfc() {
+        ZonedDateTime z = ZonedDateTime.now(KST).minusHours(2).withMinute(0).withSecond(0).withNano(0);
+        return z.format(TMFC);
+    }
+
     /** 숫자만 남겨 12자리(yyyyMMddHHmm)로 맞춤 */
     public static String normalizeTmfc(String raw) {
         if (raw == null) {

@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -69,13 +70,16 @@ public class KmaShortRegHttpClient {
         if (tries.isEmpty()) {
             tries.addAll(KmaShortRegIssuanceTime.candidatesNewestFirst());
         }
+        if (tries.isEmpty()) {
+            tries.add(KmaShortRegIssuanceTime.conservativeFallbackTmfc());
+        }
         int attempts = 0;
         int catalogSkips = 0;
         Integer lastHttp = null;
         String lastPreview = null;
         String lastEx = null;
         for (String tmfc : tries) {
-            for (boolean useJsonDisp : new boolean[] {false, true}) {
+            for (boolean useJsonDisp : new boolean[] {true, false}) {
                 OnceFetch once = fetchOnceDetailed(r, tmfc, useJsonDisp);
                 attempts++;
                 if (once.catalogLike()) {
@@ -127,10 +131,18 @@ public class KmaShortRegHttpClient {
                 ub.queryParam("disp", 1);
             }
             URI uri = ub.build(true).toUri();
-            String body = restClient().get().uri(uri).retrieve().body(String.class);
+            RestClient rc = restClient();
+            String body = KmaHubJson.getWithRetry(rc, uri);
             log.debug("KMA fct_shrt_reg ok reg={} tmfc={} disp1={} len={}", reg, tmfc, jsonDisp, body != null ? body.length() : 0);
-            if (body != null && isTextCatalogResponse(body)) {
+            if (body == null || body.isBlank()) {
+                return new OnceFetch(null, 200, "(empty body)", null, false);
+            }
+            if (isTextCatalogResponse(body)) {
                 return new OnceFetch(body, null, null, null, true);
+            }
+            if (!KmaHubJson.looksLikeJson(body)) {
+                String syn = KmaHubJson.syntheticResult(502, "Non-JSON: " + KmaHubJson.previewSnippet(body));
+                return new OnceFetch(syn, null, null, null, false);
             }
             return new OnceFetch(body, null, null, null, false);
         } catch (RestClientResponseException e) {
@@ -146,24 +158,29 @@ public class KmaShortRegHttpClient {
                     return new OnceFetch(b, null, null, null, false);
                 }
             }
-            String preview =
-                    (b == null || b.isEmpty())
-                            ? "(empty)"
-                            : (b.length() > 400 ? b.substring(0, 400) + "…" : b).replaceAll("\\s+", " ").trim();
+            String preview = KmaHubJson.previewSnippet(b);
             log.warn(
                     "KMA fct_shrt_reg HTTP {} reg={} tmfc={} bodyPreview={}",
                     e.getStatusCode().value(),
                     reg,
                     tmfc,
                     preview);
-            return new OnceFetch(null, e.getStatusCode().value(), preview, null, false);
+            String syn = KmaHubJson.syntheticResult(e.getStatusCode().value(), preview);
+            return new OnceFetch(syn, null, null, null, false);
+        } catch (ResourceAccessException e) {
+            log.warn("KMA fct_shrt_reg 네트워크/타임아웃 reg={} tmfc={}: {}", reg, tmfc, e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+            if (msg.length() > 240) {
+                msg = msg.substring(0, 240) + "…";
+            }
+            return new OnceFetch(null, null, null, e.getClass().getSimpleName() + ": " + msg, false);
         } catch (Exception e) {
             log.warn("KMA fct_shrt_reg 실패 reg={} tmfc={}: {}", reg, tmfc, e.getMessage());
             String msg = e.getMessage() != null ? e.getMessage() : e.toString();
             if (msg.length() > 240) {
                 msg = msg.substring(0, 240) + "…";
             }
-            return new OnceFetch(null, null, null, e.getClass().getSimpleName() + ": " + msg, false);
+            return new OnceFetch(KmaHubJson.syntheticResult(503, msg), null, null, null, false);
         }
     }
 }

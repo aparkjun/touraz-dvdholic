@@ -614,7 +614,11 @@ export default function DashboardWeatherNavGlyph() {
               ) : null}
             </div>
           ) : !activeTimelines.hasVsrt && !activeTimelines.hasShort ? (
-            <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>{t('travelWeather.panelEmpty', '표시할 예보 시간대가 없습니다.')}</p>
+            activePanelData?.upstreamError && activePanelData?.upstreamMessage ? (
+              <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: '#b45309' }}>{String(activePanelData.upstreamMessage)}</p>
+            ) : (
+              <p style={{ margin: 0, fontSize: 12, color: '#64748b' }}>{t('travelWeather.panelEmpty', '표시할 예보 시간대가 없습니다.')}</p>
+            )
           ) : (
             <>
               <ForecastSection

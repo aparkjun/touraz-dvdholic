@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -54,19 +55,52 @@ public class KmaVsrtGrdHttpClient {
                     .queryParam("authKey", apiKey)
                     .build(true)
                     .toUri();
-            String body = restClient().get().uri(uri).retrieve().body(String.class);
-            log.debug("KMA dfs_vsrt_grd ok tmfc={} tmef={} len={}", tmfc, tmef, body != null ? body.length() : 0);
+            RestClient rc = restClient();
+            String body = KmaHubJson.getWithRetry(rc, uri);
+            if (body == null || body.isBlank()) {
+                return KmaHubJson.syntheticResult(502, "(empty body)");
+            }
+            if (!KmaHubJson.looksLikeJson(body)) {
+                return KmaHubJson.syntheticResult(502, "Non-JSON: " + KmaHubJson.previewSnippet(body));
+            }
+            log.debug("KMA dfs_vsrt_grd ok tmfc={} tmef={} len={}", tmfc, tmef, body.length());
             return body;
         } catch (RestClientResponseException e) {
+            String b = null;
+            try {
+                b = e.getResponseBodyAsString();
+            } catch (Exception ignored) {
+            }
+            if (b != null && !b.isBlank() && KmaHubJson.looksLikeJson(b)) {
+                log.warn(
+                        "KMA dfs_vsrt_grd HTTP {} tmfc={} tmef={} — JSON 본문 반환",
+                        e.getStatusCode().value(),
+                        tmfc,
+                        tmef);
+                return b;
+            }
+            String preview = KmaHubJson.previewSnippet(b);
             log.warn(
-                    "KMA dfs_vsrt_grd HTTP {} tmfc={} tmef={} — 초단기 격자 API 활용신청·authKey 종류 확인",
+                    "KMA dfs_vsrt_grd HTTP {} tmfc={} tmef={} bodyPreview={}",
                     e.getStatusCode().value(),
                     tmfc,
-                    tmef);
-            return null;
+                    tmef,
+                    preview);
+            return KmaHubJson.syntheticResult(e.getStatusCode().value(), preview);
+        } catch (ResourceAccessException e) {
+            log.warn("KMA dfs_vsrt_grd 네트워크/타임아웃 tmfc={} tmef={}: {}", tmfc, tmef, e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+            if (msg.length() > 240) {
+                msg = msg.substring(0, 240) + "…";
+            }
+            return KmaHubJson.syntheticResult(503, e.getClass().getSimpleName() + ": " + msg);
         } catch (Exception e) {
             log.warn("KMA dfs_vsrt_grd 실패 tmfc={} tmef={}: {}", tmfc, tmef, e.getMessage());
-            return null;
+            String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+            if (msg.length() > 240) {
+                msg = msg.substring(0, 240) + "…";
+            }
+            return KmaHubJson.syntheticResult(503, msg);
         }
     }
 }
