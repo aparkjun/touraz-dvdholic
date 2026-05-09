@@ -449,26 +449,49 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
                       display: 'flex',
                       alignItems: 'center',
                       gap: 6,
-                      fontSize: 13,
-                      color: '#cfcfcf',
-                      margin: '0 0 6px',
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: '#e8e8ed',
+                      margin: '0 0 10px',
                     }}
                   >
-                    <MapPin size={14} style={{ color: '#a855f7' }} />
+                    <MapPin size={15} style={{ color: '#c4b5fd', flexShrink: 0 }} />
                     {activePhoto.filmSite}
                   </p>
                 )}
-                <p style={{ fontSize: 12, color: '#888', margin: '0 0 12px' }}>
+                <p
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 500,
+                    color: '#cbd5e1',
+                    margin: '0 0 12px',
+                    lineHeight: 1.55,
+                  }}
+                >
                   {activePhoto.photographer && <span>작가: {activePhoto.photographer} · </span>}
                   {activePhoto.award && <span>{activePhoto.award}</span>}
                   {activePhoto.filmDay && <span> · 촬영 {formatFilmDay(activePhoto.filmDay)}</span>}
                 </p>
                 {activePhoto.keywords && (
-                  <p style={{ fontSize: 11, color: '#666', margin: 0, lineHeight: 1.5 }}>
+                  <p
+                    style={{
+                      fontSize: 12,
+                      color: '#b8c0cc',
+                      margin: 0,
+                      lineHeight: 1.6,
+                    }}
+                  >
                     {activePhoto.keywords}
                   </p>
                 )}
-                <p style={{ fontSize: 10, color: '#444', marginTop: 10 }}>
+                <p
+                  style={{
+                    fontSize: 11,
+                    color: '#94a3b8',
+                    marginTop: 12,
+                    lineHeight: 1.45,
+                  }}
+                >
                   © 한국관광공사 포토코리아 관광공모전
                 </p>
               </div>
