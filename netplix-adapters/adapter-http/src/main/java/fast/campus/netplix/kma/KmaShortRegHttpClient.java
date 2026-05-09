@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
@@ -57,6 +58,21 @@ public class KmaShortRegHttpClient {
             String body = restClient().get().uri(uri).retrieve().body(String.class);
             log.debug("KMA fct_shrt_reg ok reg={} len={}", r, body != null ? body.length() : 0);
             return body;
+        } catch (RestClientResponseException e) {
+            String snippet = "";
+            try {
+                String b = e.getResponseBodyAsString();
+                if (b != null && !b.isEmpty()) {
+                    snippet = b.length() > 400 ? b.substring(0, 400) + "…" : b;
+                }
+            } catch (Exception ignored) {
+            }
+            log.warn(
+                    "KMA fct_shrt_reg HTTP {} reg={} — 인증·승인·일일한도·엔드포인트를 확인하세요. bodyPreview={}",
+                    e.getStatusCode().value(),
+                    r,
+                    snippet.isEmpty() ? "(empty)" : snippet.replaceAll("\\s+", " ").trim());
+            return null;
         } catch (Exception e) {
             log.warn("KMA fct_shrt_reg 실패 reg={}: {}", r, e.getMessage());
             return null;

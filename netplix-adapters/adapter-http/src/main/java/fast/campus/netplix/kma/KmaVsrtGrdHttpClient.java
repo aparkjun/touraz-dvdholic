@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
@@ -56,6 +57,13 @@ public class KmaVsrtGrdHttpClient {
             String body = restClient().get().uri(uri).retrieve().body(String.class);
             log.debug("KMA dfs_vsrt_grd ok tmfc={} tmef={} len={}", tmfc, tmef, body != null ? body.length() : 0);
             return body;
+        } catch (RestClientResponseException e) {
+            log.warn(
+                    "KMA dfs_vsrt_grd HTTP {} tmfc={} tmef={} — 초단기 격자 API 활용신청·authKey 종류 확인",
+                    e.getStatusCode().value(),
+                    tmfc,
+                    tmef);
+            return null;
         } catch (Exception e) {
             log.warn("KMA dfs_vsrt_grd 실패 tmfc={} tmef={}: {}", tmfc, tmef, e.getMessage());
             return null;
