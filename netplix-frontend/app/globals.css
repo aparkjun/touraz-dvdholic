@@ -416,22 +416,17 @@ body.app-theme-travel {
   box-shadow: 0 4px 22px rgba(15, 23, 42, 0.07);
 }
 
-/* 메인(/) — body 는 시네마 다크 유지하되 네비만 대시보드(app-theme-travel)와 동일 글래스 배경 */
+/* 메인(/) — 네비 배경은 불투명 순백. 반투명 글래스는 다크 바디가 비쳐 뱀 GIF(screen 블렌드) 주변이 얼룩처럼 보일 수 있음 */
 .app-nav.app-nav--landing-light {
   position: relative;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.9));
-  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
-  box-shadow: 0 4px 22px rgba(15, 23, 42, 0.07);
+  background: #ffffff;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 1) inset, 0 4px 18px rgba(15, 23, 42, 0.06);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
-.app-nav.app-nav--landing-light::after {
-  content: "";
-  display: block;
-  position: absolute;
-  left: 0; right: 0; bottom: 0; height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.25), transparent);
-  pointer-events: none;
+.app-nav.app-nav--landing-light .app-brand-snake {
+  mix-blend-mode: normal;
 }
 .app-nav.app-nav--landing-light .app-chip-secondary {
   background: rgba(255, 255, 255, 0.72);
