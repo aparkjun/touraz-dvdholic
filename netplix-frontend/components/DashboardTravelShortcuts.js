@@ -30,7 +30,7 @@ const TRAVEL_SHORTCUTS = [
 ];
 
 /**
- * 대시보드 전용 — 트렌딩 카드와 분리된 패널에 정사각형 CTA 그리드.
+ * 대시보드 전용 — 아이콘+라벨 한 줄, 칸 높이는 내용만큼(정사각형 타일 아님).
  */
 export default function DashboardTravelShortcuts() {
   const { t } = useTranslation();
@@ -64,33 +64,28 @@ export default function DashboardTravelShortcuts() {
       <nav className="dts-shortcuts">
         {TRAVEL_SHORTCUTS.map(({ href, shortcutKey, Icon }) => (
           <Link key={href} href={href} className="dts-shortcut-link">
-            <span className="dts-shortcut-row">
-              {Icon ? (
-                <span className="dts-shortcut-icon-wrap" aria-hidden>
-                  <Icon size={18} strokeWidth={2} />
-                </span>
-              ) : null}
-              <span className="dts-shortcut-label">
-                {t(`trendingRegions.shortcuts.${shortcutKey}`, shortcutKey)}
-              </span>
+            {Icon ? <Icon size={18} strokeWidth={2} aria-hidden /> : null}
+            <span className="dts-shortcut-label">
+              {t(`trendingRegions.shortcuts.${shortcutKey}`, shortcutKey)}
             </span>
           </Link>
         ))}
       </nav>
 
-      {/* scoped styled-jsx는 next/link의 <a>에 jsx 해시가 안 붙어 CTA 셀 스타일이 빠질 수 있음 → global */}
+      {/* next/link의 <a>에 scoped jsx 해시가 안 붙을 수 있어 global 유지 */}
       <style jsx global>{`
         .dts-shortcuts {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
           gap: 6px;
         }
         .dts-shortcut-link {
           position: relative;
           display: flex;
+          flex-direction: row;
           align-items: center;
-          justify-content: center;
-          aspect-ratio: 1;
+          justify-content: flex-start;
+          gap: 8px;
           min-width: 0;
           padding: 8px 10px;
           border-radius: 10px;
@@ -100,53 +95,27 @@ export default function DashboardTravelShortcuts() {
           text-decoration: none;
           transition: background 0.15s ease, border-color 0.15s ease;
         }
-        /* 아이콘 옆 수평 한 줄(세로 중앙 공통선) 정렬 */
-        .dts-shortcut-row {
-          display: flex;
-          flex-direction: row;
-          align-items: center;
-          justify-content: center;
-          gap: 7px;
-          width: 100%;
-          min-width: 0;
-        }
-        .dts-shortcut-icon-wrap {
+        .dts-shortcut-link svg {
           flex-shrink: 0;
-          width: 22px;
-          height: 22px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .dts-shortcut-icon-wrap svg {
           display: block;
-          flex-shrink: 0;
           opacity: 0.95;
         }
         .dts-shortcut-label {
-          margin: 0;
-          padding: 0;
           font-size: 10px;
           font-weight: 600;
           line-height: 1.2;
           text-align: left;
           flex: 1;
           min-width: 0;
-          overflow: hidden;
-          word-break: keep-all;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
-          align-self: center;
+          overflow: hidden;
+          word-break: keep-all;
         }
         .dts-shortcut-link:hover {
           background: rgba(99, 102, 241, 0.12);
           border-color: rgba(129, 140, 248, 0.35);
-        }
-        @media (max-width: 420px) {
-          .dts-shortcuts {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
         }
       `}</style>
     </section>
