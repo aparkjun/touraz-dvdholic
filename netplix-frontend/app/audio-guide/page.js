@@ -35,6 +35,7 @@ import {
   subscribeAudioGuideOdiiLang,
   defaultOdiiLangFromUiLang,
   isValidOdiiLang,
+  odiiLangChipLabel,
 } from "@/lib/audioGuideOdiiLang";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
@@ -592,28 +593,28 @@ function AudioGuidePageInner() {
                 className={`agp-odii-sg ${odiiLang === "ko" ? "agp-odii-sg-on" : ""}`}
                 onClick={() => onOdiiLangChange("ko")}
               >
-                KO
+                {odiiLangChipLabel("ko")}
               </button>
               <button
                 type="button"
                 className={`agp-odii-sg ${odiiLang === "en" ? "agp-odii-sg-on" : ""}`}
                 onClick={() => onOdiiLangChange("en")}
               >
-                EN
+                {odiiLangChipLabel("en")}
               </button>
               <button
                 type="button"
                 className={`agp-odii-sg ${odiiLang === "zh" ? "agp-odii-sg-on" : ""}`}
                 onClick={() => onOdiiLangChange("zh")}
               >
-                ZH
+                {odiiLangChipLabel("zh")}
               </button>
               <button
                 type="button"
                 className={`agp-odii-sg ${odiiLang === "ja" ? "agp-odii-sg-on" : ""}`}
                 onClick={() => onOdiiLangChange("ja")}
               >
-                JA
+                {odiiLangChipLabel("ja")}
               </button>
             </div>
           </div>

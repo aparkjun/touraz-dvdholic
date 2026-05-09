@@ -26,7 +26,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import axios from "@/src/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
-import { getAudioGuideOdiiLang, defaultOdiiLangFromUiLang, subscribeAudioGuideOdiiLang } from "@/lib/audioGuideOdiiLang";
+import { getAudioGuideOdiiLang, defaultOdiiLangFromUiLang, subscribeAudioGuideOdiiLang, odiiLangChipLabel } from "@/lib/audioGuideOdiiLang";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
 import VoiceMicIcon from "@/components/VoiceMicIcon";
 import { Headphones, MapPin, Play, Pause, Clock, ArrowRight, Globe2 } from "lucide-react";
@@ -220,7 +220,7 @@ export default function NearbyAudioGuideStrip({
             )}
           </h3>
           <span className="nag-lang-badge" style={{ borderColor: accent, color: accent }}>
-            <Globe2 size={10} /> {lang.toUpperCase()}
+            <Globe2 size={10} /> {odiiLangChipLabel(lang)}
           </span>
         </div>
         <Link href={allHref} className="nag-all" style={{ color: accent }}>

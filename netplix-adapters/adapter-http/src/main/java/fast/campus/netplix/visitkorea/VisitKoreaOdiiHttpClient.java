@@ -674,12 +674,17 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         return type.name() + ":" + canonicalLang;
     }
 
+    /**
+     * 공공데이터포털 Odii GW 가 허용하는 langCode 표기(예: eng, jpn, chs, cht)를 우선 시도한다.
+     * 명세·서비스 버전에 따라 zh/ja 단축 코드만 허용되는 경우가 있어 후순위로 둔다.
+     * Base URL: https://apis.data.go.kr/B551011/Odii
+     */
     private String probeOdiiLangCode(AudioGuideItem.Type type, String canonical) {
         String base = basedUrl(type);
         String[] candidates = switch (canonical) {
-            case "en" -> new String[]{"en", "eng"};
-            case "zh" -> new String[]{"zh", "chs", "cht", "cn", "cn1"};
-            case "ja" -> new String[]{"ja", "jp", "jpn"};
+            case "en" -> new String[]{"eng", "en"};
+            case "zh" -> new String[]{"chs", "cht", "zh", "cn", "cn1"};
+            case "ja" -> new String[]{"jpn", "jp", "ja"};
             default -> new String[]{"ko"};
         };
         for (String code : candidates) {
@@ -693,9 +698,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         log.warn("[ODII] GW langCode 후보 전부 0건 canonical={} candidates={} type={}",
                 canonical, Arrays.toString(candidates), type);
         return switch (canonical) {
-            case "zh" -> "zh";
-            case "ja" -> "ja";
-            case "en" -> "en";
+            case "zh" -> "chs";
+            case "ja" -> "jpn";
+            case "en" -> "eng";
             default -> "ko";
         };
     }

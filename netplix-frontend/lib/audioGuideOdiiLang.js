@@ -12,6 +12,13 @@ export function isValidOdiiLang(v) {
   return typeof v === "string" && ODII_LANG_CODES.includes(v);
 }
 
+/** Odii 데이터 언어 칩 표시 — ZH/JA 코드만 두 글자라 중·일이 빠진 것처럼 보이는 오해 방지 */
+export function odiiLangChipLabel(code) {
+  if (!isValidOdiiLang(code)) return String(code || "").trim().toUpperCase() || "";
+  const labels = { ko: "KO", en: "EN", zh: "中文", ja: "日本語" };
+  return labels[code];
+}
+
 /** react-i18next language → 저장/요청용 Odii 기본값 */
 export function defaultOdiiLangFromUiLang(uiLang) {
   const l = (uiLang || "ko").toLowerCase();

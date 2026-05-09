@@ -29,6 +29,7 @@ import {
   setAudioGuideOdiiLang,
   subscribeAudioGuideOdiiLang,
   ODII_LANG_CODES,
+  odiiLangChipLabel,
 } from "@/lib/audioGuideOdiiLang";
 import VoiceMicIcon from "@/components/VoiceMicIcon";
 import {
@@ -125,10 +126,11 @@ function filterKoVoices(voices) {
 function normalizeOdiiLangFromApiField(langField) {
   if (langField == null || String(langField).trim() === "") return null;
   const c = String(langField).trim().toLowerCase();
-  if (c === "chs" || c === "cht" || c === "cn" || c.startsWith("zh")) return "zh";
-  if (c === "jpn" || c === "jp" || c.startsWith("ja")) return "ja";
+  /** Odii GW langCode 계열 — VisitKoreaOdiiHttpClient.canonicalOdiiLang 과 동일 */
   if (c === "kor" || c === "ko") return "ko";
   if (c === "eng" || c === "en") return "en";
+  if (c === "chs" || c === "cht" || c === "cn" || c === "cn1" || c.startsWith("zh")) return "zh";
+  if (c === "jpn" || c === "jp" || c.startsWith("ja")) return "ja";
   if (isValidOdiiLang(c)) return c;
   return null;
 }
@@ -742,7 +744,8 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
             </span>
             {(item.language || modalOdiiLang) && (
               <span className="agm-lang-badge">
-                <Globe2 size={10} /> {String(item.language || modalOdiiLang).toUpperCase()}
+                <Globe2 size={10} />{" "}
+                {odiiLangChipLabel(isValidOdiiLang(item?.language) ? item.language : modalOdiiLang)}
               </span>
             )}
             {item.distanceKm != null && (
@@ -799,7 +802,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
                     setAudioGuideOdiiLang(code);
                   }}
                 >
-                  {code.toUpperCase()}
+                  {odiiLangChipLabel(code)}
                 </button>
               ))}
             </span>
