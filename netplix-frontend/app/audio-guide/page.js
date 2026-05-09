@@ -32,6 +32,7 @@ import axios from "@/lib/axiosConfig";
 import {
   getAudioGuideOdiiLang,
   setAudioGuideOdiiLang,
+  subscribeAudioGuideOdiiLang,
   defaultOdiiLangFromUiLang,
   isValidOdiiLang,
 } from "@/lib/audioGuideOdiiLang";
@@ -149,6 +150,10 @@ function AudioGuidePageInner() {
     setOdiiLangState(next);
     setAudioGuideOdiiLang(next);
   };
+
+  useEffect(() => subscribeAudioGuideOdiiLang(() => {
+    setOdiiLangState(getAudioGuideOdiiLang(defaultOdiiLangFromUiLang(i18n?.language)));
+  }), [i18n?.language]);
 
   // URL -> state 동기화
   const initialType = (searchParams.get("type") || "theme").toLowerCase() === "story" ? "story" : "theme";

@@ -8,6 +8,7 @@
  *  - 좌표가 있으면 Google/Kakao Map 바로가기 · 대중교통 길찾기(내 위치→목적지) 제공
  *  - ESC 키 / 배경 클릭 / X 버튼으로 닫기
  *  - 모달이 닫힐 때 재생 자동 정지
+ *  - Odii 스크립트 TTS: 영·중·일은 로케일별 여성 음성 자동 1종, 한국어만 브라우저 피커로 선택
  *
  * <p>Props:
  *  - item: AudioGuideItemResponse (모달에 표시할 대상)
@@ -19,7 +20,14 @@ import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import useBackButtonClose from "@/lib/useBackButtonClose";
-import { getAudioGuideOdiiLang, isValidOdiiLang, defaultOdiiLangFromUiLang } from "@/lib/audioGuideOdiiLang";
+import {
+  getAudioGuideOdiiLang,
+  isValidOdiiLang,
+  defaultOdiiLangFromUiLang,
+  setAudioGuideOdiiLang,
+  subscribeAudioGuideOdiiLang,
+  ODII_LANG_CODES,
+} from "@/lib/audioGuideOdiiLang";
 import VoiceMicIcon from "@/components/VoiceMicIcon";
 import {
   X,
@@ -43,7 +51,6 @@ import {
 } from "lucide-react";
 
 const TTS_KO_VOICE_STORAGE_KEY = "audioGuideDetailModal.ttsVoiceKo";
-const TTS_EN_VOICE_STORAGE_KEY = "audioGuideDetailModal.ttsVoiceEn";
 /** utter.voice 미지정 — 보이스 피커 도입 전과 같이 브라우저·OS 가 lang 기준으로 고름 */
 const TTS_KO_BUILTIN_KEY = "__browser_default_ko__";
 
@@ -136,7 +143,7 @@ function filterZhVoices(voices) {
   if (!voices?.length) return [];
   const out = voices.filter((v) => {
     const l = (v.lang || "").toLowerCase();
-    return l.startsWith("zh") || l.startsWith("cmn");
+    return l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue");
   });
   return [...out].sort((a, b) => (a.name || "").localeCompare(b.name || "", "zh-Hans"));
 }
@@ -150,17 +157,224 @@ function filterJaVoices(voices) {
   return [...out].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ja"));
 }
 
-function pickInitialVoiceKey(list, storageKey) {
-  if (!list.length) return "";
-  let saved = "";
-  try {
-    saved = localStorage.getItem(storageKey) || "";
-  } catch (_) {
-    /* noop */
+/** zh/ja 후보에서 제외 — 엔진이 한국어 로케일일 때 기본 음성이 잘못 섞이는 것을 막음 */
+function looksLikeKoreanTtsVoice(v) {
+  const l = (v.lang || "").toLowerCase();
+  if (l.startsWith("ko")) return true;
+  if (l.includes("ko-kr") || l.includes("kr")) return true;
+  const n = (v.name || "").toLowerCase();
+  return (
+    n.includes("korean")
+    || n.includes("한국")
+    || n.includes("yuna")
+    || n.includes("hee ")
+    || n.includes(" google ko")
+    || n.includes("microsoft heami")
+  );
+}
+
+/** 일본어 전용으로 보이는 음성 — 중국어 후보에서 반드시 제외 */
+function looksLikeJapaneseOnlyTtsVoice(v) {
+  const l = (v.lang || "").toLowerCase();
+  const n = (v.name || "").toLowerCase();
+  const jaTagged = l.startsWith("ja") || n.includes("japanese") || n.includes("日本") || n.includes("nihongo");
+  const zhTagged =
+    l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue")
+    || n.includes("chinese") || n.includes("mandarin") || n.includes("中文") || n.includes("cantonese");
+  return jaTagged && !zhTagged;
+}
+
+/** 중국어권 전용으로 보이는 음성 — 일본어 후보에서 제외 */
+function looksLikeChineseOnlyTtsVoice(v) {
+  const l = (v.lang || "").toLowerCase();
+  const n = (v.name || "").toLowerCase();
+  const zhTagged =
+    l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue")
+    || n.includes("chinese") || n.includes("mandarin") || n.includes("中文") || n.includes("cantonese");
+  const jaTagged = l.startsWith("ja") || n.includes("japanese") || n.includes("日本");
+  return zhTagged && !jaTagged;
+}
+
+function finalizeZhVoiceList(list) {
+  return list.filter((v) => !looksLikeKoreanTtsVoice(v) && !looksLikeJapaneseOnlyTtsVoice(v));
+}
+
+function finalizeJaVoiceList(list) {
+  return list.filter((v) => !looksLikeKoreanTtsVoice(v) && !looksLikeChineseOnlyTtsVoice(v));
+}
+
+function broadZhCandidates(all) {
+  return (all || []).filter((v) => {
+    if (looksLikeKoreanTtsVoice(v)) return false;
+    if (looksLikeJapaneseOnlyTtsVoice(v)) return false;
+    const l = (v.lang || "").toLowerCase();
+    const n = (v.name || "").toLowerCase();
+    return (
+      l.startsWith("zh")
+      || l.startsWith("cmn")
+      || l.startsWith("yue")
+      || l.includes("hans")
+      || l.includes("hant")
+      || n.includes("chinese")
+      || n.includes("mandarin")
+      || n.includes("cantonese")
+      || n.includes("中文")
+    );
+  });
+}
+
+function broadJaCandidates(all) {
+  return (all || []).filter((v) => {
+    if (looksLikeKoreanTtsVoice(v)) return false;
+    const l = (v.lang || "").toLowerCase();
+    const n = (v.name || "").toLowerCase();
+    if (looksLikeChineseOnlyTtsVoice(v) && !l.startsWith("ja") && !n.includes("japanese") && !n.includes("日本")) {
+      return false;
+    }
+    return (
+      l.startsWith("ja")
+      || n.includes("japanese")
+      || n.includes("日本")
+      || n.includes("nihongo")
+      || n.includes("kyoto")
+      || n.includes("osaka")
+    );
+  });
+}
+
+function isProbablyMaleTtsVoiceName(name) {
+  const n = (name || "").toLowerCase();
+  return (
+    /\b(male|man|男|남성|masculine)\b/i.test(n)
+    || /\b(david|mark|james|daniel|fred|john|ryan|tony|justin)\b/i.test(n)
+    || n.includes(" keita")
+    || n.includes("-male")
+    || n.includes("male voice")
+  );
+}
+
+/** 이름 힌트로 여성 음성 우선 — 영·중·일 각각 «한 가지 여성 목소리»만 자동 선택할 때 사용 */
+function isProbablyFemaleTtsVoice(v) {
+  const n = (v.name || "").toLowerCase();
+  if (isProbablyMaleTtsVoiceName(n)) return false;
+  return /female|woman|girl|女声|女聲|女性|여성|ms\.|miss|\bzira\b|\bjenny\b|\baria\b|\bsonia\b|\bsamantha\b|\bkaren\b|\bsusan\b|\bvictoria\b|\blinda\b|\brachel\b|\bemma\b|\bmia\b|\bxiaoxiao\b|\bxiaoyi\b|\byunxi\b|\bhuihui\b|\bnanami\b|\bkyoko\b|\bharuka\b|\bsayaka\b|\bnaomi\b|\bmei\b|\bhazel\b|\bluna\b/i.test(
+    n,
+  );
+}
+
+function langTagMatchesOdiiZh(lang) {
+  const x = (lang || "").toLowerCase();
+  return x.startsWith("zh") || x.startsWith("cmn") || x.startsWith("yue");
+}
+
+function langTagMatchesOdiiJa(lang) {
+  return /^ja/i.test(lang || "");
+}
+
+/**
+ * 중·일 Odii TTS: 반드시 해당 언어 BCP47 로 태그된 음성만 우선하고, 한국어 엔진 후보는 배제한다.
+ * 영어처럼 또렷하게 들리려면 원어민 zh/ja 보이스가 있어야 하며, 같은 URI 가 중국어에만 쓰이면 일본어 후보에서 제외한다.
+ */
+function pickOdiiZhJaVoice(candidates, kind /* "zh" | "ja" */, excludeVoiceKeys) {
+  const langOk = kind === "zh" ? langTagMatchesOdiiZh : langTagMatchesOdiiJa;
+  const cleaned = (candidates || []).filter((v) => {
+    if (!v || looksLikeKoreanTtsVoice(v)) return false;
+    if (excludeVoiceKeys?.has(ttsVoiceKey(v))) return false;
+    const l = (v.lang || "").toLowerCase();
+    if (kind === "zh" && l.startsWith("ja") && !langTagMatchesOdiiZh(l)) return false;
+    if (kind === "ja" && (l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue")) && !l.startsWith("ja")) return false;
+    return true;
+  });
+  const strict = cleaned.filter((v) => langOk(v.lang || ""));
+  const pool = strict.length ? strict : cleaned;
+  if (!pool.length) return null;
+
+  const neuralRe = /neural|premium|natural|online/i;
+  const score = (v) => {
+    let s = 0;
+    const l = (v.lang || "").toLowerCase();
+    if (kind === "zh") {
+      if (l === "zh-cn" || l.startsWith("zh-cn")) s += 10;
+      else if (langOk(l)) s += 6;
+      if (l.includes("hans")) s += 2;
+    } else {
+      if (l === "ja-jp" || l.startsWith("ja-jp")) s += 10;
+      else if (langOk(l)) s += 6;
+    }
+    if (neuralRe.test(v.name || "")) s += 5;
+    if (isProbablyFemaleTtsVoice(v)) s += 3;
+    if (!isProbablyMaleTtsVoiceName(v.name || "")) s += 1;
+    return s;
+  };
+
+  const sorted = [...pool].sort(
+    (a, b) => score(b) - score(a) || (a.name || "").localeCompare(b.name || "", "en"),
+  );
+  const chosen = sorted.find((v) => !isProbablyMaleTtsVoiceName(v.name || "")) || sorted[0];
+  const cl = (chosen.lang || "").toLowerCase();
+  if (kind === "zh" && !langTagMatchesOdiiZh(chosen.lang || "")) {
+    return sorted.find((v) => langTagMatchesOdiiZh(v.lang || "")) || null;
   }
-  if (saved && list.some((v) => ttsVoiceKey(v) === saved)) return saved;
-  const def = list.find((v) => v.default);
-  return ttsVoiceKey(def || list[0]);
+  if (kind === "ja" && !langTagMatchesOdiiJa(chosen.lang || "")) {
+    return sorted.find((v) => langTagMatchesOdiiJa(v.lang || "")) || null;
+  }
+  if (kind === "zh" && cl.startsWith("ja")) return sorted.find((v) => langTagMatchesOdiiZh(v.lang || "")) || null;
+  if (kind === "ja" && !cl.startsWith("ja") && langTagMatchesOdiiZh(cl)) {
+    return sorted.find((v) => langTagMatchesOdiiJa(v.lang || "")) || null;
+  }
+  return chosen;
+}
+
+/**
+ * Odii 영어 스크립트: 로케일 태그(en*) 우선 여성 음성.
+ */
+function pickFixedFemaleVoice(candidates) {
+  if (!candidates?.length) return null;
+  const langOk = (l) => /^en/i.test(l || "");
+  const langMatched = candidates.filter((v) => langOk(v.lang || ""));
+  const base = langMatched.length ? langMatched : candidates;
+  const neuralRe = /neural|premium|natural|online/i;
+  const females = base.filter(isProbablyFemaleTtsVoice);
+  const pool = females.length ? females : base;
+  const sorted = [...pool].sort((a, b) => {
+    const score = (v) => {
+      let s = 0;
+      if (looksLikeKoreanTtsVoice(v)) s -= 50;
+      if (neuralRe.test(v.name || "")) s += 4;
+      if (langOk(v.lang || "")) s += 3;
+      if (isProbablyFemaleTtsVoice(v)) s += 2;
+      return s;
+    };
+    const d = score(b) - score(a);
+    if (d !== 0) return d;
+    return (a.name || "").localeCompare(b.name || "", "en");
+  });
+  const nonMale = sorted.find((v) => !isProbablyMaleTtsVoiceName(v.name || ""));
+  const chosen = nonMale || sorted[0];
+  if (chosen && looksLikeKoreanTtsVoice(chosen)) {
+    return sorted.find((v) => !looksLikeKoreanTtsVoice(v)) || chosen;
+  }
+  return chosen;
+}
+
+/**
+ * 엄격 태그( zh*, ja* )로 잡히지 않는 일부 OS/브라우저 음성 보강.
+ * 목록이 비면 Web Speech 가 utter.lang 만 보고 한국어 기본 음성을 쓰기 쉬워 «한국어식 중국어·일본어»가 난다.
+ */
+function resolveZhVoices(all) {
+  const strict = filterZhVoices(all);
+  const raw = strict.length ? strict : broadZhCandidates(all);
+  const deduped = dedupeTtsVoices(raw);
+  const finalized = finalizeZhVoiceList(deduped);
+  return [...finalized].sort((a, b) => (a.name || "").localeCompare(b.name || "", "zh-Hans"));
+}
+
+function resolveJaVoices(all) {
+  const strict = filterJaVoices(all);
+  const raw = strict.length ? strict : broadJaCandidates(all);
+  const deduped = dedupeTtsVoices(raw);
+  const finalized = finalizeJaVoiceList(deduped);
+  return [...finalized].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ja"));
 }
 
 function pickInitialKoVoiceKey(list) {
@@ -175,48 +389,107 @@ function pickInitialKoVoiceKey(list) {
   return TTS_KO_BUILTIN_KEY;
 }
 
-function pickInitialEnVoiceKey(list) {
-  return pickInitialVoiceKey(list, TTS_EN_VOICE_STORAGE_KEY);
-}
+/** 직전 중국어 TTS 에 사용한 음성 키 — 일본어가 같은 보이스로만 잡히는 경우를 줄임 */
+let gLastZhOdiiVoiceKey = "";
 
-function applyTtsVoiceToUtter(utter, contentLang, koKey, enKey, lastPickerRow) {
+/** 한국어는 사용자가 피커로 고르고, 영·중·일(Odii 스크립트)은 로케일별 고정 여성 음성으로 재생한다. */
+function applyTtsVoiceToUtter(utter, contentLang, koKey) {
   if (typeof window === "undefined" || !window.speechSynthesis) return;
   void window.speechSynthesis.getVoices();
   const all = window.speechSynthesis.getVoices();
   const content = (contentLang || "").toLowerCase();
+  const contentIsEn = content.startsWith("en");
+  const contentIsZh = content.startsWith("zh");
+  const contentIsJa = content.startsWith("ja");
 
-  if (content.startsWith("zh")) {
-    const zhVoices = filterZhVoices(all);
-    const voice = zhVoices.find((v) => v.default) || zhVoices[0];
-    utter.voice = voice || null;
-    utter.lang = voice?.lang?.trim() || "zh-CN";
-    return;
-  }
-  if (content.startsWith("ja")) {
-    const jaVoices = filterJaVoices(all);
-    const voice = jaVoices.find((v) => v.default) || jaVoices[0];
-    utter.voice = voice || null;
-    utter.lang = voice?.lang?.trim() || "ja-JP";
-    return;
-  }
+  const allZhResolved = resolveZhVoices(all);
+  const allJaResolved = resolveJaVoices(all);
+  const jaVoiceKeys = new Set(allJaResolved.map((v) => ttsVoiceKey(v)));
+  const zhVoiceKeys = new Set(allZhResolved.map((v) => ttsVoiceKey(v)));
+
+  const pickZhVoice = () => {
+    let zhVoices = allZhResolved.filter((v) => {
+      const l = (v.lang || "").toLowerCase();
+      if (l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue")) return true;
+      return !jaVoiceKeys.has(ttsVoiceKey(v));
+    });
+    if (!zhVoices.length) {
+      utter.voice = null;
+      utter.lang = "zh-CN";
+      utter.rate = 1.02;
+      utter.pitch = 1.05;
+      gLastZhOdiiVoiceKey = "";
+      return true;
+    }
+    const strictZh = zhVoices.filter((v) => langTagMatchesOdiiZh(v.lang || ""));
+    const voice = pickOdiiZhJaVoice(strictZh.length ? strictZh : zhVoices, "zh", null);
+    if (!voice) {
+      utter.voice = null;
+      utter.lang = "zh-CN";
+      utter.rate = 1.02;
+      utter.pitch = 1.05;
+      gLastZhOdiiVoiceKey = "";
+      return true;
+    }
+    utter.voice = voice;
+    const vl = (voice.lang || "").trim();
+    utter.lang = langTagMatchesOdiiZh(vl) ? vl : "zh-CN";
+    utter.rate = 1.03;
+    utter.pitch = 1.06;
+    gLastZhOdiiVoiceKey = ttsVoiceKey(voice);
+    return true;
+  };
+
+  const pickJaVoice = () => {
+    let jaVoices = allJaResolved.filter((v) => {
+      const l = (v.lang || "").toLowerCase();
+      if (l.startsWith("ja")) return true;
+      return !zhVoiceKeys.has(ttsVoiceKey(v));
+    });
+    const jaExclude = gLastZhOdiiVoiceKey ? new Set([gLastZhOdiiVoiceKey]) : null;
+    if (!jaVoices.length) {
+      utter.voice = null;
+      utter.lang = "ja-JP";
+      utter.rate = 1.05;
+      utter.pitch = 1.03;
+      return true;
+    }
+    const strictJa = jaVoices.filter((v) => langTagMatchesOdiiJa(v.lang || ""));
+    const voice = pickOdiiZhJaVoice(strictJa.length ? strictJa : jaVoices, "ja", jaExclude);
+    if (!voice) {
+      utter.voice = null;
+      utter.lang = "ja-JP";
+      utter.rate = 1.05;
+      utter.pitch = 1.03;
+      return true;
+    }
+    utter.voice = voice;
+    const vl = (voice.lang || "").trim();
+    utter.lang = langTagMatchesOdiiJa(vl) ? vl : "ja-JP";
+    utter.rate = 1.05;
+    utter.pitch = 1.03;
+    return true;
+  };
 
   const pickEnglishVoice = () => {
     const enVoices = filterEnVoices(all);
     if (!enVoices.length) return false;
-    const voice =
-      (enKey && enVoices.find((v) => ttsVoiceKey(v) === enKey))
-      || enVoices.find((v) => v.default)
-      || enVoices[0];
+    const voice = pickFixedFemaleVoice(enVoices);
+    if (!voice) return false;
     utter.voice = voice;
     const vl = (voice.lang || "").trim();
     utter.lang = vl || "en-US";
+    utter.rate = 1;
+    utter.pitch = 1;
     return true;
   };
 
   const pickKoreanVoice = () => {
     if (koKey === TTS_KO_BUILTIN_KEY) {
       utter.voice = null;
-      utter.lang = content.startsWith("en") ? "en-US" : "ko-KR";
+      utter.lang = "ko-KR";
+      utter.rate = 1;
+      utter.pitch = 1;
       return true;
     }
     const koVoices = filterKoVoices(all);
@@ -228,19 +501,38 @@ function applyTtsVoiceToUtter(utter, contentLang, koKey, enKey, lastPickerRow) {
     utter.voice = voice;
     const vl = (voice.lang || "").trim();
     utter.lang = vl || "ko-KR";
+    utter.rate = 1;
+    utter.pitch = 1;
     return true;
   };
 
-  if (lastPickerRow === "en") {
-    pickEnglishVoice();
+  if (contentIsZh) {
+    pickZhVoice();
     return;
   }
-  if (lastPickerRow === "ko") {
-    pickKoreanVoice();
+  if (contentIsJa) {
+    pickJaVoice();
     return;
   }
-  if (content.startsWith("en")) pickEnglishVoice();
-  else pickKoreanVoice();
+
+  gLastZhOdiiVoiceKey = "";
+
+  if (contentIsEn) {
+    if (!pickEnglishVoice()) {
+      utter.voice = null;
+      utter.lang = "en-US";
+      utter.rate = 1;
+      utter.pitch = 1;
+    }
+    return;
+  }
+
+  if (!pickKoreanVoice()) {
+    utter.voice = null;
+    utter.lang = "ko-KR";
+    utter.rate = 1;
+    utter.pitch = 1;
+  }
 }
 
 /**
@@ -275,14 +567,11 @@ function buildKakaoDirectionsUrl({ destLat, destLng, destName, userPos, startNam
 
 export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLangProp }) {
   const { t, i18n } = useTranslation();
-  const odiiLang = useMemo(() => {
-    if (isValidOdiiLang(odiiLangProp)) return odiiLangProp;
-    return getAudioGuideOdiiLang(defaultOdiiLangFromUiLang(i18n?.language));
-  }, [odiiLangProp, i18n?.language]);
+  /** 모달 안에서 바꿀 수 있는 Odii 데이터 언어(ko|en|zh|ja) — 상단 칩과 sessionStorage 동기화 */
+  const [modalOdiiLang, setModalOdiiLang] = useState("ko");
   const audioRef = useRef(null);
   const mediaSessionDetachRef = useRef(null);
   const ttsVoiceSelectId = useId();
-  const ttsEnVoiceSelectId = useId();
   const [playing, setPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -295,12 +584,10 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
   const [ttsPlaying, setTtsPlaying] = useState(false);
   const [ttsPaused, setTtsPaused] = useState(false);
   const [ttsSupported, setTtsSupported] = useState(false);
-  /** 브라우저가 노출한 ko / en TTS 음성 + 사용자 선택 키 */
+  /** 브라우저가 노출한 한국어 음성 + 사용자 선택 키 (영·중·일은 자동 여성 음성 고정) */
   const [koVoices, setKoVoices] = useState([]);
-  const [enVoices, setEnVoices] = useState([]);
   const [ttsKoVoiceKey, setTtsKoVoiceKey] = useState("");
-  const [ttsEnVoiceKey, setTtsEnVoiceKey] = useState("");
-  /** 마지막으로 건드린 보이스 줄 — 영어 줄을 고르면 한국어 대본도 선택한 영어 음성으로 읽음(null 이면 대본 언어에 맞춤) */
+  /** 한국어 피커 마지막 조작 — 적용 줄 하이라이트용 */
   const [ttsLastPickerRow, setTtsLastPickerRow] = useState(null);
 
   // --- THEME 카드 → 연관 해설 이야기(STORY) 목록 상태 ---
@@ -322,32 +609,32 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
     }
   }, []);
 
-  /** speechSynthesis 음성 목록(비동기 로드) — 한국어·영어 보이스 분리 제공 */
+  /** speechSynthesis 음성 목록 — 한국어 피커만 사용 */
   useEffect(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) return undefined;
     const synth = window.speechSynthesis;
     const refresh = () => {
       const all = synth.getVoices();
       const koList = filterKoVoices(all);
-      const enList = filterEnVoices(all);
       setKoVoices(koList);
-      setEnVoices(enList);
       setTtsKoVoiceKey((prev) => {
         if (!koList.length) return prev === TTS_KO_BUILTIN_KEY ? TTS_KO_BUILTIN_KEY : "";
         if (prev === TTS_KO_BUILTIN_KEY) return TTS_KO_BUILTIN_KEY;
         if (prev && koList.some((v) => ttsVoiceKey(v) === prev)) return prev;
         return pickInitialKoVoiceKey(koList);
       });
-      setTtsEnVoiceKey((prev) => {
-        if (!enList.length) return "";
-        if (prev && enList.some((v) => ttsVoiceKey(v) === prev)) return prev;
-        return pickInitialEnVoiceKey(enList);
-      });
     };
     refresh();
     synth.addEventListener("voiceschanged", refresh);
     return () => synth.removeEventListener("voiceschanged", refresh);
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    return subscribeAudioGuideOdiiLang(() => {
+      setModalOdiiLang(getAudioGuideOdiiLang(defaultOdiiLangFromUiLang(i18n?.language)));
+    });
+  }, [i18n?.language]);
 
   // 새 item 이 열릴 때마다 오디오/TTS 리셋
   useEffect(() => {
@@ -380,6 +667,15 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
     };
   }, [item?.id]);
 
+  // 상단 칩·세션·부모 prop 과 모달 Odii 언어 동기화 (항목 전환 시 포함)
+  useEffect(() => {
+    if (!item?.id) return;
+    const nextOdii = isValidOdiiLang(odiiLangProp)
+      ? odiiLangProp
+      : getAudioGuideOdiiLang(defaultOdiiLangFromUiLang(i18n?.language));
+    setModalOdiiLang(nextOdii);
+  }, [item?.id, odiiLangProp, i18n?.language]);
+
   // THEME 카드 → /api/v1/audio-guide/stories-by-theme 호출.
   // 언어 변경/다른 항목 열림 때마다 재조회. 서버는 캐시되어 있으므로 여러 번 불러도 저렴.
   useEffect(() => {
@@ -389,7 +685,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
     }
     let cancelled = false;
     setStoriesLoading(true);
-    const effectiveLang = odiiLang;
+    const effectiveLang = modalOdiiLang;
     axios
       .get("/api/v1/audio-guide/stories-by-theme", {
         params: {
@@ -407,15 +703,22 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       .catch(() => { if (!cancelled) setStories([]); })
       .finally(() => { if (!cancelled) setStoriesLoading(false); });
     return () => { cancelled = true; };
-  }, [item?.id, item?.type, odiiLang]);
+  }, [item?.id, item?.type, modalOdiiLang]);
+
+  // Odii 데이터 언어를 바꾸면 지연 로드한 STORY 대본이 이전 언어로 남지 않게 한다 (상세 fetch 보다 먼저 비움).
+  useEffect(() => {
+    if (item?.type !== "STORY") return;
+    setLoadedDesc(null);
+  }, [modalOdiiLang, item?.type]);
 
   // STORY 카드 상세 조회: 리스트는 lite 로 내려오므로 description 이 없으면 여기서 보강.
   // THEME 카드는 원본 응답에도 script 가 없어 조회해도 받을 값이 없으므로 생략.
   useEffect(() => {
     if (!item || item.type !== "STORY" || !item.id) return undefined;
-    if (item.description && String(item.description).trim()) return undefined;
+    const trimmed = item.description && String(item.description).trim();
+    if (trimmed && odiiLangFieldAlignsWithOdii(item.language, modalOdiiLang)) return undefined;
     let cancelled = false;
-    const effectiveLang = odiiLang;
+    const effectiveLang = modalOdiiLang;
     axios
       .get("/api/v1/audio-guide/detail", {
         params: { type: "story", lang: effectiveLang, id: item.id },
@@ -427,7 +730,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       })
       .catch(() => { /* noop */ });
     return () => { cancelled = true; };
-  }, [item?.id, item?.type, item?.description, odiiLang]);
+  }, [item?.id, item?.type, item?.description, modalOdiiLang]);
 
   /** 길찾기 링크의 출발지(현재 위치) — 좌표형 목적지가 있을 때만 요청 */
   const [userNavPos, setUserNavPos] = useState(null);
@@ -513,29 +816,12 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
     return TTS_KO_BUILTIN_KEY;
   }, [koVoices, ttsKoVoiceKey]);
 
-  const ttsEnSelectValue = useMemo(() => {
-    if (!enVoices.length) return "";
-    if (enVoices.some((v) => ttsVoiceKey(v) === ttsEnVoiceKey)) return ttsEnVoiceKey;
-    return ttsVoiceKey(enVoices[0]);
-  }, [enVoices, ttsEnVoiceKey]);
-
   const onTtsKoVoiceChange = (e) => {
     const key = e.target.value;
     setTtsLastPickerRow("ko");
     setTtsKoVoiceKey(key);
     try {
       localStorage.setItem(TTS_KO_VOICE_STORAGE_KEY, key);
-    } catch (_) {
-      /* noop */
-    }
-  };
-
-  const onTtsEnVoiceChange = (e) => {
-    const key = e.target.value;
-    setTtsLastPickerRow("en");
-    setTtsEnVoiceKey(key);
-    try {
-      localStorage.setItem(TTS_EN_VOICE_STORAGE_KEY, key);
     } catch (_) {
       /* noop */
     }
@@ -550,9 +836,16 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
   const showThemeStoryList = isThemeCard && (storiesLoading || stories.length > 0);
   const showMainPlayer = hasAudio && (!isThemeCard || !showThemeStoryList);
   // description 은 리스트 lite 응답에서 빠져 있을 수 있으므로 loadedDesc 로 보강.
-  const effectiveDescription = (item.description && String(item.description).trim())
-    ? String(item.description)
-    : (loadedDesc && String(loadedDesc).trim()) ? String(loadedDesc) : "";
+  // 모달에서 Odii 언어만 바꾼 경우 리스트에 실린 다른 언어 대본이 남지 않게 한다.
+  const effectiveDescription = (() => {
+    const trimmedItem = item.description && String(item.description).trim();
+    const inline =
+      trimmedItem && odiiLangFieldAlignsWithOdii(item.language, modalOdiiLang)
+        ? String(trimmedItem)
+        : "";
+    const lazy = (loadedDesc && String(loadedDesc).trim()) ? String(loadedDesc) : "";
+    return inline || lazy || "";
+  })();
   const hasScript = !!effectiveDescription;
   const subtitleVoiceActive =
     Boolean(hasAudio && showMainPlayer && playing)
@@ -566,7 +859,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
     ? effectiveDescription
     : [item.title, item.audioTitle, item.themeCategory].filter(Boolean).join(". ");
   const ttsLang = (() => {
-    const raw = (item.language || odiiLang || i18n?.language || "ko").toLowerCase();
+    const raw = (modalOdiiLang || item.language || i18n?.language || "ko").toLowerCase();
     if (raw.startsWith("en")) return "en-US";
     if (raw.startsWith("zh")) return "zh-CN";
     if (raw.startsWith("ja")) return "ja-JP";
@@ -576,9 +869,8 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
   const ttsContentIsZh = ttsLang.toLowerCase().startsWith("zh");
   const ttsContentIsJa = ttsLang.toLowerCase().startsWith("ja");
   const koVoiceRowApply =
-    ttsLastPickerRow === "ko" || (ttsLastPickerRow === null && !ttsContentIsEn && !ttsContentIsZh && !ttsContentIsJa);
-  const enVoiceRowApply =
-    ttsLastPickerRow === "en" || (ttsLastPickerRow === null && ttsContentIsEn);
+    ttsLastPickerRow === "ko"
+    || (ttsLastPickerRow === null && !ttsContentIsEn && !ttsContentIsZh && !ttsContentIsJa);
 
   const startTts = () => {
     if (!ttsSupported || !ttsText) return;
@@ -588,7 +880,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       utter.lang = ttsLang;
       utter.rate = 1;
       utter.pitch = 1;
-      applyTtsVoiceToUtter(utter, ttsLang, ttsKoSelectValue, ttsEnSelectValue, ttsLastPickerRow);
+      applyTtsVoiceToUtter(utter, ttsLang, ttsKoSelectValue);
       utter.onend = () => { setTtsPlaying(false); setTtsPaused(false); };
       utter.onerror = () => { setTtsPlaying(false); setTtsPaused(false); };
       window.speechSynthesis.speak(utter);
@@ -635,7 +927,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       }
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
-      const raw = (story?.language || odiiLang || i18n?.language || "ko").toLowerCase();
+      const raw = (modalOdiiLang || story?.language || i18n?.language || "ko").toLowerCase();
       const storyLang = raw.startsWith("en")
         ? "en-US"
         : raw.startsWith("zh")
@@ -646,7 +938,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       utter.lang = storyLang;
       utter.rate = 1;
       utter.pitch = 1;
-      applyTtsVoiceToUtter(utter, storyLang, ttsKoSelectValue, ttsEnSelectValue, ttsLastPickerRow);
+      applyTtsVoiceToUtter(utter, storyLang, ttsKoSelectValue);
       utter.onend = () => { setActiveStoryId(null); setActiveStoryPaused(false); };
       utter.onerror = () => { setActiveStoryId(null); setActiveStoryPaused(false); };
       window.speechSynthesis.speak(utter);
@@ -796,9 +1088,9 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
               {item.type === "STORY" ? <BookOpen size={12} /> : <Radio size={12} />}
               {typeLabel}
             </span>
-            {item.language && (
+            {(item.language || modalOdiiLang) && (
               <span className="agm-lang-badge">
-                <Globe2 size={10} /> {String(item.language).toUpperCase()}
+                <Globe2 size={10} /> {String(item.language || modalOdiiLang).toUpperCase()}
               </span>
             )}
             {item.distanceKm != null && (
@@ -838,7 +1130,30 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
             )}
           </div>
 
-          {ttsSupported && (hasScript || isThemeCard) && (koVoices.length > 0 || enVoices.length > 0 || ttsContentIsZh || ttsContentIsJa) ? (
+          <div
+            className="agm-odii-lang"
+            role="group"
+            aria-label={t("audioGuide.hero.odiiDataAria", "관광공사 오디오 가이드 데이터 언어")}
+          >
+            <span className="agm-odii-lang-label">{t("audioGuide.hero.odiiData", "해설·검색 데이터")}</span>
+            <span className="agm-odii-sg-row">
+              {ODII_LANG_CODES.map((code) => (
+                <button
+                  key={code}
+                  type="button"
+                  className={`agm-odii-sg ${modalOdiiLang === code ? "agm-odii-sg-on" : ""}`}
+                  onClick={() => {
+                    setModalOdiiLang(code);
+                    setAudioGuideOdiiLang(code);
+                  }}
+                >
+                  {code.toUpperCase()}
+                </button>
+              ))}
+            </span>
+          </div>
+
+          {ttsSupported && (hasScript || isThemeCard) && (koVoices.length > 0 || ttsContentIsEn || ttsContentIsZh || ttsContentIsJa) ? (
             <div className="agm-tts-voice-stack">
               {koVoices.length > 0 ? (
                 <AgmLocaleVoicePicker
@@ -855,28 +1170,12 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
                   }}
                 />
               ) : null}
-              {enVoices.length > 0 ? (
-                <AgmLocaleVoicePicker
-                  fieldId={ttsEnVoiceSelectId}
-                  voices={enVoices}
-                  value={ttsEnSelectValue}
-                  onChange={onTtsEnVoiceChange}
-                  label={t("audioGuide.detail.tts.voiceLabelEn", "영어 대본용")}
-                  ariaLabel={t("audioGuide.detail.tts.voiceAriaEn", "영어 해설 대본에 쓸 브라우저 음성")}
-                  isApplyRow={enVoiceRowApply}
-                />
-              ) : null}
-              {(ttsContentIsZh || ttsContentIsJa) && koVoices.length === 0 && enVoices.length === 0 ? (
+              {(ttsContentIsEn || ttsContentIsZh || ttsContentIsJa) ? (
                 <p className="agm-tts-voice-hint">
                   {t(
-                    "audioGuide.detail.tts.zhJaBuiltinHint",
-                    "中文·日本語 해설은 브라우저 기본 음성으로 재생돼요."
+                    "audioGuide.detail.tts.odiiFemaleAuto",
+                    "영어·中文·日本語 해설은 Odii 대본 그대로, 여성 음성 하나로 자동 재생돼요. (말하는 사람은 브라우저·PC에 설치된 음성마다 달라요.)",
                   )}
-                </p>
-              ) : null}
-              {(koVoices.length > 0 && enVoices.length > 0) ? (
-                <p className="agm-tts-voice-hint">
-                  {t("audioGuide.detail.tts.voiceStackHint", "지금 듣는 해설이 한국어이면 위쪽, 영어이면 아래쪽 음성이 적용돼요. 한국어 해설에 영어만 선택해 두면 바뀌지 않아요.")}
                 </p>
               ) : null}
             </div>
@@ -1175,6 +1474,16 @@ function AgmLocaleVoicePicker({ fieldId, voices, value, onChange, label, ariaLab
   );
 }
 
+function odiiLangFieldAlignsWithOdii(langField, odii) {
+  const raw = (langField || "").toLowerCase().trim();
+  const o = (odii || "ko").toLowerCase();
+  if (!raw) return o === "ko";
+  if (o === "en") return raw.startsWith("en");
+  if (o === "zh") return raw.startsWith("zh");
+  if (o === "ja") return raw.startsWith("ja");
+  return raw.startsWith("ko");
+}
+
 function formatPlayTime(raw) {
   if (!raw) return "";
   // "122" 같은 순수 초 값이면 mm:ss 로 변환, "mm:ss" 면 그대로
@@ -1277,6 +1586,47 @@ const modalCss = `
   font-size: 0.78rem; font-weight: 600;
 }
 .agm-meta-addr { color: #fde68a; border-color: rgba(251,191,36,0.35); background: rgba(251,191,36,0.1); }
+
+.agm-odii-lang {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: rgba(8,4,22,0.55);
+  border: 1px solid rgba(196,181,253,0.38);
+}
+.agm-odii-lang-label {
+  font-size: 0.72rem;
+  font-weight: 750;
+  color: rgba(233,213,255,0.9);
+  letter-spacing: -0.02em;
+}
+.agm-odii-sg-row {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.agm-odii-sg {
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(167,139,250,0.4);
+  background: rgba(20,12,40,0.65);
+  color: #e9d5ff;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+}
+.agm-odii-sg-on {
+  background: linear-gradient(135deg, rgba(139,92,246,0.95), rgba(167,139,250,0.75));
+  border-color: rgba(253,230,138,0.5);
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(253,230,138,0.25);
+}
 
 .agm-tts-voice-stack {
   display: flex;

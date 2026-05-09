@@ -26,7 +26,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import axios from "@/src/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
-import { getAudioGuideOdiiLang, defaultOdiiLangFromUiLang } from "@/lib/audioGuideOdiiLang";
+import { getAudioGuideOdiiLang, defaultOdiiLangFromUiLang, subscribeAudioGuideOdiiLang } from "@/lib/audioGuideOdiiLang";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
 import VoiceMicIcon from "@/components/VoiceMicIcon";
 import { Headphones, MapPin, Play, Pause, Clock, ArrowRight, Globe2 } from "lucide-react";
