@@ -527,7 +527,8 @@
       "related": "Related"
     },
     "errorLoad": "Could not load",
-    "empty": "No data"
+    "empty": "No data",
+    "periodScoreHint": "Period-weighted score used for this tab’s ranking"
   },
   "dashboardCta": {
     "cineTrip": {

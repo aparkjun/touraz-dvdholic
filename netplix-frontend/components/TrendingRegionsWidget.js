@@ -182,6 +182,12 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
           {regions.map((r, i) => {
             const volume = Number(r.searchVolume) || 0;
             const hasVolume = r.searchVolume !== null && r.searchVolume !== undefined;
+            const periodScoreRaw = r.trendingPeriodScore;
+            const periodScore =
+              periodScoreRaw != null && Number.isFinite(Number(periodScoreRaw))
+                ? Number(periodScoreRaw)
+                : null;
+            const rankNo = r.trendingRank != null && Number.isFinite(Number(r.trendingRank)) ? Number(r.trendingRank) : i + 1;
             return (
               <motion.li key={`${r.areaCode}-${period}-${i}`} variants={itemVariants}>
                 <Link
@@ -225,7 +231,7 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
                         color: 'rgba(255,255,255,0.85)',
                       }}
                     >
-                      {i + 1}
+                      {rankNo}
                     </div>
                     <div
                       style={{
@@ -240,7 +246,20 @@ export default function TrendingRegionsWidget({ limit = 5, defaultPeriod = 'toda
                     >
                       {r.regionName || r.areaCode}
                     </div>
-                    {hasVolume ? (
+                    {periodScore != null ? (
+                      <div
+                        title={t('trendingRegions.periodScoreHint', '이 기간 기준 가중 지표')}
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          color: 'rgba(167, 243, 208, 0.95)',
+                          fontVariantNumeric: 'tabular-nums',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {periodScore.toFixed(2)}
+                      </div>
+                    ) : hasVolume ? (
                       <div
                         style={{
                           fontSize: 12,

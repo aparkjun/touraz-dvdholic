@@ -1,7 +1,6 @@
 package fast.campus.netplix.controller.tour;
 
 import fast.campus.netplix.controller.NetplixApiResponse;
-import fast.campus.netplix.tour.TourIndex;
 import fast.campus.netplix.tour.TourIndexUseCase;
 import fast.campus.netplix.tour.TrendingRegion;
 import fast.campus.netplix.tour.TrendingRegionCachePort;
@@ -62,12 +61,8 @@ public class TourController {
             if (!cached.isEmpty()) {
                 List<TourResponse> body = cached.stream()
                         .map(r -> tourIndexUseCase.getLatestByAreaCode(r.getAreaCode())
-                                .map(TourResponse::from)
-                                .orElseGet(() -> TourResponse.from(
-                                        TourIndex.builder()
-                                                .areaCode(r.getAreaCode())
-                                                .regionName(r.getRegionName())
-                                                .build())))
+                                .map(ti -> TourResponse.fromWithTrending(ti, r.getRank(), r.getScore()))
+                                .orElseGet(() -> TourResponse.fromTrendingMinimal(r)))
                         .toList();
                 return NetplixApiResponse.ok(body);
             }

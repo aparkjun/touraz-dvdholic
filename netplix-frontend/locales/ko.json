@@ -527,7 +527,8 @@
       "related": "연관"
     },
     "errorLoad": "불러오기 실패",
-    "empty": "목록 없음"
+    "empty": "목록 없음",
+    "periodScoreHint": "이 기간 탭 기준 가중 지표(순위 산정용)"
   },
   "dashboardCta": {
     "cineTrip": {
