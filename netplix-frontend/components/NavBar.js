@@ -49,7 +49,7 @@ export default function NavBar() {
 
   return (
     <nav className={`app-nav${pathname === '/dashboard' ? ' app-nav--dashboard' : ''}`}>
-      <div className="app-nav-inner">
+      <div className={`app-nav-inner${pathname === '/dashboard' ? ' app-nav-inner--dashboard' : ''}`}>
         {isLandingPage && (
           <div className="app-nav-leftmost">
             <LanguageToggle />
@@ -73,6 +73,11 @@ export default function NavBar() {
           pathname={pathname}
           onLogout={handleLogout}
         />
+        {pathname === '/dashboard' && (
+          <span className="app-nav-dashboard-promo app-nav-dashboard-promo--combined">
+            DVD는 오전 2시 · MOVIE는 오전 3시에 업데이트됩니다!
+          </span>
+        )}
       </div>
     </nav>
   );
