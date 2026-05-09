@@ -1,6 +1,7 @@
 package fast.campus.netplix.controller.weather;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import fast.campus.netplix.kma.KmaShortRegFetchResult;
 import fast.campus.netplix.kma.KmaShortRegHttpClient;
 import fast.campus.netplix.kma.KmaVsrtGrdHourlyService;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,7 +57,8 @@ class WeatherControllerTest {
         String body = """
                 {"result":{"status":0},"response":{"body":{"items":[{"TMP":18,"POP":30,"SKY":"1","PTY":"0","fcstTime":"1200","fcstDate":"20240509"},{"TMP":17,"POP":40,"fcstTime":"1500","fcstDate":"20240509"}]}}}
                 """;
-        when(kmaShortRegHttpClient.fetchRaw(eq("11B10101"), any())).thenReturn(body);
+        when(kmaShortRegHttpClient.fetchWithDiagnostics(eq("11B10101"), any()))
+                .thenReturn(new KmaShortRegFetchResult(body, null, null, null, 1, 0));
 
         mockMvc.perform(get("/api/v1/weather/short-reg"))
                 .andExpect(status().isOk())
@@ -70,7 +72,8 @@ class WeatherControllerTest {
     @Test
     void shortReg_upstream403_whenKmaRejects() throws Exception {
         String body = "{\"result\":{\"status\":403,\"message\":\"활용신청이 필요한 API 입니다.\"}}";
-        when(kmaShortRegHttpClient.fetchRaw(eq("11B10101"), any())).thenReturn(body);
+        when(kmaShortRegHttpClient.fetchWithDiagnostics(eq("11B10101"), any()))
+                .thenReturn(new KmaShortRegFetchResult(body, null, null, null, 1, 0));
 
         mockMvc.perform(get("/api/v1/weather/short-reg"))
                 .andExpect(status().isOk())
@@ -80,8 +83,15 @@ class WeatherControllerTest {
 
     @Test
     void shortReg_usesNearestReg_whenLatLngProvided() throws Exception {
-        when(kmaShortRegHttpClient.fetchRaw(eq("11H20201"), any())).thenReturn(
-                "{\"result\":{\"status\":0},\"row\":[{\"TMP\":22,\"POP\":10,\"fcstTime\":\"0900\"}]}");
+        when(kmaShortRegHttpClient.fetchWithDiagnostics(eq("11H20201"), any()))
+                .thenReturn(
+                        new KmaShortRegFetchResult(
+                                "{\"result\":{\"status\":0},\"row\":[{\"TMP\":22,\"POP\":10,\"fcstTime\":\"0900\"}]}",
+                                null,
+                                null,
+                                null,
+                                1,
+                                0));
 
         mockMvc.perform(get("/api/v1/weather/short-reg")
                         .param("lat", "35.18")

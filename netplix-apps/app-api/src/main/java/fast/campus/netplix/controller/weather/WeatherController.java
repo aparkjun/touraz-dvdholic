@@ -6,6 +6,7 @@ import fast.campus.netplix.controller.NetplixApiResponse;
 import fast.campus.netplix.kma.KmaForecastSeriesExtractor;
 import fast.campus.netplix.kma.KmaLambertGridConverter;
 import fast.campus.netplix.kma.KmaNearestReg;
+import fast.campus.netplix.kma.KmaShortRegFetchResult;
 import fast.campus.netplix.kma.KmaShortRegHttpClient;
 import fast.campus.netplix.kma.KmaVsrtGrdHourlyService;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -67,16 +69,30 @@ public class WeatherController {
             out.put("kmaKeyMissing", true);
             out.put(
                     "message",
-                    "Heroku(또는 서버)에 KMA_API_KEY가 없습니다. 기상청 API허브(apihub.kma.go.kr) 인증키를 Config Vars에 넣은 뒤 dyno를 재시작하세요.");
+                    "단기·초단기 예보는 기상청 API허브(apihub.kma.go.kr) 인증키가 필요합니다. Heroku Config Vars에 KMA_API_KEY(또는 KMA_AUTH_API_KEY)로 허브에서 발급한 키를 넣고 dyno를 재시작하세요. 공공데이터포털(data.go.kr) 키만으로는 동작하지 않을 수 있습니다.");
             return NetplixApiResponse.ok(out);
         }
 
-        String raw = kmaShortRegHttpClient.fetchRaw(effectiveReg, tmfc);
+        KmaShortRegFetchResult shortRegFetch = kmaShortRegHttpClient.fetchWithDiagnostics(effectiveReg, tmfc);
+        String raw = shortRegFetch.raw();
         if (raw == null) {
             out.put("configured", false);
             out.put(
                     "message",
-                    "기상청 API허브 호출에 실패했습니다. 인증키 종류(허브용)·단기/초단기(격자) 활용승인·일일 호출 한도·네트워크를 확인하세요.");
+                    "기상청 API허브 호출에 실패했습니다. 인증키 종류(허브용)·단기/초단기(격자) 활용승인·네트워크를 확인하세요.");
+            Map<String, Object> diag = new LinkedHashMap<>();
+            diag.put("attempts", shortRegFetch.attempts());
+            diag.put("catalogTextResponsesSkipped", shortRegFetch.catalogTextResponsesSkipped());
+            if (shortRegFetch.lastHttpStatus() != null) {
+                diag.put("httpStatus", shortRegFetch.lastHttpStatus());
+            }
+            if (shortRegFetch.lastNonJsonBodyPreview() != null && !shortRegFetch.lastNonJsonBodyPreview().isBlank()) {
+                diag.put("bodyPreview", shortRegFetch.lastNonJsonBodyPreview());
+            }
+            if (shortRegFetch.lastExceptionSummary() != null && !shortRegFetch.lastExceptionSummary().isBlank()) {
+                diag.put("error", shortRegFetch.lastExceptionSummary());
+            }
+            out.put("shortRegDiagnostic", diag);
             return NetplixApiResponse.ok(out);
         }
         out.put("configured", true);
