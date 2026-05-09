@@ -312,6 +312,19 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         if (!matched.isEmpty()) {
             return take(matched, limit);
         }
+        /*
+         * zh/ja/en 에서 GW 가 STORY 의 tid/linkTid 를 비우거나 다른 필드명으로 주면 themeId 조인이 빗나간다.
+         * 같은 스토리 레코드의 기본키(stid 등)는 보통 언어 간 동일하므로, KO 풀에서 themeId 매칭으로 id 목록을 만든 뒤
+         * 현재 언어 캐시에서 동일 id 로 재조립한다.
+         */
+        if (!"ko".equals(l)) {
+            List<AudioGuideItem> bridged = storiesByThemeBridgedViaKoIds(key, l, limit);
+            if (!bridged.isEmpty()) {
+                log.info("[ODII] stories-by-theme: KO 스토리 id 브리지 매칭 {}건 themeId={} lang={}",
+                        bridged.size(), key, l);
+                return bridged;
+            }
+        }
         List<String> hints = deriveStoryTitleHints(themeTitleHint);
         if (hints.isEmpty()) {
             return List.of();
@@ -351,6 +364,41 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             }
         }
         return List.of();
+    }
+
+    /**
+     * KO STORY 캐시에서 themeId 로 걸린 스토리들의 id 순서를 유지한 채, 대상 언어 STORY 캐시에서 같은 id 레코드를 붙인다.
+     */
+    private List<AudioGuideItem> storiesByThemeBridgedViaKoIds(String themeId, String targetLang, int limit) {
+        ensureFullStoryCacheForJoin("ko");
+        CacheSnapshot koSnap = cache.get(allKey(AudioGuideItem.Type.STORY, "ko"));
+        if (koSnap == null || koSnap.sites.isEmpty()) {
+            return List.of();
+        }
+        List<String> orderedStoryIds = koSnap.sites.stream()
+                .filter(s -> themeIdMatches(s.getThemeId(), themeId))
+                .map(AudioGuideItem::getId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .collect(Collectors.toList());
+        if (orderedStoryIds.isEmpty()) {
+            return List.of();
+        }
+        ensureFullStoryCacheForJoin(targetLang);
+        CacheSnapshot locSnap = cache.get(allKey(AudioGuideItem.Type.STORY, targetLang));
+        if (locSnap == null || locSnap.sites.isEmpty()) {
+            return List.of();
+        }
+        Map<String, AudioGuideItem> localizedById = locSnap.sites.stream()
+                .collect(Collectors.toMap(AudioGuideItem::getId, s -> s, (a, b) -> a));
+        List<AudioGuideItem> out = new ArrayList<>();
+        for (String sid : orderedStoryIds) {
+            AudioGuideItem hit = localizedById.get(sid);
+            if (hit != null) {
+                out.add(hit);
+            }
+        }
+        return take(out, limit);
     }
 
     /**
