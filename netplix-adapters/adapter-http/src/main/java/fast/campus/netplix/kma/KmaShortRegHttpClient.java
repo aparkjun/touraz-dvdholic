@@ -1,6 +1,5 @@
 package fast.campus.netplix.kma;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -11,6 +10,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 기상청 API허브 단기예보(일반특보 구역) — fct_shrt_reg.php 프록시 호출용.
@@ -18,7 +19,6 @@ import java.time.Duration;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class KmaShortRegHttpClient {
 
     @Value("${kma.api.fct-shrt-reg}")
@@ -38,25 +38,58 @@ public class KmaShortRegHttpClient {
     }
 
     /**
-     * @param reg     예보구역코드(reg). null 이면 default-reg.
-     * @param tmfc    API 문서 기준 발표시각 플래그 — null 이면 0.
+     * @param reg          예보구역코드(reg). null 이면 default-reg.
+     * @param tmfcOverride 비우면 최근 발표 시각 후보를 순차 시도. "0" 은 무시(자동과 동일).
      */
-    public String fetchRaw(String reg, Integer tmfc) {
+    public String fetchRaw(String reg, String tmfcOverride) {
         if (apiKey == null || apiKey.isBlank()) {
             log.warn("KMA_API_KEY 미설정 — 단기예보 프록시 비활성");
             return null;
         }
         String r = (reg != null && !reg.isBlank()) ? reg : defaultReg;
-        int tm = tmfc != null ? tmfc : 0;
+        List<String> tries = new ArrayList<>();
+        if (tmfcOverride != null && !tmfcOverride.isBlank() && !"0".equals(tmfcOverride.trim())) {
+            String n = KmaShortRegIssuanceTime.normalizeTmfc(tmfcOverride);
+            if (n != null && n.length() >= 10) {
+                tries.add(n.length() == 10 ? n + "00" : n);
+            }
+        }
+        if (tries.isEmpty()) {
+            tries.addAll(KmaShortRegIssuanceTime.candidatesNewestFirst());
+        }
+        for (String tmfc : tries) {
+            String body = fetchOnce(r, tmfc);
+            if (body == null) {
+                continue;
+            }
+            if (isTextCatalogResponse(body)) {
+                log.debug("KMA fct_shrt_reg 구역 텍스트 응답 건너뜀 (tmfc 잘못됨) reg={} tmfc={}", r, tmfc);
+                continue;
+            }
+            return body;
+        }
+        log.warn("KMA fct_shrt_reg 유효 예보 본문 없음 reg={} 시도 횟수={}", r, tries.size());
+        return null;
+    }
+
+    private static boolean isTextCatalogResponse(String body) {
+        if (body == null || body.isBlank()) {
+            return false;
+        }
+        String t = body.stripLeading();
+        return t.startsWith("#");
+    }
+
+    private String fetchOnce(String reg, String tmfc) {
         try {
             URI uri = UriComponentsBuilder.fromHttpUrl(fctShrtRegUrl)
-                    .queryParam("tmfc", tm)
-                    .queryParam("reg", r)
+                    .queryParam("tmfc", tmfc)
+                    .queryParam("reg", reg)
                     .queryParam("authKey", apiKey)
                     .build(true)
                     .toUri();
             String body = restClient().get().uri(uri).retrieve().body(String.class);
-            log.debug("KMA fct_shrt_reg ok reg={} len={}", r, body != null ? body.length() : 0);
+            log.debug("KMA fct_shrt_reg ok reg={} tmfc={} len={}", reg, tmfc, body != null ? body.length() : 0);
             return body;
         } catch (RestClientResponseException e) {
             String b = null;
@@ -64,22 +97,22 @@ public class KmaShortRegHttpClient {
                 b = e.getResponseBodyAsString();
             } catch (Exception ignored) {
             }
-            // 기상청 API허브는 HTTP 4xx여도 JSON result.status 로 상세 사유를 줄 때가 많음 → 본문을 넘겨 upstreamError 로 표시
             if (b != null && !b.isBlank()) {
                 String trimmed = b.stripLeading();
                 if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
-                    log.warn("KMA fct_shrt_reg HTTP {} reg={} — 응답 본문 반환(활용신청·승인·한도 확인).", e.getStatusCode().value(), r);
+                    log.warn("KMA fct_shrt_reg HTTP {} reg={} tmfc={} — 응답 본문 반환.", e.getStatusCode().value(), reg, tmfc);
                     return b;
                 }
             }
             log.warn(
-                    "KMA fct_shrt_reg HTTP {} reg={} — 인증·승인·일일한도·엔드포인트를 확인하세요. bodyPreview={}",
+                    "KMA fct_shrt_reg HTTP {} reg={} tmfc={} bodyPreview={}",
                     e.getStatusCode().value(),
-                    r,
+                    reg,
+                    tmfc,
                     (b == null || b.isEmpty()) ? "(empty)" : (b.length() > 400 ? b.substring(0, 400) + "…" : b).replaceAll("\\s+", " ").trim());
             return null;
         } catch (Exception e) {
-            log.warn("KMA fct_shrt_reg 실패 reg={}: {}", r, e.getMessage());
+            log.warn("KMA fct_shrt_reg 실패 reg={} tmfc={}: {}", reg, tmfc, e.getMessage());
             return null;
         }
     }

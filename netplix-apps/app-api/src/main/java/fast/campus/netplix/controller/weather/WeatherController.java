@@ -39,7 +39,7 @@ public class WeatherController {
     @GetMapping("/short-reg")
     public NetplixApiResponse<Map<String, Object>> shortReg(
             @RequestParam(name = "reg", required = false) String reg,
-            @RequestParam(name = "tmfc", required = false) Integer tmfc,
+            @RequestParam(name = "tmfc", required = false) String tmfc,
             @RequestParam(name = "lat", required = false) Double lat,
             @RequestParam(name = "lng", required = false) Double lng) {
 
