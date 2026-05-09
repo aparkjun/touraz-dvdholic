@@ -3,6 +3,7 @@ package fast.campus.netplix.visitkorea;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -61,6 +62,7 @@ public class VisitKoreaOdiiResponse {
     @NoArgsConstructor
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Items {
+        @JsonDeserialize(using = OdiiItemsItemDeserializer.class)
         private List<Item> item;
     }
 
@@ -81,7 +83,11 @@ public class VisitKoreaOdiiResponse {
         @JsonAlias({"stid", "storyId", "storyid", "sTID"})
         private String stid;
 
-        @JsonAlias({"tTitle", "storyTitle", "name"})
+        @JsonAlias({
+                "tTitle", "storyTitle", "name", "themeNm", "themeTitle", "tNm", "ttl",
+                "titleKo", "titleEn", "titleChs", "titleCht", "titleJp", "titleJa",
+                "korNm", "engNm", "chiNm", "jpnNm"
+        })
         private String title;
 
         /** 오디오 트랙 제목 (스토리/테마 모두 보유 가능). */

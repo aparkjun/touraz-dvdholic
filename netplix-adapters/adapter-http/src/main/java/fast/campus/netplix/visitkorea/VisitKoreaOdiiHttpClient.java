@@ -107,7 +107,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
 
     private final Map<String, CacheSnapshot> cache = new ConcurrentHashMap<>();
 
-    /** canonical ko 제외 언어 → GW 에 실제로 통과한 langCode (프로브 1회). */
+    /** GW langCode 프로브 결과: {@code THEME:zh} 처럼 type 과 묶어 STORY/THEME 가 다른 코드를 쓰는 경우를 대비한다. */
     private final ConcurrentHashMap<String, String> resolvedOdiiQueryLangByCanonical = new ConcurrentHashMap<>();
 
     /**
@@ -648,7 +648,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
 
         List<AudioGuideItem> list = body.getItems().getItem().stream()
                 .map(item -> toDomain(item, type))
-                .filter(s -> s.getTitle() != null && !s.getTitle().isBlank())
+                .filter(VisitKoreaOdiiHttpClient::isRenderableOdiiItem)
                 .collect(Collectors.toList());
         return new PageResult(list, totalCount);
     }
@@ -664,16 +664,21 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         return switch (canonicalLang) {
             case "ko" -> "ko";
             case "en", "zh", "ja" -> resolvedOdiiQueryLangByCanonical.computeIfAbsent(
-                    canonicalLang, c -> probeOdiiLangCode(type, c));
+                    langResolvedCacheKey(type, canonicalLang),
+                    __ -> probeOdiiLangCode(type, canonicalLang));
             default -> "ko";
         };
+    }
+
+    private static String langResolvedCacheKey(AudioGuideItem.Type type, String canonicalLang) {
+        return type.name() + ":" + canonicalLang;
     }
 
     private String probeOdiiLangCode(AudioGuideItem.Type type, String canonical) {
         String base = basedUrl(type);
         String[] candidates = switch (canonical) {
             case "en" -> new String[]{"en", "eng"};
-            case "zh" -> new String[]{"zh", "chs", "cht", "cn"};
+            case "zh" -> new String[]{"zh", "chs", "cht", "cn", "cn1"};
             case "ja" -> new String[]{"ja", "jp", "jpn"};
             default -> new String[]{"ko"};
         };
@@ -717,6 +722,12 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         return false;
     }
 
+    private static boolean isRenderableOdiiItem(AudioGuideItem s) {
+        return s != null
+                && nullIfBlank(s.getId()) != null
+                && nullIfBlank(s.getTitle()) != null;
+    }
+
     /** THEME: 자기 {@code tid}. STORY: 상위 관광지 id — 분리 필드 {@code linkTid} 우선, 없으면 {@code tid}. */
     private static String resolveThemeIdForDomain(VisitKoreaOdiiResponse.Item i, AudioGuideItem.Type type) {
         if (type == AudioGuideItem.Type.THEME) {
@@ -737,11 +748,12 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 ? (nullIfBlank(i.getStid()) != null ? i.getStid() : i.getTid())
                 : (nullIfBlank(i.getTid()) != null ? i.getTid() : i.getStid());
         String themeRef = resolveThemeIdForDomain(i, type);
+        String title = resolveOdiiItemTitle(i, id);
         return AudioGuideItem.builder()
                 .id(id)
                 .themeId(themeRef)
                 .type(type)
-                .title(i.getTitle())
+                .title(title)
                 .audioTitle(nullIfBlank(i.getAudioTitle()))
                 .audioUrl(nullIfBlank(i.getAudioUrl()))
                 .playTimeText(nullIfBlank(i.getPlayTimeText()))
@@ -753,6 +765,40 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 .themeCategory(nullIfBlank(i.getThemeCategory()))
                 .language(canonicalOdiiLang(nullIfBlank(i.getLangCode())))
                 .build();
+    }
+
+    /**
+     * 중·일 응답에서 {@code title} 대신 다른 필드만 채워지는 경우가 있어 카드·필터에서 전부 걸러지지 않게 한다.
+     */
+    private static String resolveOdiiItemTitle(VisitKoreaOdiiResponse.Item i, String id) {
+        String t = firstNonBlankText(
+                nullIfBlank(i.getTitle()),
+                nullIfBlank(i.getAudioTitle()),
+                nullIfBlank(i.getThemeCategory()));
+        if (t != null) {
+            return t;
+        }
+        String d = nullIfBlank(i.getDescription());
+        if (d != null) {
+            int nl = d.indexOf('\n');
+            String line = (nl >= 0 ? d.substring(0, nl) : d).trim();
+            if (!line.isBlank()) {
+                return line.length() <= 100 ? line : line.substring(0, 97) + "…";
+            }
+        }
+        if (nullIfBlank(id) != null) {
+            return "(#" + id + ")";
+        }
+        return null;
+    }
+
+    private static String firstNonBlankText(String... parts) {
+        for (String p : parts) {
+            if (p != null && !p.isBlank()) {
+                return p;
+            }
+        }
+        return null;
     }
 
     private static AudioGuideItem withDistance(AudioGuideItem s, double lat, double lng) {
