@@ -46,11 +46,14 @@ export default function NavBar() {
   // (LanguageToggle 은 setUserLanguage → i18n.changeLanguage 를 호출 →
   //  useTranslation 을 쓰는 모든 페이지/컴포넌트가 즉시 재렌더링된다.)
   const isLandingPage = pathname === '/';
+  /** 메인·로그인·회원가입 — 순백 네비(다크 바디 위에서 동일 이슈 방지) */
+  const useSolidWhiteNav =
+    isLandingPage || pathname === '/login' || pathname === '/signup';
 
   const navClass =
     'app-nav' +
     (pathname === '/dashboard' ? ' app-nav--dashboard' : '') +
-    (isLandingPage ? ' app-nav--landing-light' : '');
+    (useSolidWhiteNav ? ' app-nav--landing-light' : '');
 
   return (
     <nav className={navClass}>
