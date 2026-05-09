@@ -1279,7 +1279,16 @@ function DashboardContent() {
                 {t("dashboard.aiRecommend")}
               </h3>
             </div>
-            <p style={{ color: palette.textMuted, fontSize: "12px", marginBottom: "12px", lineHeight: 1.4 }}>
+            <p
+              style={{
+                color: "rgba(226, 232, 240, 0.96)",
+                fontSize: "13px",
+                fontWeight: 500,
+                marginBottom: "12px",
+                lineHeight: 1.5,
+                textShadow: "0 1px 2px rgba(0,0,0,0.35)",
+              }}
+            >
               {t("dashboard.aiRecommendDesc")}
             </p>
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
