@@ -8,7 +8,9 @@
  *  - 좌표가 있으면 Google/Kakao Map 바로가기 · 대중교통 길찾기(내 위치→목적지) 제공
  *  - ESC 키 / 배경 클릭 / X 버튼으로 닫기
  *  - 모달이 닫힐 때 재생 자동 정지
- *  - Odii 스크립트 TTS: 영·중·일은 로케일별 여성 음성 자동 1종, 한국어만 브라우저 피커로 선택
+ *  - Odii 스크립트 TTS: 합성 언어는 API 의 language(langCode) 우선·요청 Odii 언어 보조로만 정하고
+ *    utter.lang(BCP47)·브라우저 기본 음성에 맡긴다. 한국어만 선택 피커로 utter.voice 지정 가능.
+ *    Odii 가 내려준 audioUrl 이 있으면 네이티브 오디오 재생(TTS 미사용).
  *
  * <p>Props:
  *  - item: AudioGuideItemResponse (모달에 표시할 대상)
@@ -116,265 +118,45 @@ function filterKoVoices(voices) {
   return [...deduped].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ko"));
 }
 
-function filterEnVoices(voices) {
-  if (!voices?.length) return [];
-  let out = voices.filter((v) => {
-    const l = (v.lang || "").toLowerCase();
-    if (l.startsWith("ko")) return false;
-    return l.startsWith("en");
-  });
-  if (out.length === 0) {
-    out = voices.filter((v) => {
-      const l = (v.lang || "").toLowerCase();
-      if (l.startsWith("ko")) return false;
-      const n = (v.name || "").toLowerCase();
-      return (
-        n.includes("english")
-        || n.includes("samantha")
-        || n.includes("google us")
-        || n.includes("google uk")
-      );
-    });
-  }
-  return [...out].sort((a, b) => (a.name || "").localeCompare(b.name || "", "en"));
-}
-
-function filterZhVoices(voices) {
-  if (!voices?.length) return [];
-  const out = voices.filter((v) => {
-    const l = (v.lang || "").toLowerCase();
-    return l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue");
-  });
-  return [...out].sort((a, b) => (a.name || "").localeCompare(b.name || "", "zh-Hans"));
-}
-
-function filterJaVoices(voices) {
-  if (!voices?.length) return [];
-  const out = voices.filter((v) => {
-    const l = (v.lang || "").toLowerCase();
-    return l.startsWith("ja");
-  });
-  return [...out].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ja"));
-}
-
-/** zh/ja 후보에서 제외 — 엔진이 한국어 로케일일 때 기본 음성이 잘못 섞이는 것을 막음 */
-function looksLikeKoreanTtsVoice(v) {
-  const l = (v.lang || "").toLowerCase();
-  if (l.startsWith("ko")) return true;
-  if (l.includes("ko-kr") || l.includes("kr")) return true;
-  const n = (v.name || "").toLowerCase();
-  return (
-    n.includes("korean")
-    || n.includes("한국")
-    || n.includes("yuna")
-    || n.includes("hee ")
-    || n.includes(" google ko")
-    || n.includes("microsoft heami")
-  );
-}
-
-/** 일본어 전용으로 보이는 음성 — 중국어 후보에서 반드시 제외 */
-function looksLikeJapaneseOnlyTtsVoice(v) {
-  const l = (v.lang || "").toLowerCase();
-  const n = (v.name || "").toLowerCase();
-  const jaTagged = l.startsWith("ja") || n.includes("japanese") || n.includes("日本") || n.includes("nihongo");
-  const zhTagged =
-    l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue")
-    || n.includes("chinese") || n.includes("mandarin") || n.includes("中文") || n.includes("cantonese");
-  return jaTagged && !zhTagged;
-}
-
-/** 중국어권 전용으로 보이는 음성 — 일본어 후보에서 제외 */
-function looksLikeChineseOnlyTtsVoice(v) {
-  const l = (v.lang || "").toLowerCase();
-  const n = (v.name || "").toLowerCase();
-  const zhTagged =
-    l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue")
-    || n.includes("chinese") || n.includes("mandarin") || n.includes("中文") || n.includes("cantonese");
-  const jaTagged = l.startsWith("ja") || n.includes("japanese") || n.includes("日本");
-  return zhTagged && !jaTagged;
-}
-
-function finalizeZhVoiceList(list) {
-  return list.filter((v) => !looksLikeKoreanTtsVoice(v) && !looksLikeJapaneseOnlyTtsVoice(v));
-}
-
-function finalizeJaVoiceList(list) {
-  return list.filter((v) => !looksLikeKoreanTtsVoice(v) && !looksLikeChineseOnlyTtsVoice(v));
-}
-
-function broadZhCandidates(all) {
-  return (all || []).filter((v) => {
-    if (looksLikeKoreanTtsVoice(v)) return false;
-    if (looksLikeJapaneseOnlyTtsVoice(v)) return false;
-    const l = (v.lang || "").toLowerCase();
-    const n = (v.name || "").toLowerCase();
-    return (
-      l.startsWith("zh")
-      || l.startsWith("cmn")
-      || l.startsWith("yue")
-      || l.includes("hans")
-      || l.includes("hant")
-      || n.includes("chinese")
-      || n.includes("mandarin")
-      || n.includes("cantonese")
-      || n.includes("中文")
-    );
-  });
-}
-
-function broadJaCandidates(all) {
-  return (all || []).filter((v) => {
-    if (looksLikeKoreanTtsVoice(v)) return false;
-    const l = (v.lang || "").toLowerCase();
-    const n = (v.name || "").toLowerCase();
-    if (looksLikeChineseOnlyTtsVoice(v) && !l.startsWith("ja") && !n.includes("japanese") && !n.includes("日本")) {
-      return false;
-    }
-    return (
-      l.startsWith("ja")
-      || n.includes("japanese")
-      || n.includes("日本")
-      || n.includes("nihongo")
-      || n.includes("kyoto")
-      || n.includes("osaka")
-    );
-  });
-}
-
-function isProbablyMaleTtsVoiceName(name) {
-  const n = (name || "").toLowerCase();
-  return (
-    /\b(male|man|男|남성|masculine)\b/i.test(n)
-    || /\b(david|mark|james|daniel|fred|john|ryan|tony|justin)\b/i.test(n)
-    || n.includes(" keita")
-    || n.includes("-male")
-    || n.includes("male voice")
-  );
-}
-
-/** 이름 힌트로 여성 음성 우선 — 영·중·일 각각 «한 가지 여성 목소리»만 자동 선택할 때 사용 */
-function isProbablyFemaleTtsVoice(v) {
-  const n = (v.name || "").toLowerCase();
-  if (isProbablyMaleTtsVoiceName(n)) return false;
-  return /female|woman|girl|女声|女聲|女性|여성|ms\.|miss|\bzira\b|\bjenny\b|\baria\b|\bsonia\b|\bsamantha\b|\bkaren\b|\bsusan\b|\bvictoria\b|\blinda\b|\brachel\b|\bemma\b|\bmia\b|\bxiaoxiao\b|\bxiaoyi\b|\byunxi\b|\bhuihui\b|\bnanami\b|\bkyoko\b|\bharuka\b|\bsayaka\b|\bnaomi\b|\bmei\b|\bhazel\b|\bluna\b/i.test(
-    n,
-  );
-}
-
-function langTagMatchesOdiiZh(lang) {
-  const x = (lang || "").toLowerCase();
-  return x.startsWith("zh") || x.startsWith("cmn") || x.startsWith("yue");
-}
-
-function langTagMatchesOdiiJa(lang) {
-  return /^ja/i.test(lang || "");
-}
-
 /**
- * 중·일 Odii TTS: 반드시 해당 언어 BCP47 로 태그된 음성만 우선하고, 한국어 엔진 후보는 배제한다.
- * 영어처럼 또렷하게 들리려면 원어민 zh/ja 보이스가 있어야 하며, 같은 URI 가 중국어에만 쓰이면 일본어 후보에서 제외한다.
+ * Odii item.language(langCode) 에서 canonical ko|en|zh|ja 추출.
+ * 서버 VisitKoreaOdiiHttpClient.canonicalOdiiLang 과 같은 규칙.
  */
-function pickOdiiZhJaVoice(candidates, kind /* "zh" | "ja" */, excludeVoiceKeys) {
-  const langOk = kind === "zh" ? langTagMatchesOdiiZh : langTagMatchesOdiiJa;
-  const cleaned = (candidates || []).filter((v) => {
-    if (!v || looksLikeKoreanTtsVoice(v)) return false;
-    if (excludeVoiceKeys?.has(ttsVoiceKey(v))) return false;
-    const l = (v.lang || "").toLowerCase();
-    if (kind === "zh" && l.startsWith("ja") && !langTagMatchesOdiiZh(l)) return false;
-    if (kind === "ja" && (l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue")) && !l.startsWith("ja")) return false;
-    return true;
-  });
-  const strict = cleaned.filter((v) => langOk(v.lang || ""));
-  const pool = strict.length ? strict : cleaned;
-  if (!pool.length) return null;
-
-  const neuralRe = /neural|premium|natural|online/i;
-  const score = (v) => {
-    let s = 0;
-    const l = (v.lang || "").toLowerCase();
-    if (kind === "zh") {
-      if (l === "zh-cn" || l.startsWith("zh-cn")) s += 10;
-      else if (langOk(l)) s += 6;
-      if (l.includes("hans")) s += 2;
-    } else {
-      if (l === "ja-jp" || l.startsWith("ja-jp")) s += 10;
-      else if (langOk(l)) s += 6;
-    }
-    if (neuralRe.test(v.name || "")) s += 5;
-    if (isProbablyFemaleTtsVoice(v)) s += 3;
-    if (!isProbablyMaleTtsVoiceName(v.name || "")) s += 1;
-    return s;
-  };
-
-  const sorted = [...pool].sort(
-    (a, b) => score(b) - score(a) || (a.name || "").localeCompare(b.name || "", "en"),
-  );
-  const chosen = sorted.find((v) => !isProbablyMaleTtsVoiceName(v.name || "")) || sorted[0];
-  const cl = (chosen.lang || "").toLowerCase();
-  if (kind === "zh" && !langTagMatchesOdiiZh(chosen.lang || "")) {
-    return sorted.find((v) => langTagMatchesOdiiZh(v.lang || "")) || null;
-  }
-  if (kind === "ja" && !langTagMatchesOdiiJa(chosen.lang || "")) {
-    return sorted.find((v) => langTagMatchesOdiiJa(v.lang || "")) || null;
-  }
-  if (kind === "zh" && cl.startsWith("ja")) return sorted.find((v) => langTagMatchesOdiiZh(v.lang || "")) || null;
-  if (kind === "ja" && !cl.startsWith("ja") && langTagMatchesOdiiZh(cl)) {
-    return sorted.find((v) => langTagMatchesOdiiJa(v.lang || "")) || null;
-  }
-  return chosen;
+function normalizeOdiiLangFromApiField(langField) {
+  if (langField == null || String(langField).trim() === "") return null;
+  const c = String(langField).trim().toLowerCase();
+  if (c === "chs" || c === "cht" || c === "cn" || c.startsWith("zh")) return "zh";
+  if (c === "jpn" || c === "jp" || c.startsWith("ja")) return "ja";
+  if (c === "kor" || c === "ko") return "ko";
+  if (c === "eng" || c === "en") return "en";
+  if (isValidOdiiLang(c)) return c;
+  return null;
 }
 
-/**
- * Odii 영어 스크립트: 로케일 태그(en*) 우선 여성 음성.
- */
-function pickFixedFemaleVoice(candidates) {
-  if (!candidates?.length) return null;
-  const langOk = (l) => /^en/i.test(l || "");
-  const langMatched = candidates.filter((v) => langOk(v.lang || ""));
-  const base = langMatched.length ? langMatched : candidates;
-  const neuralRe = /neural|premium|natural|online/i;
-  const females = base.filter(isProbablyFemaleTtsVoice);
-  const pool = females.length ? females : base;
-  const sorted = [...pool].sort((a, b) => {
-    const score = (v) => {
-      let s = 0;
-      if (looksLikeKoreanTtsVoice(v)) s -= 50;
-      if (neuralRe.test(v.name || "")) s += 4;
-      if (langOk(v.lang || "")) s += 3;
-      if (isProbablyFemaleTtsVoice(v)) s += 2;
-      return s;
-    };
-    const d = score(b) - score(a);
-    if (d !== 0) return d;
-    return (a.name || "").localeCompare(b.name || "", "en");
-  });
-  const nonMale = sorted.find((v) => !isProbablyMaleTtsVoiceName(v.name || ""));
-  const chosen = nonMale || sorted[0];
-  if (chosen && looksLikeKoreanTtsVoice(chosen)) {
-    return sorted.find((v) => !looksLikeKoreanTtsVoice(v)) || chosen;
+/** 스크립트 읽기 언어: API 레코드 우선, 없으면 목록 요청에 쓴 Odii 언어(칩). */
+function effectiveOdiiLangForSpeech(itemLangField, requestOdiiLang) {
+  const fromItem = normalizeOdiiLangFromApiField(itemLangField);
+  if (fromItem) return fromItem;
+  const req =
+    normalizeOdiiLangFromApiField(requestOdiiLang)
+    ?? (isValidOdiiLang(requestOdiiLang) ? requestOdiiLang : null);
+  if (req) return req;
+  return "ko";
+}
+
+/** Web Speech API 용 BCP47 — Odii canonical 만 반영하고 utter.voice 는 비움(브라우저/OS 선택). */
+function odiiCanonicalToBcp47Lang(canonical) {
+  switch (canonical) {
+    case "en":
+      return "en-US";
+    case "zh":
+      return "zh-CN";
+    case "ja":
+      return "ja-JP";
+    case "ko":
+    default:
+      return "ko-KR";
   }
-  return chosen;
-}
-
-/**
- * 엄격 태그( zh*, ja* )로 잡히지 않는 일부 OS/브라우저 음성 보강.
- * 목록이 비면 Web Speech 가 utter.lang 만 보고 한국어 기본 음성을 쓰기 쉬워 «한국어식 중국어·일본어»가 난다.
- */
-function resolveZhVoices(all) {
-  const strict = filterZhVoices(all);
-  const raw = strict.length ? strict : broadZhCandidates(all);
-  const deduped = dedupeTtsVoices(raw);
-  const finalized = finalizeZhVoiceList(deduped);
-  return [...finalized].sort((a, b) => (a.name || "").localeCompare(b.name || "", "zh-Hans"));
-}
-
-function resolveJaVoices(all) {
-  const strict = filterJaVoices(all);
-  const raw = strict.length ? strict : broadJaCandidates(all);
-  const deduped = dedupeTtsVoices(raw);
-  const finalized = finalizeJaVoiceList(deduped);
-  return [...finalized].sort((a, b) => (a.name || "").localeCompare(b.name || "", "ja"));
 }
 
 function pickInitialKoVoiceKey(list) {
@@ -389,150 +171,38 @@ function pickInitialKoVoiceKey(list) {
   return TTS_KO_BUILTIN_KEY;
 }
 
-/** 직전 중국어 TTS 에 사용한 음성 키 — 일본어가 같은 보이스로만 잡히는 경우를 줄임 */
-let gLastZhOdiiVoiceKey = "";
-
-/** 한국어는 사용자가 피커로 고르고, 영·중·일(Odii 스크립트)은 로케일별 고정 여성 음성으로 재생한다. */
-function applyTtsVoiceToUtter(utter, contentLang, koKey) {
+/**
+ * Odii canonical(ko|en|zh|ja)만 반영: en/zh/ja 는 utter.voice 미지정으로 브라우저가 해당 lang 의 기본 음성 선택.
+ * ko 만 사용자 피커로 utter.voice 지정 가능.
+ */
+function applyTtsVoiceToUtter(utter, odiiCanonical, koKey) {
   if (typeof window === "undefined" || !window.speechSynthesis) return;
+  const canonical = isValidOdiiLang(odiiCanonical) ? odiiCanonical : "ko";
+  utter.lang = odiiCanonicalToBcp47Lang(canonical);
+  utter.rate = 1;
+  utter.pitch = 1;
+  if (canonical !== "ko") {
+    utter.voice = null;
+    return;
+  }
+  if (koKey === TTS_KO_BUILTIN_KEY) {
+    utter.voice = null;
+    return;
+  }
   void window.speechSynthesis.getVoices();
   const all = window.speechSynthesis.getVoices();
-  const content = (contentLang || "").toLowerCase();
-  const contentIsEn = content.startsWith("en");
-  const contentIsZh = content.startsWith("zh");
-  const contentIsJa = content.startsWith("ja");
-
-  const allZhResolved = resolveZhVoices(all);
-  const allJaResolved = resolveJaVoices(all);
-  const jaVoiceKeys = new Set(allJaResolved.map((v) => ttsVoiceKey(v)));
-  const zhVoiceKeys = new Set(allZhResolved.map((v) => ttsVoiceKey(v)));
-
-  const pickZhVoice = () => {
-    let zhVoices = allZhResolved.filter((v) => {
-      const l = (v.lang || "").toLowerCase();
-      if (l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue")) return true;
-      return !jaVoiceKeys.has(ttsVoiceKey(v));
-    });
-    if (!zhVoices.length) {
-      utter.voice = null;
-      utter.lang = "zh-CN";
-      utter.rate = 1.02;
-      utter.pitch = 1.05;
-      gLastZhOdiiVoiceKey = "";
-      return true;
-    }
-    const strictZh = zhVoices.filter((v) => langTagMatchesOdiiZh(v.lang || ""));
-    const voice = pickOdiiZhJaVoice(strictZh.length ? strictZh : zhVoices, "zh", null);
-    if (!voice) {
-      utter.voice = null;
-      utter.lang = "zh-CN";
-      utter.rate = 1.02;
-      utter.pitch = 1.05;
-      gLastZhOdiiVoiceKey = "";
-      return true;
-    }
-    utter.voice = voice;
-    const vl = (voice.lang || "").trim();
-    utter.lang = langTagMatchesOdiiZh(vl) ? vl : "zh-CN";
-    utter.rate = 1.03;
-    utter.pitch = 1.06;
-    gLastZhOdiiVoiceKey = ttsVoiceKey(voice);
-    return true;
-  };
-
-  const pickJaVoice = () => {
-    let jaVoices = allJaResolved.filter((v) => {
-      const l = (v.lang || "").toLowerCase();
-      if (l.startsWith("ja")) return true;
-      return !zhVoiceKeys.has(ttsVoiceKey(v));
-    });
-    const jaExclude = gLastZhOdiiVoiceKey ? new Set([gLastZhOdiiVoiceKey]) : null;
-    if (!jaVoices.length) {
-      utter.voice = null;
-      utter.lang = "ja-JP";
-      utter.rate = 1.05;
-      utter.pitch = 1.03;
-      return true;
-    }
-    const strictJa = jaVoices.filter((v) => langTagMatchesOdiiJa(v.lang || ""));
-    const voice = pickOdiiZhJaVoice(strictJa.length ? strictJa : jaVoices, "ja", jaExclude);
-    if (!voice) {
-      utter.voice = null;
-      utter.lang = "ja-JP";
-      utter.rate = 1.05;
-      utter.pitch = 1.03;
-      return true;
-    }
-    utter.voice = voice;
-    const vl = (voice.lang || "").trim();
-    utter.lang = langTagMatchesOdiiJa(vl) ? vl : "ja-JP";
-    utter.rate = 1.05;
-    utter.pitch = 1.03;
-    return true;
-  };
-
-  const pickEnglishVoice = () => {
-    const enVoices = filterEnVoices(all);
-    if (!enVoices.length) return false;
-    const voice = pickFixedFemaleVoice(enVoices);
-    if (!voice) return false;
-    utter.voice = voice;
-    const vl = (voice.lang || "").trim();
-    utter.lang = vl || "en-US";
-    utter.rate = 1;
-    utter.pitch = 1;
-    return true;
-  };
-
-  const pickKoreanVoice = () => {
-    if (koKey === TTS_KO_BUILTIN_KEY) {
-      utter.voice = null;
-      utter.lang = "ko-KR";
-      utter.rate = 1;
-      utter.pitch = 1;
-      return true;
-    }
-    const koVoices = filterKoVoices(all);
-    if (!koVoices.length) return false;
-    const voice =
-      (koKey && koVoices.find((v) => ttsVoiceKey(v) === koKey))
-      || koVoices.find((v) => v.default)
-      || koVoices[0];
-    utter.voice = voice;
-    const vl = (voice.lang || "").trim();
-    utter.lang = vl || "ko-KR";
-    utter.rate = 1;
-    utter.pitch = 1;
-    return true;
-  };
-
-  if (contentIsZh) {
-    pickZhVoice();
-    return;
-  }
-  if (contentIsJa) {
-    pickJaVoice();
-    return;
-  }
-
-  gLastZhOdiiVoiceKey = "";
-
-  if (contentIsEn) {
-    if (!pickEnglishVoice()) {
-      utter.voice = null;
-      utter.lang = "en-US";
-      utter.rate = 1;
-      utter.pitch = 1;
-    }
-    return;
-  }
-
-  if (!pickKoreanVoice()) {
+  const koVoices = filterKoVoices(all);
+  if (!koVoices.length) {
     utter.voice = null;
-    utter.lang = "ko-KR";
-    utter.rate = 1;
-    utter.pitch = 1;
+    return;
   }
+  const voice =
+    (koKey && koVoices.find((v) => ttsVoiceKey(v) === koKey))
+    || koVoices.find((v) => v.default)
+    || koVoices[0];
+  utter.voice = voice;
+  const vl = (voice.lang || "").trim();
+  utter.lang = vl || "ko-KR";
 }
 
 /**
@@ -584,7 +254,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
   const [ttsPlaying, setTtsPlaying] = useState(false);
   const [ttsPaused, setTtsPaused] = useState(false);
   const [ttsSupported, setTtsSupported] = useState(false);
-  /** 브라우저가 노출한 한국어 음성 + 사용자 선택 키 (영·중·일은 자동 여성 음성 고정) */
+  /** 브라우저가 노출한 한국어 음성 목록 — ko 스크립트만 사용자 선택 피커 적용 */
   const [koVoices, setKoVoices] = useState([]);
   const [ttsKoVoiceKey, setTtsKoVoiceKey] = useState("");
   /** 한국어 피커 마지막 조작 — 적용 줄 하이라이트용 */
@@ -858,16 +528,11 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
   const ttsText = hasScript
     ? effectiveDescription
     : [item.title, item.audioTitle, item.themeCategory].filter(Boolean).join(". ");
-  const ttsLang = (() => {
-    const raw = (modalOdiiLang || item.language || i18n?.language || "ko").toLowerCase();
-    if (raw.startsWith("en")) return "en-US";
-    if (raw.startsWith("zh")) return "zh-CN";
-    if (raw.startsWith("ja")) return "ja-JP";
-    return "ko-KR";
-  })();
-  const ttsContentIsEn = ttsLang.toLowerCase().startsWith("en");
-  const ttsContentIsZh = ttsLang.toLowerCase().startsWith("zh");
-  const ttsContentIsJa = ttsLang.toLowerCase().startsWith("ja");
+  const odiiLangForMainSpeech = effectiveOdiiLangForSpeech(item.language, modalOdiiLang);
+  const ttsLang = odiiCanonicalToBcp47Lang(odiiLangForMainSpeech);
+  const ttsContentIsEn = odiiLangForMainSpeech === "en";
+  const ttsContentIsZh = odiiLangForMainSpeech === "zh";
+  const ttsContentIsJa = odiiLangForMainSpeech === "ja";
   const koVoiceRowApply =
     ttsLastPickerRow === "ko"
     || (ttsLastPickerRow === null && !ttsContentIsEn && !ttsContentIsZh && !ttsContentIsJa);
@@ -877,10 +542,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
     try {
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(ttsText);
-      utter.lang = ttsLang;
-      utter.rate = 1;
-      utter.pitch = 1;
-      applyTtsVoiceToUtter(utter, ttsLang, ttsKoSelectValue);
+      applyTtsVoiceToUtter(utter, odiiLangForMainSpeech, ttsKoSelectValue);
       utter.onend = () => { setTtsPlaying(false); setTtsPaused(false); };
       utter.onerror = () => { setTtsPlaying(false); setTtsPaused(false); };
       window.speechSynthesis.speak(utter);
@@ -927,18 +589,8 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       }
       window.speechSynthesis.cancel();
       const utter = new SpeechSynthesisUtterance(text);
-      const raw = (modalOdiiLang || story?.language || i18n?.language || "ko").toLowerCase();
-      const storyLang = raw.startsWith("en")
-        ? "en-US"
-        : raw.startsWith("zh")
-          ? "zh-CN"
-          : raw.startsWith("ja")
-            ? "ja-JP"
-            : "ko-KR";
-      utter.lang = storyLang;
-      utter.rate = 1;
-      utter.pitch = 1;
-      applyTtsVoiceToUtter(utter, storyLang, ttsKoSelectValue);
+      const odiiForStorySpeech = effectiveOdiiLangForSpeech(story?.language, modalOdiiLang);
+      applyTtsVoiceToUtter(utter, odiiForStorySpeech, ttsKoSelectValue);
       utter.onend = () => { setActiveStoryId(null); setActiveStoryPaused(false); };
       utter.onerror = () => { setActiveStoryId(null); setActiveStoryPaused(false); };
       window.speechSynthesis.speak(utter);
@@ -1174,7 +826,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
                 <p className="agm-tts-voice-hint">
                   {t(
                     "audioGuide.detail.tts.odiiFemaleAuto",
-                    "영어·中文·日本語 해설은 Odii 대본 그대로, 여성 음성 하나로 자동 재생돼요. (말하는 사람은 브라우저·PC에 설치된 음성마다 달라요.)",
+                    "영어·중국어·일본어 해설은 Odii API 에서 받은 언어·대본만 쓰고, 브라우저가 그 언어 기본 음성으로 읽어 줘요. (PC/Voice 패키지마다 다릅니다.)",
                   )}
                 </p>
               ) : null}
