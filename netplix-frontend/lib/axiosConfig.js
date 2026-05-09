@@ -52,7 +52,8 @@ axios.interceptors.request.use(
       full.includes("/api/v1/cine-trip/movie") ||
       full.includes("/api/v1/cine-trip/region") ||
       full.includes("/api/v1/cine-trip/photos") ||
-      full.includes("/api/v1/cine-trip/spotlight");
+      full.includes("/api/v1/cine-trip/spotlight") ||
+      full.includes("/api/v1/weather/");
     // /api/v1/cine-trip/auto-map* 는 경로 prefix 가 /admin 은 아니지만 실질적으로
     // 관리자 전용 기능(TMDB 자동 매핑 트리거/상태 폴링)이다. admin 로그인만 한 상태에서
     // 일반 token 이 없으면 Authorization 헤더가 아예 안 붙어 401 이 되는 문제를 막기 위해
@@ -102,6 +103,7 @@ axios.interceptors.response.use(
         url.includes("/api/v1/cine-trip/") ||
         url.includes("/api/v1/movie/") ||
         url.includes("/api/v1/tour/") ||
+        url.includes("/api/v1/weather/") ||
         url.includes("/like-count") ||
         url.includes("/unlike-count") ||
         url.includes("/meh-count") ||

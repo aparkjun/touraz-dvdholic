@@ -16,7 +16,7 @@ dependencies {
     implementation("org.flywaydb:flyway-core")
     implementation("org.flywaydb:flyway-mysql")
 
-    runtimeOnly(project(":netplix-adapters:adapter-http"))
+    implementation(project(":netplix-adapters:adapter-http"))
     runtimeOnly(project(":netplix-adapters:adapter-persistence"))
     runtimeOnly(project(":netplix-adapters:adapter-redis"))
 

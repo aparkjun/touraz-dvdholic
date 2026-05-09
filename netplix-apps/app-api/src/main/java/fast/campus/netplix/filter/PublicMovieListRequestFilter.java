@@ -24,7 +24,8 @@ public class PublicMovieListRequestFilter extends OncePerRequestFilter {
             "/api/v1/movie/search",
             "/api/v1/movie/playing/search",
             "/api/v1/movie/category/search",
-            "/api/v1/movie/keyword/search"
+            "/api/v1/movie/keyword/search",
+            "/api/v1/weather"
     );
 
     @Override

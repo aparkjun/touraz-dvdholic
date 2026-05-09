@@ -495,6 +495,18 @@
       "isle": { "title": "개들의 섬", "subtitle": "Isle of Dogs · 2018", "blurb": "추방된 개들과 소년이 만든 기묘한 모험", "tag": "모험 · 애니" }
     }
   },
+  "travelWeather": {
+    "loading": "기상청 단기예보 불러오는 중…",
+    "error": "날씨 정보를 불러오지 못했습니다.",
+    "noServerKey": "서버에 KMA_API_KEY 가 설정되면 기상청 단기예보가 표시됩니다.",
+    "upstreamTitle": "기상청 API",
+    "upstreamHint": "공공데이터포털·API허브에서 해당 API 활용신청이 완료된 뒤, Heroku 등에 KMA_API_KEY 를 설정해 주세요.",
+    "badge": "오늘 날씨",
+    "received": "단기예보 응답을 받았습니다. 수치·문구는 기상청 발표를 우선 확인하세요.",
+    "outdoorCaution": "강수 가능성이 있어 야외·트레킹·촬영 일정은 여유 있게 조정하는 것을 권합니다.",
+    "indoorOk": "실내 체험·의료·오디오 가이드에도 날씨는 분위기 단서로 활용할 수 있어요.",
+    "regHint": "단기예보 행정구역 코드(reg)"
+  },
   "nearbyCineTrip": {
     "mappingShot": "촬영지",
     "mappingBackground": "배경",

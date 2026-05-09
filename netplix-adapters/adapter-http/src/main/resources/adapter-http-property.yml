@@ -1,4 +1,16 @@
 # TMDB: Heroku에 TMDB_API_KEY 미설정 시 Circular reference 방지를 위해 기본값 빈 문자열 사용. 설정 시 영화 API 동작.
+# 기상청 API허브 — 단기예보(일반특보 구역). 공공데이터포털 활용신청 후 발급 authKey 를 KMA_API_KEY 로 설정.
+# 예: https://apihub.kma.go.kr/api/typ01/url/fct_shrt_reg.php?tmfc=0&reg=11B10101&authKey=...
+kma:
+  auth:
+    api-key: ${KMA_API_KEY:}
+    # 단기예보 조회 기본 구역코드(reg): 미입력 시 서울 강남 11B10101 (프런트에서 reg 쿼리로 덮어쓰기 가능)
+    default-reg: ${KMA_DEFAULT_REG:11B10101}
+  api:
+    fct-shrt-reg: https://apihub.kma.go.kr/api/typ01/url/fct_shrt_reg.php
+    # 동네예보 초단기 격자 (1시간 단위 예보 시각·기온 등) — API허브 별도 활용신청. 예: nph-dfs_vsrt_grd?tmfc=...&tmef=...&vars=T1H&authKey=
+    dfs-vsrt-grd: https://apihub.kma.go.kr/api/typ01/cgi-bin/url/nph-dfs_vsrt_grd
+
 tmdb:
   auth:
     api-key: ${TMDB_API_KEY:}

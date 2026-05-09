@@ -36,6 +36,8 @@ Heroku ????類ｊ텠????touraz-dvdholic ??Settings ??Config Vars ??????熬곣뫁
 | `DB_PASSWORD` | MySQL ?????뺢퀡???|
 | `DB_USERNAME` | MySQL ?????(?リ옇???root) |
 | `TMDB_API_KEY` | TMDB API ??|
+| `KMA_API_KEY` | 기상청 API허브 인증키(단기예보 `fct_shrt_reg` + 동네예보 초단기 격자 `nph-dfs_vsrt_grd` 등). **초단기 격자**는 API허브에서 별도 활용신청·권한이 있어야 `vsrtHourly`(약 1시간 간격 기온)가 응답에 붙습니다. 미설정 시 날씨 프록시 비활성. |
+| `KMA_DEFAULT_REG` | (선택) 단기예보 reg 구역코드. 기본 `11B10101`(서울 강남). |
 | `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KAKAO_CLIENT_ID` | ?곸궠?삭맱??REST API ??(?リ옇???KAKAO_CLIENT_ID ?띠룆??????됰뎄) |
 | `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KAKAO_CLIENT_SECRET` | ?곸궠?삭맱??Client Secret (?リ옇???KAKAO_CLIENT_SECRET ?띠룆??????됰뎄) |
 | `SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KAKAO_REDIRECT_URI` | `https://touraz-dvdholic-2507bcb348dd.herokuapp.com/login/oauth2/code/kakao` |

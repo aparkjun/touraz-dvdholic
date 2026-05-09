@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
 import { setUserLanguage } from '@/lib/i18n';
 import { Globe, Crown } from 'lucide-react';
+import DashboardWeatherNavGlyph from '@/components/DashboardWeatherNavGlyph';
 
 export default function NavBar() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -273,6 +274,7 @@ function AuthActions({ isLoggedIn, isAdmin, isAuthPage, pathname, onLogout }) {
 
   return (
     <div className="app-nav-actions">
+      {pathname === '/dashboard' || pathname?.startsWith('/dashboard/') ? <DashboardWeatherNavGlyph /> : null}
       <button
         ref={hamburgerRef}
         className="app-hamburger"

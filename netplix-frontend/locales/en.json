@@ -495,6 +495,18 @@
       "isle": { "title": "Isle of Dogs", "subtitle": "Isle of Dogs · 2018", "blurb": "An odd adventure of exiled dogs and a boy", "tag": "Adventure · Anime" }
     }
   },
+  "travelWeather": {
+    "loading": "Loading KMA short-term forecast…",
+    "error": "Could not load weather.",
+    "noServerKey": "Set KMA_API_KEY on the server to show KMA short-term forecasts.",
+    "upstreamTitle": "KMA API",
+    "upstreamHint": "Complete the data portal / API Hub subscription, then set KMA_API_KEY (e.g. on Heroku).",
+    "badge": "Today's weather",
+    "received": "Forecast received. For official values, see KMA releases.",
+    "outdoorCaution": "Precipitation is possible — consider adjusting outdoor, trekking, or shooting plans.",
+    "indoorOk": "Weather still sets the mood for indoor care, audio guides, and galleries.",
+    "regHint": "Forecast region code (reg)"
+  },
   "nearbyCineTrip": {
     "mappingShot": "Filming site",
     "mappingBackground": "Backdrop",

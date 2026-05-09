@@ -72,6 +72,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/cine-trip/import").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/v1/cine-trip/auto-map").authenticated()
                         .requestMatchers("/api/v1/cine-trip/**").permitAll()
+                        .requestMatchers("/api/v1/weather/**").permitAll()
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll());
         
