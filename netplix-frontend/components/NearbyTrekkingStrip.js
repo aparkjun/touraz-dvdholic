@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Footprints, Mountain, Timer, Download, ArrowRight } from 'lucide-react';
+import { Footprints, Mountain, Timer, Download, ArrowRight, Compass } from 'lucide-react';
 import Link from 'next/link';
 import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
@@ -225,19 +225,53 @@ export default function NearbyTrekkingStrip({
 
 function NearbyCourseCard({ course, index, theme = 'dark' }) {
   const isLight = theme === 'light';
+  const [introOpen, setIntroOpen] = useState(false);
+  const [extraOpen, setExtraOpen] = useState(false);
+
   const {
     crsIdx,
     crsKorNm,
     crsDstnc,
+    distanceKm,
     crsLevel,
     crsTotlRqrmHour,
+    estimatedTimeLabel,
+    levelLabel: levelLabelFromApi,
+    crsCycle,
+    crsContents,
+    crsTourInfo,
+    crsTravelerinfo,
+    cpnBgng,
+    cpnEnd,
     sigun,
     gpxpath,
     brdNm,
   } = course || {};
 
-  // 난이도 숫자(1~3) → 한글 라벨
-  const levelLabel = ({ 1: '쉬움', 2: '보통', 3: '어려움' }[Number(crsLevel)] || crsLevel || '');
+  const levelLabel =
+    levelLabelFromApi && crsLevel && levelLabelFromApi !== '난이도 정보 없음'
+      ? levelLabelFromApi
+      : ({ 1: '쉬움', 2: '보통', 3: '어려움' }[Number(crsLevel)] || crsLevel || '');
+
+  const distanceStr =
+    distanceKm != null && Number.isFinite(Number(distanceKm))
+      ? `${Number(distanceKm)} km`
+      : crsDstnc != null && String(crsDstnc).trim() !== ''
+        ? `${String(crsDstnc).replace(/\s*km\s*$/i, '').trim()} km`
+        : null;
+
+  const timeStr = (estimatedTimeLabel && String(estimatedTimeLabel).trim()) || crsTotlRqrmHour || null;
+
+  const introPlain = stripHtml(crsContents);
+  const tourPlain = stripHtml(crsTourInfo);
+  const travelerPlain = stripHtml(crsTravelerinfo);
+  const hasExtraSections =
+    (tourPlain && tourPlain.length > 0) || (travelerPlain && travelerPlain.length > 0);
+
+  const officialHref =
+    crsIdx && String(crsIdx).trim()
+      ? `https://www.durunubi.kr/course-detail-view.do?crs_idx=${encodeURIComponent(String(crsIdx).trim())}`
+      : null;
 
   const gpxHref = gpxpath
     ? `/api/v1/tour/trekking/gpx?url=${encodeURIComponent(gpxpath)}&name=${encodeURIComponent(crsKorNm || crsIdx || 'durunubi-course')}`
@@ -282,6 +316,21 @@ function NearbyCourseCard({ course, index, theme = 'dark' }) {
   const metaTimer = isLight ? '#0369a1' : '#93c5fd';
   const levelBg = isLight ? 'rgba(79, 70, 229, 0.12)' : 'rgba(99,102,241,0.18)';
   const levelFg = isLight ? '#3730a3' : '#c7d2fe';
+
+  const mutedLineColor = isLight ? 'rgba(15,23,42,0.72)' : 'rgba(148,163,184,0.9)';
+  const bodyTextColor = isLight ? 'rgba(15,23,42,0.88)' : 'rgba(226,232,240,0.88)';
+  const sectionTitleColor = isLight ? '#0f766e' : '#99f6e4';
+  const linkMutedStyle = {
+    fontSize: 11,
+    fontWeight: 700,
+    color: isLight ? '#0369a1' : '#7dd3fc',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: 0,
+    textDecoration: 'underline',
+    textUnderlineOffset: 3,
+  };
 
   const gpxStyle = isLight
     ? {
@@ -363,21 +412,22 @@ function NearbyCourseCard({ course, index, theme = 'dark' }) {
           display: 'flex',
           flexWrap: 'wrap',
           gap: 8,
+          alignItems: 'center',
           fontSize: isLight ? 12.5 : 11.5,
           color: metaColor,
           fontWeight: isLight ? 700 : 400,
         }}
       >
-        {crsDstnc && (
+        {distanceStr && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             <Mountain size={11} style={{ color: metaMountain }} />
-            {crsDstnc}km
+            {distanceStr}
           </span>
         )}
-        {crsTotlRqrmHour && (
+        {timeStr && (
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
             <Timer size={11} style={{ color: metaTimer }} />
-            {crsTotlRqrmHour}
+            {timeStr}
           </span>
         )}
         {levelLabel && (
@@ -393,13 +443,163 @@ function NearbyCourseCard({ course, index, theme = 'dark' }) {
             난이도 {levelLabel}
           </span>
         )}
+        {crsCycle && String(crsCycle).trim() && (
+          <span
+            style={{
+              fontSize: isLight ? 11 : 10.5,
+              fontWeight: 700,
+              color: isLight ? '#0369a1' : '#93c5fd',
+              padding: '1px 7px',
+              borderRadius: 6,
+              border: isLight ? '1px solid rgba(3, 105, 161, 0.35)' : '1px solid rgba(147, 197, 253, 0.35)',
+            }}
+          >
+            {String(crsCycle).trim()}
+          </span>
+        )}
       </div>
 
-      {gpxHref && (
-        <a href={gpxHref} rel="noopener noreferrer" download style={gpxStyle}>
-          <Download size={11} /> GPX 다운로드
-        </a>
+      {(cpnBgng || cpnEnd) && (
+        <div
+          style={{
+            fontSize: isLight ? 11.5 : 11,
+            color: mutedLineColor,
+            lineHeight: 1.45,
+          }}
+        >
+          {(cpnBgng || '').trim()}
+          {cpnEnd ? ` → ${String(cpnEnd).trim()}` : ''}
+        </div>
       )}
+
+      {introPlain.length > 0 && (
+        <>
+          <p
+            style={{
+              margin: 0,
+              fontSize: isLight ? 12.5 : 11.5,
+              color: bodyTextColor,
+              lineHeight: 1.5,
+              display: introOpen ? 'block' : '-webkit-box',
+              WebkitLineClamp: introOpen ? 'none' : 3,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {introPlain}
+          </p>
+          {introPlain.length > 110 && (
+            <button
+              type="button"
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIntroOpen((v) => !v);
+              }}
+              style={{ ...linkMutedStyle, marginTop: 2 }}
+            >
+              {introOpen ? '소개 접기' : '소개 더보기'}
+            </button>
+          )}
+        </>
+      )}
+
+      {hasExtraSections && (
+        <>
+          <button
+            type="button"
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              setExtraOpen((v) => !v);
+            }}
+            aria-expanded={extraOpen}
+            style={{
+              ...linkMutedStyle,
+              marginTop: introPlain.length > 0 ? 4 : 0,
+              display: 'inline-block',
+            }}
+          >
+            {extraOpen ? '경유·안내 접기' : '경유지·여행 안내'}
+          </button>
+          {extraOpen && (
+            <div
+              style={{
+                marginTop: 8,
+                paddingTop: 8,
+                borderTop: isLight ? '1px solid rgba(13,148,136,0.2)' : '1px solid rgba(148,163,184,0.25)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 10,
+              }}
+            >
+              {tourPlain.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: sectionTitleColor, marginBottom: 4 }}>
+                    주요 경유·관광
+                  </div>
+                  <p style={{ margin: 0, fontSize: 11.5, color: bodyTextColor, lineHeight: 1.55 }}>
+                    {tourPlain}
+                  </p>
+                </div>
+              )}
+              {travelerPlain.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: sectionTitleColor, marginBottom: 4 }}>
+                    여행자 정보·유의
+                  </div>
+                  <p style={{ margin: 0, fontSize: 11.5, color: bodyTextColor, lineHeight: 1.55 }}>
+                    {travelerPlain}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 'auto', alignItems: 'center' }}>
+        {gpxHref && (
+          <a
+            href={gpxHref}
+            rel="noopener noreferrer"
+            download
+            style={gpxStyle}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <Download size={11} /> GPX 다운로드
+          </a>
+        )}
+        {officialHref && (
+          <a
+            href={officialHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              ...gpxStyle,
+              ...(isLight
+                ? {
+                    color: '#0369a1',
+                    background: 'rgba(14, 165, 233, 0.12)',
+                    border: '1px solid rgba(3, 105, 161, 0.45)',
+                  }
+                : {
+                    color: '#7dd3fc',
+                    background: 'rgba(56, 189, 248, 0.12)',
+                    border: '1px solid rgba(56, 189, 248, 0.35)',
+                  }),
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            <Compass size={11} /> 공식 안내
+          </a>
+        )}
+      </div>
     </motion.div>
   );
+}
+
+function stripHtml(s) {
+  if (!s) return '';
+  return s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 }
