@@ -95,7 +95,10 @@ public class VisitKoreaOdiiResponse {
         private String audioTitle;
 
         /** 오디오 파일(mp3) URL — 플레이어 재생 대상. */
-        @JsonAlias({"audioURL", "storyAudioUrl", "tAudioUrl", "audio_url", "mediaUrl"})
+        @JsonAlias({
+                "audioURL", "storyAudioUrl", "tAudioUrl", "audio_url", "mediaUrl",
+                "audioLink", "audio_link", "mp3Url", "mp3", "storyMp3", "t_mp3_url"
+        })
         private String audioUrl;
 
         /** 재생 시간 (mm:ss 또는 초). */
