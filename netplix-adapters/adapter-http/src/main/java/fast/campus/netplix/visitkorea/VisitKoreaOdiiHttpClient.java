@@ -40,8 +40,9 @@ import java.util.stream.Collectors;
  * </ul>
  *
  * <p>캐시 키는 type+lang 조합으로 분리 (예: "THEME:ko", "STORY:zh").
- * 프런트 {@code /audio-guide} 상단 라벨은 KO·EN·ZH·JA 이고, 내부·{@code langCode} 쿼리는 소문자
- * {@code ko|en|zh|ja} 로 통일한다(대문자 ZH/JA 를 섞어 보내면 0건이 되는 GW 가 있음).
+ * 프런트 {@code /audio-guide} 상단 라벨은 KO·EN·ZH·JA 이고, 내부 캐시 키는 canonical {@code ko|en|zh|ja}.
+ * Odii GW 요청 시 중·일은 명세상 {@code chs}/{@code jpn} 등 TourAPI 계열 코드를 쓰는 경우가 많아
+ * {@link #forOdiiQueryLang} 에서만 매핑한다({@code zh}/{@code ja} 그대로 보내면 0건으로 보일 수 있음).
  */
 @Slf4j
 @Component
@@ -450,7 +451,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         sb.append("&MobileApp=touraz-dvdholic");
         sb.append("&numOfRows=").append(rows);
         sb.append("&pageNo=").append(pageNo);
-        // langCode=ko|en|zh|ja 소문자 (GW 비호환 시 Heroku 로그의 [ODII] resultCode 확인).
+        // langCode: 한·영은 ko/en, 중·일은 GW 명세에 맞춰 chs/jpn 등으로 변환 (forOdiiQueryLang).
         sb.append("&langCode=").append(forOdiiQueryLang(lang));
         extraParams.forEach((k, v) -> sb.append('&').append(k).append('=')
                 .append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
@@ -651,14 +652,17 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     }
 
     /**
-     * Odii {@code langCode} 쿼리. canonical(ko|en|zh|ja) 를 GW 가 받는 그대로 소문자로 전달한다.
+     * Odii {@code langCode} 쿼리용 값. 내부 canonical 은 ko|en|zh|ja 이지만, 공공 GW 는 중국어·일본어를
+     * zh/ja 가 아닌 chs(간체)·jpn 등으로 요구하는 경우가 많다. 응답 파싱 {@link #canonicalOdiiLang} 과 대칭.
      */
     private static String forOdiiQueryLang(String canonical) {
         if (canonical == null || canonical.isBlank()) {
             return "ko";
         }
         return switch (canonical) {
-            case "ko", "en", "zh", "ja" -> canonical;
+            case "ko", "en" -> canonical;
+            case "zh" -> "chs";
+            case "ja" -> "jpn";
             default -> "ko";
         };
     }

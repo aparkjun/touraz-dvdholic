@@ -13,7 +13,8 @@ import java.util.List;
  * </ul>
  *
  * <p>일일 쿼터 1,000회/오퍼레이션 고려 — 어댑터는 type+lang 독립 in-memory 캐시 유지.
- * langDivCd(ko/en) 동적 전송. 미승인 403 Forbidden / 키 미설정 시 빈 리스트 → UI 자연 숨김.
+ * 프런트·유스케이스 언어는 ko|en|zh|ja 이며, Odii GW 의 langCode 매핑(예: zh→chs)은 어댑터가 담당.
+ * 미승인 403 Forbidden / 키 미설정 시 빈 리스트 → UI 자연 숨김.
  */
 public interface AudioGuideItemPort {
 
@@ -35,7 +36,7 @@ public interface AudioGuideItemPort {
      *
      * @param themeId 관광지 ID (AudioGuideItem.id / themeId)
      * @param themeTitleHint tid 매칭 실패 시 STORY 키워드 검색·제목 매칭 폴백용 (nullable)
-     * @param lang ko | en
+     * @param lang ko | en | zh | ja (Odii 요청 시 zh/ja 는 어댑터에서 GW 코드로 변환)
      * @param limit 최대 반환 개수 (0 이하 = 무제한, 상한은 어댑터 내부 정책)
      */
     List<AudioGuideItem> fetchStoriesByTheme(String themeId, String themeTitleHint, String lang, int limit);
