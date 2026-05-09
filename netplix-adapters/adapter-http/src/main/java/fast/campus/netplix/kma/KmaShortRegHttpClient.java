@@ -37,6 +37,11 @@ public class KmaShortRegHttpClient {
         return RestClient.builder().requestFactory(factory).build();
     }
 
+    /** 환경변수 {@code KMA_API_KEY} / {@code KMA_AUTH_API_KEY} 로 주입된 허브용 인증키 존재 여부 */
+    public boolean isApiKeyConfigured() {
+        return apiKey != null && !apiKey.isBlank();
+    }
+
     /**
      * @param reg          예보구역코드(reg). null 이면 default-reg.
      * @param tmfcOverride 비우면 최근 발표 시각 후보를 순차 시도. "0" 은 무시(자동과 동일).

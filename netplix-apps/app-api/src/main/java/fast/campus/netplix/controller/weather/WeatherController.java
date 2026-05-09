@@ -62,10 +62,21 @@ public class WeatherController {
 
         out.put("reg", effectiveReg);
 
+        if (!kmaShortRegHttpClient.isApiKeyConfigured()) {
+            out.put("configured", false);
+            out.put("kmaKeyMissing", true);
+            out.put(
+                    "message",
+                    "Heroku(또는 서버)에 KMA_API_KEY가 없습니다. 기상청 API허브(apihub.kma.go.kr) 인증키를 Config Vars에 넣은 뒤 dyno를 재시작하세요.");
+            return NetplixApiResponse.ok(out);
+        }
+
         String raw = kmaShortRegHttpClient.fetchRaw(effectiveReg, tmfc);
         if (raw == null) {
             out.put("configured", false);
-            out.put("message", "KMA_API_KEY 미설정이거나 기상청 호출에 실패했습니다.");
+            out.put(
+                    "message",
+                    "기상청 API허브 호출에 실패했습니다. 인증키 종류(허브용)·단기/초단기(격자) 활용승인·일일 호출 한도·네트워크를 확인하세요.");
             return NetplixApiResponse.ok(out);
         }
         out.put("configured", true);
