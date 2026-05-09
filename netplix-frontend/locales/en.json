@@ -541,6 +541,7 @@
     "regionTablistAria": "Choose forecast area",
     "panelLoadingRegion": "Loading this area…",
     "panelRegionError": "Couldn't load this area. Tap the tab again later.",
+    "panelKmaUnavailable": "Short-term and ultra-short forecasts need KMA_API_KEY on the server. Set your API hub key in Heroku Config Vars, then redeploy.",
     "tabMine": "Near me",
     "panelPopShort": "POP {{n}}%",
     "panelVsrtGrid": "Nowcast grid nx={{nx}} ny={{ny}}",
