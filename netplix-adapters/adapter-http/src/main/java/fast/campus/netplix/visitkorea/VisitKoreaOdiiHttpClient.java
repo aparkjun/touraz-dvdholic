@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
@@ -110,6 +111,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
 
     private final Map<String, CacheSnapshot> cache = new ConcurrentHashMap<>();
 
+    /** 미설정 시 요청마다 로그 도배 방지 */
+    private final AtomicBoolean warnedMisconfigured = new AtomicBoolean(false);
+
     /** GW langCode 프로브 결과: {@code THEME:zh} 처럼 type 과 묶어 STORY/THEME 가 다른 코드를 쓰는 경우를 대비한다. */
     private final ConcurrentHashMap<String, String> resolvedOdiiQueryLangByCanonical = new ConcurrentHashMap<>();
 
@@ -121,6 +125,17 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
 
     private Object monitorFor(String lockKey) {
         return refreshMonitors.computeIfAbsent(lockKey, k -> new Object());
+    }
+
+    /** API 키·URL 없으면 한 번만 WARN */
+    private boolean guardConfigured() {
+        if (isConfigured()) {
+            return true;
+        }
+        if (warnedMisconfigured.compareAndSet(false, true)) {
+            log.warn("[ODII] ODII_API_KEY 또는 VISITKOREA_SERVICE_KEY·baseUrl 미설정 — 오디오 가이드는 항상 0건입니다.");
+        }
+        return false;
     }
 
     @Override
@@ -198,7 +213,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
 
     @Override
     public List<AudioGuideItem> fetchAll(AudioGuideItem.Type type, String lang, int limit) {
-        if (!isConfigured()) return List.of();
+        if (!guardConfigured()) return List.of();
         String l = normalize(lang);
         String key = allKey(type, l);
 
@@ -239,7 +254,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     @Override
     public List<AudioGuideItem> fetchNearby(AudioGuideItem.Type type, String lang,
                                             double latitude, double longitude, int radiusM, int limit) {
-        if (!isConfigured()) return List.of();
+        if (!guardConfigured()) return List.of();
         String l = normalize(lang);
         Map<String, String> params = Map.of(
                 "mapX", String.valueOf(longitude),
@@ -259,7 +274,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
 
     @Override
     public List<AudioGuideItem> fetchByKeyword(AudioGuideItem.Type type, String lang, String keyword, int limit) {
-        if (!isConfigured()) return List.of();
+        if (!guardConfigured()) return List.of();
         if (keyword == null || keyword.isBlank()) return fetchAll(type, lang, limit);
         String l = normalize(lang);
         String cacheKey = type.name() + ":" + l + ":" + keyword.trim().toLowerCase(Locale.ROOT);
@@ -302,7 +317,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
      */
     @Override
     public List<AudioGuideItem> fetchStoriesByTheme(String themeId, String themeTitleHint, String lang, int limit) {
-        if (!isConfigured()) return List.of();
+        if (!guardConfigured()) return List.of();
         if (themeId == null || themeId.isBlank()) return List.of();
         String l = normalize(lang);
         String key = themeId.trim();
@@ -979,6 +994,11 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 log.warn("[ODII] type={} lang={} 전체 로드 실패 - 캐시 유지", type, lang);
                 return;
             }
+            if (sites.isEmpty()) {
+                log.warn("[ODII] type={} lang={} 전체 0건 — Odii 오류·키·할당량 가능성. 빈 목록은 캐시하지 않음(다음 요청에서 재시도).",
+                        type, lang);
+                return;
+            }
             cache.put(cacheKey, new CacheSnapshot(sites, Instant.now().toEpochMilli(), false));
             log.info("[ODII] type={} lang={} 전체 캐시 갱신 - {} 건", type, lang, sites.size());
         }
@@ -1126,19 +1146,22 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         }
 
         if (parsed == null || parsed.getResponse() == null) {
-            return new PageResult(List.of(), 0);
+            return null;
         }
         VisitKoreaOdiiResponse.Header apiHeader = parsed.getResponse().getHeader();
-        if (apiHeader != null && apiHeader.getResultCode() != null
-                && !"0000".equals(apiHeader.getResultCode().trim())) {
-            log.warn("[ODII] resultCode={} resultMsg={} type={} page={} lang={} langCode={}",
-                    apiHeader.getResultCode(), apiHeader.getResultMsg(),
-                    type, pageNo, canonicalLang, qLang);
+        if (apiHeader != null && apiHeader.getResultCode() != null) {
+            String rc = apiHeader.getResultCode().trim();
+            if (!rc.isEmpty() && !"0000".equals(rc)) {
+                log.warn("[ODII] resultCode={} resultMsg={} type={} page={} lang={} langCode={}",
+                        apiHeader.getResultCode(), apiHeader.getResultMsg(),
+                        type, pageNo, canonicalLang, qLang);
+                return null;
+            }
         }
         if (parsed.getResponse().getBody() == null) {
             log.warn("[ODII] response.body=null type={} page={} lang={} langCode={}",
                     type, pageNo, canonicalLang, qLang);
-            return new PageResult(List.of(), 0);
+            return null;
         }
 
         VisitKoreaOdiiResponse.Body body = parsed.getResponse().getBody();
