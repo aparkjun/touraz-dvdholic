@@ -19,7 +19,9 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -303,6 +305,15 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         if (themeId == null || themeId.isBlank()) return List.of();
         String l = normalize(lang);
         String key = themeId.trim();
+        LinkedHashSet<String> bridgeThemeCandidates = new LinkedHashSet<>();
+        bridgeThemeCandidates.add(key);
+        if (!"ko".equals(l)) {
+            AudioGuideItem anchorTheme = findCachedThemeForBridge(l, key);
+            if (anchorTheme != null && anchorTheme.getLatitude() != null && anchorTheme.getLongitude() != null) {
+                appendKoThemeIdsNearCoordinates(
+                        anchorTheme.getLatitude(), anchorTheme.getLongitude(), 0.45, bridgeThemeCandidates);
+            }
+        }
         ensureFullStoryCacheForJoin(l);
         CacheSnapshot snap = cache.get(allKey(AudioGuideItem.Type.STORY, l));
         List<AudioGuideItem> stories = snap != null ? snap.sites : List.of();
@@ -316,12 +327,13 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
          * zh/ja/en 에서 GW 가 STORY 의 tid/linkTid 를 비우거나 다른 필드명으로 주면 themeId 조인이 빗나간다.
          * 같은 스토리 레코드의 기본키(stid 등)는 보통 언어 간 동일하므로, KO 풀에서 themeId 매칭으로 id 목록을 만든 뒤
          * 현재 언어 캐시에서 동일 id 로 재조립한다.
+         * 요청 테마 tid 와 KO STORY 의 상위 tid 가 언어별로 다를 수 있어, 현재 언어 테마 좌표로 KO 테마 tid 를 근접 매칭해 후보를 넓힌다.
          */
         if (!"ko".equals(l)) {
-            List<AudioGuideItem> bridged = storiesByThemeBridgedViaKoIds(key, l, limit);
+            List<AudioGuideItem> bridged = storiesByThemeBridgedViaKoIds(bridgeThemeCandidates, l, limit);
             if (!bridged.isEmpty()) {
-                log.info("[ODII] stories-by-theme: KO 스토리 id 브리지 매칭 {}건 themeId={} lang={}",
-                        bridged.size(), key, l);
+                log.info("[ODII] stories-by-theme: KO 스토리 id 브리지 매칭 {}건 themeId={} lang={} tid후보={}",
+                        bridged.size(), key, l, bridgeThemeCandidates.size());
                 return bridged;
             }
         }
@@ -344,7 +356,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             }
         }
         matched = mergedById.values().stream()
-                .filter(s -> themeIdMatches(s.getThemeId(), key))
+                .filter(s -> storyThemeMatchesAnyCandidate(s.getThemeId(), bridgeThemeCandidates))
                 .collect(Collectors.toList());
         if (!matched.isEmpty()) {
             log.info("[ODII] stories-by-theme: 다중 키워드 후보에서 tid 매칭 {}건 themeId={}", matched.size(), key);
@@ -366,21 +378,88 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         return List.of();
     }
 
+    /** 현재 언어 THEME 캐시에서 카드 id 로 행을 찾아 좌표 브리지에 사용한다. */
+    private AudioGuideItem findCachedThemeForBridge(String canonicalLang, String themeId) {
+        String tk = allKey(AudioGuideItem.Type.THEME, canonicalLang);
+        CacheSnapshot snap = cache.get(tk);
+        if (snap == null || snap.partial || snap.sites == null || snap.sites.isEmpty()) {
+            refreshAll(AudioGuideItem.Type.THEME, canonicalLang);
+            snap = cache.get(tk);
+        }
+        if (snap == null || snap.sites.isEmpty()) {
+            return null;
+        }
+        String trimmed = themeId.trim();
+        return snap.sites.stream()
+                .filter(t -> themeIdMatches(t.getId(), trimmed))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /** 좌표 근처 KO THEME 의 tid 를 후보 집합에 더한다 (언어별 테마 tid 불일치 보완). */
+    private void appendKoThemeIdsNearCoordinates(double lat, double lng, double radiusKm, Set<String> out) {
+        String kk = allKey(AudioGuideItem.Type.THEME, "ko");
+        CacheSnapshot snap = cache.get(kk);
+        if (snap == null || snap.partial || snap.sites == null || snap.sites.isEmpty()) {
+            refreshAll(AudioGuideItem.Type.THEME, "ko");
+            snap = cache.get(kk);
+        }
+        if (snap == null || snap.sites.isEmpty()) {
+            return;
+        }
+        for (AudioGuideItem t : snap.sites) {
+            String tid = nullIfBlank(t.getId());
+            if (tid == null || t.getLatitude() == null || t.getLongitude() == null) {
+                continue;
+            }
+            if (haversineKm(lat, lng, t.getLatitude(), t.getLongitude()) <= radiusKm) {
+                out.add(tid.trim());
+            }
+        }
+    }
+
+    private static boolean storyThemeMatchesAnyCandidate(String storyThemeId, Collection<String> candidateThemeIds) {
+        if (storyThemeId == null || candidateThemeIds == null || candidateThemeIds.isEmpty()) {
+            return false;
+        }
+        for (String tid : candidateThemeIds) {
+            if (themeIdMatches(storyThemeId, tid)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /**
-     * KO STORY 캐시에서 themeId 로 걸린 스토리들의 id 순서를 유지한 채, 대상 언어 STORY 캐시에서 같은 id 레코드를 붙인다.
+     * KO STORY 캐시에서 후보 themeId 들 중 하나라도 상위 tid 와 맞는 스토리 id 순서를 유지한 채,
+     * 대상 언어 STORY 캐시에서 같은 id 레코드를 붙인다.
      */
-    private List<AudioGuideItem> storiesByThemeBridgedViaKoIds(String themeId, String targetLang, int limit) {
+    private List<AudioGuideItem> storiesByThemeBridgedViaKoIds(Collection<String> candidateThemeIds, String targetLang, int limit) {
+        if (candidateThemeIds == null || candidateThemeIds.isEmpty()) {
+            return List.of();
+        }
         ensureFullStoryCacheForJoin("ko");
         CacheSnapshot koSnap = cache.get(allKey(AudioGuideItem.Type.STORY, "ko"));
         if (koSnap == null || koSnap.sites.isEmpty()) {
             return List.of();
         }
-        List<String> orderedStoryIds = koSnap.sites.stream()
-                .filter(s -> themeIdMatches(s.getThemeId(), themeId))
-                .map(AudioGuideItem::getId)
-                .filter(id -> id != null && !id.isBlank())
-                .distinct()
-                .collect(Collectors.toList());
+        LinkedHashSet<String> seen = new LinkedHashSet<>();
+        List<String> orderedStoryIds = new ArrayList<>();
+        for (AudioGuideItem s : koSnap.sites) {
+            if (s.getThemeId() == null || s.getThemeId().isBlank()) {
+                continue;
+            }
+            if (!storyThemeMatchesAnyCandidate(s.getThemeId(), candidateThemeIds)) {
+                continue;
+            }
+            String sid = s.getId();
+            if (sid == null || sid.isBlank()) {
+                continue;
+            }
+            if (seen.add(sid)) {
+                orderedStoryIds.add(sid);
+            }
+        }
         if (orderedStoryIds.isEmpty()) {
             return List.of();
         }
@@ -391,9 +470,31 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         }
         Map<String, AudioGuideItem> localizedById = locSnap.sites.stream()
                 .collect(Collectors.toMap(AudioGuideItem::getId, s -> s, (a, b) -> a));
+        Map<Long, AudioGuideItem> localizedByNumericStoryId = new HashMap<>();
+        for (AudioGuideItem s : locSnap.sites) {
+            String rawId = s.getId();
+            if (rawId == null) {
+                continue;
+            }
+            String nid = rawId.trim();
+            if (nid.matches("\\d+")) {
+                try {
+                    localizedByNumericStoryId.putIfAbsent(Long.parseLong(nid), s);
+                } catch (NumberFormatException ignored) {
+                    /* noop */
+                }
+            }
+        }
         List<AudioGuideItem> out = new ArrayList<>();
         for (String sid : orderedStoryIds) {
-            AudioGuideItem hit = localizedById.get(sid);
+            AudioGuideItem hit = sid != null ? localizedById.get(sid) : null;
+            if (hit == null && sid != null && sid.trim().matches("\\d+")) {
+                try {
+                    hit = localizedByNumericStoryId.get(Long.parseLong(sid.trim()));
+                } catch (NumberFormatException ignored) {
+                    /* noop */
+                }
+            }
             if (hit != null) {
                 out.add(hit);
             }
