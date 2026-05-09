@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "@/src/axiosConfig";
 import { useTranslation } from "react-i18next";
 import Link from "next/link";
-import { X, ChevronLeft, ChevronRight, Headphones } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Headphones, Play, Pause } from "lucide-react";
 import useBackButtonClose from "@/lib/useBackButtonClose";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import {
@@ -81,6 +81,8 @@ export default function TourGallerySection({
   const galleryAudioRef = useRef(null);
   const galleryMediaSessionDetachRef = useRef(null);
   const [playingCue, setPlayingCue] = useState(null);
+  /** 오디오 play/pause 시 라이트박스 컨트롤 리렌더 */
+  const [galleryAudioUiRev, setGalleryAudioUiRev] = useState(0);
 
   const stopGalleryAudio = useCallback(() => {
     if (galleryMediaSessionDetachRef.current) {
@@ -198,28 +200,24 @@ export default function TourGallerySection({
       selectedIndex
     );
     const track = playable[idx];
-    const headline = t("photoGalleryPage.audioCueHead");
-    const linePrimary = t("photoGalleryPage.audioCuePrimary", {
-      title: track.title || track.audioTitle || "",
-    });
-    const lineSecondary = t("photoGalleryPage.audioCueSecondary", {
-      audioTitle: track.audioTitle || track.title || "",
-    });
 
     setPlayingCue({
       kind: "playing",
       regionKey: effectiveSoundKeyword,
       track,
-      headline,
-      linePrimary,
-      lineSecondary,
     });
 
     try {
       const audio = new Audio(track.audioUrl);
       audio.preload = "auto";
+
+      const bumpUi = () => setGalleryAudioUiRev((n) => n + 1);
+      audio.addEventListener("play", bumpUi);
+      audio.addEventListener("pause", bumpUi);
+
       audio.addEventListener("ended", () => {
         if (galleryAudioRef.current === audio) {
+          bumpUi();
           if (galleryMediaSessionDetachRef.current) {
             try {
               galleryMediaSessionDetachRef.current();
@@ -229,10 +227,16 @@ export default function TourGallerySection({
             galleryMediaSessionDetachRef.current = null;
           }
           galleryAudioRef.current = null;
+          setPlayingCue((prev) =>
+            prev?.kind === "playing"
+              ? { ...prev, playbackEnded: true }
+              : prev
+          );
         }
       });
       audio.addEventListener("error", () => {
         if (galleryAudioRef.current === audio) {
+          bumpUi();
           if (galleryMediaSessionDetachRef.current) {
             try {
               galleryMediaSessionDetachRef.current();
@@ -255,6 +259,7 @@ export default function TourGallerySection({
       });
       audio.play().catch(() => {
         if (galleryAudioRef.current === audio) {
+          bumpUi();
           if (galleryMediaSessionDetachRef.current) {
             try {
               galleryMediaSessionDetachRef.current();
@@ -282,11 +287,15 @@ export default function TourGallerySection({
     effectiveSoundKeyword,
     audioLoading,
     audioItems,
-    lang,
     stopGalleryAudio,
-    t,
   ]);
 
+  const toggleGalleryPlayback = useCallback(() => {
+    const a = galleryAudioRef.current;
+    if (!a) return;
+    if (a.paused) void a.play().catch(() => {});
+    else a.pause();
+  }, []);
   useEffect(() => {
     let cancelled = false;
     async function run() {
@@ -484,6 +493,9 @@ export default function TourGallerySection({
           soundLayerEnabled={soundLayerEnabled}
           playingCue={playingCue}
           effectiveSoundKeyword={effectiveSoundKeyword}
+          galleryAudioRef={galleryAudioRef}
+          galleryAudioUiRev={galleryAudioUiRev}
+          onToggleGalleryAudio={toggleGalleryPlayback}
         />
       )}
     </section>
@@ -500,8 +512,12 @@ function Lightbox({
   soundLayerEnabled,
   playingCue,
   effectiveSoundKeyword,
+  galleryAudioRef,
+  galleryAudioUiRev,
+  onToggleGalleryAudio,
 }) {
   const { t } = useTranslation();
+
   const audioGuideHref =
     effectiveSoundKeyword && effectiveSoundKeyword.trim()
       ? `/audio-guide?q=${encodeURIComponent(effectiveSoundKeyword.trim())}`
@@ -509,15 +525,73 @@ function Lightbox({
 
   const cueBlock =
     soundLayerEnabled && playingCue ? (
-      <div className="tg-lb-audio">
+      <div className="tg-lb-audio" data-audio-ui={galleryAudioUiRev}>
         {playingCue.kind === "playing" && playingCue.track && effectiveSoundKeyword && (
           <>
             <div className="tg-lb-audio-badge">
               <Headphones size={14} aria-hidden />
-              <span>{playingCue.headline}</span>
+              <span>{t("photoGalleryPage.audioCueHead")}</span>
             </div>
-            <div className="tg-lb-audio-primary">{playingCue.linePrimary}</div>
-            <div className="tg-lb-audio-secondary">{playingCue.lineSecondary}</div>
+            <div className="tg-lb-audio-primary">
+              {t("photoGalleryPage.audioCuePrimary", {
+                title:
+                  playingCue.track.title ||
+                  playingCue.track.audioTitle ||
+                  "",
+              })}
+            </div>
+            {playingCue.playbackEnded ? (
+              <div className="tg-lb-audio-secondary tg-lb-audio-ended">
+                {t("photoGalleryPage.audioEnded")}
+              </div>
+            ) : (
+              <>
+                <div className="tg-lb-audio-secondary">
+                  {galleryAudioRef.current?.paused
+                    ? t("photoGalleryPage.audioPausedLabel", {
+                        audioTitle:
+                          playingCue.track.audioTitle ||
+                          playingCue.track.title ||
+                          "",
+                      })
+                    : t("photoGalleryPage.audioCueSecondary", {
+                        audioTitle:
+                          playingCue.track.audioTitle ||
+                          playingCue.track.title ||
+                          "",
+                      })}
+                </div>
+                {galleryAudioRef.current ? (
+                  <div className="tg-lb-audio-controls">
+                    <button
+                      type="button"
+                      className="tg-lb-audio-playbtn"
+                      onClick={onToggleGalleryAudio}
+                      aria-pressed={!galleryAudioRef.current.paused}
+                      aria-label={
+                        galleryAudioRef.current.paused
+                          ? t("photoGalleryPage.resumeAudio")
+                          : t("photoGalleryPage.pauseAudio")
+                      }
+                    >
+                      {galleryAudioRef.current.paused ? (
+                        <Play size={18} aria-hidden />
+                      ) : (
+                        <Pause size={18} aria-hidden />
+                      )}
+                      <span>
+                        {galleryAudioRef.current.paused
+                          ? t("photoGalleryPage.resumeAudio")
+                          : t("photoGalleryPage.pauseAudio")}
+                      </span>
+                    </button>
+                  </div>
+                ) : null}
+              </>
+            )}
+            <p className="tg-lb-audio-disclaimer">
+              {t("photoGalleryPage.audioRegionalDisclaimer")}
+            </p>
             <Link href={audioGuideHref} className="tg-lb-audio-link">
               {t("photoGalleryPage.openAudioGuide")}
             </Link>
@@ -828,6 +902,36 @@ const cssBlock = `
   font-size: 0.82rem;
   color: #c5fcf9;
   line-height: 1.45;
+}
+.tg-lb-audio-ended {
+  color: #fde68a;
+}
+.tg-lb-audio-controls {
+  margin-top: 12px;
+}
+.tg-lb-audio-playbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(253, 224, 71, 0.45);
+  background: rgba(253, 224, 71, 0.12);
+  color: #fef9c3;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.tg-lb-audio-playbtn:hover {
+  background: rgba(253, 224, 71, 0.22);
+  border-color: rgba(253, 224, 71, 0.65);
+}
+.tg-lb-audio-disclaimer {
+  margin: 12px 0 0;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: #a8a29e;
 }
 .tg-lb-audio-link {
   display: inline-block;
