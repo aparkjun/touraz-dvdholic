@@ -11,6 +11,11 @@ public final class KorServiceToLdong {
 
     private KorServiceToLdong() {}
 
+    /**
+     * KorService2 와 한국관광공사 통합 관광정보 KorService 의 광역 코드(1~8, 31~39) 기준.
+     * 구·신 행정코드가 공존하는 강원·전북은 Phoko 등 다중 필터가 필요하고,
+     * 단일 코드만 받는 API(집중률·웰니스 쿼리)에는 신코드(51·52)를 우선 사용한다.
+     */
     private static final Map<String, String> KOR_AREA_TO_LDONG_REGN = Map.ofEntries(
             Map.entry("1", "11"),
             Map.entry("2", "28"),
@@ -24,10 +29,10 @@ public final class KorServiceToLdong {
             Map.entry("32", "51"),
             Map.entry("33", "43"),
             Map.entry("34", "44"),
-            Map.entry("35", "47"),
-            Map.entry("36", "48"),
-            Map.entry("37", "52"),
-            Map.entry("38", "46"),
+            Map.entry("35", "45"),
+            Map.entry("36", "46"),
+            Map.entry("37", "47"),
+            Map.entry("38", "48"),
             Map.entry("39", "50")
     );
 

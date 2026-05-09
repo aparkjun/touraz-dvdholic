@@ -56,9 +56,9 @@ public class OpenAiMappingAdapter implements LlmMappingPort {
             Map.entry("28", "2"),  Map.entry("29", "5"),  Map.entry("30", "3"),
             Map.entry("31", "7"),  Map.entry("36", "8"),  Map.entry("41", "31"),
             Map.entry("42", "32"), Map.entry("43", "33"), Map.entry("44", "34"),
-            Map.entry("45", "37"), Map.entry("46", "38"), Map.entry("47", "35"),
-            Map.entry("48", "36"), Map.entry("50", "39"), Map.entry("51", "32"),
-            Map.entry("52", "37")
+            Map.entry("45", "35"), Map.entry("46", "36"), Map.entry("47", "37"),
+            Map.entry("48", "38"), Map.entry("50", "39"), Map.entry("51", "32"),
+            Map.entry("52", "35")
     );
 
     @Value("${openai.api-key:}")
@@ -198,7 +198,7 @@ public class OpenAiMappingAdapter implements LlmMappingPort {
             출력은 반드시 JSON 객체 하나 — {"mappings":[...]} 형식이며 각 원소는 다음 스키마를 따른다:
               - area_code  : 17개 광역 지자체 코드 중 하나 (문자열)
                   1=서울, 2=인천, 3=대전, 4=대구, 5=광주, 6=부산, 7=울산, 8=세종,
-                  31=경기, 32=강원, 33=충북, 34=충남, 35=경북, 36=경남, 37=전북, 38=전남, 39=제주
+                  31=경기, 32=강원, 33=충북, 34=충남, 35=전북, 36=전남, 37=경북, 38=경남, 39=제주
               - region_name : 위 area_code 와 정확히 매칭되는 한국어 지역명
               - mapping_type: "SHOT"(실제 촬영지) | "BACKGROUND"(극중 배경) | "THEME"(지역을 모티브로 한 주제/분위기)
               - evidence    : 왜 이 지역과 연결되는지 40자 이내의 한국어 근거

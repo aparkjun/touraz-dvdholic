@@ -48,27 +48,28 @@ public class VisitKoreaPhokoHttpClient implements TourPhotoPort {
     // 안전 상한 — 페이지 50 * 200 = 10,000 건이면 PhokoAwrdService 데이터셋을 충분히 덮는다.
     private static final int MAX_PAGES = 50;
 
-    // KorService2 areaCode → 법정동 광역코드(lDongRegnCd) 매핑.
-    // 서비스 전반의 CineTrip UI 가 KorService2 체계(1~8/31~39) 를 쓰는 반면
-    // Phoko 는 법정동코드(11/26/27/...) 를 쓰기 때문에 필요.
-    private static final Map<String, String> AREA_CODE_TO_LDONG = Map.ofEntries(
-            Map.entry("1", "11"),  // 서울
-            Map.entry("2", "28"),  // 인천
-            Map.entry("3", "30"),  // 대전
-            Map.entry("4", "27"),  // 대구
-            Map.entry("5", "29"),  // 광주
-            Map.entry("6", "26"),  // 부산
-            Map.entry("7", "31"),  // 울산
-            Map.entry("8", "36"),  // 세종
-            Map.entry("31", "41"), // 경기
-            Map.entry("32", "51"), // 강원(특별자치도) - 과거 42
-            Map.entry("33", "43"), // 충북
-            Map.entry("34", "44"), // 충남
-            Map.entry("35", "47"), // 경북
-            Map.entry("36", "48"), // 경남
-            Map.entry("37", "52"), // 전북(특별자치도) - 과거 45
-            Map.entry("38", "46"), // 전남
-            Map.entry("39", "50")  // 제주
+    /**
+     * KorService2 areaCode → 법정동 시도코드(lDongRegnCd 앞 2자리) 매핑.
+     * 행정개편으로 구·신 코드가 공존하는 광역은 둘 다 넣어 필터한다 (강원 42·51, 전북 45·52).
+     */
+    private static final Map<String, List<String>> AREA_CODE_TO_LDONGS = Map.ofEntries(
+            Map.entry("1", List.of("11")),   // 서울
+            Map.entry("2", List.of("28")),   // 인천
+            Map.entry("3", List.of("30")),   // 대전
+            Map.entry("4", List.of("27")),   // 대구
+            Map.entry("5", List.of("29")),   // 광주
+            Map.entry("6", List.of("26")),   // 부산
+            Map.entry("7", List.of("31")),   // 울산
+            Map.entry("8", List.of("36")),   // 세종
+            Map.entry("31", List.of("41")),  // 경기
+            Map.entry("32", List.of("51", "42")), // 강원특별자치 + 구 강원도
+            Map.entry("33", List.of("43")),  // 충북
+            Map.entry("34", List.of("44")),  // 충남
+            Map.entry("35", List.of("52", "45")), // 전북특별자치 + 구 전라북도
+            Map.entry("36", List.of("46")),  // 전남
+            Map.entry("37", List.of("47")),  // 경북
+            Map.entry("38", List.of("48")),  // 경남
+            Map.entry("39", List.of("50"))   // 제주
     );
 
     private final HttpClient httpClient;
@@ -125,12 +126,18 @@ public class VisitKoreaPhokoHttpClient implements TourPhotoPort {
     @Override
     public List<TourPhoto> fetchByAreaCode(String areaCode, int limit) {
         if (areaCode == null || areaCode.isBlank()) return fetchAll(limit);
-        String ldong = AREA_CODE_TO_LDONG.get(areaCode);
-        if (ldong == null) {
+        List<String> ldongs = AREA_CODE_TO_LDONGS.get(areaCode.trim());
+        if (ldongs == null || ldongs.isEmpty()) {
             log.warn("[PHOKO] 미매핑 areaCode={} - 전체 반환", areaCode);
             return fetchAll(limit);
         }
-        return fetchByLDongRegnCd(ldong, limit);
+        if (ldongs.size() == 1) {
+            return fetchByLDongRegnCd(ldongs.get(0), limit);
+        }
+        List<TourPhoto> filtered = getDailyShuffled().stream()
+                .filter(p -> p.getLDongRegnCd() != null && ldongs.contains(p.getLDongRegnCd()))
+                .collect(Collectors.toList());
+        return take(filtered, limit);
     }
 
     @Override

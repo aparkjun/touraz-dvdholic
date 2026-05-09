@@ -12,6 +12,7 @@ import {
   Search,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 import { KakaoMapLogo, NaverNLogo, GoogleGLogo } from '@/components/BrandMapSearchIcons';
 import useBackButtonClose from '@/lib/useBackButtonClose';
 import ConcentrationForecastStrip from '@/components/ConcentrationForecastStrip';
@@ -19,6 +20,7 @@ import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
 import AccessibleSpotsStrip from '@/components/AccessibleSpotsStrip';
 import PetFriendlySpotsStrip from '@/components/PetFriendlySpotsStrip';
 import NearbyTrekkingStrip from '@/components/NearbyTrekkingStrip';
+import TourGallerySection from '@/components/TourGallerySection';
 import useDragScrollAll from '@/lib/useDragScroll';
 
 /**
@@ -89,6 +91,7 @@ export default function TravelCourseModal({
   onClose,
 }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [mounted, setMounted] = useState(false);
   /** 포털(document.body)에 그려져 페이지 pageRef 밖이므로, 레일 드래그는 여기서 별도 바인딩 */
   const modalScrollRef = useRef(null);
@@ -698,8 +701,17 @@ export default function TravelCourseModal({
 
                   <PhotoGalleryStrip
                     areaCode={m.areaCode}
-                    limit={8}
+                    limit={0}
                     title={`${regionName} 관광공모전 수상작`}
+                  />
+
+                  <TourGallerySection
+                    keyword={regionName}
+                    title={`${regionName} · ${t('tourGallery.regionSection')}`}
+                    subtitle={t('tourGallery.poweredBy')}
+                    limit={0}
+                    infinite
+                    pageSize={48}
                   />
 
                   <AccessibleSpotsStrip

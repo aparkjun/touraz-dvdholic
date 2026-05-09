@@ -65,13 +65,13 @@ public class VisitKoreaDataLabHttpClient implements VisitKoreaDataLabPort {
             Map.entry("42", "32"),  // 강원 (구 코드)
             Map.entry("43", "33"),  // 충북
             Map.entry("44", "34"),  // 충남
-            Map.entry("45", "37"),  // 전북 (구 코드)
-            Map.entry("46", "38"),  // 전남
-            Map.entry("47", "35"),  // 경북
-            Map.entry("48", "36"),  // 경남
+            Map.entry("45", "35"),  // 전북 (구 코드)
+            Map.entry("46", "36"),  // 전남
+            Map.entry("47", "37"),  // 경북
+            Map.entry("48", "38"),  // 경남
             Map.entry("50", "39"),  // 제주
             Map.entry("51", "32"),  // 강원특별자치도
-            Map.entry("52", "37")   // 전북특별자치도
+            Map.entry("52", "35")   // 전북특별자치도
     );
 
     private final HttpClient httpClient;

@@ -40,27 +40,6 @@ public class VisitKoreaConcentrationHttpClient implements TourConcentrationPort 
     private static final DateTimeFormatter YMD = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final long CACHE_TTL_MS = 6L * 60 * 60 * 1000; // 6시간
 
-    // KorService2 areaCode → 법정동 광역코드(lDongRegnCd).
-    private static final Map<String, String> AREA_CODE_TO_LDONG = Map.ofEntries(
-            Map.entry("1", "11"),
-            Map.entry("2", "28"),
-            Map.entry("3", "30"),
-            Map.entry("4", "27"),
-            Map.entry("5", "29"),
-            Map.entry("6", "26"),
-            Map.entry("7", "31"),
-            Map.entry("8", "36"),
-            Map.entry("31", "41"),
-            Map.entry("32", "51"),
-            Map.entry("33", "43"),
-            Map.entry("34", "44"),
-            Map.entry("35", "47"),
-            Map.entry("36", "48"),
-            Map.entry("37", "52"),
-            Map.entry("38", "46"),
-            Map.entry("39", "50")
-    );
-
     // 역방향 매핑. 응답의 areaCd(lDong) → KorService2 로 돌려줄 때 사용.
     private static final Map<String, String> LDONG_TO_AREA_CODE = Map.ofEntries(
             Map.entry("11", "1"),
@@ -75,13 +54,13 @@ public class VisitKoreaConcentrationHttpClient implements TourConcentrationPort 
             Map.entry("42", "32"),
             Map.entry("43", "33"),
             Map.entry("44", "34"),
-            Map.entry("45", "37"),
-            Map.entry("46", "38"),
-            Map.entry("47", "35"),
-            Map.entry("48", "36"),
+            Map.entry("45", "35"),
+            Map.entry("46", "36"),
+            Map.entry("47", "37"),
+            Map.entry("48", "38"),
             Map.entry("50", "39"),
             Map.entry("51", "32"),
-            Map.entry("52", "37")
+            Map.entry("52", "35")
     );
 
     private final HttpClient httpClient;
@@ -110,7 +89,7 @@ public class VisitKoreaConcentrationHttpClient implements TourConcentrationPort 
             log.warn("[CNCTR] signguCode 누락 - 빈 결과 반환 (areaCode={})", areaCode);
             return List.of();
         }
-        String ldong = AREA_CODE_TO_LDONG.get(areaCode);
+        String ldong = KorServiceToLdong.lDongRegnCd(areaCode).orElse(null);
         if (ldong == null) {
             log.warn("[CNCTR] 미매핑 areaCode={} - 빈 결과", areaCode);
             return List.of();
