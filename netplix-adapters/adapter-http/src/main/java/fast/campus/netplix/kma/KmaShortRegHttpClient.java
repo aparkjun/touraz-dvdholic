@@ -57,18 +57,26 @@ public class KmaShortRegHttpClient {
         if (tries.isEmpty()) {
             tries.addAll(KmaShortRegIssuanceTime.candidatesNewestFirst());
         }
+        int attempts = 0;
         for (String tmfc : tries) {
-            String body = fetchOnce(r, tmfc);
-            if (body == null) {
-                continue;
+            for (boolean useJsonDisp : new boolean[] {false, true}) {
+                String body = fetchOnce(r, tmfc, useJsonDisp);
+                attempts++;
+                if (body == null) {
+                    continue;
+                }
+                if (isTextCatalogResponse(body)) {
+                    log.debug(
+                            "KMA fct_shrt_reg 구역 텍스트 응답 건너뜀 reg={} tmfc={} disp1={}",
+                            r,
+                            tmfc,
+                            useJsonDisp);
+                    continue;
+                }
+                return body;
             }
-            if (isTextCatalogResponse(body)) {
-                log.debug("KMA fct_shrt_reg 구역 텍스트 응답 건너뜀 (tmfc 잘못됨) reg={} tmfc={}", r, tmfc);
-                continue;
-            }
-            return body;
         }
-        log.warn("KMA fct_shrt_reg 유효 예보 본문 없음 reg={} 시도 횟수={}", r, tries.size());
+        log.warn("KMA fct_shrt_reg 유효 예보 본문 없음 reg={} tmfc후보={} 시도횟수={}", r, tries.size(), attempts);
         return null;
     }
 
@@ -80,16 +88,19 @@ public class KmaShortRegHttpClient {
         return t.startsWith("#");
     }
 
-    private String fetchOnce(String reg, String tmfc) {
+    /** API허브 단기 일부 엔드포인트는 disp=1 일 때 JSON(개황) 형태로 내려준다. */
+    private String fetchOnce(String reg, String tmfc, boolean jsonDisp) {
         try {
-            URI uri = UriComponentsBuilder.fromHttpUrl(fctShrtRegUrl)
+            UriComponentsBuilder ub = UriComponentsBuilder.fromHttpUrl(fctShrtRegUrl)
                     .queryParam("tmfc", tmfc)
                     .queryParam("reg", reg)
-                    .queryParam("authKey", apiKey)
-                    .build(true)
-                    .toUri();
+                    .queryParam("authKey", apiKey);
+            if (jsonDisp) {
+                ub.queryParam("disp", 1);
+            }
+            URI uri = ub.build(true).toUri();
             String body = restClient().get().uri(uri).retrieve().body(String.class);
-            log.debug("KMA fct_shrt_reg ok reg={} tmfc={} len={}", reg, tmfc, body != null ? body.length() : 0);
+            log.debug("KMA fct_shrt_reg ok reg={} tmfc={} disp1={} len={}", reg, tmfc, jsonDisp, body != null ? body.length() : 0);
             return body;
         } catch (RestClientResponseException e) {
             String b = null;
