@@ -142,7 +142,13 @@ public class KmaShortRegHttpClient {
             return false;
         }
         String t = body.stripLeading();
-        if (t.startsWith("#START7777") || t.contains("단기예보 개황")) {
+        // #START7777 로 시작해도 「예보구역 목록·도움말」인 경우가 많음 (개황 본문과 구분)
+        if (t.contains("단기예보구역 조회")
+                || t.contains("REG_ID : 예보구역코드")
+                || t.contains("REG_ID: 예보구역코드")) {
+            return true;
+        }
+        if (t.startsWith("#START7777") && t.contains("단기예보 개황")) {
             return false;
         }
         return t.startsWith("#");
