@@ -118,7 +118,7 @@ public class VisitKoreaOdiiResponse {
         private String detailAddr;
 
         /** STORY→THEME 연결. tid 가 비어 있거나 story 식별자와 혼용될 때 분리 필드로 오는 경우. */
-        @JsonAlias({"linkTid", "linktid", "parentTid", "ptid", "themeTid", "theme_tid", "pTid", "parentThemeId"})
+        @JsonAlias({"linkTid", "linktid", "link_tid", "parentTid", "ptid", "themeTid", "theme_tid", "pTid", "parentThemeId"})
         private String linkTid;
 
         @JsonAlias({"mapx", "mapX", "longitude", "lng"})

@@ -296,7 +296,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     /**
      * 특정 THEME 에 연결된 STORY 목록 조회.
      *
-     * <p>Odii 응답: storyBasedList item 의 {@code tid}(또는 {@code linkTid}) 가 상위 THEME id.
+     * <p>Odii 응답: storyBasedList item 은 보통 {@code tid}=상위 THEME id, {@code stid}=이야기 id (명세).
      * 전용 조회 API 가 없어 전체 STORY 캐시에서 필터한다. 캐시가 partial 이면 조인이 빗나가므로
      * {@link #ensureFullStoryCacheForJoin} 으로 전체 적재를 보장한다.
      */
@@ -889,7 +889,8 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
      * THEME↔STORY 조인은 전체 STORY 목록이 필요하다. partial 캐시(첫 페이지만)에서는 조인이 틀어진다.
      */
     private void ensureFullStoryCacheForJoin(String lang) {
-        String cacheKey = allKey(AudioGuideItem.Type.STORY, lang);
+        String l = normalize(lang);
+        String cacheKey = allKey(AudioGuideItem.Type.STORY, l);
         CacheSnapshot snap = cache.get(cacheKey);
         if (snap != null && !snap.partial && !snap.sites.isEmpty()) {
             return;
@@ -901,7 +902,20 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         } else {
             log.info("[ODII] STORY 캐시 비어 있음 — stories-by-theme 위해 전체 동기 적재 재시도");
         }
-        refreshAll(AudioGuideItem.Type.STORY, lang);
+        refreshAll(AudioGuideItem.Type.STORY, l);
+        /*
+         * langCode 프로브가 한 번 잘못 캐시되면 STORY 풀이 영구 0건이 될 수 있다.
+         * 비한국어에서 전체 적재 후에도 0건이면 프로브 캐시를 지우고 한 번 더 받는다.
+         */
+        if (!"ko".equals(l)) {
+            CacheSnapshot after = cache.get(cacheKey);
+            if (after != null && !after.partial && after.sites.isEmpty()) {
+                String lk = langResolvedCacheKey(AudioGuideItem.Type.STORY, l);
+                resolvedOdiiQueryLangByCanonical.remove(lk);
+                log.info("[ODII] STORY:{} 전체 0건 — langCode 프로브 캐시 제거 후 재적재", l);
+                refreshAll(AudioGuideItem.Type.STORY, l);
+            }
+        }
     }
 
     // =========================================================================
@@ -1143,17 +1157,34 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
 
     /**
      * 공공 GW 가 허용하는 {@code langCode} 표기가 엔드포인트·버전별로 달라질 수 있어,
-     * ko 는 고정이고 en/zh/ja 는 목록 1페이지로 한 번만 프로브해 캐시한다.
+     * ko 는 고정이고 en/zh/ja 는 목록 1페이지로 프로브한다.
+     * 프로브가 전부 실패한 값은 캐시하지 않는다(실패 시 기본 chs/jpn/eng 만 요청에 사용).
      */
     private String resolveOdiiQueryLangForRequest(AudioGuideItem.Type type, String canonicalLang) {
         if (canonicalLang == null || canonicalLang.isBlank()) {
             return "ko";
         }
-        return switch (canonicalLang) {
+        String canon = normalize(canonicalLang);
+        return switch (canon) {
             case "ko" -> "ko";
-            case "en", "zh", "ja" -> resolvedOdiiQueryLangByCanonical.computeIfAbsent(
-                    langResolvedCacheKey(type, canonicalLang),
-                    __ -> probeOdiiLangCode(type, canonicalLang));
+            case "en", "zh", "ja" -> {
+                String cacheKey = langResolvedCacheKey(type, canon);
+                String cached = resolvedOdiiQueryLangByCanonical.get(cacheKey);
+                if (cached != null && !cached.isBlank()) {
+                    yield cached;
+                }
+                String probed = probeOdiiLangCodeSuccessful(type, canon);
+                if (probed != null) {
+                    resolvedOdiiQueryLangByCanonical.put(cacheKey, probed);
+                    yield probed;
+                }
+                yield switch (canon) {
+                    case "zh" -> "chs";
+                    case "ja" -> "jpn";
+                    case "en" -> "eng";
+                    default -> "ko";
+                };
+            }
             default -> "ko";
         };
     }
@@ -1164,10 +1195,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
 
     /**
      * 공공데이터포털 Odii GW 가 허용하는 langCode 표기(예: eng, jpn, chs, cht)를 우선 시도한다.
-     * 명세·서비스 버전에 따라 zh/ja 단축 코드만 허용되는 경우가 있어 후순위로 둔다.
-     * Base URL: https://apis.data.go.kr/B551011/Odii
+     * 후보가 모두 실패하면 {@code null} — 호출부에서 명세 기본값만 쓰고 캐시하지 않는다.
      */
-    private String probeOdiiLangCode(AudioGuideItem.Type type, String canonical) {
+    private String probeOdiiLangCodeSuccessful(AudioGuideItem.Type type, String canonical) {
         String base = basedUrl(type);
         String[] candidates = switch (canonical) {
             case "en" -> new String[]{"eng", "en"};
@@ -1183,14 +1213,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 return code;
             }
         }
-        log.warn("[ODII] GW langCode 후보 전부 0건 canonical={} candidates={} type={}",
+        log.warn("[ODII] GW langCode 프로브 실패(캐시 안 함) canonical={} candidates={} type={}",
                 canonical, Arrays.toString(candidates), type);
-        return switch (canonical) {
-            case "zh" -> "chs";
-            case "ja" -> "jpn";
-            case "en" -> "eng";
-            default -> "ko";
-        };
+        return null;
     }
 
     // =========================================================================
@@ -1221,17 +1246,25 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 && nullIfBlank(s.getTitle()) != null;
     }
 
-    /** THEME: 자기 {@code tid}. STORY: 상위 관광지 id — 분리 필드 {@code linkTid} 우선, 없으면 {@code tid}. */
+    /**
+     * THEME: 자기 {@code tid}.
+     * STORY(Odii storyBasedList 명세): 보통 {@code tid}=상위 관광지(THEME) id, {@code stid}=이야기 id.
+     * {@code linkTid} 는 분리 필드로만 오는 경우 보조로 사용한다(link 를 무조건 우선하면 GW 버전에 따라 조인이 깨질 수 있음).
+     */
     private static String resolveThemeIdForDomain(VisitKoreaOdiiResponse.Item i, AudioGuideItem.Type type) {
         if (type == AudioGuideItem.Type.THEME) {
             return nullIfBlank(i.getTid());
         }
+        String stid = nullIfBlank(i.getStid());
+        String tid = nullIfBlank(i.getTid());
         String link = nullIfBlank(i.getLinkTid());
-        String t = nullIfBlank(i.getTid());
+        if (stid != null && tid != null && !themeIdMatches(stid, tid)) {
+            return tid;
+        }
         if (link != null) {
             return link;
         }
-        return t;
+        return tid;
     }
 
     private static AudioGuideItem toDomain(VisitKoreaOdiiResponse.Item i, AudioGuideItem.Type type) {

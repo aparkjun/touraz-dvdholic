@@ -369,8 +369,11 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       })
       .then((res) => {
         if (cancelled) return;
-        const arr = res?.data?.data || res?.data || [];
-        setStories(Array.isArray(arr) ? arr : []);
+        const payload = res?.data;
+        const ok = payload && typeof payload === "object" && payload.success !== false;
+        const raw = ok ? payload.data : [];
+        const arr = Array.isArray(raw) ? raw : [];
+        setStories(arr);
       })
       .catch(() => { if (!cancelled) setStories([]); })
       .finally(() => { if (!cancelled) setStoriesLoading(false); });
