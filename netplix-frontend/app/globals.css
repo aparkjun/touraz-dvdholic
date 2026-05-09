@@ -489,8 +489,41 @@ body.app-theme-travel {
 
 /* /dashboard — 프로모 문구 폰트 확대 시 세로 여유 */
 .app-nav.app-nav--dashboard {
+  display: flex;
+  flex-direction: column;
   padding-bottom: 18px;
   min-height: calc(env(safe-area-inset-top, 0px) + 76px);
+}
+/* absolute 프로모·브랜드의 top:50% 가 잡는 기준이 inner 인데, inner 높이가 햄버거 줄뿐이라 문구가 위로 치우침.
+ * inner 가 세로로 남는 영역을 채우면 50% = 네비 콘텐츠 영역 수직 중앙에 가깝게 맞는다. */
+.app-nav.app-nav--dashboard > .app-nav-inner {
+  flex: 1 1 auto;
+  position: relative;
+  width: 100%;
+  min-height: 0;
+  /* 햄버거 등 인플로우 요소를 inner 세로 확장 영역의 정중앙에 */
+  align-items: center;
+}
+/* 햄버거 줄 — inner flex 세로 중앙 고정 */
+.app-nav.app-nav--dashboard > .app-nav-inner > .app-nav-actions {
+  align-self: center;
+}
+/* 중앙 브랜드: 필름·DVD·텍스트·뱀 4개 — 베이스라인/라인박스 어긋남 제거 후 수직 중앙 */
+.app-nav.app-nav--dashboard .app-brand {
+  display: flex;
+  align-items: center;
+}
+.app-nav.app-nav--dashboard .app-brand-film,
+.app-nav.app-nav--dashboard .app-brand-dvd,
+.app-nav.app-nav--dashboard .app-brand-snake {
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
+  align-self: center;
+}
+.app-nav.app-nav--dashboard .app-brand-text {
+  line-height: 1;
+  align-self: center;
 }
 
 .app-nav-inner {
@@ -802,6 +835,18 @@ body.app-theme-travel {
     grid-column: 2;
     grid-row: 1;
     justify-self: center;
+    align-self: center;
+    display: flex;
+    align-items: center;
+  }
+  .app-nav-inner--dashboard .app-brand-film,
+  .app-nav-inner--dashboard .app-brand-dvd,
+  .app-nav-inner--dashboard .app-brand-snake {
+    display: block;
+    align-self: center;
+  }
+  .app-nav-inner--dashboard .app-brand-text {
+    line-height: 1;
     align-self: center;
   }
   .app-nav-inner--dashboard .app-brand:hover {
