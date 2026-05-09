@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
@@ -19,6 +19,7 @@ import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
 import AccessibleSpotsStrip from '@/components/AccessibleSpotsStrip';
 import PetFriendlySpotsStrip from '@/components/PetFriendlySpotsStrip';
 import NearbyTrekkingStrip from '@/components/NearbyTrekkingStrip';
+import useDragScrollAll from '@/lib/useDragScroll';
 
 /**
  * "여행 코스 보기" 버튼에서 열리는 영화 단위 여행 코스 모달.
@@ -89,6 +90,9 @@ export default function TravelCourseModal({
 }) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  /** 포털(document.body)에 그려져 페이지 pageRef 밖이므로, 레일 드래그는 여기서 별도 바인딩 */
+  const modalScrollRef = useRef(null);
+  useDragScrollAll(modalScrollRef);
 
   useEffect(() => {
     setMounted(true);
@@ -166,8 +170,15 @@ export default function TravelCourseModal({
           flex: 1 1 auto;
           min-height: 0;
           overflow-y: auto;
+          overflow-x: hidden;
           -webkit-overflow-scrolling: touch;
           overscroll-behavior: contain;
+        }
+        /* 세로 스크롤(모달) 안 가로 레일: layout contain 제거 + 터치 가로 스크롤 허용 */
+        .tc-modal-scroll .js-drag-scroll {
+          contain: none;
+          overscroll-behavior-x: contain;
+          overscroll-behavior-y: auto;
         }
         .tc-modal-close {
           position: absolute;
@@ -310,7 +321,7 @@ export default function TravelCourseModal({
           <X size={20} />
         </button>
 
-        <div className="tc-modal-scroll">
+        <div className="tc-modal-scroll" ref={modalScrollRef}>
         <div className="tc-modal-header">
           <img
             src={posterSrc(movie.posterPath)}

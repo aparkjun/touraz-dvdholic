@@ -236,7 +236,8 @@ export default function useDragScrollAll(containerRef) {
       };
 
       el.style.cursor = "grab";
-      el.style.touchAction = "pan-y";
+      /* 세로 모달 안 가로 레일: 브라우저 네이티브 가로 스크롤·스와이프 허용 + JS 드래그와 병행 */
+      el.style.touchAction = "pan-x pan-y";
 
       el.addEventListener("pointerdown", onDown);
       el.addEventListener("pointermove", onMove);

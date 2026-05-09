@@ -14,9 +14,9 @@ import { useTranslation } from 'react-i18next';
  * - props.areaCode : 한국관광공사 광역시도 코드(1~39)
  * - props.regionName : 한글 광역명(표시용)
  * - 내부에서 /api/v1/tour/trekking/courses?areaCode=X 호출
- * - 가로 스와이프는 globals.css 의 .js-drag-scroll 레일 규칙을 재활용
- *   (useDragScroll 훅이 cine-trip 페이지 루트에 이미 바인딩되어 있어
- *    모달이 동적으로 마운트되어도 MutationObserver 가 자동 바인딩)
+ * - 가로 스와이프는 globals.css 의 .js-drag-scroll + lib/useDragScrollAll.
+ *   여행 코스 모달은 document.body 포털이라 페이지 루트 ref 밖에 있으며,
+ *   TravelCourseModal 의 스크롤 컨테이너에 동일 훅을 별도로 바인딩한다.
  */
 export default function NearbyTrekkingStrip({
   areaCode,
