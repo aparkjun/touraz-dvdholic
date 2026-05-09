@@ -1,7 +1,6 @@
 package fast.campus.netplix.controller.audioguide;
 
 import fast.campus.netplix.audioguide.AudioGuideItem;
-import fast.campus.netplix.audioguide.AudioGuideOdiiMeta;
 import fast.campus.netplix.audioguide.GetAudioGuideItemsUseCase;
 import fast.campus.netplix.controller.NetplixApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -11,8 +10,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * 한국관광공사 관광지 오디오 가이드정보(Odii) 공용 조회 API.
@@ -37,8 +38,12 @@ public class AudioGuideController {
 
     /** Odii 키·표본 건수 — 목록 0건일 때 원인 구분 (키 값은 내려가지 않음) */
     @GetMapping("/meta")
-    public NetplixApiResponse<AudioGuideOdiiMeta> meta() {
-        return NetplixApiResponse.ok(useCase.odiiMeta());
+    public NetplixApiResponse<Map<String, Object>> meta() {
+        var m = useCase.odiiMeta();
+        Map<String, Object> body = new HashMap<>();
+        body.put("odiiApiKeyConfigured", m.odiiApiKeyConfigured());
+        body.put("themeKoSampleCount", m.themeKoSampleCount());
+        return NetplixApiResponse.ok(body);
     }
 
     @GetMapping
