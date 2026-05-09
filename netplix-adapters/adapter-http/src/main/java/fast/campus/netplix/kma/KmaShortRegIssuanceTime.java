@@ -22,18 +22,21 @@ public final class KmaShortRegIssuanceTime {
 
     private KmaShortRegIssuanceTime() {}
 
-    /** 최근 발표 시각 후보 — 최신 문자열 순 (yyyyMMddHHmm). 자료 반영 지연 ~40분 가정. */
+    /**
+     * 최근 발표 시각 후보 — 최신 문자열 순 (yyyyMMddHHmm).
+     * 각 회차(02·05·…·23시)는 발표 후 약 20분 뒤부터 조회하는 것으로 가정한다.
+     */
     public static List<String> candidatesNewestFirst() {
         ZonedDateTime now = ZonedDateTime.now(KST);
-        ZonedDateTime ref = now.minusMinutes(40);
         Set<String> ordered = new LinkedHashSet<>();
-        for (int dayBack = 0; dayBack <= 1; dayBack++) {
-            LocalDate d = ref.toLocalDate().minusDays(dayBack);
+        for (int dayBack = 0; dayBack <= 2; dayBack++) {
+            LocalDate d = now.toLocalDate().minusDays(dayBack);
             for (int h : BASE_HOURS_DESC) {
                 ZonedDateTime cand = d.atTime(h, 0).atZone(KST);
-                if (!cand.isAfter(ref)) {
-                    ordered.add(cand.format(TMFC));
+                if (now.isBefore(cand.plusMinutes(20))) {
+                    continue;
                 }
+                ordered.add(cand.format(TMFC));
             }
         }
         List<String> list = new ArrayList<>(ordered);
