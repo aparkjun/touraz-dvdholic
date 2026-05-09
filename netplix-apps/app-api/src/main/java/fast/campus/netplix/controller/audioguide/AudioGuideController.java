@@ -1,6 +1,7 @@
 package fast.campus.netplix.controller.audioguide;
 
 import fast.campus.netplix.audioguide.AudioGuideItem;
+import fast.campus.netplix.audioguide.AudioGuideOdiiMeta;
 import fast.campus.netplix.audioguide.GetAudioGuideItemsUseCase;
 import fast.campus.netplix.controller.NetplixApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,7 @@ import java.util.Locale;
  *
  * <p>퍼블릭 엔드포인트:
  * <ul>
+ *   <li>GET /api/v1/audio-guide/meta - Odii 키 설정 여부·표본 건수(원인 안내, 키 미노출)</li>
  *   <li>GET /api/v1/audio-guide?type=theme|story&lang=ko|en|zh|ja&limit= - 전체</li>
  *   <li>GET /api/v1/audio-guide/nearby?type=&lang=&lat=&lon=&radius=&limit= - 좌표 주변</li>
  *   <li>GET /api/v1/audio-guide/search?type=&lang=&q=&limit= - 키워드 검색</li>
@@ -32,6 +34,12 @@ import java.util.Locale;
 public class AudioGuideController {
 
     private final GetAudioGuideItemsUseCase useCase;
+
+    /** Odii 키·표본 건수 — 목록 0건일 때 원인 구분 (키 값은 내려가지 않음) */
+    @GetMapping("/meta")
+    public NetplixApiResponse<AudioGuideOdiiMeta> meta() {
+        return NetplixApiResponse.ok(useCase.odiiMeta());
+    }
 
     @GetMapping
     public NetplixApiResponse<List<AudioGuideItemResponse>> list(

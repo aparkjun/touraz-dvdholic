@@ -821,6 +821,12 @@
       "denied": "Location permission denied. Please enable it in browser settings.",
       "unsupported": "This browser does not support geolocation."
     },
+    "meta": {
+      "noKeyTitle": "Cannot load audio listings",
+      "noKeyBody": "The server has no KTO Odii API key set. Add ODII_API_KEY (or VISITKOREA_SERVICE_KEY) in your Heroku config.",
+      "emptyTitle": "Odii returned an empty list",
+      "emptyBody": "A key appears to be set, but Odii still returns no items. Check data.go.kr: Odii subscription approval and daily per-operation call limits."
+    },
     "tab": { "theme": "Site Narration", "story": "Story Pieces" },
     "card": {
       "themeCourseBadge": "Course",

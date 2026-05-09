@@ -54,6 +54,15 @@ public class AudioGuideItemService implements GetAudioGuideItemsUseCase {
         return port.fetchStoriesByTheme(themeId.trim(), hint, sanitizeLang(lang), sanitize(limit));
     }
 
+    @Override
+    public AudioGuideOdiiMeta odiiMeta() {
+        if (!port.isConfigured()) {
+            return new AudioGuideOdiiMeta(false, 0);
+        }
+        int peek = port.fetchAll(AudioGuideItem.Type.THEME, DEFAULT_LANG, 3).size();
+        return new AudioGuideOdiiMeta(true, peek);
+    }
+
     private int sanitize(int limit) {
         if (limit <= 0) return 0;
         return Math.min(limit, MAX_LIMIT);

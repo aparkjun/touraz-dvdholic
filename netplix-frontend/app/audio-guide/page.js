@@ -62,6 +62,7 @@ import {
   Sparkles,
   ChevronRight,
   ListMusic,
+  AlertTriangle,
 } from "lucide-react";
 
 const PAGE_SIZE = 60;
@@ -174,6 +175,8 @@ function AudioGuidePageInner() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [errored, setErrored] = useState(false);
+  /** GET /api/v1/audio-guide/meta — 키 미설정 vs Odii 빈 응답 구분 */
+  const [odiiMeta, setOdiiMeta] = useState(null);
 
   // 인라인 오디오 재생 (동시 1개)
   const [playingId, setPlayingId] = useState(null);
@@ -216,6 +219,24 @@ function AudioGuidePageInner() {
     const qs = params.toString();
     router.replace(qs ? `/audio-guide?${qs}` : "/audio-guide", { scroll: false });
   }, [router]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await axios.get("/api/v1/audio-guide/meta");
+        const d = res?.data?.data;
+        if (cancelled || !d || typeof d.odiiApiKeyConfigured !== "boolean") return;
+        setOdiiMeta({
+          odiiApiKeyConfigured: d.odiiApiKeyConfigured,
+          themeKoSampleCount: typeof d.themeKoSampleCount === "number" ? d.themeKoSampleCount : 0,
+        });
+      } catch {
+        if (!cancelled) setOdiiMeta(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // 데이터 로드
   const load = useCallback(async () => {
@@ -704,6 +725,36 @@ function AudioGuidePageInner() {
           </div>
         </div>
       </header>
+
+      {odiiMeta && !odiiMeta.odiiApiKeyConfigured ? (
+        <div className="agp-odii-banner agp-odii-banner-err" role="alert">
+          <AlertTriangle size={18} aria-hidden />
+          <div>
+            <strong>{t("audioGuide.meta.noKeyTitle", "오디오 목록을 불러올 수 없습니다")}</strong>
+            <p>
+              {t(
+                "audioGuide.meta.noKeyBody",
+                "서버에 관광공사 Odii용 API 키가 없습니다. Heroku 설정에 ODII_API_KEY(또는 VISITKOREA_SERVICE_KEY)를 넣어 주세요.",
+              )}
+            </p>
+          </div>
+        </div>
+      ) : null}
+      {odiiMeta?.odiiApiKeyConfigured && odiiMeta.themeKoSampleCount === 0 && !loading && !errored
+        && items.length === 0 && !keyword.trim() && !wantNearby ? (
+          <div className="agp-odii-banner agp-odii-banner-warn" role="status">
+            <AlertTriangle size={18} aria-hidden />
+            <div>
+              <strong>{t("audioGuide.meta.emptyTitle", "관광공사 서버에서 데이터가 비어 있습니다")}</strong>
+              <p>
+                {t(
+                  "audioGuide.meta.emptyBody",
+                  "키는 설정된 것으로 보이지만 Odii가 빈 목록만 줍니다. 공공데이터포털에서 Odii 활용 승인·일일 호출 한도(오퍼레이션별)를 확인해 주세요.",
+                )}
+              </p>
+            </div>
+          </div>
+        ) : null}
 
       {/*
        * Cine Audio Trail · 4대 시그니처 코스 큐레이션.
@@ -1222,6 +1273,29 @@ const agpCss = `
     radial-gradient(1000px 400px at 100% 0%, rgba(34,211,238,0.18) 0%, transparent 60%),
     radial-gradient(900px 480px at 50% 110%, rgba(244,114,182,0.14) 0%, transparent 60%),
     linear-gradient(180deg, #07041a 0%, #0a0614 45%, #100a1c 100%);
+}
+.agp-odii-banner {
+  max-width: 1200px;
+  margin: 0 auto 16px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+.agp-odii-banner strong { display: block; margin-bottom: 4px; font-size: 0.95rem; }
+.agp-odii-banner p { margin: 0; opacity: 0.92; }
+.agp-odii-banner-err {
+  background: rgba(239,68,68,0.14);
+  border: 1px solid rgba(248,113,113,0.42);
+  color: #fecaca;
+}
+.agp-odii-banner-warn {
+  background: rgba(251,191,36,0.1);
+  border: 1px solid rgba(251,191,36,0.32);
+  color: #fde68a;
 }
 .agp-hero, .agp-courses, .agp-controls, .agp-list, .agp-section,
 .agp-empty, .agp-mini-player { position: relative; z-index: 1; }

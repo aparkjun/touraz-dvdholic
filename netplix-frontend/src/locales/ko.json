@@ -511,6 +511,12 @@
       "denied": "위치 권한이 거부되었어요. 브라우저 설정에서 허용해주세요.",
       "unsupported": "이 브라우저는 위치 기능을 지원하지 않아요."
     },
+    "meta": {
+      "noKeyTitle": "오디오 목록을 불러올 수 없습니다",
+      "noKeyBody": "서버에 관광공사 Odii용 API 키가 없습니다. Heroku 설정에 ODII_API_KEY(또는 VISITKOREA_SERVICE_KEY)를 넣어 주세요.",
+      "emptyTitle": "관광공사 서버에서 데이터가 비어 있습니다",
+      "emptyBody": "키는 설정된 것으로 보이지만 Odii가 빈 목록만 줍니다. 공공데이터포털에서 Odii 활용 승인·일일 호출 한도(오퍼레이션별)를 확인해 주세요."
+    },
     "tab": { "theme": "관광지 해설", "story": "이야기 조각" },
     "card": {
       "themeCourseBadge": "코스형",
