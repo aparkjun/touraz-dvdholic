@@ -42,6 +42,7 @@ class WeatherControllerTest {
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
+        lenient().when(kmaShortRegHttpClient.isApiKeyConfigured()).thenReturn(true);
         lenient().when(kmaVsrtGrdHourlyService.fetchHourlyForLatLng(anyDouble(), anyDouble(), anyInt())).thenReturn(List.of());
         weatherController = new WeatherController(kmaShortRegHttpClient, kmaVsrtGrdHourlyService, objectMapper);
         ReflectionTestUtils.setField(weatherController, "defaultReg", "11B10101");
