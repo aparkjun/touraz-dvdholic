@@ -5,6 +5,7 @@ import fast.campus.netplix.audioguide.AudioGuideItemPort;
 import fast.campus.netplix.client.HttpClient;
 import fast.campus.netplix.util.ObjectMapperUtil;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -27,6 +28,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -36,7 +40,7 @@ import java.util.stream.Collectors;
  * <ul>
  *   <li>RestTemplate 이중 인코딩 방지 → {@link HttpClient#requestUri(URI, HttpMethod, HttpHeaders)}</li>
  *   <li>items 빈 문자열 치환, 비-JSON 방어</li>
- *   <li>전체 목록 = 1페이지 동기 + 백그라운드 풀 적재 (Heroku 30s 회피)</li>
+ *   <li>전체 목록 limit=0 시 동기 풀 적재 + 2페이지~는 제한 병렬 요청으로 지연 완화</li>
  *   <li>serviceKey/URL 미설정 · 403 Forbidden · 비-JSON 응답 → 빈 리스트 반환</li>
  * </ul>
  *
@@ -60,6 +64,17 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     private static final int MAX_PAGES_KEYWORD = 30;
     private static final int LOCATION_PAGE_ROWS = 50;
     private static final Set<String> SUPPORTED_LANGS = Set.of("ko", "en", "zh", "ja");
+
+    /** 목록 추가 페이지를 순차가 아닌 병렬로 받아 EN/ZH/JA 첫 로딩 시간을 줄인다. */
+    private static final int ODII_PARALLEL_PAGE_FETCH = 8;
+
+    private static final ExecutorService ODII_PAGE_FETCH_POOL = Executors.newFixedThreadPool(
+            ODII_PARALLEL_PAGE_FETCH,
+            r -> {
+                Thread t = new Thread(r, "odii-page-fetch");
+                t.setDaemon(true);
+                return t;
+            });
 
     private final HttpClient httpClient;
 
@@ -119,7 +134,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         }
         // ko 테마 + ko 스토리 프리워밍.
         // 스토리 캐시는 THEME 카드 모달의 "연관 해설 이야기" 즉시 로딩을 위해 필수.
-        CompletableFuture.runAsync(() -> {
+        CompletableFuture<Void> koTheme = CompletableFuture.runAsync(() -> {
             try {
                 refreshAll(AudioGuideItem.Type.THEME, "ko");
                 log.info("[ODII] 프리워밍 완료 (THEME:ko) - {} 건 로드",
@@ -128,7 +143,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 log.warn("[ODII] 프리워밍 실패 THEME:ko (활용신청 미승인 가능): {}", ex.getMessage());
             }
         });
-        CompletableFuture.runAsync(() -> {
+        CompletableFuture<Void> koStory = CompletableFuture.runAsync(() -> {
             try {
                 refreshAll(AudioGuideItem.Type.STORY, "ko");
                 log.info("[ODII] 프리워밍 완료 (STORY:ko) - {} 건 로드",
@@ -137,6 +152,41 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 log.warn("[ODII] 프리워밍 실패 STORY:ko: {}", ex.getMessage());
             }
         });
+
+        /*
+         * KO 테마·스토리 이후 잠시 두었다가 EN/ZH/JA 테마만 선적재 → 언어 전환 시 체감 속도 개선.
+         * 스토리 탭은 필요 시 첫 요청에서 병렬 페이지 로드·캐시로 충분.
+         */
+        CompletableFuture.allOf(koTheme, koStory).whenComplete((__, err) -> CompletableFuture.runAsync(() -> {
+            try {
+                Thread.sleep(4000L);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+            for (String lang : new String[]{"en", "zh", "ja"}) {
+                try {
+                    refreshAll(AudioGuideItem.Type.THEME, lang);
+                    log.info("[ODII] 프리워밍 완료 (THEME:{}) - {} 건 로드", lang,
+                            getSnapshot(allKey(AudioGuideItem.Type.THEME, lang)).sites.size());
+                } catch (Exception ex) {
+                    log.warn("[ODII] 프리워밍 실패 THEME:{} — {}", lang, ex.getMessage());
+                }
+            }
+        }));
+    }
+
+    @PreDestroy
+    void shutdownOdiiPageFetchPool() {
+        ODII_PAGE_FETCH_POOL.shutdown();
+        try {
+            if (!ODII_PAGE_FETCH_POOL.awaitTermination(20, TimeUnit.SECONDS)) {
+                ODII_PAGE_FETCH_POOL.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            ODII_PAGE_FETCH_POOL.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     // =========================================================================
@@ -473,11 +523,26 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 maxPages,
                 (long) Math.ceil(totalCount / (double) MAX_PAGE_SIZE));
 
-        for (int page = 2; page <= totalPages; page++) {
-            PageResult pr = requestPage(baseUrl, extraParams, type, lang, page);
+        int extraPages = totalPages - 1;
+        if (extraPages <= 0) {
+            return Collections.unmodifiableList(acc);
+        }
+
+        @SuppressWarnings("unchecked")
+        CompletableFuture<PageResult>[] futures = new CompletableFuture[extraPages];
+        for (int i = 0; i < extraPages; i++) {
+            final int pageNo = i + 2;
+            futures[i] = CompletableFuture.supplyAsync(
+                    () -> requestPage(baseUrl, extraParams, type, lang, pageNo),
+                    ODII_PAGE_FETCH_POOL);
+        }
+        CompletableFuture.allOf(futures).join();
+
+        for (int i = 0; i < extraPages; i++) {
+            PageResult pr = futures[i].join();
             if (pr == null || pr.items.isEmpty()) {
                 log.warn("[ODII] type={} lang={} page={} 빈/실패 - 지금까지 {}건으로 마감",
-                        type, lang, page, acc.size());
+                        type, lang, i + 2, acc.size());
                 break;
             }
             acc.addAll(pr.items);
