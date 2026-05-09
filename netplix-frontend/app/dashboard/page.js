@@ -1742,20 +1742,23 @@ function DashboardContent() {
                   >
                     {t("dashboard.musicCategoryBridgeLine")}
                   </p>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
                     <button
                       type="button"
                       className="js-fast-tap"
                       onClick={() => router.push("/audio-guide")}
                       style={{
-                        padding: "8px 14px",
-                        borderRadius: "10px",
-                        border: "1px solid rgba(167,139,250,0.45)",
-                        background: "rgba(99,102,241,0.2)",
-                        color: "#e9d5ff",
-                        fontSize: "12px",
-                        fontWeight: 600,
+                        padding: "10px 16px",
+                        borderRadius: "12px",
+                        border: "2px solid rgba(196,181,253,0.85)",
+                        background: "linear-gradient(145deg, rgba(109,40,217,0.45) 0%, rgba(79,70,229,0.35) 100%)",
+                        color: "#faf5ff",
+                        fontSize: "13px",
+                        fontWeight: 800,
+                        letterSpacing: "-0.02em",
                         cursor: "pointer",
+                        boxShadow: "0 4px 18px rgba(109,40,217,0.35), inset 0 1px 0 rgba(255,255,255,0.12)",
+                        textShadow: "0 1px 2px rgba(0,0,0,0.35)",
                       }}
                     >
                       {t("dashboard.musicCategoryBridgeAudio")}
@@ -1765,14 +1768,17 @@ function DashboardContent() {
                       className="js-fast-tap"
                       onClick={() => router.push("/cine-trip")}
                       style={{
-                        padding: "8px 14px",
-                        borderRadius: "10px",
-                        border: "1px solid rgba(251,191,36,0.4)",
-                        background: "rgba(245,158,11,0.15)",
-                        color: "#fde68a",
-                        fontSize: "12px",
-                        fontWeight: 600,
+                        padding: "10px 16px",
+                        borderRadius: "12px",
+                        border: "2px solid rgba(252,211,77,0.9)",
+                        background: "linear-gradient(145deg, rgba(217,119,6,0.5) 0%, rgba(180,83,9,0.4) 100%)",
+                        color: "#fffbeb",
+                        fontSize: "13px",
+                        fontWeight: 800,
+                        letterSpacing: "-0.02em",
                         cursor: "pointer",
+                        boxShadow: "0 4px 18px rgba(217,119,6,0.35), inset 0 1px 0 rgba(255,255,255,0.12)",
+                        textShadow: "0 1px 2px rgba(0,0,0,0.4)",
                       }}
                     >
                       {t("dashboard.musicCategoryBridgeCineTrip")}
