@@ -59,19 +59,24 @@ public class KmaShortRegHttpClient {
             log.debug("KMA fct_shrt_reg ok reg={} len={}", r, body != null ? body.length() : 0);
             return body;
         } catch (RestClientResponseException e) {
-            String snippet = "";
+            String b = null;
             try {
-                String b = e.getResponseBodyAsString();
-                if (b != null && !b.isEmpty()) {
-                    snippet = b.length() > 400 ? b.substring(0, 400) + "…" : b;
-                }
+                b = e.getResponseBodyAsString();
             } catch (Exception ignored) {
+            }
+            // 기상청 API허브는 HTTP 4xx여도 JSON result.status 로 상세 사유를 줄 때가 많음 → 본문을 넘겨 upstreamError 로 표시
+            if (b != null && !b.isBlank()) {
+                String trimmed = b.stripLeading();
+                if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+                    log.warn("KMA fct_shrt_reg HTTP {} reg={} — 응답 본문 반환(활용신청·승인·한도 확인).", e.getStatusCode().value(), r);
+                    return b;
+                }
             }
             log.warn(
                     "KMA fct_shrt_reg HTTP {} reg={} — 인증·승인·일일한도·엔드포인트를 확인하세요. bodyPreview={}",
                     e.getStatusCode().value(),
                     r,
-                    snippet.isEmpty() ? "(empty)" : snippet.replaceAll("\\s+", " ").trim());
+                    (b == null || b.isEmpty()) ? "(empty)" : (b.length() > 400 ? b.substring(0, 400) + "…" : b).replaceAll("\\s+", " ").trim());
             return null;
         } catch (Exception e) {
             log.warn("KMA fct_shrt_reg 실패 reg={}: {}", r, e.getMessage());
