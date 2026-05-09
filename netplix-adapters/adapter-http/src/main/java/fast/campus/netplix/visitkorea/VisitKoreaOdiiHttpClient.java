@@ -1146,22 +1146,19 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         }
 
         if (parsed == null || parsed.getResponse() == null) {
-            return null;
+            return new PageResult(List.of(), 0);
         }
         VisitKoreaOdiiResponse.Header apiHeader = parsed.getResponse().getHeader();
-        if (apiHeader != null && apiHeader.getResultCode() != null) {
-            String rc = apiHeader.getResultCode().trim();
-            if (!rc.isEmpty() && !"0000".equals(rc)) {
-                log.warn("[ODII] resultCode={} resultMsg={} type={} page={} lang={} langCode={}",
-                        apiHeader.getResultCode(), apiHeader.getResultMsg(),
-                        type, pageNo, canonicalLang, qLang);
-                return null;
-            }
+        if (apiHeader != null && apiHeader.getResultCode() != null
+                && !"0000".equals(apiHeader.getResultCode().trim())) {
+            log.warn("[ODII] resultCode={} resultMsg={} type={} page={} lang={} langCode={}",
+                    apiHeader.getResultCode(), apiHeader.getResultMsg(),
+                    type, pageNo, canonicalLang, qLang);
         }
         if (parsed.getResponse().getBody() == null) {
             log.warn("[ODII] response.body=null type={} page={} lang={} langCode={}",
                     type, pageNo, canonicalLang, qLang);
-            return null;
+            return new PageResult(List.of(), 0);
         }
 
         VisitKoreaOdiiResponse.Body body = parsed.getResponse().getBody();
