@@ -17,6 +17,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -40,9 +41,9 @@ import java.util.stream.Collectors;
  * </ul>
  *
  * <p>캐시 키는 type+lang 조합으로 분리 (예: "THEME:ko", "STORY:zh").
- * 프런트 {@code /audio-guide} 상단 라벨은 KO·EN·ZH·JA 이고, 내부 캐시 키는 canonical {@code ko|en|zh|ja}.
- * Odii GW 요청 시 중·일은 명세상 {@code chs}/{@code jpn} 등 TourAPI 계열 코드를 쓰는 경우가 많아
- * {@link #forOdiiQueryLang} 에서만 매핑한다({@code zh}/{@code ja} 그대로 보내면 0건으로 보일 수 있음).
+ * 프런트 {@code /audio-guide} 상단 라벨은 KO·EN·ZH·JA 이고, 캐시 키는 canonical {@code ko|en|zh|ja}.
+ * 중·일 GW {@code langCode} 표기는 명세·버전별로 {@code zh}/{@code chs}/{@code jp}/{@code jpn} 등이 혼재할 수 있어
+ * {@link #resolveOdiiQueryLangForRequest} 가 테마/스토리 목록 1페이지로 한 번 프로브한 뒤 캐시한다.
  */
 @Slf4j
 @Component
@@ -91,6 +92,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
 
     private final Map<String, CacheSnapshot> cache = new ConcurrentHashMap<>();
 
+    /** canonical zh|ja → GW 에 실제로 통과한 langCode (프로브 1회). */
+    private final ConcurrentHashMap<String, String> resolvedOdiiQueryLangByCanonical = new ConcurrentHashMap<>();
+
     @Override
     public boolean isConfigured() {
         return serviceKey != null && !serviceKey.isBlank()
@@ -134,8 +138,22 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         if (!isConfigured()) return List.of();
         String l = normalize(lang);
         String key = allKey(type, l);
-        CacheSnapshot snap = cache.get(key);
 
+        /*
+         * 프런트는 전체 목록에 limit=0 을 보낸다. 첫 페이지만 넣은 partial 캐시를 그대로 반환하면
+         * (백그라운드 적재 전 단일 요청 시) 항상 100건으로 고정되므로, 무제한 요청은 동기 풀 적재한다.
+         */
+        if (limit <= 0) {
+            CacheSnapshot snap = cache.get(key);
+            if (snap != null && !snap.partial && !isStale(snap)) {
+                return snap.sites;
+            }
+            refreshAll(type, l);
+            snap = cache.get(key);
+            return take(snap != null ? snap.sites : List.of(), limit);
+        }
+
+        CacheSnapshot snap = cache.get(key);
         if (snap != null && !snap.partial && !isStale(snap)) {
             return take(snap.sites, limit);
         }
@@ -182,6 +200,16 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         if (keyword == null || keyword.isBlank()) return fetchAll(type, lang, limit);
         String l = normalize(lang);
         String cacheKey = type.name() + ":" + l + ":" + keyword.trim().toLowerCase(Locale.ROOT);
+
+        if (limit <= 0) {
+            CacheSnapshot snapFull = cache.get(cacheKey);
+            if (snapFull != null && !snapFull.partial && !isStale(snapFull)) {
+                return snapFull.sites;
+            }
+            refreshByKeyword(type, l, keyword.trim(), cacheKey);
+            snapFull = cache.get(cacheKey);
+            return take(snapFull != null ? snapFull.sites : List.of(), limit);
+        }
 
         CacheSnapshot snap = cache.get(cacheKey);
         if (snap != null && !snap.partial && !isStale(snap)) {
@@ -437,12 +465,22 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     }
 
     private PageResult requestPage(String baseUrl, Map<String, String> extraParams,
-                                   AudioGuideItem.Type type, String lang, int pageNo) {
-        return requestPage(baseUrl, extraParams, type, lang, pageNo, MAX_PAGE_SIZE);
+                                   AudioGuideItem.Type type, String canonicalLang, int pageNo) {
+        return requestPage(baseUrl, extraParams, type, canonicalLang, pageNo, MAX_PAGE_SIZE, null);
     }
 
     private PageResult requestPage(String baseUrl, Map<String, String> extraParams,
-                                   AudioGuideItem.Type type, String lang, int pageNo, int rows) {
+                                   AudioGuideItem.Type type, String canonicalLang, int pageNo, int rows) {
+        return requestPage(baseUrl, extraParams, type, canonicalLang, pageNo, rows, null);
+    }
+
+    /**
+     * @param explicitLangCode 프로브용 고정 langCode. null 이면 {@link #resolveOdiiQueryLangForRequest}.
+     */
+    private PageResult requestPage(String baseUrl, Map<String, String> extraParams,
+                                   AudioGuideItem.Type type, String canonicalLang, int pageNo, int rows,
+                                   String explicitLangCode) {
+        String qLang = explicitLangCode != null ? explicitLangCode : resolveOdiiQueryLangForRequest(type, canonicalLang);
         StringBuilder sb = new StringBuilder(baseUrl);
         sb.append(baseUrl.contains("?") ? "&" : "?");
         sb.append("serviceKey=").append(serviceKey);
@@ -451,8 +489,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         sb.append("&MobileApp=touraz-dvdholic");
         sb.append("&numOfRows=").append(rows);
         sb.append("&pageNo=").append(pageNo);
-        // langCode: 한·영은 ko/en, 중·일은 GW 명세에 맞춰 chs/jpn 등으로 변환 (forOdiiQueryLang).
-        sb.append("&langCode=").append(forOdiiQueryLang(lang));
+        sb.append("&langCode=").append(qLang);
         extraParams.forEach((k, v) -> sb.append('&').append(k).append('=')
                 .append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
 
@@ -506,11 +543,11 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 && !"0000".equals(apiHeader.getResultCode().trim())) {
             log.warn("[ODII] resultCode={} resultMsg={} type={} page={} lang={} langCode={}",
                     apiHeader.getResultCode(), apiHeader.getResultMsg(),
-                    type, pageNo, lang, forOdiiQueryLang(lang));
+                    type, pageNo, canonicalLang, qLang);
         }
         if (parsed.getResponse().getBody() == null) {
             log.warn("[ODII] response.body=null type={} page={} lang={} langCode={}",
-                    type, pageNo, lang, forOdiiQueryLang(lang));
+                    type, pageNo, canonicalLang, qLang);
             return new PageResult(List.of(), 0);
         }
 
@@ -526,6 +563,41 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 .filter(s -> s.getTitle() != null && !s.getTitle().isBlank())
                 .collect(Collectors.toList());
         return new PageResult(list, totalCount);
+    }
+
+    /**
+     * GW 가 허용하는 중·일 langCode 표기가 버전마다 달라, 각 canonical 에 대해 목록 1페이지로 한 번만 프로브한다.
+     */
+    private String resolveOdiiQueryLangForRequest(AudioGuideItem.Type type, String canonicalLang) {
+        if (canonicalLang == null || canonicalLang.isBlank()) {
+            return "ko";
+        }
+        return switch (canonicalLang) {
+            case "ko", "en" -> canonicalLang;
+            case "zh", "ja" -> resolvedOdiiQueryLangByCanonical.computeIfAbsent(
+                    canonicalLang, c -> probeOdiiLangCode(type, c));
+            default -> "ko";
+        };
+    }
+
+    private String probeOdiiLangCode(AudioGuideItem.Type type, String canonical) {
+        String base = basedUrl(type);
+        String[] candidates = switch (canonical) {
+            case "zh" -> new String[]{"zh", "chs", "cht", "cn"};
+            case "ja" -> new String[]{"ja", "jp", "jpn"};
+            default -> new String[]{"ko"};
+        };
+        for (String code : candidates) {
+            PageResult pr = requestPage(base, Map.of(), type, canonical, 1, MAX_PAGE_SIZE, code);
+            if (pr != null && (pr.totalCount > 0 || !pr.items.isEmpty())) {
+                log.info("[ODII] GW langCode 선택 canonical={} → {} (type={} totalCount={})",
+                        canonical, code, type, pr.totalCount);
+                return code;
+            }
+        }
+        log.warn("[ODII] GW langCode 후보 전부 0건 canonical={} candidates={} type={}",
+                canonical, Arrays.toString(candidates), type);
+        return "zh".equals(canonical) ? "zh" : "ja".equals(canonical) ? "ja" : "ko";
     }
 
     // =========================================================================
@@ -649,22 +721,6 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             default -> n;
         };
         return SUPPORTED_LANGS.contains(n) ? n : "ko";
-    }
-
-    /**
-     * Odii {@code langCode} 쿼리용 값. 내부 canonical 은 ko|en|zh|ja 이지만, 공공 GW 는 중국어·일본어를
-     * zh/ja 가 아닌 chs(간체)·jpn 등으로 요구하는 경우가 많다. 응답 파싱 {@link #canonicalOdiiLang} 과 대칭.
-     */
-    private static String forOdiiQueryLang(String canonical) {
-        if (canonical == null || canonical.isBlank()) {
-            return "ko";
-        }
-        return switch (canonical) {
-            case "ko", "en" -> canonical;
-            case "zh" -> "chs";
-            case "ja" -> "jpn";
-            default -> "ko";
-        };
     }
 
     /** 응답 item 의 langCode 를 프런트·TTS 용 zh|ja|ko|en 으로 맞춤. */

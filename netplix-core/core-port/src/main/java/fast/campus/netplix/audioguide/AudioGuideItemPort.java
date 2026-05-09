@@ -13,7 +13,7 @@ import java.util.List;
  * </ul>
  *
  * <p>일일 쿼터 1,000회/오퍼레이션 고려 — 어댑터는 type+lang 독립 in-memory 캐시 유지.
- * 프런트·유스케이스 언어는 ko|en|zh|ja 이며, Odii GW 의 langCode 매핑(예: zh→chs)은 어댑터가 담당.
+ * 프런트·유스케이스 언어는 ko|en|zh|ja 이며, Odii GW 의 실제 langCode 는 어댑터가 프로브·캐시한다.
  * 미승인 403 Forbidden / 키 미설정 시 빈 리스트 → UI 자연 숨김.
  */
 public interface AudioGuideItemPort {
