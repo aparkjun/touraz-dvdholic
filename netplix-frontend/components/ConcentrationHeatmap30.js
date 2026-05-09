@@ -320,8 +320,9 @@ export default function ConcentrationHeatmap30({ areaCode = null, regionLabel = 
           border-radius: 14px;
           display: flex;
           flex-direction: column;
-          align-items: center;
+          align-items: stretch;
           justify-content: center;
+          min-height: 0;
           font-weight: 700;
           transition:
             transform 0.2s cubic-bezier(0.34, 1.2, 0.64, 1),
@@ -377,35 +378,84 @@ export default function ConcentrationHeatmap30({ areaCode = null, regionLabel = 
         }
 
         .concentration-h30__cellInner {
+          flex: 1 1 auto;
+          align-self: stretch;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
           width: 100%;
-          height: 100%;
+          min-height: 0;
           text-decoration: none;
           color: inherit;
-          padding: 4px;
+          padding: 6px;
+          box-sizing: border-box;
+        }
+
+        /* 숫자는 어두운 글래스 필 위에 올려 그라데이션과 무관하게 읽기 쉽게 — 셀 정중앙 */
+        .concentration-h30__cellNums {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          align-self: center;
+          margin-inline: auto;
+          text-align: center;
+          width: min(100%, 88%);
+          max-width: 100%;
+          padding: 8px 10px;
+          border-radius: 12px;
+          font-variant-numeric: tabular-nums;
+          box-sizing: border-box;
+          background: rgba(15, 23, 42, 0.78);
+          border: 1px solid rgba(255, 255, 255, 0.32);
+          box-shadow:
+            0 2px 10px rgba(0, 0, 0, 0.35),
+            inset 0 1px 0 rgba(255, 255, 255, 0.12);
+          backdrop-filter: blur(10px);
+          -webkit-backdrop-filter: blur(10px);
+        }
+
+        .concentration-h30__cellNums--empty {
+          background: rgba(15, 23, 42, 0.42);
+          border-color: rgba(148, 163, 184, 0.18);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
         }
 
         .concentration-h30__cellDay {
-          font-size: clamp(12px, 3.2vw, 14px);
-          line-height: 1.15;
+          display: block;
+          width: 100%;
+          text-align: center;
+          font-size: clamp(15px, 4.2vw, 18px);
+          line-height: 1.1;
           font-weight: 800;
           letter-spacing: -0.02em;
+          color: #ffffff;
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
         }
 
         .concentration-h30__cellRate {
-          margin-top: 3px;
-          font-size: clamp(10px, 2.7vw, 11px);
-          font-weight: 600;
-          opacity: 0.92;
-          letter-spacing: 0.02em;
+          display: block;
+          width: 100%;
+          text-align: center;
+          margin-top: 5px;
+          font-size: clamp(12px, 3.4vw, 14px);
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          color: #f1f5f9;
+          opacity: 1;
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
         }
 
-        .concentration-h30__cell--empty .concentration-h30__cellRate {
-          opacity: 0.65;
+        .concentration-h30__cellNums--empty .concentration-h30__cellDay {
+          color: #cbd5e1;
+          text-shadow: none;
+        }
+
+        .concentration-h30__cellNums--empty .concentration-h30__cellRate {
+          color: #94a3b8;
           font-weight: 600;
+          text-shadow: none;
         }
 
         .concentration-h30__footer {
@@ -583,10 +633,10 @@ function HeatCell({ cell, delay, areaName }) {
     .join(' ');
 
   const inner = (
-    <>
+    <div className={`concentration-h30__cellNums ${hasData ? '' : 'concentration-h30__cellNums--empty'}`}>
       <span className="concentration-h30__cellDay">{cell.date.getDate()}</span>
-      <span className="concentration-h30__cellRate">{hasData ? rate.toFixed(0) : '—'}</span>
-    </>
+      <span className="concentration-h30__cellRate">{hasData ? `${rate.toFixed(0)}%` : '—'}</span>
+    </div>
   );
 
   const motionProps = {
@@ -619,7 +669,7 @@ function HeatCell({ cell, delay, areaName }) {
       }
       className={cellClass}
     >
-      {inner}
+      <div className="concentration-h30__cellInner">{inner}</div>
     </motion.div>
   );
 }
