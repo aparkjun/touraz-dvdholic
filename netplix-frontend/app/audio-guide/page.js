@@ -224,12 +224,12 @@ function AudioGuidePageInner() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await axios.get("/api/v1/audio-guide/meta");
+        const res = await axios.get("/api/v1/audio-guide/odii-status");
         const d = res?.data?.data;
         if (cancelled || !d || typeof d.odiiApiKeyConfigured !== "boolean") return;
         setOdiiMeta({
           odiiApiKeyConfigured: d.odiiApiKeyConfigured,
-          themeKoSampleCount: typeof d.themeKoSampleCount === "number" ? d.themeKoSampleCount : 0,
+          themeKoSampleCount: 0,
         });
       } catch {
         if (!cancelled) setOdiiMeta(null);
@@ -740,7 +740,7 @@ function AudioGuidePageInner() {
           </div>
         </div>
       ) : null}
-      {odiiMeta?.odiiApiKeyConfigured && odiiMeta.themeKoSampleCount === 0 && !loading && !errored
+      {odiiMeta?.odiiApiKeyConfigured && !loading && !errored
         && items.length === 0 && !keyword.trim() && !wantNearby ? (
           <div className="agp-odii-banner agp-odii-banner-warn" role="status">
             <AlertTriangle size={18} aria-hidden />

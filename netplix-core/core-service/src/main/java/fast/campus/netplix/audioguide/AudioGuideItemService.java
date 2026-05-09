@@ -56,11 +56,7 @@ public class AudioGuideItemService implements GetAudioGuideItemsUseCase {
 
     @Override
     public AudioGuideOdiiMeta odiiMeta() {
-        if (!port.isConfigured()) {
-            return new AudioGuideOdiiMeta(false, 0);
-        }
-        int peek = port.fetchAll(AudioGuideItem.Type.THEME, DEFAULT_LANG, 3).size();
-        return new AudioGuideOdiiMeta(true, peek);
+        return new AudioGuideOdiiMeta(port.isConfigured(), 0);
     }
 
     private int sanitize(int limit) {
