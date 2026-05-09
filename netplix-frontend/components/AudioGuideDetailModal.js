@@ -506,10 +506,10 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
 
   const hasAudio = !!item.audioUrl;
   const isThemeCard = item.type === "THEME";
-  // THEME + 대표 audioUrl 만 있을 때 상단 플레이어가 먼저 그려지면 연관 STORY 블록이 통째로 생략되어
-  // “오디오가 하나만” 있는 것처럼 보인다. STORY 를 불러오는 중이거나 1건 이상이면 목록을 우선한다.
-  const showThemeStoryList = isThemeCard && (storiesLoading || stories.length > 0);
-  const showMainPlayer = hasAudio && (!isThemeCard || !showThemeStoryList);
+  // THEME: 연관 STORY 가 로드 중이거나 있으면 ‘코스형’ UX — 대표 오디오는 축소 플레이어로만 두고 목록을 본론으로 둔다.
+  const showThemeStoryBlock = isThemeCard && (storiesLoading || stories.length > 0);
+  const showFullMainPlayer = hasAudio && (!isThemeCard || !showThemeStoryBlock);
+  const showThemeIntroCompact = isThemeCard && hasAudio && showThemeStoryBlock;
   // description 은 리스트 lite 응답에서 빠져 있을 수 있으므로 loadedDesc 로 보강.
   // 모달에서 Odii 언어만 바꾼 경우 리스트에 실린 다른 언어 대본이 남지 않게 한다.
   const effectiveDescription = (() => {
@@ -523,7 +523,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
   })();
   const hasScript = !!effectiveDescription;
   const subtitleVoiceActive =
-    Boolean(hasAudio && showMainPlayer && playing)
+    Boolean(hasAudio && (showFullMainPlayer || showThemeIntroCompact) && playing)
     || Boolean(hasScript && ttsSupported && ttsPlaying && !ttsPaused);
   const themeStoriesVoiceActive =
     Boolean(activeStoryId && !activeStoryPaused) || liveStoryNativeId != null;
@@ -839,7 +839,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
             </div>
           ) : null}
 
-          {showMainPlayer ? (
+          {showFullMainPlayer ? (
             <div className="agm-player">
               <div className="agm-player-top">
                 <button
@@ -878,10 +878,61 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
               )}
             </div>
           ) : isThemeCard ? (
-            // Odii API 는 THEME(관광지) 응답에 script 를 내려주지 않고,
-            // STORY(이야기) 응답에만 해설 대본이 있다. 여러 STORY 가 tid 로 THEME 에 연결되므로
-            // 이 관광지와 연결된 이야기들을 나열한다. STORY 에 audioUrl 이 있으면 네이티브 재생, 없으면 TTS.
-            <div className="agm-theme-stories">
+            <>
+              {showThemeIntroCompact ? (
+                <div className="agm-theme-intro">
+                  <div className="agm-theme-intro-head">
+                    <div className="agm-theme-intro-title">
+                      {t("audioGuide.detail.themeIntro.title", "테마 소개 오디오")}
+                    </div>
+                    <div className="agm-theme-intro-sub">
+                      {t("audioGuide.detail.themeIntro.sub", "아래 목록은 같은 관광지의 세부 해설 이야기예요.")}
+                    </div>
+                  </div>
+                  <div className="agm-player agm-player-theme-compact">
+                    <div className="agm-player-top">
+                      <button
+                        type="button"
+                        className="agm-player-main agm-player-main-sm"
+                        onClick={togglePlay}
+                        aria-label={
+                          playing
+                            ? t("audioGuide.detail.themeIntro.pauseAria", "테마 소개 오디오 일시정지")
+                            : t("audioGuide.detail.themeIntro.playAria", "테마 소개 오디오 재생")
+                        }
+                      >
+                        {playing ? <Pause size={18} /> : <Play size={18} />}
+                      </button>
+                      <div className="agm-player-progress" onClick={seek}>
+                        <div
+                          className="agm-player-fill"
+                          style={{ width: duration > 0 ? `${(progress / duration) * 100}%` : "0%" }}
+                        />
+                      </div>
+                      <span className="agm-player-time agm-player-time-sm">
+                        {formatSeconds(progress)} / {formatSeconds(duration)}
+                      </span>
+                      <button type="button" className="agm-player-aux" onClick={restart} aria-label="restart">
+                        <SkipBack size={12} />
+                      </button>
+                      <button type="button" className="agm-player-aux" onClick={toggleMute}
+                        aria-label={muted ? "unmute" : "mute"}>
+                        {muted ? <VolumeX size={12} /> : <Volume2 size={12} />}
+                      </button>
+                    </div>
+                    {audioError && (
+                      <p className="agm-player-err">
+                        {t("audioGuide.detail.audioErr", "오디오를 재생할 수 없어요. 원본 링크에서 열어보세요.")}
+                        {" · "}
+                        <a href={item.audioUrl} target="_blank" rel="noreferrer">
+                          {t("audioGuide.detail.openAudio", "오디오 파일 열기")}
+                        </a>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+              <div className="agm-theme-stories">
               <div className="agm-theme-stories-head">
                 <div className="agm-theme-stories-title">
                   <VoiceMicIcon active={themeStoriesVoiceActive} size={16} /> {t("audioGuide.detail.stories.title", "이 관광지의 해설 이야기")}
@@ -987,6 +1038,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
                 </div>
               ) : null}
             </div>
+            </>
           ) : hasScript && ttsSupported ? (
             // Odii 공공 OpenAPI 가 audioUrl 을 비공개로 제공하므로,
             // 스크립트를 브라우저 내장 TTS 로 읽어 주는 fallback 플레이어.
@@ -1381,6 +1433,41 @@ const modalCss = `
 .agm-player-aux:hover { background: rgba(167,139,250,0.3); }
 .agm-player-err { margin: 8px 0 0; color: #fca5a5; font-size: 0.82rem; }
 .agm-player-err a { color: #fde68a; text-decoration: underline; }
+
+.agm-theme-intro {
+  margin-bottom: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(34,211,238,0.11) 0%, rgba(167,139,250,0.1) 100%);
+  border: 1px solid rgba(34,211,238,0.32);
+}
+.agm-theme-intro-head { margin-bottom: 8px; }
+.agm-theme-intro-title {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #cffafe;
+  letter-spacing: 0.02em;
+}
+.agm-theme-intro-sub {
+  margin-top: 3px;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: rgba(244,241,255,0.72);
+}
+.agm-player-theme-compact {
+  margin-bottom: 0;
+  padding: 8px 10px;
+  background: rgba(5, 10, 28, 0.35);
+  border: 1px dashed rgba(167,139,250,0.38);
+}
+.agm-player-main-sm {
+  width: 38px;
+  height: 38px;
+}
+.agm-player-time-sm {
+  font-size: 0.68rem;
+  min-width: 72px;
+}
 
 .agm-noaudio {
   display: inline-flex; align-items: center; gap: 6px;

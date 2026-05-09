@@ -822,6 +822,10 @@
       "unsupported": "This browser does not support geolocation."
     },
     "tab": { "theme": "Site Narration", "story": "Story Pieces" },
+    "card": {
+      "themeCourseBadge": "Course",
+      "openLinkedStoriesAria": "Open linked narration stories"
+    },
     "chips": { "theme": "Theme", "region": "Region" },
     "loading": "Loading audio guide…",
     "count": "{{count}} results",
@@ -836,6 +840,12 @@
       "noAudio": "No audio file provided for this item.",
       "audioErr": "Unable to play audio. Try opening the original file.",
       "openAudio": "Open audio file",
+      "themeIntro": {
+        "title": "Overview narration",
+        "sub": "Below are shorter narration clips for the same place.",
+        "playAria": "Play overview narration",
+        "pauseAria": "Pause overview narration"
+      },
       "openGoogleMap": "Open in Google Maps",
       "openKakaoMap": "Open in Kakao Map",
       "directionsSection": "Directions (transit)",

@@ -512,6 +512,10 @@
       "unsupported": "이 브라우저는 위치 기능을 지원하지 않아요."
     },
     "tab": { "theme": "관광지 해설", "story": "이야기 조각" },
+    "card": {
+      "themeCourseBadge": "코스형",
+      "openLinkedStoriesAria": "연결된 해설 목록 열기"
+    },
     "chips": { "theme": "테마", "region": "지역" },
     "loading": "오디오 가이드를 불러오는 중…",
     "count": "{{count}}개 결과",
@@ -526,6 +530,12 @@
       "noAudio": "이 항목에는 오디오 파일이 제공되지 않아요.",
       "audioErr": "오디오를 재생할 수 없어요. 원본 링크에서 열어보세요.",
       "openAudio": "오디오 파일 열기",
+      "themeIntro": {
+        "title": "테마 소개 오디오",
+        "sub": "아래 목록은 같은 관광지의 세부 해설 이야기예요.",
+        "playAria": "테마 소개 오디오 재생",
+        "pauseAria": "테마 소개 오디오 일시정지"
+      },
       "openGoogleMap": "구글 지도에서 보기",
       "openKakaoMap": "카카오맵에서 보기",
       "directionsSection": "길찾기 (대중교통)",

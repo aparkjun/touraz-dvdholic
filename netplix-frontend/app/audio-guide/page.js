@@ -61,6 +61,7 @@ import {
   Landmark,
   Sparkles,
   ChevronRight,
+  ListMusic,
 } from "lucide-react";
 
 const PAGE_SIZE = 60;
@@ -948,6 +949,7 @@ function AudioGuidePageInner() {
             <AudioCard
               key={item.id}
               item={item}
+              listKind={type}
               playing={
                 playingId != null && String(playingId) === String(item.id)
               }
@@ -1077,9 +1079,10 @@ function CourseCard({ icon, theme, title, desc, active, actionLabel, onClick, di
   );
 }
 
-function AudioCard({ item, playing, onToggle, onOpen }) {
+function AudioCard({ item, listKind, playing, onToggle, onOpen }) {
   const { t } = useTranslation();
   const hasAudio = !!item.audioUrl;
+  const isThemeList = listKind === "theme" || item.type === "THEME";
   // 카드 전체는 버튼 역할(상세 모달 열기). 내부 재생 버튼 클릭은 버블링 차단.
   const handleOpen = (e) => {
     e.preventDefault();
@@ -1121,7 +1124,12 @@ function AudioCard({ item, playing, onToggle, onOpen }) {
               : `${item.distanceKm.toFixed(1)}km`}
           </span>
         )}
-        {hasAudio && (
+        {isThemeList ? (
+          <span className="agp-card-theme-pill">
+            {t("audioGuide.card.themeCourseBadge", "코스형")}
+          </span>
+        ) : null}
+        {hasAudio ? (
           <button
             type="button"
             className={`agp-card-play ${playing ? "agp-card-play-on" : ""}`}
@@ -1130,7 +1138,16 @@ function AudioCard({ item, playing, onToggle, onOpen }) {
           >
             {playing ? <Pause size={22} /> : <Play size={22} />}
           </button>
-        )}
+        ) : isThemeList ? (
+          <button
+            type="button"
+            className="agp-card-open-linked"
+            onClick={(e) => { e.stopPropagation(); onOpen?.(); }}
+            aria-label={t("audioGuide.card.openLinkedStoriesAria", "연결된 해설 목록 열기")}
+          >
+            <ListMusic size={18} />
+          </button>
+        ) : null}
       </div>
       <div className="agp-card-body">
         <div className="agp-card-title" title={item.title}>{item.title}</div>
@@ -1620,6 +1637,31 @@ const agpCss = `
 }
 .agp-card-play:hover { transform: scale(1.08); background: rgba(167,139,250,0.95); color: #0b0620; }
 .agp-card-play-on { background: rgba(251,191,36,0.95); color: #2b1c00; border-color: rgba(251,191,36,0.9); }
+.agp-card-theme-pill {
+  position: absolute; top: 8px; right: 8px;
+  font-size: 0.68rem; font-weight: 800;
+  padding: 4px 9px; border-radius: 999px;
+  background: rgba(34,211,238,0.2);
+  border: 1px solid rgba(34,211,238,0.42);
+  color: #a5f3fc;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+}
+.agp-card-open-linked {
+  position: absolute; right: 10px; bottom: 10px;
+  width: 42px; height: 42px; border-radius: 999px;
+  border: 1px solid rgba(34,211,238,0.45);
+  background: rgba(10,22,40,0.78);
+  color: #a5f3fc; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(6px);
+  transition: transform 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+.agp-card-open-linked:hover {
+  transform: scale(1.08);
+  background: rgba(34,211,238,0.38);
+  color: #042f2e;
+}
 
 .agp-card-body { padding: 11px 14px 14px; display: flex; flex-direction: column; gap: 4px; }
 .agp-card-title {
