@@ -15,12 +15,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 기상청 API허브 단기예보(일반특보 구역) — fct_shrt_reg.php 프록시 호출용.
+ * 기상청 API허브 단기 데이터 — {@code fct_afs_ds.php}(단기 개황) 우선, 이어서 {@code fct_shrt_reg.php}.
  * 인증키는 서버 환경변수 {@code KMA_API_KEY} 만 사용한다 (저장소에 커밋 금지).
  */
 @Slf4j
 @Component
 public class KmaShortRegHttpClient {
+
+    @Value("${kma.api.fct-afs-ds:}")
+    private String fctAfsDsUrl;
 
     @Value("${kma.api.fct-shrt-reg}")
     private String fctShrtRegUrl;
@@ -30,6 +33,9 @@ public class KmaShortRegHttpClient {
 
     @Value("${kma.auth.default-reg}")
     private String defaultReg;
+
+    @Value("${kma.auth.default-afs-stn:109}")
+    private int defaultAfsStn;
 
     private RestClient restClient() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
@@ -79,6 +85,25 @@ public class KmaShortRegHttpClient {
         String lastPreview = null;
         String lastEx = null;
         for (String tmfc : tries) {
+            if (fctAfsDsUrl != null && !fctAfsDsUrl.isBlank()) {
+                OnceFetch afs = fetchAfsDsOnce(r, tmfc);
+                attempts++;
+                if (afs.body() != null && KmaHubJson.isHubSuccessEnvelope(afs.body())) {
+                    return new KmaShortRegFetchResult(afs.body(), null, null, null, attempts, catalogSkips);
+                }
+                if (afs.httpStatus() != null) {
+                    lastHttp = afs.httpStatus();
+                }
+                if (afs.nonJsonPreview() != null) {
+                    lastPreview = afs.nonJsonPreview();
+                }
+                if (afs.exceptionSummary() != null) {
+                    lastEx = afs.exceptionSummary();
+                }
+                if (afs.body() != null && KmaHubJson.looksLikeJson(afs.body())) {
+                    lastPreview = KmaHubJson.previewSnippet(afs.body());
+                }
+            }
             for (boolean useJsonDisp : new boolean[] {true, false}) {
                 OnceFetch once = fetchOnceDetailed(r, tmfc, useJsonDisp);
                 attempts++;
@@ -117,7 +142,87 @@ public class KmaShortRegHttpClient {
             return false;
         }
         String t = body.stripLeading();
+        if (t.startsWith("#START7777") || t.contains("단기예보 개황")) {
+            return false;
+        }
         return t.startsWith("#");
+    }
+
+    /** 단기 개황 — 텍스트 응답을 표준 JSON(afsDs)으로 변환해 프록시가 동일하게 처리. */
+    private OnceFetch fetchAfsDsOnce(String reg, String tmfc12) {
+        int stn = KmaRegToAfsDsStn.stnForReg(reg, defaultAfsStn);
+        String[] win = KmaAfsDsTimeWindow.tmfc1Tmfc2(tmfc12);
+        try {
+            URI uri = UriComponentsBuilder.fromHttpUrl(fctAfsDsUrl)
+                    .queryParam("stn", stn)
+                    .queryParam("tmfc1", win[0])
+                    .queryParam("tmfc2", win[1])
+                    .queryParam("disp", 0)
+                    .queryParam("authKey", apiKey)
+                    .build(true)
+                    .toUri();
+            RestClient rc = restClient();
+            String body = KmaHubJson.getWithRetry(rc, uri);
+            log.debug(
+                    "KMA fct_afs_ds ok reg={} stn={} tmfc1={} tmfc2={} len={}",
+                    reg,
+                    stn,
+                    win[0],
+                    win[1],
+                    body != null ? body.length() : 0);
+            if (body == null || body.isBlank()) {
+                return new OnceFetch(null, 200, "(empty body)", null, false);
+            }
+            if (KmaHubJson.looksLikeJson(body)) {
+                return new OnceFetch(body, null, null, null, false);
+            }
+            if (!body.contains("$0#")) {
+                String syn = KmaHubJson.syntheticResult(502, "fct_afs_ds: " + KmaHubJson.previewSnippet(body));
+                return new OnceFetch(syn, null, null, null, false);
+            }
+            String json = KmaAfsDsParser.toForecastJson(body, stn, win[0], win[1]);
+            if (json == null) {
+                String syn =
+                        KmaHubJson.syntheticResult(502, "fct_afs_ds parse: " + KmaHubJson.previewSnippet(body));
+                return new OnceFetch(syn, null, null, null, false);
+            }
+            return new OnceFetch(json, null, null, null, false);
+        } catch (RestClientResponseException e) {
+            String b = null;
+            try {
+                b = e.getResponseBodyAsString();
+            } catch (Exception ignored) {
+            }
+            if (b != null && !b.isBlank()) {
+                String trimmed = b.stripLeading();
+                if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+                    return new OnceFetch(b, null, null, null, false);
+                }
+            }
+            String preview = KmaHubJson.previewSnippet(b);
+            log.warn(
+                    "KMA fct_afs_ds HTTP {} reg={} stn={} bodyPreview={}",
+                    e.getStatusCode().value(),
+                    reg,
+                    stn,
+                    preview);
+            String syn = KmaHubJson.syntheticResult(e.getStatusCode().value(), preview);
+            return new OnceFetch(syn, null, null, null, false);
+        } catch (ResourceAccessException e) {
+            log.warn("KMA fct_afs_ds 네트워크/타임아웃 reg={}: {}", reg, e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+            if (msg.length() > 240) {
+                msg = msg.substring(0, 240) + "…";
+            }
+            return new OnceFetch(null, null, null, e.getClass().getSimpleName() + ": " + msg, false);
+        } catch (Exception e) {
+            log.warn("KMA fct_afs_ds 실패 reg={}: {}", reg, e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+            if (msg.length() > 240) {
+                msg = msg.substring(0, 240) + "…";
+            }
+            return new OnceFetch(KmaHubJson.syntheticResult(503, msg), null, null, null, false);
+        }
     }
 
     /** API허브 단기 일부 엔드포인트는 disp=1 일 때 JSON(개황) 형태로 내려준다. */

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Cloud, CloudOff, Loader2 } from 'lucide-react';
+import { ChevronDown, Cloud, CloudOff, CloudSun, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import axios from '@/lib/axiosConfig';
 import {
@@ -91,16 +91,21 @@ function ForecastSection({ title, hint, slots, t }) {
 
 function timelinesFromApiData(d) {
   if (!d || d.configured === false) {
-    return { vsrtSlots: [], shortSlots: [], hasVsrt: false, hasShort: false };
+    return { vsrtSlots: [], shortSlots: [], hasVsrt: false, hasShort: false, hasAfs: false };
   }
+  const hasAfs = Boolean(
+    d.afsDs &&
+      (String(d.afsDs.summary || '').trim() ||
+        (Array.isArray(d.afsDs.sections) && d.afsDs.sections.some((s) => s && String(s.text || '').trim())))
+  );
   const hasVsrt = Array.isArray(d.vsrtHourly) && d.vsrtHourly.length > 0;
   const series = resolveSeriesForWeatherTimeline(d);
   const hasSeries = series.length > 0;
-  if (d.upstreamError && !hasVsrt && !hasSeries) {
-    return { vsrtSlots: [], shortSlots: [], hasVsrt: false, hasShort: false };
+  if (d.upstreamError && !hasVsrt && !hasSeries && !hasAfs) {
+    return { vsrtSlots: [], shortSlots: [], hasVsrt: false, hasShort: false, hasAfs: false };
   }
   if (!hasSeries && !hasVsrt) {
-    return { vsrtSlots: [], shortSlots: [], hasVsrt: false, hasShort: false };
+    return { vsrtSlots: [], shortSlots: [], hasVsrt: false, hasShort: false, hasAfs };
   }
   const vsrtT = buildTravelWeatherTimeline(series, { maxSlots: 14, vsrtHourly: d.vsrtHourly, skipVsrt: false });
   const shortT = buildTravelWeatherTimeline(series, { maxSlots: 14, skipVsrt: true });
@@ -109,6 +114,7 @@ function timelinesFromApiData(d) {
     shortSlots: shortT.slots || [],
     hasVsrt: (vsrtT.slots || []).length > 0,
     hasShort: (shortT.slots || []).length > 0,
+    hasAfs,
   };
 }
 
@@ -166,7 +172,8 @@ export default function DashboardWeatherNavGlyph() {
     if (
       d.upstreamError &&
       !(Array.isArray(d.vsrtHourly) && d.vsrtHourly.length > 0) &&
-      resolveSeriesForWeatherTimeline(d).length === 0
+      resolveSeriesForWeatherTimeline(d).length === 0 &&
+      !(d.afsDs && (String(d.afsDs.summary || '').trim() || (Array.isArray(d.afsDs.sections) && d.afsDs.sections.length)))
     ) {
       return {
         kind: 'idle',
@@ -180,6 +187,26 @@ export default function DashboardWeatherNavGlyph() {
       : d.vsrtHourly?.length
         ? d.vsrtHourly
         : resolveSeriesForWeatherTimeline(d);
+    const afsSumm =
+      d.afsDs && String(d.afsDs.summary || '').trim()
+        ? String(d.afsDs.summary).trim()
+        : Array.isArray(d.afsDs?.sections)
+          ? d.afsDs.sections.map((s) => String(s?.text || '').trim()).find(Boolean) || ''
+          : '';
+    const hasAfsText = Boolean(afsSumm);
+    if (
+      (!seriesForDerive || seriesForDerive.length === 0) &&
+      !(Array.isArray(d.vsrtHourly) && d.vsrtHourly.length > 0) &&
+      hasAfsText
+    ) {
+      return {
+        kind: 'vague',
+        Icon: CloudSun,
+        iconProps: { strokeWidth: 1.55, color: '#0ea5e9' },
+        stateLabel: t('travelWeather.stateAFsBrief', '단기 개황'),
+        ariaLabel: afsSumm.length > 160 ? `${afsSumm.slice(0, 160)}…` : afsSumm,
+      };
+    }
     return deriveTravelWeatherPresentation(seriesForDerive, d.payload, t);
   }, [state.phase, state.data, t]);
 
@@ -190,7 +217,14 @@ export default function DashboardWeatherNavGlyph() {
     const hasVsrt = Array.isArray(d.vsrtHourly) && d.vsrtHourly.length > 0;
     const series = resolveSeriesForWeatherTimeline(d);
     const hasSeries = series.length > 0;
-    if (d.upstreamError && !hasVsrt && !hasSeries) return { slots: [], source: undefined };
+    if (
+      d.upstreamError &&
+      !hasVsrt &&
+      !hasSeries &&
+      !(d.afsDs && (String(d.afsDs.summary || '').trim() || (Array.isArray(d.afsDs.sections) && d.afsDs.sections.length)))
+    ) {
+      return { slots: [], source: undefined };
+    }
     if (!hasSeries && !hasVsrt) return { slots: [], source: undefined };
     return buildTravelWeatherTimeline(series, { maxSlots: 8, vsrtHourly: d.vsrtHourly });
   }, [state.phase, state.data]);
@@ -613,7 +647,7 @@ export default function DashboardWeatherNavGlyph() {
                 <p style={{ margin: 0, fontSize: 11, color: '#78716c' }}>{String(activePanelData.message)}</p>
               ) : null}
             </div>
-          ) : !activeTimelines.hasVsrt && !activeTimelines.hasShort ? (
+          ) : !activeTimelines.hasVsrt && !activeTimelines.hasShort && !activeTimelines.hasAfs ? (
             activePanelData?.upstreamError && activePanelData?.upstreamMessage ? (
               <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: '#b45309' }}>{String(activePanelData.upstreamMessage)}</p>
             ) : (
@@ -621,32 +655,59 @@ export default function DashboardWeatherNavGlyph() {
             )
           ) : (
             <>
-              <ForecastSection
-                title={t('travelWeather.panelVsrt', '초단기예보 (≈1시간)')}
-                hint={
-                  activeTimelines.hasVsrt
-                    ? t(
-                        'travelWeather.forecastHourlyVsrtHint',
-                        '초단기 격자(시간). 같은 시각의 단기 SKY·POP 등이 있으면 슬롯에 보강됩니다.'
-                      )
-                    : ''
-                }
-                slots={activeTimelines.hasVsrt ? activeTimelines.vsrtSlots : []}
-                t={t}
-              />
-              <ForecastSection
-                title={t('travelWeather.panelShort', '단기예보 (3시간·SKY)')}
-                hint={
-                  activeTimelines.hasShort
-                    ? t(
-                        'travelWeather.forecastStepHint',
-                        '단기 reg 구역의 3시간 간격 예보. 맑음·구름·흐림(SKY)·강수확률(POP) 등.'
-                      )
-                    : ''
-                }
-                slots={activeTimelines.hasShort ? activeTimelines.shortSlots : []}
-                t={t}
-              />
+              {activeTimelines.hasAfs && activePanelData?.afsDs ? (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 12, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', marginBottom: 8 }}>
+                    {t('travelWeather.panelAfsTitle', '단기 개황 (발표문)')}
+                  </div>
+                  {Array.isArray(activePanelData.afsDs.sections) && activePanelData.afsDs.sections.length ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {activePanelData.afsDs.sections.map((sec) => (
+                        <p
+                          key={String(sec.period)}
+                          style={{ margin: 0, fontSize: 12, lineHeight: 1.55, color: '#334155', whiteSpace: 'pre-wrap' }}
+                        >
+                          {String(sec.text || '')}
+                        </p>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ margin: 0, fontSize: 12, lineHeight: 1.55, color: '#334155', whiteSpace: 'pre-wrap' }}>
+                      {String(activePanelData.afsDs.summary || '')}
+                    </p>
+                  )}
+                </div>
+              ) : null}
+              {activeTimelines.hasVsrt || activeTimelines.hasShort ? (
+                <>
+                  <ForecastSection
+                    title={t('travelWeather.panelVsrt', '초단기예보 (≈1시간)')}
+                    hint={
+                      activeTimelines.hasVsrt
+                        ? t(
+                            'travelWeather.forecastHourlyVsrtHint',
+                            '초단기 격자(시간). 같은 시각의 단기 SKY·POP 등이 있으면 슬롯에 보강됩니다.'
+                          )
+                        : ''
+                    }
+                    slots={activeTimelines.hasVsrt ? activeTimelines.vsrtSlots : []}
+                    t={t}
+                  />
+                  <ForecastSection
+                    title={t('travelWeather.panelShort', '단기예보 (3시간·SKY)')}
+                    hint={
+                      activeTimelines.hasShort
+                        ? t(
+                            'travelWeather.forecastStepHint',
+                            '단기 reg 구역의 3시간 간격 예보. 맑음·구름·흐림(SKY)·강수확률(POP) 등.'
+                          )
+                        : ''
+                    }
+                    slots={activeTimelines.hasShort ? activeTimelines.shortSlots : []}
+                    t={t}
+                  />
+                </>
+              ) : null}
             </>
           )}
           <p style={{ margin: '12px 0 0', fontSize: 9, lineHeight: 1.4, color: '#94a3b8' }}>

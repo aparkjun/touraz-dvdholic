@@ -2,13 +2,18 @@
 # 기상청 API허브 — 단기예보(일반특보 구역). 공공데이터포털 활용신청 후 발급 authKey 를 KMA_API_KEY 로 설정.
 # 예: tmfc=최근발표(yyyyMMddHHmm, 분은 00). tmfc=0 또는 생략 시 서버가 02·05·…·23시 후보를 시도.
 # (tmfc=0 단독 호출은 「단기예보구역」텍스트 목록만 반환되어 예보 JSON 이 아님)
+# 단기 개황(fct_afs_ds): 발표관서(stn)·시간구간(tmfc1,tmfc2) 텍스트 — 승인 후 서버가 단기 소스로 우선 사용
 kma:
   auth:
     # Heroku/로컬: KMA_API_KEY 권장. Spring 관례명 KMA_AUTH_API_KEY 도 허용.
     api-key: ${KMA_API_KEY:${KMA_AUTH_API_KEY:}}
     # 단기예보 조회 기본 구역코드(reg): 미입력 시 서울 강남 11B10101 (프런트에서 reg 쿼리로 덮어쓰기 가능)
     default-reg: ${KMA_DEFAULT_REG:11B10101}
+    # 단기 개황 발표관서 번호 — reg 에서 자동 매핑 실패 시 사용 (서울·경기권 예: 109)
+    default-afs-stn: ${KMA_DEFAULT_AFS_STN:109}
   api:
+    # 비우면 fct_shrt_reg 만 사용
+    fct-afs-ds: https://apihub.kma.go.kr/api/typ01/url/fct_afs_ds.php
     fct-shrt-reg: https://apihub.kma.go.kr/api/typ01/url/fct_shrt_reg.php
     # 동네예보 초단기 격자 (1시간 단위 예보 시각·기온 등) — API허브 별도 활용신청. 예: nph-dfs_vsrt_grd?tmfc=...&tmef=...&vars=T1H&authKey=
     dfs-vsrt-grd: https://apihub.kma.go.kr/api/typ01/cgi-bin/url/nph-dfs_vsrt_grd

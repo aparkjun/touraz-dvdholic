@@ -112,6 +112,12 @@ public class WeatherController {
         try {
             JsonNode tree = objectMapper.readTree(raw);
             out.put("payload", tree);
+            JsonNode afsNode = tree.get("afsDs");
+            if (afsNode != null && !afsNode.isNull() && afsNode.isObject()) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> afsMap = objectMapper.convertValue(afsNode, Map.class);
+                out.put("afsDs", afsMap);
+            }
             var result = tree.get("result");
             if (result != null && result.isObject()) {
                 var st = result.get("status");

@@ -1,5 +1,7 @@
 package fast.campus.netplix.kma;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
@@ -10,6 +12,8 @@ import java.net.URI;
  * 클라이언트·프록시가 동일 경로로 처리하도록 한다.
  */
 final class KmaHubJson {
+
+    private static final ObjectMapper OM = new ObjectMapper();
 
     private KmaHubJson() {}
 
@@ -50,6 +54,28 @@ final class KmaHubJson {
         }
         String t = body.stripLeading();
         return t.startsWith("{") || t.startsWith("[");
+    }
+
+    /**
+     * {@code result.status==0} 이거나 단기 개황({@code afsDs}) 등 성공 응답인지 — 실패용 합성 JSON({@code status!=0})은 false.
+     */
+    static boolean isHubSuccessEnvelope(String body) {
+        if (!looksLikeJson(body)) {
+            return false;
+        }
+        try {
+            JsonNode root = OM.readTree(body);
+            if (root.has("afsDs")) {
+                return true;
+            }
+            JsonNode r = root.get("result");
+            if (r != null && r.has("status")) {
+                return r.get("status").asInt(-1) == 0;
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /** 연결·읽기 타임아웃 등 1회 재시도 */
