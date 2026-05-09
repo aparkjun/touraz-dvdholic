@@ -179,6 +179,51 @@ function iconForMergedRow(row) {
   };
 }
 
+/** 기상청 JSON 트리에서 fcstDate+fcstTime 행 후보 추출 (서버 extractor 미스·series 누락 시 보강) */
+export function extractForecastRowsFromPayload(payload, depth = 0, acc = null) {
+  const out = acc || [];
+  if (depth > 14 || payload == null || typeof payload !== 'object') return out;
+  if (Array.isArray(payload)) {
+    for (const el of payload) extractForecastRowsFromPayload(el, depth + 1, out);
+    return out;
+  }
+  const o = payload;
+  const fcstDate = o.fcstDate ?? o.FCST_DATE;
+  const fcstTime = o.fcstTime ?? o.FCST_TIME;
+  if (fcstDate != null && fcstTime != null) {
+    const dateStr = String(fcstDate).replace(/\D/g, '');
+    const timeRaw = String(fcstTime).replace(/\D/g, '');
+    const timeStr = timeRaw.length >= 3 ? timeRaw.padStart(4, '0') : '';
+    const hasMetric =
+      o.TMP != null ||
+      o.tmp != null ||
+      o.T1H != null ||
+      o.t1h != null ||
+      o.POP != null ||
+      o.pop != null ||
+      o.SKY != null ||
+      o.sky != null ||
+      o.PTY != null ||
+      o.pty != null;
+    if (dateStr.length === 8 && timeStr.length === 4 && hasMetric) {
+      out.push({ ...o, fcstDate: dateStr, fcstTime: timeStr });
+    }
+  }
+  for (const v of Object.values(o)) {
+    if (v != null && typeof v === 'object') extractForecastRowsFromPayload(v, depth + 1, out);
+  }
+  return out;
+}
+
+/** short-reg 응답에서 단기 시계열용 series 결정 (series 우선, 없으면 payload DFS) */
+export function resolveSeriesForWeatherTimeline(weatherData) {
+  if (!weatherData) return [];
+  if (Array.isArray(weatherData.series) && weatherData.series.length > 0) {
+    return weatherData.series;
+  }
+  return extractForecastRowsFromPayload(weatherData.payload);
+}
+
 /**
  * @returns {{ slots: Array<{ date: string, time: string, hour: number, tmp: number|null, pop: number|null, wet: boolean, sky?: string, pty: string, Icon: import('react').ComponentType, iconProps: object }>, source?: 'vsrt'|'shortReg' }}
  * opts.skipVsrt — true 이면 단기(series)만 사용해 슬롯 구성(초단기 슬롯과 나란히 쓰기 위함).

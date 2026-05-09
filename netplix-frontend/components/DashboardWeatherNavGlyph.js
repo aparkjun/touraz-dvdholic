@@ -12,6 +12,7 @@ import {
   buildDashboardNavCaption,
   buildDashboardRegionLine,
   skyStateLabel,
+  resolveSeriesForWeatherTimeline,
 } from '@/lib/travelWeatherShared';
 import { WEATHER_REGION_PRESETS, weatherPresetLabel } from '@/lib/weatherRegionPresets';
 
@@ -93,21 +94,42 @@ function timelinesFromApiData(d) {
     return { vsrtSlots: [], shortSlots: [], hasVsrt: false, hasShort: false };
   }
   const hasVsrt = Array.isArray(d.vsrtHourly) && d.vsrtHourly.length > 0;
-  const hasSeries = Array.isArray(d.series) && d.series.length > 0;
-  if (d.upstreamError && !hasVsrt) {
+  const series = resolveSeriesForWeatherTimeline(d);
+  const hasSeries = series.length > 0;
+  if (d.upstreamError && !hasVsrt && !hasSeries) {
     return { vsrtSlots: [], shortSlots: [], hasVsrt: false, hasShort: false };
   }
   if (!hasSeries && !hasVsrt) {
     return { vsrtSlots: [], shortSlots: [], hasVsrt: false, hasShort: false };
   }
-  const vsrtT = buildTravelWeatherTimeline(d.series || [], { maxSlots: 14, vsrtHourly: d.vsrtHourly, skipVsrt: false });
-  const shortT = buildTravelWeatherTimeline(d.series || [], { maxSlots: 14, skipVsrt: true });
+  const vsrtT = buildTravelWeatherTimeline(series, { maxSlots: 14, vsrtHourly: d.vsrtHourly, skipVsrt: false });
+  const shortT = buildTravelWeatherTimeline(series, { maxSlots: 14, skipVsrt: true });
   return {
     vsrtSlots: vsrtT.slots || [],
     shortSlots: shortT.slots || [],
     hasVsrt: (vsrtT.slots || []).length > 0,
     hasShort: (shortT.slots || []).length > 0,
   };
+}
+
+/** 지역 탭: reg+좌표 우선, 실패 시 reg 단독 */
+async function fetchShortRegForPreset(preset) {
+  const paramSets = [
+    { reg: preset.reg, lat: preset.lat, lng: preset.lng },
+    { reg: preset.reg },
+  ];
+  for (const params of paramSets) {
+    try {
+      const res = await axios.get('/api/v1/weather/short-reg', { params });
+      const body = res?.data;
+      if (body?.success === false) continue;
+      const d = body?.data;
+      if (d && d.configured !== false) return d;
+    } catch {
+      /* try next */
+    }
+  }
+  return null;
 }
 
 /** 대시보드 네비 — 위젯 클릭 시 지역별 탭 · 시간대 예보(초단기+단기) */
@@ -141,7 +163,11 @@ export default function DashboardWeatherNavGlyph() {
         ariaLabel: t('travelWeather.ariaPreparing', '날씨 안내를 준비 중입니다.'),
       };
     }
-    if (d.upstreamError && !(Array.isArray(d.vsrtHourly) && d.vsrtHourly.length > 0)) {
+    if (
+      d.upstreamError &&
+      !(Array.isArray(d.vsrtHourly) && d.vsrtHourly.length > 0) &&
+      resolveSeriesForWeatherTimeline(d).length === 0
+    ) {
       return {
         kind: 'idle',
         Icon: Cloud,
@@ -149,7 +175,11 @@ export default function DashboardWeatherNavGlyph() {
         ariaLabel: t('travelWeather.ariaPreparing', '날씨 안내를 준비 중입니다.'),
       };
     }
-    const seriesForDerive = d.series?.length ? d.series : d.vsrtHourly || [];
+    const seriesForDerive = d.series?.length
+      ? d.series
+      : d.vsrtHourly?.length
+        ? d.vsrtHourly
+        : resolveSeriesForWeatherTimeline(d);
     return deriveTravelWeatherPresentation(seriesForDerive, d.payload, t);
   }, [state.phase, state.data, t]);
 
@@ -158,10 +188,11 @@ export default function DashboardWeatherNavGlyph() {
     const d = state.data;
     if (d.configured === false) return { slots: [], source: undefined };
     const hasVsrt = Array.isArray(d.vsrtHourly) && d.vsrtHourly.length > 0;
-    const hasSeries = Array.isArray(d.series) && d.series.length > 0;
-    if (d.upstreamError && !hasVsrt) return { slots: [], source: undefined };
+    const series = resolveSeriesForWeatherTimeline(d);
+    const hasSeries = series.length > 0;
+    if (d.upstreamError && !hasVsrt && !hasSeries) return { slots: [], source: undefined };
     if (!hasSeries && !hasVsrt) return { slots: [], source: undefined };
-    return buildTravelWeatherTimeline(d.series || [], { maxSlots: 8, vsrtHourly: d.vsrtHourly });
+    return buildTravelWeatherTimeline(series, { maxSlots: 8, vsrtHourly: d.vsrtHourly });
   }, [state.phase, state.data]);
 
   const timelineAria = useMemo(() => formatTimelineAria(timeline.slots || [], t), [timeline.slots, t]);
@@ -196,9 +227,14 @@ export default function DashboardWeatherNavGlyph() {
     setRegionErr({});
   }, [panelOpen]);
 
+  const regionCacheRef = useRef({});
+  useEffect(() => {
+    regionCacheRef.current = regionCache;
+  }, [regionCache]);
+
   useEffect(() => {
     if (!panelOpen || activeRegionId === MINE_TAB) return;
-    if (regionCache[activeRegionId]) return;
+    if (regionCacheRef.current[activeRegionId]) return;
 
     const preset = WEATHER_REGION_PRESETS.find((p) => p.reg === activeRegionId);
     if (!preset) return;
@@ -206,20 +242,11 @@ export default function DashboardWeatherNavGlyph() {
     let cancelled = false;
     setFetchingReg(activeRegionId);
 
-    axios
-      .get('/api/v1/weather/short-reg', { params: { lat: preset.lat, lng: preset.lng } })
-      .then((res) => {
+    fetchShortRegForPreset(preset)
+      .then((d) => {
         if (cancelled) return;
-        const d = res?.data?.data;
-        if (d && d.configured !== false) {
-          setRegionCache((c) => ({ ...c, [activeRegionId]: d }));
-        } else {
-          setRegionErr((e) => ({ ...e, [activeRegionId]: true }));
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setRegionErr((e) => ({ ...e, [activeRegionId]: true }));
+        if (d) setRegionCache((c) => ({ ...c, [activeRegionId]: d }));
+        else setRegionErr((e) => ({ ...e, [activeRegionId]: true }));
       })
       .finally(() => {
         if (!cancelled) {
@@ -230,7 +257,7 @@ export default function DashboardWeatherNavGlyph() {
     return () => {
       cancelled = true;
     };
-  }, [panelOpen, activeRegionId, regionCache]);
+  }, [panelOpen, activeRegionId]);
 
   const updatePanelPosition = useCallback(() => {
     const el = anchorRef.current;

@@ -3,7 +3,13 @@
 import React, { useMemo } from 'react';
 import { Cloud, CloudOff, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { deriveTravelWeatherPresentation, useTravelWeatherShortReg, buildTravelWeatherTimeline, formatTimelineAria } from '@/lib/travelWeatherShared';
+import {
+  deriveTravelWeatherPresentation,
+  useTravelWeatherShortReg,
+  buildTravelWeatherTimeline,
+  formatTimelineAria,
+  resolveSeriesForWeatherTimeline,
+} from '@/lib/travelWeatherShared';
 
 const SHELL = {
   padding: '10px 18px 12px',
@@ -43,7 +49,11 @@ export default function TravelWeatherStrip() {
         ariaLabel: t('travelWeather.ariaPreparing', '날씨 안내를 준비 중입니다.'),
       };
     }
-    if (d.upstreamError && !(Array.isArray(d.vsrtHourly) && d.vsrtHourly.length > 0)) {
+    if (
+      d.upstreamError &&
+      !(Array.isArray(d.vsrtHourly) && d.vsrtHourly.length > 0) &&
+      resolveSeriesForWeatherTimeline(d).length === 0
+    ) {
       return {
         kind: 'idle',
         Icon: Cloud,
@@ -51,7 +61,11 @@ export default function TravelWeatherStrip() {
         ariaLabel: t('travelWeather.ariaPreparing', '날씨 안내를 준비 중입니다.'),
       };
     }
-    const seriesForDerive = d.series?.length ? d.series : d.vsrtHourly || [];
+    const seriesForDerive = d.series?.length
+      ? d.series
+      : d.vsrtHourly?.length
+        ? d.vsrtHourly
+        : resolveSeriesForWeatherTimeline(d);
     return deriveTravelWeatherPresentation(seriesForDerive, d.payload, t);
   }, [state.phase, state.data, t]);
 
@@ -60,10 +74,11 @@ export default function TravelWeatherStrip() {
     const d = state.data;
     if (d.configured === false) return { slots: [], source: null };
     const hasVsrt = Array.isArray(d.vsrtHourly) && d.vsrtHourly.length > 0;
-    const hasSeries = Array.isArray(d.series) && d.series.length > 0;
-    if (d.upstreamError && !hasVsrt) return { slots: [], source: null };
+    const series = resolveSeriesForWeatherTimeline(d);
+    const hasSeries = series.length > 0;
+    if (d.upstreamError && !hasVsrt && !hasSeries) return { slots: [], source: null };
     if (!hasSeries && !hasVsrt) return { slots: [], source: null };
-    return buildTravelWeatherTimeline(d.series || [], { maxSlots: 8, vsrtHourly: d.vsrtHourly });
+    return buildTravelWeatherTimeline(series, { maxSlots: 8, vsrtHourly: d.vsrtHourly });
   }, [state.phase, state.data]);
 
   if (state.phase === 'loading') {
