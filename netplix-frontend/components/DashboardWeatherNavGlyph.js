@@ -124,6 +124,14 @@ async function fetchShortRegForPreset(preset) {
     { reg: preset.reg, lat: preset.lat, lng: preset.lng },
     { reg: preset.reg },
   ];
+
+  const gatewaySlowPayload = () => ({
+    reg: preset.reg,
+    configured: false,
+    message:
+      '응답이 지연되거나 중간 게이트웨이 시간 제한(Heroku 30초 등)에 걸렸을 수 있습니다. 잠시 후 다시 탭을 눌러 주세요.',
+  });
+
   for (const params of paramSets) {
     try {
       const res = await axios.get('/api/v1/weather/short-reg', { params, timeout: 55000 });
@@ -131,8 +139,15 @@ async function fetchShortRegForPreset(preset) {
       if (body && body.success === false) continue;
       const d = body?.data;
       if (d != null && typeof d === 'object') return d;
-    } catch {
-      /* try next */
+    } catch (err) {
+      const st = err?.response?.status;
+      if (st === 502 || st === 503 || st === 504) {
+        return gatewaySlowPayload();
+      }
+      if (err?.code === 'ECONNABORTED' || (typeof err?.message === 'string' && err.message.toLowerCase().includes('timeout'))) {
+        return gatewaySlowPayload();
+      }
+      /* try next param set */
     }
   }
   return null;

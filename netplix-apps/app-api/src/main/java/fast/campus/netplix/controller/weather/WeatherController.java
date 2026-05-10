@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 기상청 단기예보(API허브) 프록시 — 클라이언트에 authKey 노출 방지.
@@ -101,25 +102,45 @@ public class WeatherController {
             double[] coords = resolveGridCoords(lat, lng, effectiveReg, out);
             if (coords != null) {
                 try {
-                    List<Map<String, Object>> shrtSeries =
-                            kmaShrtGrdSeriesService.fetchSeriesForLatLng(coords[0], coords[1], 8);
+                    final double glat = coords[0];
+                    final double glng = coords[1];
+                    CompletableFuture<List<Map<String, Object>>> shrtF = CompletableFuture.supplyAsync(
+                            () -> {
+                                try {
+                                    return kmaShrtGrdSeriesService.fetchSeriesForLatLng(glat, glng, 6);
+                                } catch (Exception e) {
+                                    log.debug("격자 단기 폴백 생략: {}", e.getMessage());
+                                    return List.of();
+                                }
+                            });
+                    CompletableFuture<List<Map<String, Object>>> vsrtF = CompletableFuture.supplyAsync(
+                            () -> {
+                                try {
+                                    return kmaVsrtGrdHourlyService.fetchHourlyForLatLng(glat, glng, 6);
+                                } catch (Exception e) {
+                                    log.debug("격자 초단기 폴백 생략: {}", e.getMessage());
+                                    return List.of();
+                                }
+                            });
+                    CompletableFuture.allOf(shrtF, vsrtF).join();
+                    List<Map<String, Object>> shrtSeries = shrtF.join();
+                    List<Map<String, Object>> vsrt = vsrtF.join();
+
                     if (!shrtSeries.isEmpty()) {
                         out.put("configured", true);
                         out.put("shortRegUsedShrtGrid", true);
                         out.put("series", shrtSeries);
-                        putVsrtGrid(out, coords[0], coords[1]);
+                        putVsrtGrid(out, glat, glng);
                         out.put(
                                 "message",
                                 "단기 예보구역(reg) 통보문은 받지 못했으나, 단기 격자(nph-dfs_shrt_grd)로 3시간 간격 예보를 표시합니다.");
                         return NetplixApiResponse.ok(out);
                     }
-                    List<Map<String, Object>> vsrt =
-                            kmaVsrtGrdHourlyService.fetchHourlyForLatLng(coords[0], coords[1], 6);
                     if (!vsrt.isEmpty()) {
                         out.put("configured", true);
                         out.put("shortRegUsedGridFallback", true);
                         out.put("vsrtHourly", vsrt);
-                        putVsrtGrid(out, coords[0], coords[1]);
+                        putVsrtGrid(out, glat, glng);
                         out.put(
                                 "message",
                                 "단기 예보구역(reg) 통보문은 허브에서 받지 못했지만, 초단기 격자 데이터로 시간대별 기온을 표시합니다. "

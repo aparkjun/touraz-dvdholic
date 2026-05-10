@@ -24,6 +24,9 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class KmaVsrtGrdHourlyService {
 
+    /** Heroku HTTP 제한 등을 고려해 tmfc 10분 후보 탐색 상한 (기존 20 → 축소). */
+    private static final int TMFC_BACK_MAX = 10;
+
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final DateTimeFormatter TMFC = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
     private static final DateTimeFormatter TMEF = DateTimeFormatter.ofPattern("yyyyMMddHH");
@@ -132,7 +135,7 @@ public class KmaVsrtGrdHourlyService {
         ZonedDateTime ft1 = now.plusHours(1).truncatedTo(ChronoUnit.HOURS);
         String tmefProbe = client.isOdamGrdProduct() ? "" : ft1.format(TMEF);
 
-        for (int back = 0; back < 20; back++) {
+        for (int back = 0; back < TMFC_BACK_MAX; back++) {
             ZonedDateTime cand = now.minusMinutes(35L + back * 10L);
             int min = (cand.getMinute() / 10) * 10;
             cand = cand.withSecond(0).withNano(0).withMinute(min);
