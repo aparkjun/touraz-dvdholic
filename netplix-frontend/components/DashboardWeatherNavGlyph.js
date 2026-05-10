@@ -637,15 +637,24 @@ export default function DashboardWeatherNavGlyph() {
             </p>
           ) : activePanelData?.configured === false ? (
             <div style={{ fontSize: 12, lineHeight: 1.45, color: '#b45309' }}>
-              <p style={{ margin: '0 0 6px' }}>
-                {t(
-                  'travelWeather.panelKmaUnavailable',
-                  '단기·초단기 예보는 기상청 API허브(apihub.kma.go.kr) 인증키가 필요합니다. Heroku Config Vars에 KMA_API_KEY(또는 KMA_AUTH_API_KEY)로 허브에서 발급한 키를 넣고 dyno를 재시작하세요. 공공데이터포털(data.go.kr) 키만으로는 동작하지 않을 수 있습니다.'
-                )}
-              </p>
-              {activePanelData.message ? (
-                <p style={{ margin: 0, fontSize: 11, color: '#78716c' }}>{String(activePanelData.message)}</p>
+              {activePanelData.kmaKeyMissing === true ? (
+                <p style={{ margin: '0 0 6px' }}>
+                  {t(
+                    'travelWeather.panelKmaUnavailable',
+                    '단기·초단기 예보는 기상청 API허브(apihub.kma.go.kr) 인증키가 필요합니다. Heroku Config Vars에 KMA_API_KEY(또는 KMA_AUTH_API_KEY)로 허브에서 발급한 키를 넣고 dyno를 재시작하세요. 공공데이터포털(data.go.kr) 키만으로는 동작하지 않을 수 있습니다.'
+                  )}
+                </p>
               ) : null}
+              {activePanelData.kmaKeyMissing === true ? null : activePanelData.message ? (
+                <p style={{ margin: '0 0 6px', fontSize: 12, color: '#b45309' }}>{String(activePanelData.message)}</p>
+              ) : (
+                <p style={{ margin: 0 }}>
+                  {t(
+                    'travelWeather.panelKmaNoDetail',
+                    '이 구역은 기상청 API에서 예보 본문을 받지 못했습니다. 잠시 후 다시 시도하거나, API허브 활용승인·발표 시각(tmfc)을 확인해 주세요.'
+                  )}
+                </p>
+              )}
             </div>
           ) : !activeTimelines.hasVsrt && !activeTimelines.hasShort && !activeTimelines.hasAfs ? (
             activePanelData?.upstreamError && activePanelData?.upstreamMessage ? (
