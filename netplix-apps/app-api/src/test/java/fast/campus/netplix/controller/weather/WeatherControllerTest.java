@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
@@ -85,6 +86,24 @@ class WeatherControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.upstreamError").value(true))
                 .andExpect(jsonPath("$.data.upstreamStatus").value(403));
+    }
+
+    @Test
+    void shortReg_upstream403_usesShrtGrid_whenSeriesEmptyAndLatLngProvided() throws Exception {
+        String errBody = "{\"result\":{\"status\":403,\"message\":\"활용신청이 필요한 API 입니다.\"}}";
+        when(kmaShortRegHttpClient.fetchWithDiagnostics(any(), any()))
+                .thenReturn(new KmaShortRegFetchResult(errBody, null, null, null, 1, 0));
+
+        when(kmaShrtGrdSeriesService.fetchSeriesForLatLng(anyDouble(), anyDouble(), anyInt()))
+                .thenReturn(List.of(Map.of("fcstDate", "20240509", "fcstTime", "1200", "TMP", 20)));
+
+        mockMvc.perform(get("/api/v1/weather/short-reg").param("lat", "35.18").param("lng", "129.08"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.upstreamError").value(true))
+                .andExpect(jsonPath("$.data.upstreamStatus").value(403))
+                .andExpect(jsonPath("$.data.series.length()").value(1))
+                .andExpect(jsonPath("$.data.series[0].TMP").value(20))
+                .andExpect(jsonPath("$.data.shortRegSupplementedByShrtGrid").value(true));
     }
 
     @Test

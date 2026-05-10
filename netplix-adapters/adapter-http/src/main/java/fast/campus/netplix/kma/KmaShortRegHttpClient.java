@@ -13,7 +13,6 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 /**
  * 기상청 API허브 단기 데이터 — {@code fct_afs_ds.php}(단기 개황) 우선, 이어서 {@code fct_shrt_reg.php}.
@@ -24,7 +23,7 @@ import java.util.concurrent.CompletableFuture;
 public class KmaShortRegHttpClient {
 
     /** 자동 tmfc 후보가 많으면 끝까지 시도 시 Heroku 30초 한도에 걸린다 — 최신 N회만 시도 */
-    private static final int MAX_AUTO_TMFC_CANDIDATES = 5;
+    private static final int MAX_AUTO_TMFC_CANDIDATES = 8;
 
     @Value("${kma.api.fct-afs-ds:}")
     private String fctAfsDsUrl;
@@ -43,8 +42,8 @@ public class KmaShortRegHttpClient {
 
     private RestClient restClient() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofSeconds(5));
-        factory.setReadTimeout(Duration.ofSeconds(12));
+        factory.setConnectTimeout(Duration.ofSeconds(6));
+        factory.setReadTimeout(Duration.ofSeconds(18));
         return RestClient.builder().requestFactory(factory).build();
     }
 
@@ -100,20 +99,10 @@ public class KmaShortRegHttpClient {
         String lastEx = null;
         for (String tmfc : tries) {
             boolean useAfs = fctAfsDsUrl != null && !fctAfsDsUrl.isBlank();
-            CompletableFuture<OnceFetch> afsF =
-                    useAfs ? CompletableFuture.supplyAsync(() -> fetchAfsDsOnce(r, tmfc)) : null;
-            CompletableFuture<OnceFetch> shrtJsonF = CompletableFuture.supplyAsync(() -> fetchOnceDetailed(r, tmfc, true));
-            CompletableFuture<OnceFetch> shrtPlainF = CompletableFuture.supplyAsync(() -> fetchOnceDetailed(r, tmfc, false));
+            OnceFetch afs = useAfs ? fetchAfsDsOnce(r, tmfc) : null;
             if (useAfs) {
-                CompletableFuture.allOf(afsF, shrtJsonF, shrtPlainF).join();
-            } else {
-                CompletableFuture.allOf(shrtJsonF, shrtPlainF).join();
+                attempts++;
             }
-            attempts += useAfs ? 3 : 2;
-
-            OnceFetch afs = useAfs ? afsF.join() : null;
-            OnceFetch shrtJ = shrtJsonF.join();
-            OnceFetch shrtP = shrtPlainF.join();
 
             if (useAfs && afs != null) {
                 if (afs.body() != null && KmaHubJson.isHubSuccessEnvelope(afs.body())) {
@@ -132,7 +121,12 @@ public class KmaShortRegHttpClient {
                     lastPreview = KmaHubJson.previewSnippet(afs.body());
                 }
             }
-            if (!shrtJ.catalogLike() && shrtJ.body() != null) {
+
+            OnceFetch shrtJ = fetchOnceDetailed(r, tmfc, true);
+            attempts++;
+            if (!shrtJ.catalogLike()
+                    && shrtJ.body() != null
+                    && !KmaHubJson.isHubJsonOnlyErrorEnvelope(shrtJ.body())) {
                 return new KmaShortRegFetchResult(shrtJ.body(), null, null, null, attempts, catalogSkips);
             }
             if (shrtJ.catalogLike()) {
@@ -149,7 +143,12 @@ public class KmaShortRegHttpClient {
                     lastEx = shrtJ.exceptionSummary();
                 }
             }
-            if (!shrtP.catalogLike() && shrtP.body() != null) {
+
+            OnceFetch shrtP = fetchOnceDetailed(r, tmfc, false);
+            attempts++;
+            if (!shrtP.catalogLike()
+                    && shrtP.body() != null
+                    && !KmaHubJson.isHubJsonOnlyErrorEnvelope(shrtP.body())) {
                 return new KmaShortRegFetchResult(shrtP.body(), null, null, null, attempts, catalogSkips);
             }
             if (shrtP.catalogLike()) {

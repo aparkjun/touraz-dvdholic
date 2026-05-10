@@ -11,7 +11,7 @@ import java.net.URI;
  * 기상청 API허브 호출 공통 — 비JSON/HTML/빈 응답을 표준 {@code result.status} JSON 으로 바꿔
  * 클라이언트·프록시가 동일 경로로 처리하도록 한다.
  */
-final class KmaHubJson {
+public final class KmaHubJson {
 
     private static final ObjectMapper OM = new ObjectMapper();
 
@@ -79,9 +79,31 @@ final class KmaHubJson {
     }
 
     /**
-     * 허브/중계 응답에서 {@code result.status} 가 숫자 0 또는 문자열 {@code "0"}, {@code "00"} 등이면 성공으로 본다.
+     * {@code afsDs} 등 유효 페이로드 없이 {@code result.status} 만 실패인 JSON 이면 true — 다음 tmfc/호출을 시도한다.
      */
-    static boolean hubResultStatusIndicatesFailure(JsonNode status) {
+    static boolean isHubJsonOnlyErrorEnvelope(String body) {
+        if (!looksLikeJson(body)) {
+            return false;
+        }
+        try {
+            JsonNode root = OM.readTree(body);
+            if (root.has("afsDs")) {
+                return false;
+            }
+            JsonNode r = root.get("result");
+            if (r != null && r.has("status")) {
+                return hubResultStatusIndicatesFailure(r.get("status"));
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * 허브 {@code result.status} 가 숫자·문자열 0 이외면 실패로 본다 ({@code "0"}, {@code "00"} 등은 성공).
+     */
+    public static boolean hubResultStatusIndicatesFailure(JsonNode status) {
         if (status == null || status.isNull() || status.isMissingNode()) {
             return false;
         }

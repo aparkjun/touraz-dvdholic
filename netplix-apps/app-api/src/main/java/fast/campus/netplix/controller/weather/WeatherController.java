@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fast.campus.netplix.controller.NetplixApiResponse;
 import fast.campus.netplix.kma.KmaForecastSeriesExtractor;
+import fast.campus.netplix.kma.KmaHubJson;
 import fast.campus.netplix.kma.KmaLambertGridConverter;
 import fast.campus.netplix.kma.KmaNearestReg;
 import fast.campus.netplix.kma.KmaRegCentroid;
@@ -198,9 +199,17 @@ public class WeatherController {
             var result = tree.get("result");
             if (result != null && result.isObject()) {
                 var st = result.get("status");
-                if (st != null && st.isNumber() && st.intValue() != 0) {
+                if (st != null && KmaHubJson.hubResultStatusIndicatesFailure(st)) {
                     out.put("upstreamError", true);
-                    out.put("upstreamStatus", st.intValue());
+                    if (st.isNumber()) {
+                        out.put("upstreamStatus", st.intValue());
+                    } else if (st.isTextual()) {
+                        try {
+                            out.put("upstreamStatus", Integer.parseInt(st.asText().trim()));
+                        } catch (NumberFormatException ignored) {
+                            out.put("upstreamStatusRaw", st.asText());
+                        }
+                    }
                     var msg = result.get("message");
                     if (msg != null && !msg.isNull()) {
                         out.put("upstreamMessage", msg.asText());
@@ -225,8 +234,7 @@ public class WeatherController {
         if (gridCoords != null) {
             try {
                 List<Map<String, Object>> existing = castSeries(out.get("series"));
-                boolean upstream = Boolean.TRUE.equals(out.get("upstreamError"));
-                if ((existing == null || existing.isEmpty()) && !upstream) {
+                if (existing == null || existing.isEmpty()) {
                     if (!prefetchedShrt.isEmpty()) {
                         out.put("series", prefetchedShrt);
                         out.put("shortRegSupplementedByShrtGrid", true);
