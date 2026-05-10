@@ -28,6 +28,9 @@ public class KmaShrtGrdSeriesService {
     private static final DateTimeFormatter FCST_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final DateTimeFormatter FCST_TIME = DateTimeFormatter.ofPattern("HHmm");
 
+    /** Heroku 등 게이트웨이 타임아웃 내에 맞추기 위해 슬롯·발표시각 탐색을 제한한다. */
+    private static final int MAX_TMFC_PROBE = 6;
+
     private final KmaShrtGrdHttpClient client;
     private final ObjectMapper objectMapper;
 
@@ -36,9 +39,6 @@ public class KmaShrtGrdSeriesService {
         int[] grid = KmaLambertGridConverter.toGrid(lat, lng);
         return fetchSeriesForGrid(grid[0], grid[1], maxSlots);
     }
-
-    /** Heroku 등 게이트웨이 타임아웃 내에 맞추기 위해 슬롯·발표시각 탐색을 제한한다. */
-    private static final int MAX_TMFC_PROBE = 6;
 
     public List<Map<String, Object>> fetchSeriesForGrid(int nx, int ny, int maxSlots) {
         if (!client.isConfigured()) {
@@ -57,7 +57,6 @@ public class KmaShrtGrdSeriesService {
         for (int i = 0; i < cap; i++) {
             ZonedDateTime ft = anchor.plusHours(3L * i);
             String tmef = ft.format(TMEF);
-            // 슬롯당 1회 호출(T1H) — 응답·게이트웨이 시간 단축. POP/SKY 는 허브가 내려주면 파서가 채움.
             String raw = client.fetchRaw(tmfc, tmef, nx, ny, "T1H,POP,SKY,PTY");
             if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
                 continue;

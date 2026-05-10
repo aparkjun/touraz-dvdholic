@@ -127,11 +127,15 @@ public class WeatherController {
                         return NetplixApiResponse.ok(out);
                     }
                 } catch (Exception e) {
-                    log.debug("단기 실패 후 격자 폴백 생략: {}", e.getMessage());
+                    log.warn("단기 실패 후 격자 폴백 중 예외 — reg={} lat={} lng={}: {}", effectiveReg, lat, lng, e.getMessage());
                 }
             }
 
             out.put("configured", false);
+            if (coords != null) {
+                out.put("gridFallbackAttempted", true);
+                out.put("gridFallbackEmpty", true);
+            }
             String userMessage;
             if (att > 0 && att == cat) {
                 userMessage =
@@ -139,8 +143,7 @@ public class WeatherController {
                                 + "API허브 마이페이지에서 「단기 개황·JSON(disp=1)」 등 실제 단기 예보 데이터 API 활용승인이 있는지 확인하세요. "
                                 + "「단기 예보구역 조회」만 승인된 경우 이 증상이 날 수 있습니다. 단기/초단기 격자 API는 별도 신청입니다.";
             } else {
-                userMessage =
-                        "기상청 API허브 호출에 실패했습니다. 인증키 종류(허브용)·단기/초단기(격자) 활용승인·네트워크를 확인하세요.";
+                userMessage = shortRegFailureUserMessage(shortRegFetch, coords != null);
             }
             out.put("message", userMessage);
             return NetplixApiResponse.ok(out);
@@ -204,6 +207,59 @@ public class WeatherController {
             }
         }
         return NetplixApiResponse.ok(out);
+    }
+
+    /**
+     * 단기(reg/개황) 본문 없음 + 격자 폴백 실패 시 사용자 안내 — 진단값(HTTP·예외)에 따라 구체화.
+     */
+    private static String shortRegFailureUserMessage(KmaShortRegFetchResult shortRegFetch, boolean gridFallbackAttempted) {
+        Integer http = shortRegFetch.lastHttpStatus();
+        String ex = shortRelAccessSummary(shortRegFetch.lastExceptionSummary());
+        String core;
+        if (http != null && (http == 401 || http == 403)) {
+            core =
+                    "기상청 API허브가 인증을 거부했습니다(HTTP "
+                            + http
+                            + "). apihub.kma.go.kr 에서 발급한 허브용 인증키(KMA_API_KEY)인지, "
+                            + "그리고 단기·개황(fct_afs_ds, fct_shrt_reg) API 활용이 승인됐는지 확인하세요. 공공데이터포털(data.go.kr) 키는 사용할 수 없습니다.";
+        } else if (http != null && http >= 500) {
+            core =
+                    "기상청 API허브에서 일시 오류(HTTP "
+                            + http
+                            + ")를 반환했습니다. 잠시 후 다시 시도해 주세요.";
+        } else if (ex != null && !ex.isBlank()) {
+            core =
+                    "기상청 API허브까지의 연결이 끊기거나 시간이 초과된 것으로 보입니다("
+                            + ex
+                            + "). 네트워크·Heroku 게이트웨이·허브 장애 가능성을 확인한 뒤 잠시 후 다시 시도해 주세요.";
+        } else {
+            core =
+                    "기상청 API허브에서 단기 예보 본문을 받지 못했습니다. 허브 전용 인증키·단기(개황/구역)·네트워크를 확인하세요.";
+        }
+        if (gridFallbackAttempted) {
+            return core
+                    + " 격자 폴백(동네예보 단기 nph-dfs_shrt_grd, 초단기 odam/vsrt)도 데이터가 없었습니다. "
+                    + "API허브 마이페이지에서 해당 격자 API 활용 승인 여부와 일일 호출 한도를 함께 확인하세요.";
+        }
+        return core;
+    }
+
+    private static String shortRelAccessSummary(String ex) {
+        if (ex == null || ex.isBlank()) {
+            return null;
+        }
+        String u = ex.toLowerCase();
+        if (u.contains("resourceaccessexception")
+                || u.contains("timeout")
+                || u.contains("timed out")
+                || u.contains("i/o error")
+                || u.contains("connection reset")
+                || u.contains("connection refused")
+                || u.contains("connect timed out")
+                || u.contains("read timed out")) {
+            return ex.length() > 200 ? ex.substring(0, 200) + "…" : ex;
+        }
+        return null;
     }
 
     private static double[] resolveGridCoords(Double lat, Double lng, String effectiveReg, Map<String, Object> out) {
