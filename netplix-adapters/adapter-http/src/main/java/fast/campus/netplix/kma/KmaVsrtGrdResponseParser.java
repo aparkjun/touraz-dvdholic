@@ -9,7 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.Optional;
 
 /**
- * {@code nph-dfs_vsrt_grd} JSON 에서 특정 격자점(nx, ny)의 기온·PTY 를 탐색해 추출.
+ * 기상청 API허브 초단기 격자 JSON({@code nph-dfs_odam_grd}, {@code nph-dfs_vsrt_grd} 등)에서
+ * 특정 격자점(nx, ny)의 기온·PTY 를 탐색해 추출.
  */
 @Slf4j
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
