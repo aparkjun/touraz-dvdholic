@@ -14,9 +14,11 @@ import java.net.URI;
 import java.time.Duration;
 
 /**
- * 기상청 API허브 동네예보 초단기 격자 —
- * {@code nph-dfs_odam_grd}, {@code nph-dfs_vsrt_grd} 등. 격자점별 값은 {@code nx},{@code ny} 필수.
- * 예: {@code ?tmfc=…&tmef=…&nx=…&ny=…&vars=T1H&authKey=…}
+ * 기상청 API허브 동네예보 격자 —
+ * <ul>
+ *   <li>{@code nph-dfs_odam_grd} (실황): 허브 샘플은 {@code tmfc},{@code vars},{@code authKey} 만 사용 — 전역 격자 JSON 후 클라이언트에서 nx·ny 추출.
+ *   <li>{@code nph-dfs_vsrt_grd} 등 (초단기 예보): {@code tmef},{@code nx},{@code ny} 포함.
+ * </ul>
  */
 @Slf4j
 @Component
@@ -29,6 +31,12 @@ public class KmaVsrtGrdHttpClient {
     @Value("${kma.auth.api-key:}")
     private String apiKey;
 
+    /** 설정 URL 이 실황 격자(odam)이면 허브 샘플과 동일하게 tmef·nx·ny 를 쿼리에 넣지 않는다. */
+    public boolean isOdamGrdProduct() {
+        String u = dfsVsrtGrdUrl != null ? dfsVsrtGrdUrl.toLowerCase() : "";
+        return u.contains("odam_grd");
+    }
+
     private RestClient restClient() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(8));
@@ -37,28 +45,31 @@ public class KmaVsrtGrdHttpClient {
     }
 
     /**
-     * @param tmfc 발표(생산) 시각 — {@code yyyyMMddHHmm} 12자리 (예: 202403011010)
-     * @param tmef 예보 시각 — API 샘플 기준 {@code yyyyMMddHH} 10자리 (예: 2024030111)
-     * @param nx, ny 동네예보 격자 ({@link KmaLambertGridConverter})
+     * @param tmfc 발표(생산) 시각 — {@code yyyyMMddHHmm} 12자리 (예: 202403051010)
+     * @param tmef 예보 시각 — vsrt 계열에서만 쿼리에 포함 ({@code yyyyMMddHH}). odam(실황)에서는 무시.
+     * @param nx, ny 파싱용 격자 ({@link KmaLambertGridConverter}). odam 쿼리에는 포함하지 않음.
      * @param vars   조회 변수 (예: T1H 또는 T1H,PTY)
      */
     public String fetchRaw(String tmfc, String tmef, int nx, int ny, String vars) {
         if (apiKey == null || apiKey.isBlank()) {
             return null;
         }
-        if (tmfc == null || tmef == null || vars == null || tmfc.isBlank() || tmef.isBlank() || vars.isBlank()) {
+        if (tmfc == null || vars == null || tmfc.isBlank() || vars.isBlank()) {
+            return null;
+        }
+        boolean odam = isOdamGrdProduct();
+        if (!odam && (tmef == null || tmef.isBlank())) {
             return null;
         }
         try {
-            URI uri = UriComponentsBuilder.fromHttpUrl(dfsVsrtGrdUrl)
+            UriComponentsBuilder ub = UriComponentsBuilder.fromHttpUrl(dfsVsrtGrdUrl)
                     .queryParam("tmfc", tmfc)
-                    .queryParam("tmef", tmef)
-                    .queryParam("nx", nx)
-                    .queryParam("ny", ny)
                     .queryParam("vars", vars)
-                    .queryParam("authKey", apiKey)
-                    .build(true)
-                    .toUri();
+                    .queryParam("authKey", apiKey);
+            if (!odam) {
+                ub.queryParam("tmef", tmef).queryParam("nx", nx).queryParam("ny", ny);
+            }
+            URI uri = ub.build(true).toUri();
             RestClient rc = restClient();
             String body = KmaHubJson.getWithRetry(rc, uri);
             if (body == null || body.isBlank()) {

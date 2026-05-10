@@ -16,8 +16,8 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 초단기 격자 API로 예보 시각별 기온(및 가능 시 강수형태) 시계열을 만든다.
- * tmfc 는 최근 10분 단위 후보를 탐색해 유효한 값을 찾는다.
+ * 초단기·실황 격자 API — URL 이 {@code odam_grd}(실황)이면 허브 샘플대로 tmfc·vars 만 요청하고,
+ * 그 외(vsrt 등)는 tmef·nx·ny 를 포함한다. tmfc 는 10분 단위 후보로 유효 시각을 찾는다.
  */
 @Slf4j
 @Component
@@ -50,6 +50,10 @@ public class KmaVsrtGrdHourlyService {
         }
         String tmfc = tmfcOpt.get();
         ZonedDateTime now = ZonedDateTime.now(KST);
+
+        if (client.isOdamGrdProduct()) {
+            return buildRowsFromOdamGrid(tmfc, nx, ny, cap, now);
+        }
 
         List<Map<String, Object>> rows = new ArrayList<>();
         for (int h = 1; h <= cap; h++) {
@@ -85,11 +89,48 @@ public class KmaVsrtGrdHourlyService {
         return rows;
     }
 
+    /**
+     * 실황(odam_grd)은 허브 샘플처럼 tmfc·vars 만 요청하고, 응답 전역 격자에서 nx·ny 를 찾는다.
+     * 시계열 슬롯은 API를 1회만 호출한 뒤 동일 관측값으로 채운다(실황은 시각별 예보가 아님).
+     */
+    private List<Map<String, Object>> buildRowsFromOdamGrid(
+            String tmfc, int nx, int ny, int cap, ZonedDateTime nowKst) {
+        String raw = client.fetchRaw(tmfc, "", nx, ny, "T1H,PTY");
+        if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
+            raw = client.fetchRaw(tmfc, "", nx, ny, "T1H");
+        }
+        if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
+            return List.of();
+        }
+        Optional<KmaVsrtGrdResponseParser.VsrtCell> cellOpt =
+                KmaVsrtGrdResponseParser.extractCell(raw, nx, ny, objectMapper);
+        if (cellOpt.isEmpty()) {
+            return List.of();
+        }
+        KmaVsrtGrdResponseParser.VsrtCell c = cellOpt.get();
+        if (c.t1h() == null || c.t1h() < -80 || c.t1h() > 55) {
+            return List.of();
+        }
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (int h = 1; h <= cap; h++) {
+            ZonedDateTime ft = nowKst.plusHours(h).truncatedTo(ChronoUnit.HOURS);
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("fcstDate", ft.format(FCST_DATE));
+            row.put("fcstTime", ft.format(FCST_TIME));
+            row.put("TMP", (int) Math.round(c.t1h()));
+            if (c.pty() != null) {
+                row.put("PTY", String.valueOf(c.pty()));
+            }
+            rows.add(row);
+        }
+        return rows;
+    }
+
     /** 최근 후보 tmfc 중 실제 응답이 성공하고 격자값이 유효한 첫 시각 */
     private Optional<String> resolveWorkingTmfc(int nx, int ny) {
         ZonedDateTime now = ZonedDateTime.now(KST);
         ZonedDateTime ft1 = now.plusHours(1).truncatedTo(ChronoUnit.HOURS);
-        String tmefProbe = ft1.format(TMEF);
+        String tmefProbe = client.isOdamGrdProduct() ? "" : ft1.format(TMEF);
 
         for (int back = 0; back < 20; back++) {
             ZonedDateTime cand = now.minusMinutes(35L + back * 10L);

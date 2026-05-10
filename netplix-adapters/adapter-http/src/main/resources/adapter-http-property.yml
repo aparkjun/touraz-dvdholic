@@ -15,7 +15,7 @@ kma:
     # 비우면 fct_shrt_reg 만 사용
     fct-afs-ds: https://apihub.kma.go.kr/api/typ01/url/fct_afs_ds.php
     fct-shrt-reg: https://apihub.kma.go.kr/api/typ01/url/fct_shrt_reg.php
-    # 동네예보 초단기 격자 — tmfc·tmef·nx·ny·vars·authKey (격자점 미지정 시 본문/파싱 실패 가능)
+    # 동네예보 초단기: 실황 nph-dfs_odam_grd 는 tmfc·vars·authKey 만(허브 샘플). 예보 격자(vsrt) URL 이면 tmef·nx·ny 가 쿼리에 붙음.
     dfs-vsrt-grd: https://apihub.kma.go.kr/api/typ01/cgi-bin/url/nph-dfs_odam_grd
     # 동네예보 단기(3시간 단위) 격자 — nph-dfs_shrt_grd (tmfc·tmef·nx·ny·vars·authKey). 비우면 미사용.
     dfs-shrt-grd: https://apihub.kma.go.kr/api/typ01/cgi-bin/url/nph-dfs_shrt_grd
