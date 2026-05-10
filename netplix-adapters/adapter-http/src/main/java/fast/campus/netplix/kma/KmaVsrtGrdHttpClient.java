@@ -15,8 +15,8 @@ import java.time.Duration;
 
 /**
  * 기상청 API허브 동네예보 초단기 격자 —
- * {@code nph-dfs_odam_grd}, {@code nph-dfs_vsrt_grd} 등(설정 URL).
- * 예: {@code ?tmfc=202403011010&tmef=2024030111&vars=T1H&authKey=...}
+ * {@code nph-dfs_odam_grd}, {@code nph-dfs_vsrt_grd} 등. 격자점별 값은 {@code nx},{@code ny} 필수.
+ * 예: {@code ?tmfc=…&tmef=…&nx=…&ny=…&vars=T1H&authKey=…}
  */
 @Slf4j
 @Component
@@ -39,9 +39,10 @@ public class KmaVsrtGrdHttpClient {
     /**
      * @param tmfc 발표(생산) 시각 — {@code yyyyMMddHHmm} 12자리 (예: 202403011010)
      * @param tmef 예보 시각 — API 샘플 기준 {@code yyyyMMddHH} 10자리 (예: 2024030111)
+     * @param nx, ny 동네예보 격자 ({@link KmaLambertGridConverter})
      * @param vars   조회 변수 (예: T1H 또는 T1H,PTY)
      */
-    public String fetchRaw(String tmfc, String tmef, String vars) {
+    public String fetchRaw(String tmfc, String tmef, int nx, int ny, String vars) {
         if (apiKey == null || apiKey.isBlank()) {
             return null;
         }
@@ -52,6 +53,8 @@ public class KmaVsrtGrdHttpClient {
             URI uri = UriComponentsBuilder.fromHttpUrl(dfsVsrtGrdUrl)
                     .queryParam("tmfc", tmfc)
                     .queryParam("tmef", tmef)
+                    .queryParam("nx", nx)
+                    .queryParam("ny", ny)
                     .queryParam("vars", vars)
                     .queryParam("authKey", apiKey)
                     .build(true)

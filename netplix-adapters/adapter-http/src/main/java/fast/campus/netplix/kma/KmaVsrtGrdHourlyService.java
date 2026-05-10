@@ -55,13 +55,13 @@ public class KmaVsrtGrdHourlyService {
         for (int h = 1; h <= cap; h++) {
             ZonedDateTime ft = now.plusHours(h).truncatedTo(ChronoUnit.HOURS);
             String tmef = ft.format(TMEF);
-            String raw = client.fetchRaw(tmfc, tmef, "T1H,PTY");
+            String raw = client.fetchRaw(tmfc, tmef, nx, ny, "T1H,PTY");
             if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
                 continue;
             }
             Optional<KmaVsrtGrdResponseParser.VsrtCell> cell = KmaVsrtGrdResponseParser.extractCell(raw, nx, ny, objectMapper);
             if (cell.isEmpty()) {
-                String raw2 = client.fetchRaw(tmfc, tmef, "T1H");
+                String raw2 = client.fetchRaw(tmfc, tmef, nx, ny, "T1H");
                 if (raw2 != null && !KmaVsrtGrdResponseParser.isUpstreamError(raw2, objectMapper)) {
                     cell = KmaVsrtGrdResponseParser.extractCell(raw2, nx, ny, objectMapper);
                 }
@@ -96,13 +96,13 @@ public class KmaVsrtGrdHourlyService {
             int min = (cand.getMinute() / 10) * 10;
             cand = cand.withSecond(0).withNano(0).withMinute(min);
             String tmfc = cand.format(TMFC);
-            String raw = client.fetchRaw(tmfc, tmefProbe, "T1H,PTY");
+            String raw = client.fetchRaw(tmfc, tmefProbe, nx, ny, "T1H,PTY");
             if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
                 continue;
             }
             Optional<KmaVsrtGrdResponseParser.VsrtCell> cell = KmaVsrtGrdResponseParser.extractCell(raw, nx, ny, objectMapper);
             if (cell.isEmpty()) {
-                String raw2 = client.fetchRaw(tmfc, tmefProbe, "T1H");
+                String raw2 = client.fetchRaw(tmfc, tmefProbe, nx, ny, "T1H");
                 if (raw2 != null && !KmaVsrtGrdResponseParser.isUpstreamError(raw2, objectMapper)) {
                     cell = KmaVsrtGrdResponseParser.extractCell(raw2, nx, ny, objectMapper);
                 }
