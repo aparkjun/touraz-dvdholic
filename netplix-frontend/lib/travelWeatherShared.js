@@ -559,7 +559,7 @@ export function useTravelWeatherShortReg() {
       const pos = await getGeoForWeather();
       const params = pos ? { lat: pos.coords.latitude, lng: pos.coords.longitude } : {};
       try {
-        const res = await axios.get('/api/v1/weather/short-reg', { params });
+        const res = await axios.get('/api/v1/weather/short-reg', { params, timeout: 55000 });
         const d = res?.data?.data;
         if (!alive) return;
         setState({ phase: 'ready', data: d || null });

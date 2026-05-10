@@ -37,11 +37,14 @@ public class KmaShrtGrdSeriesService {
         return fetchSeriesForGrid(grid[0], grid[1], maxSlots);
     }
 
+    /** Heroku 등 게이트웨이 타임아웃 내에 맞추기 위해 슬롯·발표시각 탐색을 제한한다. */
+    private static final int MAX_TMFC_PROBE = 6;
+
     public List<Map<String, Object>> fetchSeriesForGrid(int nx, int ny, int maxSlots) {
         if (!client.isConfigured()) {
             return List.of();
         }
-        int cap = Math.min(24, Math.max(4, maxSlots));
+        int cap = Math.min(12, Math.max(4, maxSlots));
         Optional<String> tmfcOpt = resolveWorkingTmfc(nx, ny);
         if (tmfcOpt.isEmpty()) {
             log.debug("dfs_shrt_grd: 유효 tmfc 없음 nx={} ny={}", nx, ny);
@@ -54,18 +57,13 @@ public class KmaShrtGrdSeriesService {
         for (int i = 0; i < cap; i++) {
             ZonedDateTime ft = anchor.plusHours(3L * i);
             String tmef = ft.format(TMEF);
+            // 슬롯당 1회 호출(T1H) — 응답·게이트웨이 시간 단축. POP/SKY 는 허브가 내려주면 파서가 채움.
             String raw = client.fetchRaw(tmfc, tmef, nx, ny, "T1H,POP,SKY,PTY");
             if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
                 continue;
             }
             Optional<KmaVsrtGrdResponseParser.DfsGridPoint> cell =
                     KmaVsrtGrdResponseParser.extractGridPoint(raw, nx, ny, objectMapper);
-            if (cell.isEmpty()) {
-                String raw2 = client.fetchRaw(tmfc, tmef, nx, ny, "T1H");
-                if (raw2 != null && !KmaVsrtGrdResponseParser.isUpstreamError(raw2, objectMapper)) {
-                    cell = KmaVsrtGrdResponseParser.extractGridPoint(raw2, nx, ny, objectMapper);
-                }
-            }
             if (cell.isEmpty()) {
                 continue;
             }
@@ -110,7 +108,10 @@ public class KmaShrtGrdSeriesService {
         if (tries.isEmpty()) {
             tries.add(KmaShortRegIssuanceTime.conservativeFallbackTmfc());
         }
-        for (String tmfc : tries) {
+        String fallback = KmaShortRegIssuanceTime.conservativeFallbackTmfc();
+        int nTry = Math.min(MAX_TMFC_PROBE, tries.size());
+        for (int i = 0; i < nTry; i++) {
+            String tmfc = tries.get(i);
             String raw = client.fetchRaw(tmfc, tmefProbe, nx, ny, "T1H");
             if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
                 continue;
@@ -122,6 +123,19 @@ public class KmaShrtGrdSeriesService {
                     && cell.get().t1h() > -80
                     && cell.get().t1h() < 55) {
                 return Optional.of(tmfc);
+            }
+        }
+        if (!tries.subList(0, nTry).contains(fallback)) {
+            String raw = client.fetchRaw(fallback, tmefProbe, nx, ny, "T1H");
+            if (raw != null && !KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
+                Optional<KmaVsrtGrdResponseParser.DfsGridPoint> cell =
+                        KmaVsrtGrdResponseParser.extractGridPoint(raw, nx, ny, objectMapper);
+                if (cell.isPresent()
+                        && cell.get().t1h() != null
+                        && cell.get().t1h() > -80
+                        && cell.get().t1h() < 55) {
+                    return Optional.of(fallback);
+                }
             }
         }
         return Optional.empty();

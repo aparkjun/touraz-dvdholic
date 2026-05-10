@@ -118,7 +118,7 @@ function timelinesFromApiData(d) {
   };
 }
 
-/** 지역 탭: reg+좌표 우선, 실패 시 reg 단독 */
+/** 지역 탭: reg+좌표 우선, 실패 시 reg 단독. 날씨 엔드포인트는 허브 연쇄 호출로 지연될 수 있어 타임아웃을 넉넉히 둔다. */
 async function fetchShortRegForPreset(preset) {
   const paramSets = [
     { reg: preset.reg, lat: preset.lat, lng: preset.lng },
@@ -126,11 +126,11 @@ async function fetchShortRegForPreset(preset) {
   ];
   for (const params of paramSets) {
     try {
-      const res = await axios.get('/api/v1/weather/short-reg', { params });
+      const res = await axios.get('/api/v1/weather/short-reg', { params, timeout: 55000 });
       const body = res?.data;
-      if (body?.success === false) continue;
+      if (body && body.success === false) continue;
       const d = body?.data;
-      if (d && typeof d === 'object') return d;
+      if (d != null && typeof d === 'object') return d;
     } catch {
       /* try next */
     }

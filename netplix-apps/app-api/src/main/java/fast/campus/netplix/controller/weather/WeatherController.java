@@ -102,21 +102,19 @@ public class WeatherController {
             if (coords != null) {
                 try {
                     List<Map<String, Object>> shrtSeries =
-                            kmaShrtGrdSeriesService.fetchSeriesForLatLng(coords[0], coords[1], 16);
+                            kmaShrtGrdSeriesService.fetchSeriesForLatLng(coords[0], coords[1], 8);
                     if (!shrtSeries.isEmpty()) {
                         out.put("configured", true);
                         out.put("shortRegUsedShrtGrid", true);
                         out.put("series", shrtSeries);
                         putVsrtGrid(out, coords[0], coords[1]);
-                        attachVsrtHourlyOptional(out, coords[0], coords[1], 12);
                         out.put(
                                 "message",
-                                "단기 예보구역(reg) 통보문은 받지 못했으나, 단기 격자(nph-dfs_shrt_grd)로 3시간 간격 예보를 표시합니다. "
-                                        + "초단기 격자 시간대가 함께 붙으면 보조로 사용합니다.");
+                                "단기 예보구역(reg) 통보문은 받지 못했으나, 단기 격자(nph-dfs_shrt_grd)로 3시간 간격 예보를 표시합니다.");
                         return NetplixApiResponse.ok(out);
                     }
                     List<Map<String, Object>> vsrt =
-                            kmaVsrtGrdHourlyService.fetchHourlyForLatLng(coords[0], coords[1], 12);
+                            kmaVsrtGrdHourlyService.fetchHourlyForLatLng(coords[0], coords[1], 6);
                     if (!vsrt.isEmpty()) {
                         out.put("configured", true);
                         out.put("shortRegUsedGridFallback", true);
@@ -191,7 +189,7 @@ public class WeatherController {
                 boolean upstream = Boolean.TRUE.equals(out.get("upstreamError"));
                 if ((existing == null || existing.isEmpty()) && !upstream) {
                     List<Map<String, Object>> shrt =
-                            kmaShrtGrdSeriesService.fetchSeriesForLatLng(coords[0], coords[1], 16);
+                            kmaShrtGrdSeriesService.fetchSeriesForLatLng(coords[0], coords[1], 8);
                     if (!shrt.isEmpty()) {
                         out.put("series", shrt);
                         out.put("shortRegSupplementedByShrtGrid", true);
