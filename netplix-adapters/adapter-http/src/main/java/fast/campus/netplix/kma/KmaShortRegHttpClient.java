@@ -151,6 +151,10 @@ public class KmaShortRegHttpClient {
         if (t.startsWith("#START7777") && t.contains("단기예보 개황")) {
             return false;
         }
+        // 단기 통보문 텍스트도 # 로 시작하며 $0# 블록을 포함 — 구역 목록이 아님
+        if (body.contains("$0#")) {
+            return false;
+        }
         return t.startsWith("#");
     }
 
@@ -250,6 +254,14 @@ public class KmaShortRegHttpClient {
             }
             if (isTextCatalogResponse(body)) {
                 return new OnceFetch(body, null, null, null, true);
+            }
+            if (!KmaHubJson.looksLikeJson(body) && body.contains("$0#")) {
+                int stn = KmaRegToAfsDsStn.stnForReg(reg, defaultAfsStn);
+                String[] win = KmaAfsDsTimeWindow.tmfc1Tmfc2(tmfc);
+                String parsed = KmaAfsDsParser.toForecastJson(body, stn, win[0], win[1]);
+                if (parsed != null) {
+                    return new OnceFetch(parsed, null, null, null, false);
+                }
             }
             if (!KmaHubJson.looksLikeJson(body)) {
                 String syn = KmaHubJson.syntheticResult(502, "Non-JSON: " + KmaHubJson.previewSnippet(body));
