@@ -6,6 +6,7 @@ import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 
 /**
  * 기상청 API허브 호출 공통 — 비JSON/HTML/빈 응답을 표준 {@code result.status} JSON 으로 바꿔
@@ -124,10 +125,14 @@ public final class KmaHubJson {
         return true;
     }
 
-    /** 연결·읽기 타임아웃 등 1회 재시도 */
+    /**
+     * 연결·읽기 타임아웃 등 1회 재시도.
+     * 허브 격자 일부가 {@code Content-Type: text/plain} 으로 내려오며 {@code body(String.class)} 가 변환 예외를 낼 수 있어
+     * 원시 바이트로 읽는다.
+     */
     static String getWithRetry(RestClient client, URI uri) throws Exception {
         try {
-            return client.get().uri(uri).retrieve().body(String.class);
+            return getBodyUtf8(client, uri);
         } catch (ResourceAccessException e) {
             try {
                 Thread.sleep(400);
@@ -135,7 +140,15 @@ public final class KmaHubJson {
                 Thread.currentThread().interrupt();
                 throw e;
             }
-            return client.get().uri(uri).retrieve().body(String.class);
+            return getBodyUtf8(client, uri);
         }
+    }
+
+    private static String getBodyUtf8(RestClient client, URI uri) {
+        byte[] b = client.get().uri(uri).retrieve().body(byte[].class);
+        if (b == null || b.length == 0) {
+            return "";
+        }
+        return new String(b, StandardCharsets.UTF_8);
     }
 }
