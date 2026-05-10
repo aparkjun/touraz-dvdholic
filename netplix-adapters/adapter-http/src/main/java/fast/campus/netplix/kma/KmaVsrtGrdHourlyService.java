@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 초단기·실황 격자 API — URL 이 {@code odam_grd}(실황)이면 허브 샘플대로 tmfc·vars 만 요청하고,
+ * 초단기·실황 격자 API — URL 이 {@code odam_grd}(실황)이면 허브 샘플대로 tmfc·vars 만 요청({@code vars=T1H})하고,
  * 그 외(vsrt 등)는 tmef·nx·ny 를 포함한다. tmfc 는 10분 단위 후보로 유효 시각을 찾는다.
  */
 @Slf4j
@@ -98,10 +98,8 @@ public class KmaVsrtGrdHourlyService {
      */
     private List<Map<String, Object>> buildRowsFromOdamGrid(
             String tmfc, int nx, int ny, int cap, ZonedDateTime nowKst) {
-        String raw = client.fetchRaw(tmfc, "", nx, ny, "T1H,PTY");
-        if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
-            raw = client.fetchRaw(tmfc, "", nx, ny, "T1H");
-        }
+        // 허브 실황 샘플은 vars=T1H 만 사용. T1H,PTY 는 미지원이면 전 구간 실패할 수 있음.
+        String raw = client.fetchRaw(tmfc, "", nx, ny, "T1H");
         if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
             return List.of();
         }
@@ -140,6 +138,21 @@ public class KmaVsrtGrdHourlyService {
             int min = (cand.getMinute() / 10) * 10;
             cand = cand.withSecond(0).withNano(0).withMinute(min);
             String tmfc = cand.format(TMFC);
+            if (client.isOdamGrdProduct()) {
+                String raw = client.fetchRaw(tmfc, tmefProbe, nx, ny, "T1H");
+                if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
+                    continue;
+                }
+                Optional<KmaVsrtGrdResponseParser.VsrtCell> cell =
+                        KmaVsrtGrdResponseParser.extractCell(raw, nx, ny, objectMapper);
+                if (cell.isPresent()
+                        && cell.get().t1h() != null
+                        && cell.get().t1h() > -80
+                        && cell.get().t1h() < 55) {
+                    return Optional.of(tmfc);
+                }
+                continue;
+            }
             String raw = client.fetchRaw(tmfc, tmefProbe, nx, ny, "T1H,PTY");
             if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
                 continue;

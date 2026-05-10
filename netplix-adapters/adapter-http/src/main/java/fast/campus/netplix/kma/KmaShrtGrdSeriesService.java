@@ -59,6 +59,9 @@ public class KmaShrtGrdSeriesService {
             String tmef = ft.format(TMEF);
             String raw = client.fetchRaw(tmfc, tmef, nx, ny, "T1H,POP,SKY,PTY");
             if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
+                raw = client.fetchRaw(tmfc, tmef, nx, ny, "T1H");
+            }
+            if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
                 continue;
             }
             Optional<KmaVsrtGrdResponseParser.DfsGridPoint> cell =
