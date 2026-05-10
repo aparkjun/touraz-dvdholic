@@ -1,6 +1,7 @@
 package fast.campus.netplix.controller.weather;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import fast.campus.netplix.kma.KmaFcstZoneInfoHttpClient;
 import fast.campus.netplix.kma.KmaShrtGrdSeriesService;
 import fast.campus.netplix.kma.KmaShortRegFetchResult;
 import fast.campus.netplix.kma.KmaShortRegHttpClient;
@@ -40,6 +41,9 @@ class WeatherControllerTest {
     private KmaShortRegHttpClient kmaShortRegHttpClient;
 
     @Mock
+    private KmaFcstZoneInfoHttpClient kmaFcstZoneInfoHttpClient;
+
+    @Mock
     private KmaShrtGrdSeriesService kmaShrtGrdSeriesService;
 
     @Mock
@@ -51,8 +55,13 @@ class WeatherControllerTest {
         lenient().when(kmaShortRegHttpClient.isApiKeyConfigured()).thenReturn(true);
         lenient().when(kmaVsrtGrdHourlyService.fetchHourlyForLatLng(anyDouble(), anyDouble(), anyInt())).thenReturn(List.of());
         lenient().when(kmaShrtGrdSeriesService.fetchSeriesForLatLng(anyDouble(), anyDouble(), anyInt())).thenReturn(List.of());
+        lenient().when(kmaFcstZoneInfoHttpClient.isConfigured()).thenReturn(false);
         weatherController = new WeatherController(
-                kmaShortRegHttpClient, kmaShrtGrdSeriesService, kmaVsrtGrdHourlyService, objectMapper);
+                kmaShortRegHttpClient,
+                kmaFcstZoneInfoHttpClient,
+                kmaShrtGrdSeriesService,
+                kmaVsrtGrdHourlyService,
+                objectMapper);
         ReflectionTestUtils.setField(weatherController, "defaultReg", "11B10101");
         mockMvc = MockMvcBuilders.standaloneSetup(weatherController)
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
@@ -104,6 +113,26 @@ class WeatherControllerTest {
                 .andExpect(jsonPath("$.data.series.length()").value(1))
                 .andExpect(jsonPath("$.data.series[0].TMP").value(20))
                 .andExpect(jsonPath("$.data.shortRegSupplementedByShrtGrid").value(true));
+    }
+
+    @Test
+    void fcstZone_returnsItems_whenHubReturnsXml() throws Exception {
+        String xml =
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?><response><header><resultCode>00</resultCode>"
+                        + "<resultMsg>NORMAL_SERVICE</resultMsg></header><body><items><item>"
+                        + "<regId>11A00101</regId><regName>백령도</regName></item></items>"
+                        + "<pageNo>1</pageNo><totalCount>1</totalCount></body></response>";
+        when(kmaFcstZoneInfoHttpClient.isConfigured()).thenReturn(true);
+        when(kmaFcstZoneInfoHttpClient.fetchGetFcstZoneCdXml(eq("11A00101"), eq(1), eq(10)))
+                .thenReturn(xml);
+
+        mockMvc.perform(get("/api/v1/weather/fcst-zone").param("regId", "11A00101"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.success").value(true))
+                .andExpect(jsonPath("$.data.resultCode").value("00"))
+                .andExpect(jsonPath("$.data.items[0].regId").value("11A00101"))
+                .andExpect(jsonPath("$.data.items[0].regName").value("백령도"));
     }
 
     @Test

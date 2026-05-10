@@ -19,6 +19,8 @@ kma:
     dfs-vsrt-grd: https://apihub.kma.go.kr/api/typ01/cgi-bin/url/nph-dfs_odam_grd
     # 동네예보 단기(3시간 단위) 격자 — nph-dfs_shrt_grd (tmfc·tmef·nx·ny·vars·authKey). 비우면 미사용.
     dfs-shrt-grd: https://apihub.kma.go.kr/api/typ01/cgi-bin/url/nph-dfs_shrt_grd
+    # 예보구역정보 typ02 — getFcstZoneCd (pageNo·numOfRows·dataType·regId·authKey). 활용승인 후 사용.
+    fcst-zone-info-get-zone-cd: https://apihub.kma.go.kr/api/typ02/openApi/FcstZoneInfoService/getFcstZoneCd
 
 tmdb:
   auth:

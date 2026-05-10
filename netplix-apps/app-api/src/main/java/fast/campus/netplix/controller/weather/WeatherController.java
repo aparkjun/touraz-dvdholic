@@ -3,6 +3,8 @@ package fast.campus.netplix.controller.weather;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fast.campus.netplix.controller.NetplixApiResponse;
+import fast.campus.netplix.kma.KmaFcstZoneInfoHttpClient;
+import fast.campus.netplix.kma.KmaFcstZoneInfoXmlParser;
 import fast.campus.netplix.kma.KmaForecastSeriesExtractor;
 import fast.campus.netplix.kma.KmaHubJson;
 import fast.campus.netplix.kma.KmaLambertGridConverter;
@@ -45,12 +47,70 @@ public class WeatherController {
     private final ConcurrentHashMap<String, ShortRegCacheEntry> shortRegCache = new ConcurrentHashMap<>();
 
     private final KmaShortRegHttpClient kmaShortRegHttpClient;
+    private final KmaFcstZoneInfoHttpClient kmaFcstZoneInfoHttpClient;
     private final KmaShrtGrdSeriesService kmaShrtGrdSeriesService;
     private final KmaVsrtGrdHourlyService kmaVsrtGrdHourlyService;
     private final ObjectMapper objectMapper;
 
     @Value("${kma.auth.default-reg}")
     private String defaultReg;
+
+    /**
+     * 기상청 API허브 예보구역정보 — {@code FcstZoneInfoService/getFcstZoneCd} 프록시 (인증키 비노출).
+     *
+     * @param regId      예보구역코드 (예: 11A00101)
+     * @param pageNo     페이지 (기본 1)
+     * @param numOfRows  페이지당 행 수 (기본 10)
+     */
+    @GetMapping("/fcst-zone")
+    public NetplixApiResponse<Map<String, Object>> fcstZone(
+            @RequestParam(name = "regId") String regId,
+            @RequestParam(name = "pageNo", defaultValue = "1") int pageNo,
+            @RequestParam(name = "numOfRows", defaultValue = "10") int numOfRows) {
+
+        Map<String, Object> out = new HashMap<>();
+        if (!kmaFcstZoneInfoHttpClient.isConfigured()) {
+            out.put("configured", false);
+            out.put(
+                    "message",
+                    "예보구역정보(getFcstZoneCd) URL이 비었거나 KMA_API_KEY 가 없습니다. adapter-http-property 의 kma.api.fcst-zone-info-get-zone-cd 와 Heroku Config Vars 를 확인하세요.");
+            return NetplixApiResponse.ok(out);
+        }
+
+        String xml = kmaFcstZoneInfoHttpClient.fetchGetFcstZoneCdXml(regId, pageNo, numOfRows);
+        if (xml == null) {
+            out.put("configured", true);
+            out.put("success", false);
+            out.put("message", "기상청 허브 호출에 실패했습니다. regId·네트워크·활용승인을 확인하세요.");
+            return NetplixApiResponse.ok(out);
+        }
+
+        var parsedOpt = KmaFcstZoneInfoXmlParser.parse(xml);
+        if (parsedOpt.isEmpty()) {
+            out.put("configured", true);
+            out.put("success", false);
+            out.put("message", "XML 응답을 파싱하지 못했습니다.");
+            out.put("rawPreview", xml.length() > 600 ? xml.substring(0, 600) + "…" : xml);
+            return NetplixApiResponse.ok(out);
+        }
+
+        KmaFcstZoneInfoXmlParser.FcstZoneCdParse p = parsedOpt.get();
+        out.put("configured", true);
+        out.put("success", p.isOk());
+        out.put("resultCode", p.resultCode());
+        out.put("resultMsg", p.resultMsg());
+        out.put("items", p.items());
+        if (p.pageNo() != null) {
+            out.put("pageNo", p.pageNo());
+        }
+        if (p.numOfRows() != null) {
+            out.put("numOfRows", p.numOfRows());
+        }
+        if (p.totalCount() != null) {
+            out.put("totalCount", p.totalCount());
+        }
+        return NetplixApiResponse.ok(out);
+    }
 
     @GetMapping("/short-reg")
     public NetplixApiResponse<Map<String, Object>> shortReg(
