@@ -1,5 +1,7 @@
 package fast.campus.netplix.kma;
 
+import java.util.Optional;
+
 /**
  * 기상청 단기예보(일반특보 구역) reg 코드 다수 — 대표 좌표(행정 중심 근사).
  * 사용자 위치와의 거리로 최근접 reg 를 고를 때만 사용한다.
@@ -52,5 +54,19 @@ public enum KmaRegCentroid {
 
     public double lng() {
         return lng;
+    }
+
+    /** 프리셋 reg 와 일치할 때만 대표 위·경도를 쓴다(미등록 reg 는 empty). */
+    public static Optional<KmaRegCentroid> byReg(String reg) {
+        if (reg == null || reg.isBlank()) {
+            return Optional.empty();
+        }
+        String r = reg.trim();
+        for (KmaRegCentroid c : values()) {
+            if (c.reg.equals(r)) {
+                return Optional.of(c);
+            }
+        }
+        return Optional.empty();
     }
 }

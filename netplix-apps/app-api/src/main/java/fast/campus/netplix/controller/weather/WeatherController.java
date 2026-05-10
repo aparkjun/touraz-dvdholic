@@ -6,6 +6,7 @@ import fast.campus.netplix.controller.NetplixApiResponse;
 import fast.campus.netplix.kma.KmaForecastSeriesExtractor;
 import fast.campus.netplix.kma.KmaLambertGridConverter;
 import fast.campus.netplix.kma.KmaNearestReg;
+import fast.campus.netplix.kma.KmaRegCentroid;
 import fast.campus.netplix.kma.KmaShortRegFetchResult;
 import fast.campus.netplix.kma.KmaShortRegHttpClient;
 import fast.campus.netplix.kma.KmaVsrtGrdHourlyService;
@@ -76,20 +77,8 @@ public class WeatherController {
         KmaShortRegFetchResult shortRegFetch = kmaShortRegHttpClient.fetchWithDiagnostics(effectiveReg, tmfc);
         String raw = shortRegFetch.raw();
         if (raw == null) {
-            out.put("configured", false);
             int att = shortRegFetch.attempts();
             int cat = shortRegFetch.catalogTextResponsesSkipped();
-            String userMessage;
-            if (att > 0 && att == cat) {
-                userMessage =
-                        "기상청 API허브가 예보 JSON 대신 「예보구역 목록」(#로 시작하는 텍스트)만 반환했습니다. "
-                                + "API허브 마이페이지에서 「단기 개황·JSON(disp=1)」 등 실제 단기 예보 데이터 API 활용승인이 있는지 확인하세요. "
-                                + "「단기 예보구역 조회」만 승인된 경우 이 증상이 날 수 있습니다. 초단기 격자(nph-dfs_odam_grd 등)는 별도 신청입니다.";
-            } else {
-                userMessage =
-                        "기상청 API허브 호출에 실패했습니다. 인증키 종류(허브용)·단기/초단기(격자) 활용승인·네트워크를 확인하세요.";
-            }
-            out.put("message", userMessage);
             Map<String, Object> diag = new LinkedHashMap<>();
             diag.put("attempts", att);
             diag.put("catalogTextResponsesSkipped", cat);
@@ -106,6 +95,50 @@ public class WeatherController {
                 diag.put("error", shortRegFetch.lastExceptionSummary());
             }
             out.put("shortRegDiagnostic", diag);
+
+            Double gridLat = lat;
+            Double gridLng = lng;
+            if ((gridLat == null || gridLng == null)) {
+                var c = KmaRegCentroid.byReg(effectiveReg);
+                if (c.isPresent()) {
+                    gridLat = c.get().lat();
+                    gridLng = c.get().lng();
+                    out.put("gridCoordsFromRegPreset", true);
+                }
+            }
+            if (gridLat != null && gridLng != null) {
+                try {
+                    List<Map<String, Object>> vsrt =
+                            kmaVsrtGrdHourlyService.fetchHourlyForLatLng(gridLat, gridLng, 12);
+                    if (!vsrt.isEmpty()) {
+                        out.put("configured", true);
+                        out.put("shortRegUsedGridFallback", true);
+                        out.put("vsrtHourly", vsrt);
+                        int[] g = KmaLambertGridConverter.toGrid(gridLat, gridLng);
+                        out.put("vsrtGrid", Map.of("nx", g[0], "ny", g[1]));
+                        out.put(
+                                "message",
+                                "단기 예보구역(reg) 통보문은 허브에서 받지 못했지만, 초단기 격자 데이터로 시간대별 기온을 표시합니다. "
+                                        + "허브가 일부 reg 에 대해 「구역 목록」 텍스트만 주는 경우가 있으며, 승인과 무관할 수 있습니다.");
+                        return NetplixApiResponse.ok(out);
+                    }
+                } catch (Exception e) {
+                    log.debug("단기 실패 후 초단기 격자 폴백 생략: {}", e.getMessage());
+                }
+            }
+
+            out.put("configured", false);
+            String userMessage;
+            if (att > 0 && att == cat) {
+                userMessage =
+                        "기상청 API허브가 예보 JSON 대신 「예보구역 목록」(#로 시작하는 텍스트)만 반환했습니다. "
+                                + "API허브 마이페이지에서 「단기 개황·JSON(disp=1)」 등 실제 단기 예보 데이터 API 활용승인이 있는지 확인하세요. "
+                                + "「단기 예보구역 조회」만 승인된 경우 이 증상이 날 수 있습니다. 초단기 격자(nph-dfs_odam_grd 등)는 별도 신청입니다.";
+            } else {
+                userMessage =
+                        "기상청 API허브 호출에 실패했습니다. 인증키 종류(허브용)·단기/초단기(격자) 활용승인·네트워크를 확인하세요.";
+            }
+            out.put("message", userMessage);
             return NetplixApiResponse.ok(out);
         }
         out.put("configured", true);
