@@ -70,12 +70,36 @@ final class KmaHubJson {
             }
             JsonNode r = root.get("result");
             if (r != null && r.has("status")) {
-                return r.get("status").asInt(-1) == 0;
+                return !hubResultStatusIndicatesFailure(r.get("status"));
             }
             return false;
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * 허브/중계 응답에서 {@code result.status} 가 숫자 0 또는 문자열 {@code "0"}, {@code "00"} 등이면 성공으로 본다.
+     */
+    static boolean hubResultStatusIndicatesFailure(JsonNode status) {
+        if (status == null || status.isNull() || status.isMissingNode()) {
+            return false;
+        }
+        if (status.isNumber()) {
+            return status.intValue() != 0;
+        }
+        if (status.isTextual()) {
+            String s = status.asText().trim();
+            if (s.isEmpty() || s.matches("0+")) {
+                return false;
+            }
+            try {
+                return Integer.parseInt(s) != 0;
+            } catch (NumberFormatException e) {
+                return true;
+            }
+        }
+        return true;
     }
 
     /** 연결·읽기 타임아웃 등 1회 재시도 */

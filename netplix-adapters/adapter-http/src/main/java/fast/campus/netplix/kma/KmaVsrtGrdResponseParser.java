@@ -26,16 +26,10 @@ public final class KmaVsrtGrdResponseParser {
             if (status.isMissingNode()) {
                 return false;
             }
-            if (status.isNumber()) {
-                return status.intValue() != 0;
-            }
-            if (status.isTextual()) {
-                return !"0".equals(status.asText());
-            }
+            return KmaHubJson.hubResultStatusIndicatesFailure(status);
         } catch (Exception e) {
             return true;
         }
-        return false;
     }
 
     public static Optional<VsrtCell> extractCell(String raw, int nx, int ny, ObjectMapper mapper) {

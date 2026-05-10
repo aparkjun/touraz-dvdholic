@@ -47,9 +47,14 @@ public class KmaShortRegHttpClient {
         return RestClient.builder().requestFactory(factory).build();
     }
 
+    /** Heroku 등에서 복사 시 붙는 앞뒤 공백·개행 제거 (허브는 불일치 시 전부 실패로 보임). */
+    private String hubAuthKey() {
+        return apiKey == null ? "" : apiKey.trim();
+    }
+
     /** 환경변수 {@code KMA_API_KEY} / {@code KMA_AUTH_API_KEY} 로 주입된 허브용 인증키 존재 여부 */
     public boolean isApiKeyConfigured() {
-        return apiKey != null && !apiKey.isBlank();
+        return !hubAuthKey().isEmpty();
     }
 
     /**
@@ -64,7 +69,7 @@ public class KmaShortRegHttpClient {
      * {@link #fetchRaw} 와 동일 호출이나, 실패 시 HTTP·본문 미리보기·예외 요약을 함께 돌려 추적에 쓴다.
      */
     public KmaShortRegFetchResult fetchWithDiagnostics(String reg, String tmfcOverride) {
-        if (apiKey == null || apiKey.isBlank()) {
+        if (hubAuthKey().isEmpty()) {
             log.warn("KMA_API_KEY 미설정 — 단기예보 프록시 비활성");
             return new KmaShortRegFetchResult(null, null, null, "api_key_not_configured", 0, 0);
         }
@@ -176,7 +181,7 @@ public class KmaShortRegHttpClient {
                     .queryParam("tmfc1", win[0])
                     .queryParam("tmfc2", win[1])
                     .queryParam("disp", 0)
-                    .queryParam("authKey", apiKey)
+                    .queryParam("authKey", hubAuthKey())
                     .build(true)
                     .toUri();
             RestClient rc = restClient();
@@ -249,7 +254,7 @@ public class KmaShortRegHttpClient {
             UriComponentsBuilder ub = UriComponentsBuilder.fromHttpUrl(fctShrtRegUrl)
                     .queryParam("tmfc", tmfc)
                     .queryParam("reg", reg)
-                    .queryParam("authKey", apiKey);
+                    .queryParam("authKey", hubAuthKey());
             if (jsonDisp) {
                 ub.queryParam("disp", 1);
             }

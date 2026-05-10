@@ -26,11 +26,14 @@ public class KmaShrtGrdHttpClient {
     @Value("${kma.auth.api-key:}")
     private String apiKey;
 
+    private String hubAuthKey() {
+        return apiKey == null ? "" : apiKey.trim();
+    }
+
     public boolean isConfigured() {
         return dfsShrtGrdUrl != null
                 && !dfsShrtGrdUrl.isBlank()
-                && apiKey != null
-                && !apiKey.isBlank();
+                && !hubAuthKey().isEmpty();
     }
 
     private RestClient restClient() {
@@ -63,7 +66,7 @@ public class KmaShrtGrdHttpClient {
                     .queryParam("nx", nx)
                     .queryParam("ny", ny)
                     .queryParam("vars", vars)
-                    .queryParam("authKey", apiKey)
+                    .queryParam("authKey", hubAuthKey())
                     .build(true)
                     .toUri();
             RestClient rc = restClient();

@@ -31,6 +31,10 @@ public class KmaVsrtGrdHttpClient {
     @Value("${kma.auth.api-key:}")
     private String apiKey;
 
+    private String hubAuthKey() {
+        return apiKey == null ? "" : apiKey.trim();
+    }
+
     /** 설정 URL 이 실황 격자(odam)이면 허브 샘플과 동일하게 tmef·nx·ny 를 쿼리에 넣지 않는다. */
     public boolean isOdamGrdProduct() {
         String u = dfsVsrtGrdUrl != null ? dfsVsrtGrdUrl.toLowerCase() : "";
@@ -65,7 +69,7 @@ public class KmaVsrtGrdHttpClient {
             UriComponentsBuilder ub = UriComponentsBuilder.fromHttpUrl(dfsVsrtGrdUrl)
                     .queryParam("tmfc", tmfc)
                     .queryParam("vars", vars)
-                    .queryParam("authKey", apiKey);
+                    .queryParam("authKey", hubAuthKey());
             if (!odam) {
                 ub.queryParam("tmef", tmef).queryParam("nx", nx).queryParam("ny", ny);
             }
