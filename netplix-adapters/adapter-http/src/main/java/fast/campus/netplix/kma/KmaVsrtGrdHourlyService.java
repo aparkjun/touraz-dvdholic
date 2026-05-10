@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 초단기·실황 격자 API — URL 이 {@code odam_grd}(실황)이면 허브 샘플대로 tmfc·vars 만 요청({@code vars=T1H})하고,
@@ -24,8 +25,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class KmaVsrtGrdHourlyService {
 
-    /** Heroku HTTP 제한 등을 고려해 tmfc 10분 후보 탐색 상한. */
-    private static final int TMFC_BACK_MAX = 5;
+    /** tmfc 10분 후보 탐색 상한 — 병렬 프로브와 함께 조정 */
+    private static final int TMFC_BACK_MAX = 8;
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final DateTimeFormatter TMFC = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
@@ -58,38 +59,54 @@ public class KmaVsrtGrdHourlyService {
             return buildRowsFromOdamGrid(tmfc, nx, ny, cap, now);
         }
 
-        List<Map<String, Object>> rows = new ArrayList<>();
+        List<CompletableFuture<Map<String, Object>>> hourFutures = new ArrayList<>();
         for (int h = 1; h <= cap; h++) {
-            ZonedDateTime ft = now.plusHours(h).truncatedTo(ChronoUnit.HOURS);
-            String tmef = ft.format(TMEF);
-            String raw = client.fetchRaw(tmfc, tmef, nx, ny, "T1H,PTY");
-            if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
-                continue;
+            final int hourAhead = h;
+            hourFutures.add(CompletableFuture.supplyAsync(() -> fetchOneVsrtHour(tmfc, nx, ny, now, hourAhead)));
+        }
+        CompletableFuture.allOf(hourFutures.toArray(new CompletableFuture[0])).join();
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (CompletableFuture<Map<String, Object>> f : hourFutures) {
+            Map<String, Object> row = f.join();
+            if (row != null && !row.isEmpty()) {
+                rows.add(row);
             }
-            Optional<KmaVsrtGrdResponseParser.VsrtCell> cell = KmaVsrtGrdResponseParser.extractCell(raw, nx, ny, objectMapper);
-            if (cell.isEmpty()) {
-                String raw2 = client.fetchRaw(tmfc, tmef, nx, ny, "T1H");
-                if (raw2 != null && !KmaVsrtGrdResponseParser.isUpstreamError(raw2, objectMapper)) {
-                    cell = KmaVsrtGrdResponseParser.extractCell(raw2, nx, ny, objectMapper);
-                }
-            }
-            if (cell.isEmpty()) {
-                continue;
-            }
-            KmaVsrtGrdResponseParser.VsrtCell c = cell.get();
-            if (c.t1h() == null || c.t1h() < -80 || c.t1h() > 55) {
-                continue;
-            }
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("fcstDate", ft.format(FCST_DATE));
-            row.put("fcstTime", ft.format(FCST_TIME));
-            row.put("TMP", (int) Math.round(c.t1h()));
-            if (c.pty() != null) {
-                row.put("PTY", String.valueOf(c.pty()));
-            }
-            rows.add(row);
         }
         return rows;
+    }
+
+    private Map<String, Object> fetchOneVsrtHour(String tmfc, int nx, int ny, ZonedDateTime nowKst, int hourAhead) {
+        ZonedDateTime ft = nowKst.plusHours(hourAhead).truncatedTo(ChronoUnit.HOURS);
+        String tmef = ft.format(TMEF);
+        String raw = client.fetchRaw(tmfc, tmef, nx, ny, "T1H,PTY");
+        if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
+            raw = null;
+        }
+        Optional<KmaVsrtGrdResponseParser.VsrtCell> cell = Optional.empty();
+        if (raw != null) {
+            cell = KmaVsrtGrdResponseParser.extractCell(raw, nx, ny, objectMapper);
+        }
+        if (cell.isEmpty()) {
+            String raw2 = client.fetchRaw(tmfc, tmef, nx, ny, "T1H");
+            if (raw2 != null && !KmaVsrtGrdResponseParser.isUpstreamError(raw2, objectMapper)) {
+                cell = KmaVsrtGrdResponseParser.extractCell(raw2, nx, ny, objectMapper);
+            }
+        }
+        if (cell.isEmpty()) {
+            return null;
+        }
+        KmaVsrtGrdResponseParser.VsrtCell c = cell.get();
+        if (c.t1h() == null || c.t1h() < -80 || c.t1h() > 55) {
+            return null;
+        }
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("fcstDate", ft.format(FCST_DATE));
+        row.put("fcstTime", ft.format(FCST_TIME));
+        row.put("TMP", (int) Math.round(c.t1h()));
+        if (c.pty() != null) {
+            row.put("PTY", String.valueOf(c.pty()));
+        }
+        return row;
     }
 
     /**
@@ -133,41 +150,57 @@ public class KmaVsrtGrdHourlyService {
         ZonedDateTime ft1 = now.plusHours(1).truncatedTo(ChronoUnit.HOURS);
         String tmefProbe = client.isOdamGrdProduct() ? "" : ft1.format(TMEF);
 
+        List<String> tmfcCandidates = new ArrayList<>();
         for (int back = 0; back < TMFC_BACK_MAX; back++) {
             ZonedDateTime cand = now.minusMinutes(35L + back * 10L);
             int min = (cand.getMinute() / 10) * 10;
             cand = cand.withSecond(0).withNano(0).withMinute(min);
-            String tmfc = cand.format(TMFC);
-            if (client.isOdamGrdProduct()) {
-                String raw = client.fetchRaw(tmfc, tmefProbe, nx, ny, "T1H");
-                if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
-                    continue;
-                }
-                Optional<KmaVsrtGrdResponseParser.VsrtCell> cell =
-                        KmaVsrtGrdResponseParser.extractCell(raw, nx, ny, objectMapper);
-                if (cell.isPresent()
-                        && cell.get().t1h() != null
-                        && cell.get().t1h() > -80
-                        && cell.get().t1h() < 55) {
-                    return Optional.of(tmfc);
-                }
-                continue;
-            }
-            String raw = client.fetchRaw(tmfc, tmefProbe, nx, ny, "T1H,PTY");
-            if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
-                continue;
-            }
-            Optional<KmaVsrtGrdResponseParser.VsrtCell> cell = KmaVsrtGrdResponseParser.extractCell(raw, nx, ny, objectMapper);
-            if (cell.isEmpty()) {
-                String raw2 = client.fetchRaw(tmfc, tmefProbe, nx, ny, "T1H");
-                if (raw2 != null && !KmaVsrtGrdResponseParser.isUpstreamError(raw2, objectMapper)) {
-                    cell = KmaVsrtGrdResponseParser.extractCell(raw2, nx, ny, objectMapper);
-                }
-            }
-            if (cell.isPresent() && cell.get().t1h() != null && cell.get().t1h() > -80 && cell.get().t1h() < 55) {
-                return Optional.of(tmfc);
+            tmfcCandidates.add(cand.format(TMFC));
+        }
+        List<CompletableFuture<Boolean>> ok = new ArrayList<>();
+        for (String tmfc : tmfcCandidates) {
+            final String t = tmfc;
+            ok.add(CompletableFuture.supplyAsync(() -> vsrtTmfcProbeValid(t, nx, ny, tmefProbe)));
+        }
+        CompletableFuture.allOf(ok.toArray(new CompletableFuture[0])).join();
+        for (int back = 0; back < TMFC_BACK_MAX; back++) {
+            if (Boolean.TRUE.equals(ok.get(back).join())) {
+                return Optional.of(tmfcCandidates.get(back));
             }
         }
         return Optional.empty();
+    }
+
+    private boolean vsrtTmfcProbeValid(String tmfc, int nx, int ny, String tmefProbe) {
+        if (client.isOdamGrdProduct()) {
+            String raw = client.fetchRaw(tmfc, tmefProbe, nx, ny, "T1H");
+            if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
+                return false;
+            }
+            Optional<KmaVsrtGrdResponseParser.VsrtCell> cell =
+                    KmaVsrtGrdResponseParser.extractCell(raw, nx, ny, objectMapper);
+            return cell.isPresent()
+                    && cell.get().t1h() != null
+                    && cell.get().t1h() > -80
+                    && cell.get().t1h() < 55;
+        }
+        String raw = client.fetchRaw(tmfc, tmefProbe, nx, ny, "T1H,PTY");
+        if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
+            raw = null;
+        }
+        Optional<KmaVsrtGrdResponseParser.VsrtCell> cell = Optional.empty();
+        if (raw != null) {
+            cell = KmaVsrtGrdResponseParser.extractCell(raw, nx, ny, objectMapper);
+        }
+        if (cell.isEmpty()) {
+            String raw2 = client.fetchRaw(tmfc, tmefProbe, nx, ny, "T1H");
+            if (raw2 != null && !KmaVsrtGrdResponseParser.isUpstreamError(raw2, objectMapper)) {
+                cell = KmaVsrtGrdResponseParser.extractCell(raw2, nx, ny, objectMapper);
+            }
+        }
+        return cell.isPresent()
+                && cell.get().t1h() != null
+                && cell.get().t1h() > -80
+                && cell.get().t1h() < 55;
     }
 }

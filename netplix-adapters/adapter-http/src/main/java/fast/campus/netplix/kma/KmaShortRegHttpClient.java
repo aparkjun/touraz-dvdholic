@@ -13,6 +13,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 기상청 API허브 단기 데이터 — {@code fct_afs_ds.php}(단기 개황) 우선, 이어서 {@code fct_shrt_reg.php}.
@@ -98,9 +99,23 @@ public class KmaShortRegHttpClient {
         String lastPreview = null;
         String lastEx = null;
         for (String tmfc : tries) {
-            if (fctAfsDsUrl != null && !fctAfsDsUrl.isBlank()) {
-                OnceFetch afs = fetchAfsDsOnce(r, tmfc);
-                attempts++;
+            boolean useAfs = fctAfsDsUrl != null && !fctAfsDsUrl.isBlank();
+            CompletableFuture<OnceFetch> afsF =
+                    useAfs ? CompletableFuture.supplyAsync(() -> fetchAfsDsOnce(r, tmfc)) : null;
+            CompletableFuture<OnceFetch> shrtJsonF = CompletableFuture.supplyAsync(() -> fetchOnceDetailed(r, tmfc, true));
+            CompletableFuture<OnceFetch> shrtPlainF = CompletableFuture.supplyAsync(() -> fetchOnceDetailed(r, tmfc, false));
+            if (useAfs) {
+                CompletableFuture.allOf(afsF, shrtJsonF, shrtPlainF).join();
+            } else {
+                CompletableFuture.allOf(shrtJsonF, shrtPlainF).join();
+            }
+            attempts += useAfs ? 3 : 2;
+
+            OnceFetch afs = useAfs ? afsF.join() : null;
+            OnceFetch shrtJ = shrtJsonF.join();
+            OnceFetch shrtP = shrtPlainF.join();
+
+            if (useAfs && afs != null) {
                 if (afs.body() != null && KmaHubJson.isHubSuccessEnvelope(afs.body())) {
                     return new KmaShortRegFetchResult(afs.body(), null, null, null, attempts, catalogSkips);
                 }
@@ -117,29 +132,38 @@ public class KmaShortRegHttpClient {
                     lastPreview = KmaHubJson.previewSnippet(afs.body());
                 }
             }
-            for (boolean useJsonDisp : new boolean[] {true, false}) {
-                OnceFetch once = fetchOnceDetailed(r, tmfc, useJsonDisp);
-                attempts++;
-                if (once.catalogLike()) {
-                    catalogSkips++;
-                    log.debug(
-                            "KMA fct_shrt_reg 구역 텍스트 응답 건너뜀 reg={} tmfc={} disp1={}",
-                            r,
-                            tmfc,
-                            useJsonDisp);
-                    continue;
+            if (!shrtJ.catalogLike() && shrtJ.body() != null) {
+                return new KmaShortRegFetchResult(shrtJ.body(), null, null, null, attempts, catalogSkips);
+            }
+            if (shrtJ.catalogLike()) {
+                catalogSkips++;
+                log.debug("KMA fct_shrt_reg 구역 텍스트 응답 건너뜀 reg={} tmfc={} disp1={}", r, tmfc, true);
+            } else {
+                if (shrtJ.httpStatus() != null) {
+                    lastHttp = shrtJ.httpStatus();
                 }
-                if (once.body() != null) {
-                    return new KmaShortRegFetchResult(once.body(), null, null, null, attempts, catalogSkips);
+                if (shrtJ.nonJsonPreview() != null) {
+                    lastPreview = shrtJ.nonJsonPreview();
                 }
-                if (once.httpStatus() != null) {
-                    lastHttp = once.httpStatus();
+                if (shrtJ.exceptionSummary() != null) {
+                    lastEx = shrtJ.exceptionSummary();
                 }
-                if (once.nonJsonPreview() != null) {
-                    lastPreview = once.nonJsonPreview();
+            }
+            if (!shrtP.catalogLike() && shrtP.body() != null) {
+                return new KmaShortRegFetchResult(shrtP.body(), null, null, null, attempts, catalogSkips);
+            }
+            if (shrtP.catalogLike()) {
+                catalogSkips++;
+                log.debug("KMA fct_shrt_reg 구역 텍스트 응답 건너뜀 reg={} tmfc={} disp1={}", r, tmfc, false);
+            } else {
+                if (shrtP.httpStatus() != null) {
+                    lastHttp = shrtP.httpStatus();
                 }
-                if (once.exceptionSummary() != null) {
-                    lastEx = once.exceptionSummary();
+                if (shrtP.nonJsonPreview() != null) {
+                    lastPreview = shrtP.nonJsonPreview();
+                }
+                if (shrtP.exceptionSummary() != null) {
+                    lastEx = shrtP.exceptionSummary();
                 }
             }
         }

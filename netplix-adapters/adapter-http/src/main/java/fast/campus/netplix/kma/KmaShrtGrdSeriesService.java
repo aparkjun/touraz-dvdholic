@@ -14,6 +14,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 동네예보 단기 격자({@code nph-dfs_shrt_grd})로 3시간 간격 예보 시계열을 만든다.
@@ -28,8 +29,8 @@ public class KmaShrtGrdSeriesService {
     private static final DateTimeFormatter FCST_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final DateTimeFormatter FCST_TIME = DateTimeFormatter.ofPattern("HHmm");
 
-    /** Heroku 등 게이트웨이 타임아웃 내에 맞추기 위해 슬롯·발표시각 탐색을 제한한다. */
-    private static final int MAX_TMFC_PROBE = 4;
+    /** 발표시각 탐색 상한 — 병렬 프로브라 동시 호출 수와 함께 조정 */
+    private static final int MAX_TMFC_PROBE = 6;
 
     private final KmaShrtGrdHttpClient client;
     private final ObjectMapper objectMapper;
@@ -53,42 +54,58 @@ public class KmaShrtGrdSeriesService {
         String tmfc = tmfcOpt.get();
         ZonedDateTime anchor = nextThreeHourlyFcst(ZonedDateTime.now(KST));
 
-        List<Map<String, Object>> rows = new ArrayList<>();
+        List<CompletableFuture<Map<String, Object>>> slotFutures = new ArrayList<>();
         for (int i = 0; i < cap; i++) {
-            ZonedDateTime ft = anchor.plusHours(3L * i);
-            String tmef = ft.format(TMEF);
-            String raw = client.fetchRaw(tmfc, tmef, nx, ny, "T1H,POP,SKY,PTY");
-            if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
-                raw = client.fetchRaw(tmfc, tmef, nx, ny, "T1H");
+            final int idx = i;
+            slotFutures.add(
+                    CompletableFuture.supplyAsync(() -> fetchOneShrtSlot(tmfc, nx, ny, anchor, idx)));
+        }
+        CompletableFuture.allOf(slotFutures.toArray(new CompletableFuture[0])).join();
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (CompletableFuture<Map<String, Object>> f : slotFutures) {
+            Map<String, Object> row = f.join();
+            if (row != null && !row.isEmpty()) {
+                rows.add(row);
             }
-            if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
-                continue;
-            }
-            Optional<KmaVsrtGrdResponseParser.DfsGridPoint> cell =
-                    KmaVsrtGrdResponseParser.extractGridPoint(raw, nx, ny, objectMapper);
-            if (cell.isEmpty()) {
-                continue;
-            }
-            KmaVsrtGrdResponseParser.DfsGridPoint c = cell.get();
-            if (c.t1h() == null || c.t1h() < -80 || c.t1h() > 55) {
-                continue;
-            }
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("fcstDate", ft.format(FCST_DATE));
-            row.put("fcstTime", ft.format(FCST_TIME));
-            row.put("TMP", (int) Math.round(c.t1h()));
-            if (c.pop() != null) {
-                row.put("POP", c.pop());
-            }
-            if (c.sky() != null) {
-                row.put("SKY", String.valueOf(c.sky()));
-            }
-            if (c.pty() != null) {
-                row.put("PTY", String.valueOf(c.pty()));
-            }
-            rows.add(row);
         }
         return rows;
+    }
+
+    /** 한 슬롯(3시간 간격) — 실패 시 빈 맵 대신 null 과 동일 처리용 빈 맵 반환 가능 → 호출부에서 건너뜀 */
+    private Map<String, Object> fetchOneShrtSlot(
+            String tmfc, int nx, int ny, ZonedDateTime anchor, int slotIndex) {
+        ZonedDateTime ft = anchor.plusHours(3L * slotIndex);
+        String tmef = ft.format(TMEF);
+        String raw = client.fetchRaw(tmfc, tmef, nx, ny, "T1H,POP,SKY,PTY");
+        if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
+            raw = client.fetchRaw(tmfc, tmef, nx, ny, "T1H");
+        }
+        if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
+            return null;
+        }
+        Optional<KmaVsrtGrdResponseParser.DfsGridPoint> cell =
+                KmaVsrtGrdResponseParser.extractGridPoint(raw, nx, ny, objectMapper);
+        if (cell.isEmpty()) {
+            return null;
+        }
+        KmaVsrtGrdResponseParser.DfsGridPoint c = cell.get();
+        if (c.t1h() == null || c.t1h() < -80 || c.t1h() > 55) {
+            return null;
+        }
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("fcstDate", ft.format(FCST_DATE));
+        row.put("fcstTime", ft.format(FCST_TIME));
+        row.put("TMP", (int) Math.round(c.t1h()));
+        if (c.pop() != null) {
+            row.put("POP", c.pop());
+        }
+        if (c.sky() != null) {
+            row.put("SKY", String.valueOf(c.sky()));
+        }
+        if (c.pty() != null) {
+            row.put("PTY", String.valueOf(c.pty()));
+        }
+        return row;
     }
 
     /** 단기 예보 유효시각은 보통 3시간 배수 시각에 맞춘다. */
@@ -112,34 +129,41 @@ public class KmaShrtGrdSeriesService {
         }
         String fallback = KmaShortRegIssuanceTime.conservativeFallbackTmfc();
         int nTry = Math.min(MAX_TMFC_PROBE, tries.size());
+        List<String> probeOrder = new ArrayList<>(tries.subList(0, nTry));
+        boolean extraFallback = !probeOrder.contains(fallback);
+        if (extraFallback) {
+            probeOrder.add(fallback);
+        }
+        List<CompletableFuture<Boolean>> probeFutures = new ArrayList<>();
+        for (String tmfc : probeOrder) {
+            final String t = tmfc;
+            probeFutures.add(CompletableFuture.supplyAsync(() -> shrtTmfcProbeOk(t, nx, ny, tmefProbe)));
+        }
+        CompletableFuture.allOf(probeFutures.toArray(new CompletableFuture[0])).join();
         for (int i = 0; i < nTry; i++) {
-            String tmfc = tries.get(i);
-            String raw = client.fetchRaw(tmfc, tmefProbe, nx, ny, "T1H");
-            if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
-                continue;
-            }
-            Optional<KmaVsrtGrdResponseParser.DfsGridPoint> cell =
-                    KmaVsrtGrdResponseParser.extractGridPoint(raw, nx, ny, objectMapper);
-            if (cell.isPresent()
-                    && cell.get().t1h() != null
-                    && cell.get().t1h() > -80
-                    && cell.get().t1h() < 55) {
-                return Optional.of(tmfc);
+            if (Boolean.TRUE.equals(probeFutures.get(i).join())) {
+                return Optional.of(probeOrder.get(i));
             }
         }
-        if (!tries.subList(0, nTry).contains(fallback)) {
-            String raw = client.fetchRaw(fallback, tmefProbe, nx, ny, "T1H");
-            if (raw != null && !KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
-                Optional<KmaVsrtGrdResponseParser.DfsGridPoint> cell =
-                        KmaVsrtGrdResponseParser.extractGridPoint(raw, nx, ny, objectMapper);
-                if (cell.isPresent()
-                        && cell.get().t1h() != null
-                        && cell.get().t1h() > -80
-                        && cell.get().t1h() < 55) {
-                    return Optional.of(fallback);
-                }
+        if (extraFallback) {
+            int fi = nTry;
+            if (Boolean.TRUE.equals(probeFutures.get(fi).join())) {
+                return Optional.of(fallback);
             }
         }
         return Optional.empty();
+    }
+
+    private boolean shrtTmfcProbeOk(String tmfc, int nx, int ny, String tmefProbe) {
+        String raw = client.fetchRaw(tmfc, tmefProbe, nx, ny, "T1H");
+        if (raw == null || KmaVsrtGrdResponseParser.isUpstreamError(raw, objectMapper)) {
+            return false;
+        }
+        Optional<KmaVsrtGrdResponseParser.DfsGridPoint> cell =
+                KmaVsrtGrdResponseParser.extractGridPoint(raw, nx, ny, objectMapper);
+        return cell.isPresent()
+                && cell.get().t1h() != null
+                && cell.get().t1h() > -80
+                && cell.get().t1h() < 55;
     }
 }
