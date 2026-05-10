@@ -94,6 +94,10 @@ final class KmaHubJson {
         if (head.startsWith("{") || head.startsWith("[")) {
             return asUtf8;
         }
+        // 단기 개황·통보문 블록 — UTF-8 로 이미 올 때가 많음. $0# 기준으로 잡히면 UTF-8 유지.
+        if (asUtf8.contains("$0#")) {
+            return asUtf8;
+        }
         String asMs949 = new String(raw, MS949);
         if (countHangulSyllables(asMs949) > countHangulSyllables(asUtf8)) {
             return asMs949;

@@ -185,7 +185,6 @@ public class KmaShortRegHttpClient {
                     .queryParam("tmfc1", win[0])
                     .queryParam("tmfc2", win[1])
                     .queryParam("disp", 0)
-                    .queryParam("help", 0)
                     .queryParam("authKey", apiKey)
                     .build(true)
                     .toUri();
@@ -259,7 +258,6 @@ public class KmaShortRegHttpClient {
             UriComponentsBuilder ub = UriComponentsBuilder.fromHttpUrl(fctShrtRegUrl)
                     .queryParam("tmfc", tmfc)
                     .queryParam("reg", reg)
-                    .queryParam("help", 0)
                     .queryParam("authKey", apiKey);
             if (jsonDisp) {
                 ub.queryParam("disp", 1);
