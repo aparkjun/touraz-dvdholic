@@ -14,6 +14,8 @@ kma:
   api:
     # 비우면 fct_shrt_reg 만 사용
     fct-afs-ds: https://apihub.kma.go.kr/api/typ01/url/fct_afs_ds.php
+    # reg 단위 단기 육상(공백 구분) — 개황(stn)이 빈 응답일 때 폴백
+    fct-afs-dl: https://apihub.kma.go.kr/api/typ01/url/fct_afs_dl.php
     fct-shrt-reg: https://apihub.kma.go.kr/api/typ01/url/fct_shrt_reg.php
     # 동네예보 초단기 격자 (1시간 단위 예보 시각·기온 등) — API허브 별도 활용신청. 예: nph-dfs_vsrt_grd?tmfc=...&tmef=...&vars=T1H&authKey=
     dfs-vsrt-grd: https://apihub.kma.go.kr/api/typ01/cgi-bin/url/nph-dfs_vsrt_grd

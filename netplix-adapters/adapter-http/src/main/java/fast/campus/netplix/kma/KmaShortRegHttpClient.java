@@ -15,7 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 기상청 API허브 단기 데이터 — {@code fct_afs_ds.php}(단기 개황) 우선, 이어서 {@code fct_shrt_reg.php}.
+ * 기상청 API허브 단기 데이터 — {@code fct_afs_ds.php}(단기 개황) 우선, 이어서 {@code fct_shrt_reg.php},
+ * 모두 실패 시 {@code fct_afs_dl.php}(reg·육상 다운로드) 폴백.
  * 인증키는 서버 환경변수 {@code KMA_API_KEY} 만 사용한다 (저장소에 커밋 금지).
  */
 @Slf4j
@@ -24,6 +25,9 @@ public class KmaShortRegHttpClient {
 
     @Value("${kma.api.fct-afs-ds:}")
     private String fctAfsDsUrl;
+
+    @Value("${kma.api.fct-afs-dl:}")
+    private String fctAfsDlUrl;
 
     @Value("${kma.api.fct-shrt-reg}")
     private String fctShrtRegUrl;
@@ -130,6 +134,19 @@ public class KmaShortRegHttpClient {
                 }
             }
         }
+        if (fctAfsDlUrl != null && !fctAfsDlUrl.isBlank()) {
+            OnceFetch dl = fetchFctAfsDlOnce(r);
+            attempts++;
+            if (dl.body() != null && KmaHubJson.isHubSuccessEnvelope(dl.body())) {
+                return new KmaShortRegFetchResult(dl.body(), null, null, null, attempts, catalogSkips);
+            }
+            if (dl.body() != null && KmaHubJson.looksLikeJson(dl.body())) {
+                lastPreview = KmaHubJson.previewSnippet(dl.body());
+            }
+            if (dl.nonJsonPreview() != null) {
+                lastPreview = dl.nonJsonPreview();
+            }
+        }
         log.warn("KMA fct_shrt_reg 유효 예보 본문 없음 reg={} tmfc후보={} 시도횟수={}", r, tries.size(), attempts);
         return new KmaShortRegFetchResult(null, lastHttp, lastPreview, lastEx, attempts, catalogSkips);
     }
@@ -168,6 +185,7 @@ public class KmaShortRegHttpClient {
                     .queryParam("tmfc1", win[0])
                     .queryParam("tmfc2", win[1])
                     .queryParam("disp", 0)
+                    .queryParam("help", 0)
                     .queryParam("authKey", apiKey)
                     .build(true)
                     .toUri();
@@ -241,6 +259,7 @@ public class KmaShortRegHttpClient {
             UriComponentsBuilder ub = UriComponentsBuilder.fromHttpUrl(fctShrtRegUrl)
                     .queryParam("tmfc", tmfc)
                     .queryParam("reg", reg)
+                    .queryParam("help", 0)
                     .queryParam("authKey", apiKey);
             if (jsonDisp) {
                 ub.queryParam("disp", 1);
@@ -299,6 +318,67 @@ public class KmaShortRegHttpClient {
             return new OnceFetch(null, null, null, e.getClass().getSimpleName() + ": " + msg, false);
         } catch (Exception e) {
             log.warn("KMA fct_shrt_reg 실패 reg={} tmfc={}: {}", reg, tmfc, e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+            if (msg.length() > 240) {
+                msg = msg.substring(0, 240) + "…";
+            }
+            return new OnceFetch(KmaHubJson.syntheticResult(503, msg), null, null, null, false);
+        }
+    }
+
+    /**
+     * 단기 육상 다운로드(reg) — stn 기반 개황·shrt_reg 가 빈 응답일 때 예보 행 확보용 폴백.
+     * typ01 샘플: {@code ?reg=…&disp=0&help=0&authKey=…}
+     */
+    private OnceFetch fetchFctAfsDlOnce(String reg) {
+        try {
+            URI uri = UriComponentsBuilder.fromHttpUrl(fctAfsDlUrl)
+                    .queryParam("reg", reg)
+                    .queryParam("disp", 0)
+                    .queryParam("help", 0)
+                    .queryParam("authKey", apiKey)
+                    .build(true)
+                    .toUri();
+            RestClient rc = restClient();
+            String body = KmaHubJson.getWithRetry(rc, uri);
+            log.debug("KMA fct_afs_dl ok reg={} len={}", reg, body != null ? body.length() : 0);
+            if (body == null || body.isBlank()) {
+                return new OnceFetch(null, 200, "(empty body)", null, false);
+            }
+            if (KmaHubJson.looksLikeJson(body)) {
+                return new OnceFetch(body, null, null, null, false);
+            }
+            String json = KmaFctAfsDlParser.tabularTextToSeriesJson(body, reg);
+            if (json != null) {
+                return new OnceFetch(json, null, null, null, false);
+            }
+            String syn = KmaHubJson.syntheticResult(502, "fct_afs_dl parse: " + KmaHubJson.previewSnippet(body));
+            return new OnceFetch(syn, null, null, null, false);
+        } catch (RestClientResponseException e) {
+            String b = null;
+            try {
+                b = e.getResponseBodyAsString();
+            } catch (Exception ignored) {
+            }
+            if (b != null && !b.isBlank()) {
+                String trimmed = b.stripLeading();
+                if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+                    return new OnceFetch(b, null, null, null, false);
+                }
+            }
+            String preview = KmaHubJson.previewSnippet(b);
+            log.warn("KMA fct_afs_dl HTTP {} reg={} bodyPreview={}", e.getStatusCode().value(), reg, preview);
+            String syn = KmaHubJson.syntheticResult(e.getStatusCode().value(), preview);
+            return new OnceFetch(syn, null, null, null, false);
+        } catch (ResourceAccessException e) {
+            log.warn("KMA fct_afs_dl 네트워크/타임아웃 reg={}: {}", reg, e.getMessage());
+            String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+            if (msg.length() > 240) {
+                msg = msg.substring(0, 240) + "…";
+            }
+            return new OnceFetch(null, null, null, e.getClass().getSimpleName() + ": " + msg, false);
+        } catch (Exception e) {
+            log.warn("KMA fct_afs_dl 실패 reg={}: {}", reg, e.getMessage());
             String msg = e.getMessage() != null ? e.getMessage() : e.toString();
             if (msg.length() > 240) {
                 msg = msg.substring(0, 240) + "…";
