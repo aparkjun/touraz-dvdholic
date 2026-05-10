@@ -25,6 +25,17 @@ class KmaVsrtGrdResponseParserTest {
     }
 
     @Test
+    void extractsPopSky_whenNxNyMatch() {
+        String raw =
+                "{\"result\":{\"status\":0},\"row\":{\"nx\":61,\"ny\":126,\"T1H\":12.0,\"PTY\":0,\"POP\":40,\"SKY\":3}}";
+        Optional<KmaVsrtGrdResponseParser.DfsGridPoint> cell =
+                KmaVsrtGrdResponseParser.extractGridPoint(raw, 61, 126, mapper);
+        assertThat(cell).isPresent();
+        assertThat(cell.get().pop()).isEqualTo(40);
+        assertThat(cell.get().sky()).isEqualTo(3);
+    }
+
+    @Test
     void empty_whenStatusNonZero() {
         String raw = "{\"result\":{\"status\":401,\"message\":\"키\"}}";
         assertThat(KmaVsrtGrdResponseParser.extractCell(raw, 61, 126, mapper)).isEmpty();

@@ -1,6 +1,7 @@
 package fast.campus.netplix.controller.weather;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import fast.campus.netplix.kma.KmaShrtGrdSeriesService;
 import fast.campus.netplix.kma.KmaShortRegFetchResult;
 import fast.campus.netplix.kma.KmaShortRegHttpClient;
 import fast.campus.netplix.kma.KmaVsrtGrdHourlyService;
@@ -38,6 +39,9 @@ class WeatherControllerTest {
     private KmaShortRegHttpClient kmaShortRegHttpClient;
 
     @Mock
+    private KmaShrtGrdSeriesService kmaShrtGrdSeriesService;
+
+    @Mock
     private KmaVsrtGrdHourlyService kmaVsrtGrdHourlyService;
 
     @BeforeEach
@@ -45,7 +49,9 @@ class WeatherControllerTest {
         ObjectMapper objectMapper = new ObjectMapper();
         lenient().when(kmaShortRegHttpClient.isApiKeyConfigured()).thenReturn(true);
         lenient().when(kmaVsrtGrdHourlyService.fetchHourlyForLatLng(anyDouble(), anyDouble(), anyInt())).thenReturn(List.of());
-        weatherController = new WeatherController(kmaShortRegHttpClient, kmaVsrtGrdHourlyService, objectMapper);
+        lenient().when(kmaShrtGrdSeriesService.fetchSeriesForLatLng(anyDouble(), anyDouble(), anyInt())).thenReturn(List.of());
+        weatherController = new WeatherController(
+                kmaShortRegHttpClient, kmaShrtGrdSeriesService, kmaVsrtGrdHourlyService, objectMapper);
         ReflectionTestUtils.setField(weatherController, "defaultReg", "11B10101");
         mockMvc = MockMvcBuilders.standaloneSetup(weatherController)
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))

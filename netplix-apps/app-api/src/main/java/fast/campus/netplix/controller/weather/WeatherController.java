@@ -7,6 +7,7 @@ import fast.campus.netplix.kma.KmaForecastSeriesExtractor;
 import fast.campus.netplix.kma.KmaLambertGridConverter;
 import fast.campus.netplix.kma.KmaNearestReg;
 import fast.campus.netplix.kma.KmaRegCentroid;
+import fast.campus.netplix.kma.KmaShrtGrdSeriesService;
 import fast.campus.netplix.kma.KmaShortRegFetchResult;
 import fast.campus.netplix.kma.KmaShortRegHttpClient;
 import fast.campus.netplix.kma.KmaVsrtGrdHourlyService;
@@ -33,6 +34,7 @@ import java.util.Map;
 public class WeatherController {
 
     private final KmaShortRegHttpClient kmaShortRegHttpClient;
+    private final KmaShrtGrdSeriesService kmaShrtGrdSeriesService;
     private final KmaVsrtGrdHourlyService kmaVsrtGrdHourlyService;
     private final ObjectMapper objectMapper;
 
@@ -96,26 +98,30 @@ public class WeatherController {
             }
             out.put("shortRegDiagnostic", diag);
 
-            Double gridLat = lat;
-            Double gridLng = lng;
-            if ((gridLat == null || gridLng == null)) {
-                var c = KmaRegCentroid.byReg(effectiveReg);
-                if (c.isPresent()) {
-                    gridLat = c.get().lat();
-                    gridLng = c.get().lng();
-                    out.put("gridCoordsFromRegPreset", true);
-                }
-            }
-            if (gridLat != null && gridLng != null) {
+            double[] coords = resolveGridCoords(lat, lng, effectiveReg, out);
+            if (coords != null) {
                 try {
+                    List<Map<String, Object>> shrtSeries =
+                            kmaShrtGrdSeriesService.fetchSeriesForLatLng(coords[0], coords[1], 16);
+                    if (!shrtSeries.isEmpty()) {
+                        out.put("configured", true);
+                        out.put("shortRegUsedShrtGrid", true);
+                        out.put("series", shrtSeries);
+                        putVsrtGrid(out, coords[0], coords[1]);
+                        attachVsrtHourlyOptional(out, coords[0], coords[1], 12);
+                        out.put(
+                                "message",
+                                "단기 예보구역(reg) 통보문은 받지 못했으나, 단기 격자(nph-dfs_shrt_grd)로 3시간 간격 예보를 표시합니다. "
+                                        + "초단기 격자 시간대가 함께 붙으면 보조로 사용합니다.");
+                        return NetplixApiResponse.ok(out);
+                    }
                     List<Map<String, Object>> vsrt =
-                            kmaVsrtGrdHourlyService.fetchHourlyForLatLng(gridLat, gridLng, 12);
+                            kmaVsrtGrdHourlyService.fetchHourlyForLatLng(coords[0], coords[1], 12);
                     if (!vsrt.isEmpty()) {
                         out.put("configured", true);
                         out.put("shortRegUsedGridFallback", true);
                         out.put("vsrtHourly", vsrt);
-                        int[] g = KmaLambertGridConverter.toGrid(gridLat, gridLng);
-                        out.put("vsrtGrid", Map.of("nx", g[0], "ny", g[1]));
+                        putVsrtGrid(out, coords[0], coords[1]);
                         out.put(
                                 "message",
                                 "단기 예보구역(reg) 통보문은 허브에서 받지 못했지만, 초단기 격자 데이터로 시간대별 기온을 표시합니다. "
@@ -123,7 +129,7 @@ public class WeatherController {
                         return NetplixApiResponse.ok(out);
                     }
                 } catch (Exception e) {
-                    log.debug("단기 실패 후 초단기 격자 폴백 생략: {}", e.getMessage());
+                    log.debug("단기 실패 후 격자 폴백 생략: {}", e.getMessage());
                 }
             }
 
@@ -133,7 +139,7 @@ public class WeatherController {
                 userMessage =
                         "기상청 API허브가 예보 JSON 대신 「예보구역 목록」(#로 시작하는 텍스트)만 반환했습니다. "
                                 + "API허브 마이페이지에서 「단기 개황·JSON(disp=1)」 등 실제 단기 예보 데이터 API 활용승인이 있는지 확인하세요. "
-                                + "「단기 예보구역 조회」만 승인된 경우 이 증상이 날 수 있습니다. 초단기 격자(nph-dfs_odam_grd 등)는 별도 신청입니다.";
+                                + "「단기 예보구역 조회」만 승인된 경우 이 증상이 날 수 있습니다. 단기/초단기 격자 API는 별도 신청입니다.";
             } else {
                 userMessage =
                         "기상청 API허브 호출에 실패했습니다. 인증키 종류(허브용)·단기/초단기(격자) 활용승인·네트워크를 확인하세요.";
@@ -178,18 +184,69 @@ public class WeatherController {
             out.put("payloadRaw", raw.length() > 8000 ? raw.substring(0, 8000) : raw);
         }
 
-        if (Boolean.TRUE.equals(out.get("configured")) && lat != null && lng != null) {
+        double[] coords = resolveGridCoords(lat, lng, effectiveReg, out);
+        if (coords != null) {
             try {
-                List<Map<String, Object>> vsrt = kmaVsrtGrdHourlyService.fetchHourlyForLatLng(lat, lng, 8);
-                if (!vsrt.isEmpty()) {
-                    out.put("vsrtHourly", vsrt);
-                    int[] g = KmaLambertGridConverter.toGrid(lat, lng);
-                    out.put("vsrtGrid", Map.of("nx", g[0], "ny", g[1]));
+                List<Map<String, Object>> existing = castSeries(out.get("series"));
+                boolean upstream = Boolean.TRUE.equals(out.get("upstreamError"));
+                if ((existing == null || existing.isEmpty()) && !upstream) {
+                    List<Map<String, Object>> shrt =
+                            kmaShrtGrdSeriesService.fetchSeriesForLatLng(coords[0], coords[1], 16);
+                    if (!shrt.isEmpty()) {
+                        out.put("series", shrt);
+                        out.put("shortRegSupplementedByShrtGrid", true);
+                        putVsrtGrid(out, coords[0], coords[1]);
+                    }
                 }
             } catch (Exception e) {
-                log.debug("초단기 격자 vsrtHourly 생략: {}", e.getMessage());
+                log.debug("단기 격자로 series 보강 생략: {}", e.getMessage());
+            }
+            if (Boolean.TRUE.equals(out.get("configured"))) {
+                attachVsrtHourlyOptional(out, coords[0], coords[1], 8);
             }
         }
         return NetplixApiResponse.ok(out);
+    }
+
+    private static double[] resolveGridCoords(Double lat, Double lng, String effectiveReg, Map<String, Object> out) {
+        if (lat != null && lng != null) {
+            return new double[] {lat, lng};
+        }
+        var c = KmaRegCentroid.byReg(effectiveReg);
+        if (c.isEmpty()) {
+            return null;
+        }
+        out.put("gridCoordsFromRegPreset", true);
+        return new double[] {c.get().lat(), c.get().lng()};
+    }
+
+    private static void putVsrtGrid(Map<String, Object> out, double gridLat, double gridLng) {
+        int[] g = KmaLambertGridConverter.toGrid(gridLat, gridLng);
+        out.put("vsrtGrid", Map.of("nx", g[0], "ny", g[1]));
+    }
+
+    private void attachVsrtHourlyOptional(Map<String, Object> out, double gridLat, double gridLng, int lookahead) {
+        if (out.containsKey("vsrtHourly")) {
+            return;
+        }
+        try {
+            List<Map<String, Object>> vsrt = kmaVsrtGrdHourlyService.fetchHourlyForLatLng(gridLat, gridLng, lookahead);
+            if (!vsrt.isEmpty()) {
+                out.put("vsrtHourly", vsrt);
+                if (!out.containsKey("vsrtGrid")) {
+                    putVsrtGrid(out, gridLat, gridLng);
+                }
+            }
+        } catch (Exception e) {
+            log.debug("초단기 격자 vsrtHourly 생략: {}", e.getMessage());
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Map<String, Object>> castSeries(Object o) {
+        if (o instanceof List<?> list) {
+            return (List<Map<String, Object>>) list;
+        }
+        return null;
     }
 }

@@ -47,36 +47,53 @@ public final class KmaVsrtGrdResponseParser {
             if (isUpstreamError(raw, mapper)) {
                 return Optional.empty();
             }
-            return dfsMatchGrid(root, nx, ny, 0);
+            return findGridObject(root, nx, ny, 0).map(o -> new VsrtCell(readTemp(o), readPty(o)));
         } catch (Exception e) {
             log.debug("vsrt_grd JSON 파싱 실패: {}", e.getMessage());
             return Optional.empty();
         }
     }
 
-    private static Optional<VsrtCell> dfsMatchGrid(JsonNode node, int nx, int ny, int depth) {
+    /**
+     * 단기 격자 등 — 동일 DFS 스키마에서 POP·SKY 까지 읽는다.
+     */
+    public static Optional<DfsGridPoint> extractGridPoint(String raw, int nx, int ny, ObjectMapper mapper) {
+        if (raw == null || raw.isBlank()) {
+            return Optional.empty();
+        }
+        try {
+            JsonNode root = mapper.readTree(raw);
+            if (isUpstreamError(raw, mapper)) {
+                return Optional.empty();
+            }
+            return findGridObject(root, nx, ny, 0)
+                    .map(o -> new DfsGridPoint(readTemp(o), readPty(o), readPop(o), readSky(o)));
+        } catch (Exception e) {
+            log.debug("dfs_grd JSON 파싱 실패: {}", e.getMessage());
+            return Optional.empty();
+        }
+    }
+
+    private static Optional<JsonNode> findGridObject(JsonNode node, int nx, int ny, int depth) {
         if (depth > 28 || node == null || node.isNull()) {
             return Optional.empty();
         }
         if (node.isObject()) {
             Integer gx = gridX(node);
             Integer gy = gridY(node);
-            if (gx != null && gy != null && gx == nx && gy == ny) {
-                Double t1h = readTemp(node);
-                if (t1h != null) {
-                    return Optional.of(new VsrtCell(t1h, readPty(node)));
-                }
+            if (gx != null && gy != null && gx == nx && gy == ny && readTemp(node) != null) {
+                return Optional.of(node);
             }
             var it = node.fields();
             while (it.hasNext()) {
-                Optional<VsrtCell> got = dfsMatchGrid(it.next().getValue(), nx, ny, depth + 1);
+                Optional<JsonNode> got = findGridObject(it.next().getValue(), nx, ny, depth + 1);
                 if (got.isPresent()) {
                     return got;
                 }
             }
         } else if (node.isArray()) {
             for (JsonNode el : node) {
-                Optional<VsrtCell> got = dfsMatchGrid(el, nx, ny, depth + 1);
+                Optional<JsonNode> got = findGridObject(el, nx, ny, depth + 1);
                 if (got.isPresent()) {
                     return got;
                 }
@@ -114,6 +131,14 @@ public final class KmaVsrtGrdResponseParser {
 
     private static Integer readPty(JsonNode o) {
         return intOrNull(o.get("PTY"));
+    }
+
+    private static Integer readPop(JsonNode o) {
+        return intOrNull(o.get("POP"));
+    }
+
+    private static Integer readSky(JsonNode o) {
+        return intOrNull(o.get("SKY"));
     }
 
     private static Integer intOrNull(JsonNode n) {
@@ -155,5 +180,9 @@ public final class KmaVsrtGrdResponseParser {
     }
 
     public record VsrtCell(Double t1h, Integer pty) {
+    }
+
+    /** 단기·초단기 격자 공통 — 기온 외 강수확률·하늘상태 등 */
+    public record DfsGridPoint(Double t1h, Integer pty, Integer pop, Integer sky) {
     }
 }

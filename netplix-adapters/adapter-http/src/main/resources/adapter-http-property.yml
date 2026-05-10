@@ -17,6 +17,8 @@ kma:
     fct-shrt-reg: https://apihub.kma.go.kr/api/typ01/url/fct_shrt_reg.php
     # 동네예보 초단기 격자 — API허브 활용신청 API명에 맞게 URL 교체. 예시: nph-dfs_odam_grd (샘플: tmfc·vars·authKey) / nph-dfs_vsrt_grd(tmfc·tmef·vars)
     dfs-vsrt-grd: https://apihub.kma.go.kr/api/typ01/cgi-bin/url/nph-dfs_odam_grd
+    # 동네예보 단기(3시간 단위) 격자 — nph-dfs_shrt_grd (tmfc·tmef·nx·ny·vars·authKey). 비우면 미사용.
+    dfs-shrt-grd: https://apihub.kma.go.kr/api/typ01/cgi-bin/url/nph-dfs_shrt_grd
 
 tmdb:
   auth:
