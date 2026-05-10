@@ -92,7 +92,31 @@ public class WeatherController {
             return cacheAndOk(cacheKey, out);
         }
 
-        KmaShortRegFetchResult shortRegFetch = kmaShortRegHttpClient.fetchWithDiagnostics(effectiveReg, tmfc);
+        /*
+         * 단기(reg/개황) 연쇄 호출이 길면 격자 폴백이 뒤로 밀려 Heroku 30초 한도 내에 격자가 끝나지 못한다.
+         * 좌표가 있으면 단기 조회와 격자(단기·초단기)를 동시에 시작해 벽시계 시간을 줄인다.
+         */
+        final String regForKma = effectiveReg;
+        final String tmfcForKma = tmfc;
+        final double[] gridCoords = resolveGridCoords(lat, lng, effectiveReg, out);
+        CompletableFuture<KmaShortRegFetchResult> shortFut =
+                CompletableFuture.supplyAsync(() -> kmaShortRegHttpClient.fetchWithDiagnostics(regForKma, tmfcForKma));
+        CompletableFuture<List<Map<String, Object>>> shrtPrefetchFut =
+                gridCoords != null
+                        ? CompletableFuture.supplyAsync(
+                                () -> prefetchShrtGridSeries(gridCoords[0], gridCoords[1]))
+                        : CompletableFuture.completedFuture(List.of());
+        CompletableFuture<List<Map<String, Object>>> vsrtPrefetchFut =
+                gridCoords != null
+                        ? CompletableFuture.supplyAsync(
+                                () -> prefetchVsrtHourlySeries(gridCoords[0], gridCoords[1]))
+                        : CompletableFuture.completedFuture(List.of());
+        CompletableFuture.allOf(shortFut, shrtPrefetchFut, vsrtPrefetchFut).join();
+
+        KmaShortRegFetchResult shortRegFetch = shortFut.join();
+        List<Map<String, Object>> prefetchedShrt = shrtPrefetchFut.join();
+        List<Map<String, Object>> prefetchedVsrt = vsrtPrefetchFut.join();
+
         String raw = shortRegFetch.raw();
         if (raw == null) {
             int att = shortRegFetch.attempts();
@@ -114,47 +138,24 @@ public class WeatherController {
             }
             out.put("shortRegDiagnostic", diag);
 
-            double[] coords = resolveGridCoords(lat, lng, effectiveReg, out);
-            if (coords != null) {
+            if (gridCoords != null) {
                 try {
-                    final double glat = coords[0];
-                    final double glng = coords[1];
-                    CompletableFuture<List<Map<String, Object>>> shrtF = CompletableFuture.supplyAsync(
-                            () -> {
-                                try {
-                                    return kmaShrtGrdSeriesService.fetchSeriesForLatLng(glat, glng, 4);
-                                } catch (Exception e) {
-                                    log.debug("격자 단기 폴백 생략: {}", e.getMessage());
-                                    return List.of();
-                                }
-                            });
-                    CompletableFuture<List<Map<String, Object>>> vsrtF = CompletableFuture.supplyAsync(
-                            () -> {
-                                try {
-                                    return kmaVsrtGrdHourlyService.fetchHourlyForLatLng(glat, glng, 4);
-                                } catch (Exception e) {
-                                    log.debug("격자 초단기 폴백 생략: {}", e.getMessage());
-                                    return List.of();
-                                }
-                            });
-                    CompletableFuture.allOf(shrtF, vsrtF).join();
-                    List<Map<String, Object>> shrtSeries = shrtF.join();
-                    List<Map<String, Object>> vsrt = vsrtF.join();
-
-                    if (!shrtSeries.isEmpty()) {
+                    final double glat = gridCoords[0];
+                    final double glng = gridCoords[1];
+                    if (!prefetchedShrt.isEmpty()) {
                         out.put("configured", true);
                         out.put("shortRegUsedShrtGrid", true);
-                        out.put("series", shrtSeries);
+                        out.put("series", prefetchedShrt);
                         putVsrtGrid(out, glat, glng);
                         out.put(
                                 "message",
                                 "단기 예보구역(reg) 통보문은 받지 못했으나, 단기 격자(nph-dfs_shrt_grd)로 3시간 간격 예보를 표시합니다.");
                         return cacheAndOk(cacheKey, out);
                     }
-                    if (!vsrt.isEmpty()) {
+                    if (!prefetchedVsrt.isEmpty()) {
                         out.put("configured", true);
                         out.put("shortRegUsedGridFallback", true);
-                        out.put("vsrtHourly", vsrt);
+                        out.put("vsrtHourly", prefetchedVsrt);
                         putVsrtGrid(out, glat, glng);
                         out.put(
                                 "message",
@@ -168,7 +169,7 @@ public class WeatherController {
             }
 
             out.put("configured", false);
-            if (coords != null) {
+            if (gridCoords != null) {
                 out.put("gridFallbackAttempted", true);
                 out.put("gridFallbackEmpty", true);
             }
@@ -179,7 +180,7 @@ public class WeatherController {
                                 + "API허브 마이페이지에서 「단기 개황·JSON(disp=1)」 등 실제 단기 예보 데이터 API 활용승인이 있는지 확인하세요. "
                                 + "「단기 예보구역 조회」만 승인된 경우 이 증상이 날 수 있습니다. 단기/초단기 격자 API는 별도 신청입니다.";
             } else {
-                userMessage = shortRegFailureUserMessage(shortRegFetch, coords != null);
+                userMessage = shortRegFailureUserMessage(shortRegFetch, gridCoords != null);
             }
             out.put("message", userMessage);
             return cacheAndOk(cacheKey, out);
@@ -221,28 +222,58 @@ public class WeatherController {
             out.put("payloadRaw", raw.length() > 8000 ? raw.substring(0, 8000) : raw);
         }
 
-        double[] coords = resolveGridCoords(lat, lng, effectiveReg, out);
-        if (coords != null) {
+        if (gridCoords != null) {
             try {
                 List<Map<String, Object>> existing = castSeries(out.get("series"));
                 boolean upstream = Boolean.TRUE.equals(out.get("upstreamError"));
                 if ((existing == null || existing.isEmpty()) && !upstream) {
-                    List<Map<String, Object>> shrt =
-                            kmaShrtGrdSeriesService.fetchSeriesForLatLng(coords[0], coords[1], 6);
-                    if (!shrt.isEmpty()) {
-                        out.put("series", shrt);
+                    if (!prefetchedShrt.isEmpty()) {
+                        out.put("series", prefetchedShrt);
                         out.put("shortRegSupplementedByShrtGrid", true);
-                        putVsrtGrid(out, coords[0], coords[1]);
+                        putVsrtGrid(out, gridCoords[0], gridCoords[1]);
+                    } else {
+                        List<Map<String, Object>> shrt =
+                                kmaShrtGrdSeriesService.fetchSeriesForLatLng(gridCoords[0], gridCoords[1], 6);
+                        if (!shrt.isEmpty()) {
+                            out.put("series", shrt);
+                            out.put("shortRegSupplementedByShrtGrid", true);
+                            putVsrtGrid(out, gridCoords[0], gridCoords[1]);
+                        }
                     }
                 }
             } catch (Exception e) {
                 log.debug("단기 격자로 series 보강 생략: {}", e.getMessage());
             }
             if (Boolean.TRUE.equals(out.get("configured"))) {
-                attachVsrtHourlyOptional(out, coords[0], coords[1], 6);
+                if (!prefetchedVsrt.isEmpty() && !out.containsKey("vsrtHourly")) {
+                    out.put("vsrtHourly", prefetchedVsrt);
+                    if (!out.containsKey("vsrtGrid")) {
+                        putVsrtGrid(out, gridCoords[0], gridCoords[1]);
+                    }
+                } else {
+                    attachVsrtHourlyOptional(out, gridCoords[0], gridCoords[1], 6);
+                }
             }
         }
         return cacheAndOk(cacheKey, out);
+    }
+
+    private List<Map<String, Object>> prefetchShrtGridSeries(double glat, double glng) {
+        try {
+            return kmaShrtGrdSeriesService.fetchSeriesForLatLng(glat, glng, 6);
+        } catch (Exception e) {
+            log.debug("격자 단기 선행 호출 생략: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<Map<String, Object>> prefetchVsrtHourlySeries(double glat, double glng) {
+        try {
+            return kmaVsrtGrdHourlyService.fetchHourlyForLatLng(glat, glng, 6);
+        } catch (Exception e) {
+            log.debug("격자 초단기 선행 호출 생략: {}", e.getMessage());
+            return List.of();
+        }
     }
 
     private record ShortRegCacheEntry(long expiresAtMs, Map<String, Object> payload) {}
