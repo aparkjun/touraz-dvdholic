@@ -2,10 +2,14 @@ package fast.campus.netplix.kma;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 import java.net.URI;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -128,11 +132,11 @@ public final class KmaHubJson {
     /**
      * 연결·읽기 타임아웃 등 1회 재시도.
      * 허브 격자 일부가 {@code Content-Type: text/plain} 으로 내려오며 {@code body(String.class)} 가 변환 예외를 낼 수 있어
-     * 원시 바이트로 읽는다.
+     * 원시 바이트로 읽는다. 응답 헤더 charset·본문 종류에 따라 UTF-8 / EUC-KR 을 고른다 (무조건 UTF-8 만 쓰면 한글 깨짐).
      */
     static String getWithRetry(RestClient client, URI uri) throws Exception {
         try {
-            return getBodyUtf8(client, uri);
+            return getBodyDecoded(client, uri);
         } catch (ResourceAccessException e) {
             try {
                 Thread.sleep(400);
@@ -140,15 +144,90 @@ public final class KmaHubJson {
                 Thread.currentThread().interrupt();
                 throw e;
             }
-            return getBodyUtf8(client, uri);
+            return getBodyDecoded(client, uri);
         }
     }
 
-    private static String getBodyUtf8(RestClient client, URI uri) {
-        byte[] b = client.get().uri(uri).retrieve().body(byte[].class);
+    private static String getBodyDecoded(RestClient client, URI uri) {
+        ResponseEntity<byte[]> res = client.get().uri(uri).retrieve().toEntity(byte[].class);
+        byte[] b = res.getBody();
         if (b == null || b.length == 0) {
             return "";
         }
-        return new String(b, StandardCharsets.UTF_8);
+        return decodeBody(b, res.getHeaders());
+    }
+
+    /**
+     * {@code Content-Type} 의 charset 우선. 없으면 JSON 바이트는 UTF-8 우선 후 파싱 검증,
+     * 그 외(text/plain 등)는 UTF-8 에서 U+FFFD 가 나오면 EUC-KR 재시도 (구형 허브 응답).
+     */
+    private static String decodeBody(byte[] b, HttpHeaders headers) {
+        Charset fromHeader = charsetFromContentType(headers);
+        if (fromHeader != null) {
+            return new String(b, fromHeader);
+        }
+        MediaType mt = headers.getContentType();
+        if (mt != null && mt.getCharset() == null && mt.isMoreSpecific(MediaType.APPLICATION_JSON)) {
+            return new String(b, StandardCharsets.UTF_8);
+        }
+        if (looksLikeJsonBytes(b)) {
+            String utf8 = new String(b, StandardCharsets.UTF_8);
+            if (jsonParsesCleanly(utf8)) {
+                return utf8;
+            }
+            try {
+                Charset euc = Charset.forName("EUC-KR");
+                String alt = new String(b, euc);
+                if (jsonParsesCleanly(alt)) {
+                    return alt;
+                }
+            } catch (Exception ignored) {
+            }
+            return utf8;
+        }
+        String utf8 = new String(b, StandardCharsets.UTF_8);
+        if (utf8.indexOf('\uFFFD') < 0) {
+            return utf8;
+        }
+        try {
+            return new String(b, Charset.forName("EUC-KR"));
+        } catch (Exception e) {
+            return utf8;
+        }
+    }
+
+    private static Charset charsetFromContentType(HttpHeaders headers) {
+        MediaType mt = headers.getContentType();
+        if (mt == null) {
+            return null;
+        }
+        Charset cs = mt.getCharset();
+        return cs;
+    }
+
+    private static boolean looksLikeJsonBytes(byte[] b) {
+        int i = 0;
+        if (b.length >= 3
+                && (b[0] & 0xFF) == 0xEF
+                && (b[1] & 0xFF) == 0xBB
+                && (b[2] & 0xFF) == 0xBF) {
+            i = 3;
+        }
+        while (i < b.length && (b[i] == ' ' || b[i] == '\n' || b[i] == '\r' || b[i] == '\t')) {
+            i++;
+        }
+        return i < b.length && (b[i] == '{' || b[i] == '[');
+    }
+
+    private static boolean jsonParsesCleanly(String s) {
+        if (s == null || s.isBlank()) {
+            return false;
+        }
+        try {
+            OM.readTree(s);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 }
