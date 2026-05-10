@@ -22,8 +22,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * 기상청 단기예보(API허브) 프록시 — 클라이언트에 authKey 노출 방지.
@@ -33,6 +35,13 @@ import java.util.concurrent.CompletableFuture;
 @RequestMapping("/api/v1/weather")
 @RequiredArgsConstructor
 public class WeatherController {
+
+    /** 동일 지역 연속 탭·재시도 시 Heroku 부하·지연 완화 (얕은 복사본 저장) */
+    private static final long SHORT_REG_CACHE_TTL_MS = 90_000L;
+
+    private static final int SHORT_REG_CACHE_MAX = 256;
+
+    private final ConcurrentHashMap<String, ShortRegCacheEntry> shortRegCache = new ConcurrentHashMap<>();
 
     private final KmaShortRegHttpClient kmaShortRegHttpClient;
     private final KmaShrtGrdSeriesService kmaShrtGrdSeriesService;
@@ -68,13 +77,19 @@ public class WeatherController {
 
         out.put("reg", effectiveReg);
 
+        String cacheKey = shortRegCacheKey(effectiveReg, lat, lng, tmfc);
+        ShortRegCacheEntry cached = shortRegCache.get(cacheKey);
+        if (cached != null && cached.expiresAtMs() > System.currentTimeMillis()) {
+            return NetplixApiResponse.ok(new HashMap<>(cached.payload()));
+        }
+
         if (!kmaShortRegHttpClient.isApiKeyConfigured()) {
             out.put("configured", false);
             out.put("kmaKeyMissing", true);
             out.put(
                     "message",
                     "단기·초단기 예보는 기상청 API허브(apihub.kma.go.kr) 인증키가 필요합니다. Heroku Config Vars에 KMA_API_KEY(또는 KMA_AUTH_API_KEY)로 허브에서 발급한 키를 넣고 dyno를 재시작하세요. 공공데이터포털(data.go.kr) 키만으로는 동작하지 않을 수 있습니다.");
-            return NetplixApiResponse.ok(out);
+            return cacheAndOk(cacheKey, out);
         }
 
         KmaShortRegFetchResult shortRegFetch = kmaShortRegHttpClient.fetchWithDiagnostics(effectiveReg, tmfc);
@@ -107,7 +122,7 @@ public class WeatherController {
                     CompletableFuture<List<Map<String, Object>>> shrtF = CompletableFuture.supplyAsync(
                             () -> {
                                 try {
-                                    return kmaShrtGrdSeriesService.fetchSeriesForLatLng(glat, glng, 6);
+                                    return kmaShrtGrdSeriesService.fetchSeriesForLatLng(glat, glng, 4);
                                 } catch (Exception e) {
                                     log.debug("격자 단기 폴백 생략: {}", e.getMessage());
                                     return List.of();
@@ -116,7 +131,7 @@ public class WeatherController {
                     CompletableFuture<List<Map<String, Object>>> vsrtF = CompletableFuture.supplyAsync(
                             () -> {
                                 try {
-                                    return kmaVsrtGrdHourlyService.fetchHourlyForLatLng(glat, glng, 6);
+                                    return kmaVsrtGrdHourlyService.fetchHourlyForLatLng(glat, glng, 4);
                                 } catch (Exception e) {
                                     log.debug("격자 초단기 폴백 생략: {}", e.getMessage());
                                     return List.of();
@@ -134,7 +149,7 @@ public class WeatherController {
                         out.put(
                                 "message",
                                 "단기 예보구역(reg) 통보문은 받지 못했으나, 단기 격자(nph-dfs_shrt_grd)로 3시간 간격 예보를 표시합니다.");
-                        return NetplixApiResponse.ok(out);
+                        return cacheAndOk(cacheKey, out);
                     }
                     if (!vsrt.isEmpty()) {
                         out.put("configured", true);
@@ -145,7 +160,7 @@ public class WeatherController {
                                 "message",
                                 "단기 예보구역(reg) 통보문은 허브에서 받지 못했지만, 초단기 격자 데이터로 시간대별 기온을 표시합니다. "
                                         + "허브가 일부 reg 에 대해 「구역 목록」 텍스트만 주는 경우가 있으며, 승인과 무관할 수 있습니다.");
-                        return NetplixApiResponse.ok(out);
+                        return cacheAndOk(cacheKey, out);
                     }
                 } catch (Exception e) {
                     log.warn("단기 실패 후 격자 폴백 중 예외 — reg={} lat={} lng={}: {}", effectiveReg, lat, lng, e.getMessage());
@@ -167,7 +182,7 @@ public class WeatherController {
                 userMessage = shortRegFailureUserMessage(shortRegFetch, coords != null);
             }
             out.put("message", userMessage);
-            return NetplixApiResponse.ok(out);
+            return cacheAndOk(cacheKey, out);
         }
         out.put("configured", true);
         try {
@@ -213,7 +228,7 @@ public class WeatherController {
                 boolean upstream = Boolean.TRUE.equals(out.get("upstreamError"));
                 if ((existing == null || existing.isEmpty()) && !upstream) {
                     List<Map<String, Object>> shrt =
-                            kmaShrtGrdSeriesService.fetchSeriesForLatLng(coords[0], coords[1], 8);
+                            kmaShrtGrdSeriesService.fetchSeriesForLatLng(coords[0], coords[1], 6);
                     if (!shrt.isEmpty()) {
                         out.put("series", shrt);
                         out.put("shortRegSupplementedByShrtGrid", true);
@@ -224,9 +239,37 @@ public class WeatherController {
                 log.debug("단기 격자로 series 보강 생략: {}", e.getMessage());
             }
             if (Boolean.TRUE.equals(out.get("configured"))) {
-                attachVsrtHourlyOptional(out, coords[0], coords[1], 8);
+                attachVsrtHourlyOptional(out, coords[0], coords[1], 6);
             }
         }
+        return cacheAndOk(cacheKey, out);
+    }
+
+    private record ShortRegCacheEntry(long expiresAtMs, Map<String, Object> payload) {}
+
+    private static String shortRegCacheKey(String effectiveReg, Double lat, Double lng, String tmfc) {
+        String t = (tmfc != null && !tmfc.isBlank()) ? tmfc.trim() : "auto";
+        if (lat != null && lng != null) {
+            return effectiveReg
+                    + "|"
+                    + String.format(Locale.US, "%.4f,%.4f", lat, lng)
+                    + "|"
+                    + t;
+        }
+        return effectiveReg + "||" + t;
+    }
+
+    private void putShortRegCache(String key, Map<String, Object> out) {
+        long now = System.currentTimeMillis();
+        shortRegCache.entrySet().removeIf(e -> e.getValue().expiresAtMs() < now);
+        if (shortRegCache.size() >= SHORT_REG_CACHE_MAX) {
+            shortRegCache.clear();
+        }
+        shortRegCache.put(key, new ShortRegCacheEntry(now + SHORT_REG_CACHE_TTL_MS, new HashMap<>(out)));
+    }
+
+    private NetplixApiResponse<Map<String, Object>> cacheAndOk(String cacheKey, Map<String, Object> out) {
+        putShortRegCache(cacheKey, out);
         return NetplixApiResponse.ok(out);
     }
 

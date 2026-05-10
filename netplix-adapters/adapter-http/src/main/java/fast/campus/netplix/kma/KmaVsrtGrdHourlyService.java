@@ -24,8 +24,8 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class KmaVsrtGrdHourlyService {
 
-    /** Heroku HTTP 제한 등을 고려해 tmfc 10분 후보 탐색 상한 (기존 20 → 축소). */
-    private static final int TMFC_BACK_MAX = 10;
+    /** Heroku HTTP 제한 등을 고려해 tmfc 10분 후보 탐색 상한. */
+    private static final int TMFC_BACK_MAX = 5;
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final DateTimeFormatter TMFC = DateTimeFormatter.ofPattern("yyyyMMddHHmm");

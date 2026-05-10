@@ -29,7 +29,7 @@ public class KmaShrtGrdSeriesService {
     private static final DateTimeFormatter FCST_TIME = DateTimeFormatter.ofPattern("HHmm");
 
     /** Heroku 등 게이트웨이 타임아웃 내에 맞추기 위해 슬롯·발표시각 탐색을 제한한다. */
-    private static final int MAX_TMFC_PROBE = 6;
+    private static final int MAX_TMFC_PROBE = 4;
 
     private final KmaShrtGrdHttpClient client;
     private final ObjectMapper objectMapper;

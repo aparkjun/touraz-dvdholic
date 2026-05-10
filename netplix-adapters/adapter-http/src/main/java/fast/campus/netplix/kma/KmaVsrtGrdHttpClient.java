@@ -39,8 +39,8 @@ public class KmaVsrtGrdHttpClient {
 
     private RestClient restClient() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofSeconds(8));
-        factory.setReadTimeout(Duration.ofSeconds(25));
+        factory.setConnectTimeout(Duration.ofSeconds(5));
+        factory.setReadTimeout(Duration.ofSeconds(12));
         return RestClient.builder().requestFactory(factory).build();
     }
 

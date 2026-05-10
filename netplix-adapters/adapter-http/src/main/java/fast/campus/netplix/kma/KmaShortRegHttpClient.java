@@ -22,6 +22,9 @@ import java.util.List;
 @Component
 public class KmaShortRegHttpClient {
 
+    /** 자동 tmfc 후보가 많으면 끝까지 시도 시 Heroku 30초 한도에 걸린다 — 최신 N회만 시도 */
+    private static final int MAX_AUTO_TMFC_CANDIDATES = 5;
+
     @Value("${kma.api.fct-afs-ds:}")
     private String fctAfsDsUrl;
 
@@ -39,8 +42,8 @@ public class KmaShortRegHttpClient {
 
     private RestClient restClient() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofSeconds(8));
-        factory.setReadTimeout(Duration.ofSeconds(25));
+        factory.setConnectTimeout(Duration.ofSeconds(5));
+        factory.setReadTimeout(Duration.ofSeconds(12));
         return RestClient.builder().requestFactory(factory).build();
     }
 
@@ -66,8 +69,10 @@ public class KmaShortRegHttpClient {
             return new KmaShortRegFetchResult(null, null, null, "api_key_not_configured", 0, 0);
         }
         String r = (reg != null && !reg.isBlank()) ? reg : defaultReg;
+        boolean autoTmfc =
+                tmfcOverride == null || tmfcOverride.isBlank() || "0".equals(tmfcOverride.trim());
         List<String> tries = new ArrayList<>();
-        if (tmfcOverride != null && !tmfcOverride.isBlank() && !"0".equals(tmfcOverride.trim())) {
+        if (!autoTmfc) {
             String n = KmaShortRegIssuanceTime.normalizeTmfc(tmfcOverride);
             if (n != null && n.length() >= 10) {
                 tries.add(n.length() == 10 ? n + "00" : n);
@@ -78,6 +83,9 @@ public class KmaShortRegHttpClient {
         }
         if (tries.isEmpty()) {
             tries.add(KmaShortRegIssuanceTime.conservativeFallbackTmfc());
+        }
+        if (autoTmfc && tries.size() > MAX_AUTO_TMFC_CANDIDATES) {
+            tries = new ArrayList<>(tries.subList(0, MAX_AUTO_TMFC_CANDIDATES));
         }
         int attempts = 0;
         int catalogSkips = 0;
