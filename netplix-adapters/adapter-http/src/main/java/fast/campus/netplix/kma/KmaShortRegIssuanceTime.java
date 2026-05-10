@@ -13,6 +13,7 @@ import java.util.Set;
 /**
  * 기상청 API허브 단기예보 fct_shrt_reg — 발표 시각(tmfc)은 하루 8회(02·05·08·11·14·17·20·23시, KST),
  * null/0 으로 호출하면 &quot;단기예보구역 조회&quot; 텍스트만 내려온다.
+ * 실제 생산 시각은 종종 정각이 아니라 정각+10분 등(예: 0810)이라 후보에 HH00·HH10 을 함께 넣는다.
  */
 public final class KmaShortRegIssuanceTime {
 
@@ -37,6 +38,7 @@ public final class KmaShortRegIssuanceTime {
                     continue;
                 }
                 ordered.add(cand.format(TMFC));
+                ordered.add(cand.plusMinutes(10).format(TMFC));
             }
         }
         List<String> list = new ArrayList<>(ordered);

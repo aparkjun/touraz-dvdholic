@@ -22,8 +22,8 @@ import java.util.List;
 @Component
 public class KmaShortRegHttpClient {
 
-    /** 자동 tmfc 후보가 많으면 끝까지 시도 시 Heroku 30초 한도에 걸린다 — 최신 N회만 시도 */
-    private static final int MAX_AUTO_TMFC_CANDIDATES = 8;
+    /** 자동 tmfc 후보가 많으면 끝까지 시도 시 Heroku 30초 한도에 걸린다 — 최신 N회만 시도 (HH00+HH10 확장 반영) */
+    private static final int MAX_AUTO_TMFC_CANDIDATES = 12;
 
     @Value("${kma.api.fct-afs-ds:}")
     private String fctAfsDsUrl;
