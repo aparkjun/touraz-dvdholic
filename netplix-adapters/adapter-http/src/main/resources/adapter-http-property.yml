@@ -15,8 +15,10 @@ kma:
     # 비우면 fct_shrt_reg 만 사용
     fct-afs-ds: https://apihub.kma.go.kr/api/typ01/url/fct_afs_ds.php
     fct-shrt-reg: https://apihub.kma.go.kr/api/typ01/url/fct_shrt_reg.php
-    # 동네예보 초단기: 실황 nph-dfs_odam_grd 는 tmfc·vars·authKey 만(허브 샘플). 예보 격자(vsrt) URL 이면 tmef·nx·ny 가 쿼리에 붙음.
-    dfs-vsrt-grd: https://apihub.kma.go.kr/api/typ01/cgi-bin/url/nph-dfs_odam_grd
+    # 동네예보 초단기 예보 격자 (시간대별 tmef·nx·ny) — 우선 사용
+    dfs-vsrt-grd: https://apihub.kma.go.kr/api/typ01/cgi-bin/url/nph-dfs_vsrt_grd
+    # 동네예보 실황 격자 — 초단기(vsrt) 실패 시에만 폴백. 실황만 쓰려면 dfs-vsrt-grd 를 odam URL 로 단독 지정해도 됨
+    dfs-odam-grd: https://apihub.kma.go.kr/api/typ01/cgi-bin/url/nph-dfs_odam_grd
     # 동네예보 단기(3시간 단위) 격자 — nph-dfs_shrt_grd (tmfc·tmef·nx·ny·vars·authKey). 비우면 미사용.
     dfs-shrt-grd: https://apihub.kma.go.kr/api/typ01/cgi-bin/url/nph-dfs_shrt_grd
     # 예보구역정보 typ02 — getFcstZoneCd (pageNo·numOfRows·dataType·regId·authKey). 활용승인 후 사용.

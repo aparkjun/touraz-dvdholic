@@ -1,6 +1,5 @@
 package fast.campus.netplix.kma;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -16,17 +15,21 @@ import java.time.Duration;
 /**
  * 기상청 API허브 동네예보 격자 —
  * <ul>
- *   <li>{@code nph-dfs_odam_grd} (실황): 허브 샘플은 {@code tmfc},{@code vars},{@code authKey} 만 사용 — 전역 격자 JSON 후 클라이언트에서 nx·ny 추출.
- *   <li>{@code nph-dfs_vsrt_grd} 등 (초단기 예보): {@code tmef},{@code nx},{@code ny} 포함.
+ *   <li>주소 {@code kma.api.dfs-vsrt-grd}: 보통 {@code nph-dfs_vsrt_grd}(초단기 예보 격자, tmef·nx·ny).
+ *   <li>선택 {@code kma.api.dfs-odam-grd}: {@code nph-dfs_odam_grd}(실황) — 초단기 실패 시 폴백.
  * </ul>
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class KmaVsrtGrdHttpClient {
 
+    /** 초단기 예보 격자 권장. 예전처럼 실황만 쓸 경우 odam URL 단독 지정 가능 */
     @Value("${kma.api.dfs-vsrt-grd}")
     private String dfsVsrtGrdUrl;
+
+    /** 실황 격자 폴백 URL — 비우면 폴백 없음 */
+    @Value("${kma.api.dfs-odam-grd:}")
+    private String dfsOdamGrdUrl;
 
     @Value("${kma.auth.api-key:}")
     private String apiKey;
@@ -35,16 +38,44 @@ public class KmaVsrtGrdHttpClient {
         return apiKey == null ? "" : apiKey.trim();
     }
 
-    /** 설정 URL 이 실황 격자(odam)이면 허브 샘플과 동일하게 tmef·nx·ny 를 쿼리에 넣지 않는다. */
+    /** 기본(주소)이 실황(odam) 전용 URL 인지 */
+    public boolean primaryUrlIsOdam() {
+        return isOdamUrl(dfsVsrtGrdUrl);
+    }
+
+    /** 하위 호환: 예전 메서드명 */
     public boolean isOdamGrdProduct() {
-        String u = dfsVsrtGrdUrl != null ? dfsVsrtGrdUrl.toLowerCase() : "";
-        return u.contains("odam_grd");
+        return primaryUrlIsOdam();
+    }
+
+    public boolean hasOdamFallback() {
+        return dfsOdamGrdUrl != null && !dfsOdamGrdUrl.isBlank();
+    }
+
+    /**
+     * 이번 호출에 쓰는 베이스 URL이 odam(실황)이면 tmef·nx·ny 를 쿼리에 넣지 않는다.
+     *
+     * @param useOdamFallback true 이면 {@link #dfsOdamGrdUrl} 로 호출(설정된 경우).
+     */
+    public boolean isOdamEffective(boolean useOdamFallback) {
+        return isOdamUrl(effectiveBaseUrl(useOdamFallback));
+    }
+
+    private String effectiveBaseUrl(boolean useOdamFallback) {
+        if (useOdamFallback && hasOdamFallback()) {
+            return dfsOdamGrdUrl.trim();
+        }
+        return dfsVsrtGrdUrl != null ? dfsVsrtGrdUrl.trim() : "";
+    }
+
+    private static boolean isOdamUrl(String url) {
+        return url != null && url.toLowerCase().contains("odam_grd");
     }
 
     private RestClient restClient() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofSeconds(5));
-        factory.setReadTimeout(Duration.ofSeconds(12));
+        factory.setConnectTimeout(Duration.ofSeconds(6));
+        factory.setReadTimeout(Duration.ofSeconds(18));
         return RestClient.builder().requestFactory(factory).build();
     }
 
@@ -55,18 +86,29 @@ public class KmaVsrtGrdHttpClient {
      * @param vars   조회 변수 (예: T1H 또는 T1H,PTY)
      */
     public String fetchRaw(String tmfc, String tmef, int nx, int ny, String vars) {
+        return fetchRaw(tmfc, tmef, nx, ny, vars, false);
+    }
+
+    public String fetchRaw(String tmfc, String tmef, int nx, int ny, String vars, boolean useOdamFallback) {
         if (apiKey == null || apiKey.isBlank()) {
+            return null;
+        }
+        if (useOdamFallback && !hasOdamFallback()) {
             return null;
         }
         if (tmfc == null || vars == null || tmfc.isBlank() || vars.isBlank()) {
             return null;
         }
-        boolean odam = isOdamGrdProduct();
+        String base = effectiveBaseUrl(useOdamFallback);
+        if (base.isBlank()) {
+            return null;
+        }
+        boolean odam = isOdamUrl(base);
         if (!odam && (tmef == null || tmef.isBlank())) {
             return null;
         }
         try {
-            UriComponentsBuilder ub = UriComponentsBuilder.fromHttpUrl(dfsVsrtGrdUrl)
+            UriComponentsBuilder ub = UriComponentsBuilder.fromHttpUrl(base)
                     .queryParam("tmfc", tmfc)
                     .queryParam("vars", vars)
                     .queryParam("authKey", hubAuthKey());
@@ -82,7 +124,7 @@ public class KmaVsrtGrdHttpClient {
             if (!KmaHubJson.looksLikeJson(body)) {
                 return KmaHubJson.syntheticResult(502, "Non-JSON: " + KmaHubJson.previewSnippet(body));
             }
-            log.debug("KMA dfs_grd ok tmfc={} tmef={} len={}", tmfc, tmef, body.length());
+            log.debug("KMA dfs_grd ok base={} tmfc={} tmef={} len={}", base.contains("odam") ? "odam" : "vsrt", tmfc, tmef, body.length());
             return body;
         } catch (RestClientResponseException e) {
             String b = null;
