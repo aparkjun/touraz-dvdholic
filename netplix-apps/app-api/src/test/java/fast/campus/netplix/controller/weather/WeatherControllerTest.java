@@ -2,10 +2,8 @@ package fast.campus.netplix.controller.weather;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fast.campus.netplix.kma.KmaFcstZoneInfoHttpClient;
-import fast.campus.netplix.kma.KmaShrtGrdSeriesService;
 import fast.campus.netplix.kma.KmaShortRegFetchResult;
 import fast.campus.netplix.kma.KmaShortRegHttpClient;
-import fast.campus.netplix.kma.KmaVsrtGrdHourlyService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,13 +15,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ForkJoinPool;
-
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
@@ -44,26 +36,12 @@ class WeatherControllerTest {
     @Mock
     private KmaFcstZoneInfoHttpClient kmaFcstZoneInfoHttpClient;
 
-    @Mock
-    private KmaShrtGrdSeriesService kmaShrtGrdSeriesService;
-
-    @Mock
-    private KmaVsrtGrdHourlyService kmaVsrtGrdHourlyService;
-
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
         lenient().when(kmaShortRegHttpClient.isApiKeyConfigured()).thenReturn(true);
-        lenient().when(kmaVsrtGrdHourlyService.fetchHourlyForLatLng(anyDouble(), anyDouble(), anyInt())).thenReturn(List.of());
-        lenient().when(kmaShrtGrdSeriesService.fetchSeriesForLatLng(anyDouble(), anyDouble(), anyInt())).thenReturn(List.of());
         lenient().when(kmaFcstZoneInfoHttpClient.isConfigured()).thenReturn(false);
-        weatherController = new WeatherController(
-                kmaShortRegHttpClient,
-                kmaFcstZoneInfoHttpClient,
-                kmaShrtGrdSeriesService,
-                kmaVsrtGrdHourlyService,
-                objectMapper);
-        weatherController.setKmaGridExecutor(ForkJoinPool.commonPool());
+        weatherController = new WeatherController(kmaShortRegHttpClient, kmaFcstZoneInfoHttpClient, objectMapper);
         ReflectionTestUtils.setField(weatherController, "defaultReg", "11B10101");
         mockMvc = MockMvcBuilders.standaloneSetup(weatherController)
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
@@ -100,21 +78,16 @@ class WeatherControllerTest {
     }
 
     @Test
-    void shortReg_upstream403_usesShrtGrid_whenSeriesEmptyAndLatLngProvided() throws Exception {
+    void shortReg_upstream403_noGridSupplement_whenLatLngProvided() throws Exception {
         String errBody = "{\"result\":{\"status\":403,\"message\":\"활용신청이 필요한 API 입니다.\"}}";
         when(kmaShortRegHttpClient.fetchWithDiagnostics(any(), any()))
                 .thenReturn(new KmaShortRegFetchResult(errBody, null, null, null, 1, 0));
-
-        when(kmaShrtGrdSeriesService.fetchSeriesForLatLng(anyDouble(), anyDouble(), anyInt()))
-                .thenReturn(List.of(Map.of("fcstDate", "20240509", "fcstTime", "1200", "TMP", 20)));
 
         mockMvc.perform(get("/api/v1/weather/short-reg").param("lat", "35.18").param("lng", "129.08"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.upstreamError").value(true))
                 .andExpect(jsonPath("$.data.upstreamStatus").value(403))
-                .andExpect(jsonPath("$.data.series.length()").value(1))
-                .andExpect(jsonPath("$.data.series[0].TMP").value(20))
-                .andExpect(jsonPath("$.data.shortRegSupplementedByShrtGrid").value(true));
+                .andExpect(jsonPath("$.data.shortRegSupplementedByShrtGrid").doesNotExist());
     }
 
     @Test

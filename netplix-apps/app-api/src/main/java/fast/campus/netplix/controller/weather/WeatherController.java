@@ -7,17 +7,11 @@ import fast.campus.netplix.kma.KmaFcstZoneInfoHttpClient;
 import fast.campus.netplix.kma.KmaFcstZoneInfoXmlParser;
 import fast.campus.netplix.kma.KmaForecastSeriesExtractor;
 import fast.campus.netplix.kma.KmaHubJson;
-import fast.campus.netplix.kma.KmaLambertGridConverter;
 import fast.campus.netplix.kma.KmaNearestReg;
-import fast.campus.netplix.kma.KmaRegCentroid;
-import fast.campus.netplix.kma.KmaShrtGrdSeriesService;
 import fast.campus.netplix.kma.KmaShortRegFetchResult;
 import fast.campus.netplix.kma.KmaShortRegHttpClient;
-import fast.campus.netplix.kma.KmaVsrtGrdHourlyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,13 +23,11 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 기상청 단기예보(API허브) 프록시 — 클라이언트에 authKey 노출 방지.
+ * 단기는 예보구역(reg) 기반 {@code fct_afs_ds}·{@code fct_shrt_reg} 만 사용한다 (격자 API 미사용).
  */
 @Slf4j
 @RestController
@@ -52,17 +44,7 @@ public class WeatherController {
 
     private final KmaShortRegHttpClient kmaShortRegHttpClient;
     private final KmaFcstZoneInfoHttpClient kmaFcstZoneInfoHttpClient;
-    private final KmaShrtGrdSeriesService kmaShrtGrdSeriesService;
-    private final KmaVsrtGrdHourlyService kmaVsrtGrdHourlyService;
     private final ObjectMapper objectMapper;
-
-    /** {@link fast.campus.netplix.config.RestTemplateConfig#kmaGridExecutor()} — commonPool 고갈 방지 */
-    private Executor kmaGridExecutor;
-
-    @Autowired
-    public void setKmaGridExecutor(@Qualifier("kmaGridExecutor") Executor kmaGridExecutor) {
-        this.kmaGridExecutor = kmaGridExecutor;
-    }
 
     @Value("${kma.auth.default-reg}")
     private String defaultReg;
@@ -161,80 +143,16 @@ public class WeatherController {
             out.put("kmaKeyMissing", true);
             out.put(
                     "message",
-                    "단기·초단기 예보는 기상청 API허브(apihub.kma.go.kr) 인증키가 필요합니다. Heroku Config Vars에 KMA_API_KEY(또는 KMA_AUTH_API_KEY)로 허브에서 발급한 키를 넣고 dyno를 재시작하세요. 공공데이터포털(data.go.kr) 키만으로는 동작하지 않을 수 있습니다.");
+                    "단기 예보는 기상청 API허브(apihub.kma.go.kr) 인증키가 필요합니다. Heroku Config Vars에 KMA_API_KEY(또는 KMA_AUTH_API_KEY)로 허브에서 발급한 키를 넣고 dyno를 재시작하세요. 공공데이터포털(data.go.kr) 키만으로는 동작하지 않을 수 있습니다.");
             return cacheAndOk(cacheKey, out);
         }
 
-        /*
-         * 단기(reg/개황) 연쇄 호출이 길면 격자 폴백이 뒤로 밀려 Heroku 30초 한도 내에 격자가 끝나지 못한다.
-         * 좌표가 있으면 단기 조회와 격자(단기·초단기)를 동시에 시작해 벽시계 시간을 줄인다.
-         */
         final String regForKma = effectiveReg;
         final String tmfcForKma = tmfc;
-        final double[] gridCoords = resolveGridCoords(lat, lng, effectiveReg, out);
-        final long parallelWall0 = System.nanoTime();
-        AtomicLong shortBranchMs = new AtomicLong(-1);
-        AtomicLong shrtPrefetchMs = new AtomicLong(0);
-        AtomicLong vsrtPrefetchMs = new AtomicLong(0);
-        CompletableFuture<KmaShortRegFetchResult> shortFut =
-                CompletableFuture.supplyAsync(
-                        () -> {
-                            long b0 = System.nanoTime();
-                            try {
-                                return kmaShortRegHttpClient.fetchWithDiagnostics(regForKma, tmfcForKma);
-                            } finally {
-                                shortBranchMs.set((System.nanoTime() - b0) / 1_000_000L);
-                            }
-                        },
-                        kmaGridExecutor);
-        CompletableFuture<List<Map<String, Object>>> shrtPrefetchFut =
-                gridCoords != null
-                        ? CompletableFuture.supplyAsync(
-                                () -> {
-                                    long b0 = System.nanoTime();
-                                    try {
-                                        return prefetchShrtGridSeries(gridCoords[0], gridCoords[1]);
-                                    } finally {
-                                        shrtPrefetchMs.set((System.nanoTime() - b0) / 1_000_000L);
-                                    }
-                                },
-                                kmaGridExecutor)
-                        : CompletableFuture.completedFuture(List.of());
-        CompletableFuture<List<Map<String, Object>>> vsrtPrefetchFut =
-                gridCoords != null
-                        ? CompletableFuture.supplyAsync(
-                                () -> {
-                                    long b0 = System.nanoTime();
-                                    try {
-                                        return prefetchVsrtHourlySeries(gridCoords[0], gridCoords[1]);
-                                    } finally {
-                                        vsrtPrefetchMs.set((System.nanoTime() - b0) / 1_000_000L);
-                                    }
-                                },
-                                kmaGridExecutor)
-                        : CompletableFuture.completedFuture(List.of());
-        CompletableFuture.allOf(shortFut, shrtPrefetchFut, vsrtPrefetchFut).join();
-        long parallelJoinWallMs = (System.nanoTime() - parallelWall0) / 1_000_000L;
-        String gridTag =
-                gridCoords == null
-                        ? "-"
-                        : String.format(
-                                Locale.US,
-                                "%.4f,%.4f",
-                                gridCoords[0],
-                                gridCoords[1]);
-        log.info(
-                "KMA weather_short_reg_parallel reg={} gridLatLng={} shortRegBranchMs={} dfsShrtPrefetchMs={} vsrtPrefetchMs={} parallelJoinWallMs={}",
-                effectiveReg,
-                gridTag,
-                shortBranchMs.get(),
-                shrtPrefetchMs.get(),
-                vsrtPrefetchMs.get(),
-                parallelJoinWallMs);
-
-        KmaShortRegFetchResult shortRegFetch = shortFut.join();
-        List<Map<String, Object>> prefetchedShrt = shrtPrefetchFut.join();
-        List<Map<String, Object>> prefetchedVsrt = vsrtPrefetchFut.join();
+        long wall0 = System.nanoTime();
+        KmaShortRegFetchResult shortRegFetch = kmaShortRegHttpClient.fetchWithDiagnostics(regForKma, tmfcForKma);
+        long wallMs = (System.nanoTime() - wall0) / 1_000_000L;
+        log.info("KMA weather_short_reg reg={} wallMs={}", effectiveReg, wallMs);
 
         String raw = shortRegFetch.raw();
         if (raw == null) {
@@ -257,49 +175,15 @@ public class WeatherController {
             }
             out.put("shortRegDiagnostic", diag);
 
-            if (gridCoords != null) {
-                try {
-                    final double glat = gridCoords[0];
-                    final double glng = gridCoords[1];
-                    if (!prefetchedShrt.isEmpty()) {
-                        out.put("configured", true);
-                        out.put("shortRegUsedShrtGrid", true);
-                        out.put("series", prefetchedShrt);
-                        putVsrtGrid(out, glat, glng);
-                        out.put(
-                                "message",
-                                "단기 예보구역(reg) 통보문은 받지 못했으나, 단기 격자(nph-dfs_shrt_grd)로 3시간 간격 예보를 표시합니다.");
-                        return cacheAndOk(cacheKey, out);
-                    }
-                    if (!prefetchedVsrt.isEmpty()) {
-                        out.put("configured", true);
-                        out.put("shortRegUsedGridFallback", true);
-                        out.put("vsrtHourly", prefetchedVsrt);
-                        putVsrtGrid(out, glat, glng);
-                        out.put(
-                                "message",
-                                "단기 예보구역(reg) 통보문은 허브에서 받지 못했지만, 초단기 격자 데이터로 시간대별 기온을 표시합니다. "
-                                        + "허브가 일부 reg 에 대해 「구역 목록」 텍스트만 주는 경우가 있으며, 승인과 무관할 수 있습니다.");
-                        return cacheAndOk(cacheKey, out);
-                    }
-                } catch (Exception e) {
-                    log.warn("단기 실패 후 격자 폴백 중 예외 — reg={} lat={} lng={}: {}", effectiveReg, lat, lng, e.getMessage());
-                }
-            }
-
             out.put("configured", false);
-            if (gridCoords != null) {
-                out.put("gridFallbackAttempted", true);
-                out.put("gridFallbackEmpty", true);
-            }
             String userMessage;
             if (att > 0 && att == cat) {
                 userMessage =
                         "기상청 API허브가 예보 JSON 대신 「예보구역 목록」(#로 시작하는 텍스트)만 반환했습니다. "
                                 + "API허브 마이페이지에서 「단기 개황·JSON(disp=1)」 등 실제 단기 예보 데이터 API 활용승인이 있는지 확인하세요. "
-                                + "「단기 예보구역 조회」만 승인된 경우 이 증상이 날 수 있습니다. 단기/초단기 격자 API는 별도 신청입니다.";
+                                + "「단기 예보구역 조회」만 승인된 경우 이 증상이 날 수 있습니다.";
             } else {
-                userMessage = shortRegFailureUserMessage(shortRegFetch, gridCoords != null);
+                userMessage = shortRegFailureUserMessage(shortRegFetch);
             }
             out.put("message", userMessage);
             return cacheAndOk(cacheKey, out);
@@ -349,57 +233,7 @@ public class WeatherController {
             out.put("payloadRaw", raw.length() > 8000 ? raw.substring(0, 8000) : raw);
         }
 
-        if (gridCoords != null) {
-            try {
-                List<Map<String, Object>> existing = castSeries(out.get("series"));
-                if (existing == null || existing.isEmpty()) {
-                    if (!prefetchedShrt.isEmpty()) {
-                        out.put("series", prefetchedShrt);
-                        out.put("shortRegSupplementedByShrtGrid", true);
-                        putVsrtGrid(out, gridCoords[0], gridCoords[1]);
-                    } else {
-                        List<Map<String, Object>> shrt =
-                                kmaShrtGrdSeriesService.fetchSeriesForLatLng(gridCoords[0], gridCoords[1], 6);
-                        if (!shrt.isEmpty()) {
-                            out.put("series", shrt);
-                            out.put("shortRegSupplementedByShrtGrid", true);
-                            putVsrtGrid(out, gridCoords[0], gridCoords[1]);
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                log.debug("단기 격자로 series 보강 생략: {}", e.getMessage());
-            }
-            if (Boolean.TRUE.equals(out.get("configured"))) {
-                if (!prefetchedVsrt.isEmpty() && !out.containsKey("vsrtHourly")) {
-                    out.put("vsrtHourly", prefetchedVsrt);
-                    if (!out.containsKey("vsrtGrid")) {
-                        putVsrtGrid(out, gridCoords[0], gridCoords[1]);
-                    }
-                } else {
-                    attachVsrtHourlyOptional(out, gridCoords[0], gridCoords[1], 6);
-                }
-            }
-        }
         return cacheAndOk(cacheKey, out);
-    }
-
-    private List<Map<String, Object>> prefetchShrtGridSeries(double glat, double glng) {
-        try {
-            return kmaShrtGrdSeriesService.fetchSeriesForLatLng(glat, glng, 6);
-        } catch (Exception e) {
-            log.debug("격자 단기 선행 호출 생략: {}", e.getMessage());
-            return List.of();
-        }
-    }
-
-    private List<Map<String, Object>> prefetchVsrtHourlySeries(double glat, double glng) {
-        try {
-            return kmaVsrtGrdHourlyService.fetchHourlyForLatLng(glat, glng, 6);
-        } catch (Exception e) {
-            log.debug("격자 초단기 선행 호출 생략: {}", e.getMessage());
-            return List.of();
-        }
     }
 
     private record ShortRegCacheEntry(long expiresAtMs, Map<String, Object> payload) {}
@@ -430,39 +264,27 @@ public class WeatherController {
         return NetplixApiResponse.ok(out);
     }
 
-    /**
-     * 단기(reg/개황) 본문 없음 + 격자 폴백 실패 시 사용자 안내 — 진단값(HTTP·예외)에 따라 구체화.
-     */
-    private static String shortRegFailureUserMessage(KmaShortRegFetchResult shortRegFetch, boolean gridFallbackAttempted) {
+    /** 단기(reg/개황) 본문 없음 시 사용자 안내 — 진단값(HTTP·예외)에 따라 구체화. */
+    private static String shortRegFailureUserMessage(KmaShortRegFetchResult shortRegFetch) {
         Integer http = shortRegFetch.lastHttpStatus();
         String ex = shortRelAccessSummary(shortRegFetch.lastExceptionSummary());
-        String core;
         if (http != null && (http == 401 || http == 403)) {
-            core =
-                    "기상청 API허브가 인증을 거부했습니다(HTTP "
-                            + http
-                            + "). apihub.kma.go.kr 에서 발급한 허브용 인증키(KMA_API_KEY)인지, "
-                            + "그리고 단기·개황(fct_afs_ds, fct_shrt_reg) API 활용이 승인됐는지 확인하세요. 공공데이터포털(data.go.kr) 키는 사용할 수 없습니다.";
-        } else if (http != null && http >= 500) {
-            core =
-                    "기상청 API허브에서 일시 오류(HTTP "
-                            + http
-                            + ")를 반환했습니다. 잠시 후 다시 시도해 주세요.";
-        } else if (ex != null && !ex.isBlank()) {
-            core =
-                    "기상청 API허브까지의 연결이 끊기거나 시간이 초과된 것으로 보입니다("
-                            + ex
-                            + "). 네트워크·Heroku 게이트웨이·허브 장애 가능성을 확인한 뒤 잠시 후 다시 시도해 주세요.";
-        } else {
-            core =
-                    "기상청 API허브에서 단기 예보 본문을 받지 못했습니다. 허브 전용 인증키·단기(개황/구역)·네트워크를 확인하세요.";
+            return "기상청 API허브가 인증을 거부했습니다(HTTP "
+                    + http
+                    + "). apihub.kma.go.kr 에서 발급한 허브용 인증키(KMA_API_KEY)인지, "
+                    + "그리고 단기·개황(fct_afs_ds, fct_shrt_reg) API 활용이 승인됐는지 확인하세요. 공공데이터포털(data.go.kr) 키는 사용할 수 없습니다.";
         }
-        if (gridFallbackAttempted) {
-            return core
-                    + " 격자 폴백(동네예보 단기 nph-dfs_shrt_grd, 초단기 odam/vsrt)도 데이터가 없었습니다. "
-                    + "API허브 마이페이지에서 해당 격자 API 활용 승인 여부와 일일 호출 한도를 함께 확인하세요.";
+        if (http != null && http >= 500) {
+            return "기상청 API허브에서 일시 오류(HTTP "
+                    + http
+                    + ")를 반환했습니다. 잠시 후 다시 시도해 주세요.";
         }
-        return core;
+        if (ex != null && !ex.isBlank()) {
+            return "기상청 API허브까지의 연결이 끊기거나 시간이 초과된 것으로 보입니다("
+                    + ex
+                    + "). 네트워크·Heroku 게이트웨이·허브 장애 가능성을 확인한 뒤 잠시 후 다시 시도해 주세요.";
+        }
+        return "기상청 API허브에서 단기 예보 본문을 받지 못했습니다. 허브 전용 인증키·단기(개황/구역)·네트워크를 확인하세요.";
     }
 
     private static String shortRelAccessSummary(String ex) {
@@ -479,48 +301,6 @@ public class WeatherController {
                 || u.contains("connect timed out")
                 || u.contains("read timed out")) {
             return ex.length() > 200 ? ex.substring(0, 200) + "…" : ex;
-        }
-        return null;
-    }
-
-    private static double[] resolveGridCoords(Double lat, Double lng, String effectiveReg, Map<String, Object> out) {
-        if (lat != null && lng != null) {
-            return new double[] {lat, lng};
-        }
-        var c = KmaRegCentroid.byReg(effectiveReg);
-        if (c.isEmpty()) {
-            return null;
-        }
-        out.put("gridCoordsFromRegPreset", true);
-        return new double[] {c.get().lat(), c.get().lng()};
-    }
-
-    private static void putVsrtGrid(Map<String, Object> out, double gridLat, double gridLng) {
-        int[] g = KmaLambertGridConverter.toGrid(gridLat, gridLng);
-        out.put("vsrtGrid", Map.of("nx", g[0], "ny", g[1]));
-    }
-
-    private void attachVsrtHourlyOptional(Map<String, Object> out, double gridLat, double gridLng, int lookahead) {
-        if (out.containsKey("vsrtHourly")) {
-            return;
-        }
-        try {
-            List<Map<String, Object>> vsrt = kmaVsrtGrdHourlyService.fetchHourlyForLatLng(gridLat, gridLng, lookahead);
-            if (!vsrt.isEmpty()) {
-                out.put("vsrtHourly", vsrt);
-                if (!out.containsKey("vsrtGrid")) {
-                    putVsrtGrid(out, gridLat, gridLng);
-                }
-            }
-        } catch (Exception e) {
-            log.debug("초단기 격자 vsrtHourly 생략: {}", e.getMessage());
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private static List<Map<String, Object>> castSeries(Object o) {
-        if (o instanceof List<?> list) {
-            return (List<Map<String, Object>>) list;
         }
         return null;
     }
