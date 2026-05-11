@@ -58,7 +58,10 @@ public class KmaShrtGrdSeriesService {
         int cap = Math.min(12, Math.max(4, maxSlots));
         Optional<String> tmfcOpt = resolveWorkingTmfc(nx, ny);
         if (tmfcOpt.isEmpty()) {
-            log.debug("dfs_shrt_grd: 유효 tmfc 없음 nx={} ny={}", nx, ny);
+            log.warn(
+                    "dfs_shrt_grd: 유효 tmfc 없음(모든 프로브 실패·upstream JSON·격자점 미포함 등) nx={} ny={} — 단기(reg) 실패 시 격자 폴백도 비게 됨",
+                    nx,
+                    ny);
             return List.of();
         }
         String tmfc = tmfcOpt.get();

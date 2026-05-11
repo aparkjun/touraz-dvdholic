@@ -166,7 +166,15 @@ public class KmaShortRegHttpClient {
                 }
             }
         }
-        log.warn("KMA fct_shrt_reg 유효 예보 본문 없음 reg={} tmfc후보={} 시도횟수={}", r, tries.size(), attempts);
+        log.warn(
+                "KMA fct_shrt_reg 유효 예보 본문 없음 reg={} tmfc후보={} 시도횟수={} catalogSkips={} lastHttp={} lastEx={} lastPreview={}",
+                r,
+                tries.size(),
+                attempts,
+                catalogSkips,
+                lastHttp,
+                lastEx != null ? (lastEx.length() > 160 ? lastEx.substring(0, 160) + "…" : lastEx) : null,
+                lastPreview != null ? KmaHubJson.previewSnippet(lastPreview) : null);
         return new KmaShortRegFetchResult(null, lastHttp, lastPreview, lastEx, attempts, catalogSkips);
     }
 

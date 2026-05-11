@@ -72,7 +72,11 @@ public class KmaVsrtGrdHourlyService {
         int cap = Math.min(12, Math.max(1, lookaheadHours));
         Optional<String> tmfcOpt = resolveWorkingTmfc(nx, ny, odamFallback);
         if (tmfcOpt.isEmpty()) {
-            log.debug("vsrt_grd: 유효 tmfc 없음 nx={} ny={} odamFallback={}", nx, ny, odamFallback);
+            log.warn(
+                    "vsrt_grd: 유효 tmfc 없음 nx={} ny={} odamFallback={} — 초단기 격자 폴백 시계열 없음",
+                    nx,
+                    ny,
+                    odamFallback);
             return List.of();
         }
         String tmfc = tmfcOpt.get();
