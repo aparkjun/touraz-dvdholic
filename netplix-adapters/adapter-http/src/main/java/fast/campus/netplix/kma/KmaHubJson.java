@@ -45,7 +45,7 @@ public final class KmaHubJson {
         return sb.toString();
     }
 
-    static String previewSnippet(String b) {
+    public static String previewSnippet(String b) {
         if (b == null || b.isEmpty()) {
             return "(empty)";
         }

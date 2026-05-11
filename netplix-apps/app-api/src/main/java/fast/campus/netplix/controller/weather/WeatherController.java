@@ -264,10 +264,10 @@ public class WeatherController {
         return NetplixApiResponse.ok(out);
     }
 
-    /** 단기(reg/개황) 본문 없음 시 사용자 안내 — 진단값(HTTP·예외)에 따라 구체화. */
+    /** 단기(reg/개황) 본문 없음 시 사용자 안내 — 진단값(HTTP·예외·본문 미리보기)에 따라 구체화. */
     private static String shortRegFailureUserMessage(KmaShortRegFetchResult shortRegFetch) {
         Integer http = shortRegFetch.lastHttpStatus();
-        String ex = shortRelAccessSummary(shortRegFetch.lastExceptionSummary());
+        String exNet = shortRelAccessSummary(shortRegFetch.lastExceptionSummary());
         if (http != null && (http == 401 || http == 403)) {
             return "기상청 API허브가 인증을 거부했습니다(HTTP "
                     + http
@@ -279,12 +279,42 @@ public class WeatherController {
                     + http
                     + ")를 반환했습니다. 잠시 후 다시 시도해 주세요.";
         }
-        if (ex != null && !ex.isBlank()) {
+        if (exNet != null && !exNet.isBlank()) {
             return "기상청 API허브까지의 연결이 끊기거나 시간이 초과된 것으로 보입니다("
-                    + ex
+                    + exNet
                     + "). 네트워크·Heroku 게이트웨이·허브 장애 가능성을 확인한 뒤 잠시 후 다시 시도해 주세요.";
         }
-        return "기상청 API허브에서 단기 예보 본문을 받지 못했습니다. 허브 전용 인증키·단기(개황/구역)·네트워크를 확인하세요.";
+        String preview = shortRegFetch.lastNonJsonBodyPreview();
+        if (preview != null && !preview.isBlank()) {
+            String snip = KmaHubJson.previewSnippet(preview);
+            if (snip.length() > 220) {
+                snip = snip.substring(0, 220) + "…";
+            }
+            return "기상청 API허브는 응답했으나 단기 예보 본문(JSON·afsDs 등)을 만들 수 없었습니다. "
+                    + "마지막 응답 일부: "
+                    + snip
+                    + " — API허브 마이페이지에서 동네예보 단기·단기예보구역(fct_afs_ds, fct_shrt_reg) 활용 승인과 일일 한도를 확인하세요. "
+                    + "공공데이터포털(data.go.kr) 키는 이 주소와 호환되지 않습니다. 응답 JSON의 shortRegDiagnostic 필드에 요약이 있습니다.";
+        }
+        String exAny = shortRegFetch.lastExceptionSummary();
+        if (exAny != null && !exAny.isBlank()) {
+            String brief = exAny.length() > 180 ? exAny.substring(0, 180) + "…" : exAny;
+            return "기상청 API허브 호출 중 예외가 있었습니다: "
+                    + brief
+                    + " — shortRegDiagnostic.error 를 확인하세요. 허브 전용 키·단기(개황/구역) 승인·네트워크를 점검하세요.";
+        }
+        int att = shortRegFetch.attempts();
+        int cat = shortRegFetch.catalogTextResponsesSkipped();
+        if (att > 0) {
+            return "기상청 API허브에서 총 "
+                    + att
+                    + "회 호출 후에도 단기 예보 본문을 확보하지 못했습니다(구역 목록형 응답 "
+                    + cat
+                    + "회). API허브(apihub.kma.go.kr) 인증키가 아닌 공공데이터포털(data.go.kr) 키를 쓰고 있지 않은지, "
+                    + "fct_afs_ds·fct_shrt_reg 활용 승인이 있는지 확인하세요. 상세는 응답 JSON의 shortRegDiagnostic 입니다.";
+        }
+        return "기상청 API허브에서 단기 예보 본문을 받지 못했습니다. Heroku의 KMA_API_KEY 가 apihub.kma.go.kr 용인지, "
+                + "단기(개황/구역) API 활용 승인·네트워크를 확인하세요. 공공데이터포털 키와는 별도입니다.";
     }
 
     private static String shortRelAccessSummary(String ex) {
@@ -299,7 +329,10 @@ public class WeatherController {
                 || u.contains("connection reset")
                 || u.contains("connection refused")
                 || u.contains("connect timed out")
-                || u.contains("read timed out")) {
+                || u.contains("read timed out")
+                || u.contains("ssl")
+                || u.contains("handshake")
+                || u.contains("unknownhost")) {
             return ex.length() > 200 ? ex.substring(0, 200) + "…" : ex;
         }
         return null;
