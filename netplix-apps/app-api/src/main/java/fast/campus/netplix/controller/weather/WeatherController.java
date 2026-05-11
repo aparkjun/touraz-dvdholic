@@ -286,11 +286,9 @@ public class WeatherController {
                     + ")를 반환했습니다. 잠시 후 다시 시도해 주세요.";
         }
         if (diagnosticIndicatesAfsDsShellNoForecast(shortRegFetch)) {
-            return "단기 개황(fct_afs_ds) 응답에 예보 본문을 담는 $0# 구간 없이 #START7777 형태의 껍데기만 포함되었습니다. "
-                    + "허브가 해당 관서·발표시각(tmfc)에 데이터를 주지 않았거나, 개황 텍스트 형식이 기대와 다를 때 흔합니다. "
-                    + "이어서 단기 구역(fct_shrt_reg)도 유효 본문을 주지 못해 실패한 상태입니다. "
-                    + "화면에 보이는 status 502 는 앱이 파싱 불가 응답을 JSON으로 정리한 것이며, 반드시 허브 HTTP 502 는 아닙니다. "
-                    + "API허브에서 fct_afs_ds·fct_shrt_reg 활용 승인, 선택한 예보구역(reg), 최근 발표 시각을 확인하세요.";
+            return "단기 개황(fct_afs_ds)에 $0# 본문 없이 껍데기(#START7777)만 왔고, 구역 단기(fct_shrt_reg)도 본문이 없었습니다. "
+                    + "표시된 status 502는 허브 HTTP가 아니라 앱이 파싱 불가 응답을 정리한 값입니다. "
+                    + "API허브에서 두 API 승인·reg·발표시각(tmfc)을 확인하세요. 상세는 shortRegDiagnostic 입니다.";
         }
         if (exNet != null && !exNet.isBlank()) {
             return "기상청 API허브까지의 연결이 끊기거나 시간이 초과된 것으로 보입니다("
