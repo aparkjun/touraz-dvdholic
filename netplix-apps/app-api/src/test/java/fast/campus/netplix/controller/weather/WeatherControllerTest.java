@@ -17,6 +17,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.hamcrest.Matchers.containsString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -63,6 +64,20 @@ class WeatherControllerTest {
                 .andExpect(jsonPath("$.data.reg").value("11B10101"))
                 .andExpect(jsonPath("$.data.series.length()").value(2))
                 .andExpect(jsonPath("$.data.series[0].TMP").exists());
+    }
+
+    @Test
+    void shortReg_explainsAfsDsShell_whenLastPreviewIsSynthetic502() throws Exception {
+        String preview =
+                "{\"result\":{\"status\":502,\"message\":\"fct_afs_ds: #START7777 #7777END\"}}";
+        when(kmaShortRegHttpClient.fetchWithDiagnostics(eq("11B10101"), any()))
+                .thenReturn(new KmaShortRegFetchResult(null, null, preview, null, 4, 2));
+
+        mockMvc.perform(get("/api/v1/weather/short-reg"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.configured").value(false))
+                .andExpect(jsonPath("$.data.shortRegDiagnostic.afsDsResponsePattern").value("shell_no_dollar0_forecast"))
+                .andExpect(jsonPath("$.data.message", containsString("파싱 불가")));
     }
 
     @Test

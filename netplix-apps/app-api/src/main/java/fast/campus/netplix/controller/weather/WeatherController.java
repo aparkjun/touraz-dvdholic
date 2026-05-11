@@ -173,6 +173,12 @@ public class WeatherController {
             if (shortRegFetch.lastExceptionSummary() != null && !shortRegFetch.lastExceptionSummary().isBlank()) {
                 diag.put("error", shortRegFetch.lastExceptionSummary());
             }
+            if (diagnosticIndicatesAfsDsShellNoForecast(shortRegFetch)) {
+                diag.put("afsDsResponsePattern", "shell_no_dollar0_forecast");
+                if (!diag.containsKey("likelyCause")) {
+                    diag.put("likelyCause", "fct_afs_ds_shell_then_shrt_reg_no_body");
+                }
+            }
             out.put("shortRegDiagnostic", diag);
 
             out.put("configured", false);
@@ -279,6 +285,13 @@ public class WeatherController {
                     + http
                     + ")를 반환했습니다. 잠시 후 다시 시도해 주세요.";
         }
+        if (diagnosticIndicatesAfsDsShellNoForecast(shortRegFetch)) {
+            return "단기 개황(fct_afs_ds) 응답에 예보 본문을 담는 $0# 구간 없이 #START7777 형태의 껍데기만 포함되었습니다. "
+                    + "허브가 해당 관서·발표시각(tmfc)에 데이터를 주지 않았거나, 개황 텍스트 형식이 기대와 다를 때 흔합니다. "
+                    + "이어서 단기 구역(fct_shrt_reg)도 유효 본문을 주지 못해 실패한 상태입니다. "
+                    + "화면에 보이는 status 502 는 앱이 파싱 불가 응답을 JSON으로 정리한 것이며, 반드시 허브 HTTP 502 는 아닙니다. "
+                    + "API허브에서 fct_afs_ds·fct_shrt_reg 활용 승인, 선택한 예보구역(reg), 최근 발표 시각을 확인하세요.";
+        }
         if (exNet != null && !exNet.isBlank()) {
             return "기상청 API허브까지의 연결이 끊기거나 시간이 초과된 것으로 보입니다("
                     + exNet
@@ -315,6 +328,17 @@ public class WeatherController {
         }
         return "기상청 API허브에서 단기 예보 본문을 받지 못했습니다. Heroku의 KMA_API_KEY 가 apihub.kma.go.kr 용인지, "
                 + "단기(개황/구역) API 활용 승인·네트워크를 확인하세요. 공공데이터포털 키와는 별도입니다.";
+    }
+
+    /**
+     * 허브 fct_afs_ds 가 $0# 통보문 없이 #START7777 껍데기만 온 뒤, 클라이언트가 합성한
+     * {@code {"result":{"status":502,"message":"fct_afs_ds: #START7777…"}}} 형태가 마지막 미리보기에 남은 경우.
+     */
+    private static boolean diagnosticIndicatesAfsDsShellNoForecast(KmaShortRegFetchResult f) {
+        String p = f.lastNonJsonBodyPreview();
+        String e = f.lastExceptionSummary();
+        String s = ((p != null ? p : "") + "\n" + (e != null ? e : "")).toLowerCase();
+        return s.contains("fct_afs_ds") && s.contains("start7777");
     }
 
     private static String shortRelAccessSummary(String ex) {
