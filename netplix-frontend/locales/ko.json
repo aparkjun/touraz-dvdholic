@@ -454,6 +454,7 @@
     "travelModeOn": "여행 모드 ON",
     "travelMode": "여행 모드",
     "travelModeTooltip": "한국관광공사 지역 지표를 AI 추천 컨텍스트로 주입",
+    "travelModeDesc": "여행 모드를 켜 보세요.(예: 제주 여행 중 비 오는 날에 볼 감성 영화, 주말 부산에서 가족과 볼 가벼운 코미디)",
     "totalCount": "총 {{count}}편"
   },
   "crowdRadarPage": {

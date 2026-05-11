@@ -1291,33 +1291,50 @@ function DashboardContent() {
             >
               {t("dashboard.aiRecommendDesc")}
             </p>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "8px" }}>
-              <button
-                type="button"
-                onClick={() => setPromptTravelMode((v) => !v)}
-                title={t('dashboardPage.travelModeTooltip', '한국관광공사 지역 지표를 AI 추천 컨텍스트로 주입')}
+            <div style={{ marginBottom: "8px" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => setPromptTravelMode((v) => !v)}
+                  title={t('dashboardPage.travelModeTooltip', '한국관광공사 지역 지표를 AI 추천 컨텍스트로 주입')}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "6px 12px",
+                    borderRadius: "999px",
+                    border: promptTravelMode
+                      ? "1px solid rgba(139, 92, 246, 0.6)"
+                      : "1px solid rgba(255,255,255,0.12)",
+                    background: promptTravelMode
+                      ? "linear-gradient(135deg, rgba(59,130,246,0.25), rgba(139,92,246,0.25), rgba(236,72,153,0.25))"
+                      : "rgba(255,255,255,0.04)",
+                    color: promptTravelMode ? "#fff" : "rgba(255,255,255,0.65)",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  <span style={{ fontSize: "13px" }}>{promptTravelMode ? "🌏" : "🧭"}</span>
+                  {promptTravelMode ? t('dashboardPage.travelModeOn', '여행 모드 ON') : t('dashboardPage.travelMode', '여행 모드')}
+                </button>
+              </div>
+              <p
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "6px 12px",
-                  borderRadius: "999px",
-                  border: promptTravelMode
-                    ? "1px solid rgba(139, 92, 246, 0.6)"
-                    : "1px solid rgba(255,255,255,0.12)",
-                  background: promptTravelMode
-                    ? "linear-gradient(135deg, rgba(59,130,246,0.25), rgba(139,92,246,0.25), rgba(236,72,153,0.25))"
-                    : "rgba(255,255,255,0.04)",
-                  color: promptTravelMode ? "#fff" : "rgba(255,255,255,0.65)",
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  transition: "all 0.2s ease",
+                  margin: "8px 0 0",
+                  color: "rgba(226, 232, 240, 0.96)",
+                  fontSize: "13px",
+                  fontWeight: 500,
+                  lineHeight: 1.5,
+                  textShadow: "0 1px 2px rgba(0,0,0,0.35)",
                 }}
               >
-                <span style={{ fontSize: "13px" }}>{promptTravelMode ? "🌏" : "🧭"}</span>
-                {promptTravelMode ? t('dashboardPage.travelModeOn', '여행 모드 ON') : t('dashboardPage.travelMode', '여행 모드')}
-              </button>
+                {t(
+                  'dashboardPage.travelModeDesc',
+                  '여행 모드를 켜 보세요.(예: 제주 여행 중 비 오는 날에 볼 감성 영화, 주말 부산에서 가족과 볼 가벼운 코미디)'
+                )}
+              </p>
             </div>
             <div
               style={{

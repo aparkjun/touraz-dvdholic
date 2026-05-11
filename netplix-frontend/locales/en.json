@@ -454,6 +454,7 @@
     "travelModeOn": "Travel Mode ON",
     "travelMode": "Travel Mode",
     "travelModeTooltip": "Injects KTO regional metrics into AI recommendation context",
+    "travelModeDesc": "Try Travel Mode. (e.g., a moody film for a rainy day while traveling in Jeju, a light family comedy in Busan on a weekend)",
     "totalCount": "Total {{count}}"
   },
   "crowdRadarPage": {
