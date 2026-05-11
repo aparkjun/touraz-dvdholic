@@ -1,5 +1,6 @@
 package fast.campus.netplix.kma;
 
+import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -11,6 +12,7 @@ public final class KmaAfsDsTimeWindow {
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
     private static final DateTimeFormatter F10 = DateTimeFormatter.ofPattern("yyyyMMddHH");
+    private static final DateTimeFormatter F12 = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
 
     private KmaAfsDsTimeWindow() {}
 
@@ -42,5 +44,24 @@ public final class KmaAfsDsTimeWindow {
     private static String[] defaultWindow() {
         ZonedDateTime l = ZonedDateTime.now(KST).withMinute(0).withSecond(0).withNano(0);
         return new String[] {l.format(F10), l.plusHours(12).format(F10)};
+    }
+
+    /**
+     * 발표시각(12자리 권장)을 KST 기준으로 시간만큼 이동한 {@code yyyyMMddHHmm}.
+     *
+     * @return 정규화된 12자리 또는 파싱 불가 시 null
+     */
+    public static String shiftTmfc12(String tmfc12OrDigits, int hoursDelta) {
+        String n = KmaShortRegIssuanceTime.normalizeTmfc(tmfc12OrDigits);
+        if (n == null || n.length() < 12) {
+            return null;
+        }
+        n = n.substring(0, 12);
+        try {
+            LocalDateTime l = LocalDateTime.parse(n, F12);
+            return l.plusHours(hoursDelta).atZone(KST).format(F12);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

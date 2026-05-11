@@ -12,6 +12,8 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 /**
@@ -22,8 +24,8 @@ import java.util.List;
 @Component
 public class KmaShortRegHttpClient {
 
-    /** 자동 tmfc 후보가 많으면 끝까지 시도 시 Heroku 30초 한도에 걸린다 — 최신 N회만 시도 (HH00+HH10 확장 반영) */
-    private static final int MAX_AUTO_TMFC_CANDIDATES = 12;
+    /** 자동 tmfc 후보가 많으면 끝까지 시도 시 Heroku 30초 한도에 걸린다 — 최신 N회만 시도 (HH00+HH10·정각 중복 확장 반영) */
+    private static final int MAX_AUTO_TMFC_CANDIDATES = 20;
 
     @Value("${kma.api.fct-afs-ds:}")
     private String fctAfsDsUrl;
@@ -89,6 +91,9 @@ public class KmaShortRegHttpClient {
         if (tries.isEmpty()) {
             tries.add(KmaShortRegIssuanceTime.conservativeFallbackTmfc());
         }
+        if (autoTmfc) {
+            tries = expandTmfcCandidatesWithHourFloor(tries);
+        }
         if (autoTmfc && tries.size() > MAX_AUTO_TMFC_CANDIDATES) {
             tries = new ArrayList<>(tries.subList(0, MAX_AUTO_TMFC_CANDIDATES));
         }
@@ -99,9 +104,10 @@ public class KmaShortRegHttpClient {
         String lastEx = null;
         for (String tmfc : tries) {
             boolean useAfs = fctAfsDsUrl != null && !fctAfsDsUrl.isBlank();
-            OnceFetch afs = useAfs ? fetchAfsDsOnce(r, tmfc) : null;
+            AfsBundle afsB = useAfs ? fetchAfsDsStrategies(r, tmfc) : null;
+            OnceFetch afs = afsB != null ? afsB.fetch() : null;
             if (useAfs) {
-                attempts++;
+                attempts += afsB != null ? afsB.rounds() : 0;
             }
 
             if (useAfs && afs != null) {
@@ -181,6 +187,29 @@ public class KmaShortRegHttpClient {
     private record OnceFetch(
             String body, Integer httpStatus, String nonJsonPreview, String exceptionSummary, boolean catalogLike) {}
 
+    /** fct_afs_ds 다중 전략(disp=1 JSON → disp=0 텍스트·-3h 백오프) 결과 + HTTP 라운드 수 */
+    private record AfsBundle(OnceFetch fetch, int rounds) {}
+
+    private static List<String> expandTmfcCandidatesWithHourFloor(List<String> tries) {
+        LinkedHashSet<String> s = new LinkedHashSet<>();
+        for (String t : tries) {
+            if (t == null || t.isBlank()) {
+                continue;
+            }
+            s.add(t.trim());
+            String n = KmaShortRegIssuanceTime.normalizeTmfc(t);
+            if (n != null && n.length() >= 12) {
+                String floored = n.substring(0, 10) + "00";
+                if (!floored.equals(n.substring(0, 12))) {
+                    s.add(floored);
+                }
+            }
+        }
+        List<String> out = new ArrayList<>(s);
+        out.sort(Comparator.reverseOrder());
+        return out;
+    }
+
     private static boolean isTextCatalogResponse(String body) {
         if (body == null || body.isBlank()) {
             return false;
@@ -202,30 +231,87 @@ public class KmaShortRegHttpClient {
         return t.startsWith("#");
     }
 
-    /** 단기 개황 — 텍스트 응답을 표준 JSON(afsDs)으로 변환해 프록시가 동일하게 처리. */
-    private OnceFetch fetchAfsDsOnce(String reg, String tmfc12) {
+    /**
+     * 단기 개황(fct_afs_ds): 허브가 텍스트에 {@code $0#} 없이 껍데기만 줄 때가 있어
+     * {@code disp=1}(JSON) 우선 → {@code disp=0} 본 창 → 동일 관서로 발표시각 -3h 재시도.
+     */
+    private AfsBundle fetchAfsDsStrategies(String reg, String tmfc12) {
+        if (fctAfsDsUrl == null || fctAfsDsUrl.isBlank()) {
+            return new AfsBundle(null, 0);
+        }
         int stn = KmaRegToAfsDsStn.stnForReg(reg, defaultAfsStn);
+        int rounds = 0;
+        OnceFetch last = null;
+
+        OnceFetch disp1 = afsDsHttp(reg, stn, tmfc12, 1);
+        rounds++;
+        last = disp1;
+        if (disp1.body() != null && KmaHubJson.isHubSuccessEnvelope(disp1.body())) {
+            return new AfsBundle(disp1, rounds);
+        }
+
+        String tPrimary = KmaShortRegIssuanceTime.normalizeTmfc(tmfc12);
+        if (tPrimary == null) {
+            return new AfsBundle(last, rounds);
+        }
+        List<String> textTmfcTries = new ArrayList<>();
+        textTmfcTries.add(tPrimary);
+        String tMinus3 = KmaAfsDsTimeWindow.shiftTmfc12(tPrimary, -3);
+        if (tMinus3 != null && !tMinus3.equals(tPrimary)) {
+            textTmfcTries.add(tMinus3);
+        }
+        for (String t12 : textTmfcTries) {
+            OnceFetch z = afsDsHttp(reg, stn, t12, 0);
+            rounds++;
+            last = z;
+            if (z.body() != null && KmaHubJson.isHubSuccessEnvelope(z.body())) {
+                return new AfsBundle(z, rounds);
+            }
+            if (z.body() != null && !KmaHubJson.looksLikeJson(z.body()) && z.body().contains("$0#")) {
+                String[] win = KmaAfsDsTimeWindow.tmfc1Tmfc2(t12);
+                String json = KmaAfsDsParser.toForecastJson(z.body(), stn, win[0], win[1]);
+                if (json != null) {
+                    return new AfsBundle(new OnceFetch(json, null, null, null, false), rounds);
+                }
+            }
+            if (z.body() != null && KmaHubJson.looksLikeJson(z.body()) && !KmaHubJson.isHubJsonOnlyErrorEnvelope(z.body())) {
+                return new AfsBundle(z, rounds);
+            }
+        }
+        return new AfsBundle(last, rounds);
+    }
+
+    private OnceFetch afsDsHttp(String reg, int stn, String tmfc12, int disp) {
         String[] win = KmaAfsDsTimeWindow.tmfc1Tmfc2(tmfc12);
         try {
-            URI uri = UriComponentsBuilder.fromHttpUrl(fctAfsDsUrl)
+            URI uri = UriComponentsBuilder.fromHttpUrl(fctAfsDsUrl.trim())
                     .queryParam("stn", stn)
                     .queryParam("tmfc1", win[0])
                     .queryParam("tmfc2", win[1])
-                    .queryParam("disp", 0)
+                    .queryParam("disp", disp)
                     .queryParam("authKey", hubAuthKey())
                     .build(true)
                     .toUri();
             RestClient rc = restClient();
             String body = KmaHubJson.getWithRetry(rc, uri);
             log.debug(
-                    "KMA fct_afs_ds ok reg={} stn={} tmfc1={} tmfc2={} len={}",
+                    "KMA fct_afs_ds reg={} stn={} disp={} tmfc1={} tmfc2={} len={}",
                     reg,
                     stn,
+                    disp,
                     win[0],
                     win[1],
                     body != null ? body.length() : 0);
             if (body == null || body.isBlank()) {
                 return new OnceFetch(null, 200, "(empty body)", null, false);
+            }
+            if (disp == 1) {
+                if (KmaHubJson.looksLikeJson(body)) {
+                    return new OnceFetch(body, null, null, null, false);
+                }
+                String syn =
+                        KmaHubJson.syntheticResult(502, "fct_afs_ds disp=1 Non-JSON: " + KmaHubJson.previewSnippet(body));
+                return new OnceFetch(syn, null, null, null, false);
             }
             if (KmaHubJson.looksLikeJson(body)) {
                 return new OnceFetch(body, null, null, null, false);
@@ -255,22 +341,23 @@ public class KmaShortRegHttpClient {
             }
             String preview = KmaHubJson.previewSnippet(b);
             log.warn(
-                    "KMA fct_afs_ds HTTP {} reg={} stn={} bodyPreview={}",
+                    "KMA fct_afs_ds HTTP {} reg={} stn={} disp={} bodyPreview={}",
                     e.getStatusCode().value(),
                     reg,
                     stn,
+                    disp,
                     preview);
             String syn = KmaHubJson.syntheticResult(e.getStatusCode().value(), preview);
             return new OnceFetch(syn, null, null, null, false);
         } catch (ResourceAccessException e) {
-            log.warn("KMA fct_afs_ds 네트워크/타임아웃 reg={}: {}", reg, e.getMessage());
+            log.warn("KMA fct_afs_ds 네트워크/타임아웃 reg={} disp={}: {}", reg, disp, e.getMessage());
             String msg = e.getMessage() != null ? e.getMessage() : e.toString();
             if (msg.length() > 240) {
                 msg = msg.substring(0, 240) + "…";
             }
             return new OnceFetch(null, null, null, e.getClass().getSimpleName() + ": " + msg, false);
         } catch (Exception e) {
-            log.warn("KMA fct_afs_ds 실패 reg={}: {}", reg, e.getMessage());
+            log.warn("KMA fct_afs_ds 실패 reg={} disp={}: {}", reg, disp, e.getMessage());
             String msg = e.getMessage() != null ? e.getMessage() : e.toString();
             if (msg.length() > 240) {
                 msg = msg.substring(0, 240) + "…";
