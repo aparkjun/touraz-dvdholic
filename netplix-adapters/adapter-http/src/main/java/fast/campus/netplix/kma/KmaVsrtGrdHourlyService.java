@@ -69,21 +69,34 @@ public class KmaVsrtGrdHourlyService {
 
     private List<Map<String, Object>> fetchHourlyForGridInternal(
             int nx, int ny, int lookaheadHours, boolean odamFallback) {
+        long series0 = System.nanoTime();
         int cap = Math.min(12, Math.max(1, lookaheadHours));
         Optional<String> tmfcOpt = resolveWorkingTmfc(nx, ny, odamFallback);
         if (tmfcOpt.isEmpty()) {
+            long wallMs = (System.nanoTime() - series0) / 1_000_000L;
             log.warn(
-                    "vsrt_grd: 유효 tmfc 없음 nx={} ny={} odamFallback={} — 초단기 격자 폴백 시계열 없음",
+                    "vsrt_grd: 유효 tmfc 없음 nx={} ny={} odamFallback={} wallMs={}ms — 초단기 격자 폴백 시계열 없음",
                     nx,
                     ny,
-                    odamFallback);
+                    odamFallback,
+                    wallMs);
             return List.of();
         }
         String tmfc = tmfcOpt.get();
         ZonedDateTime now = ZonedDateTime.now(KST);
 
         if (client.isOdamEffective(odamFallback)) {
-            return buildRowsFromOdamGrid(tmfc, nx, ny, cap, now, odamFallback);
+            List<Map<String, Object>> odamRows = buildRowsFromOdamGrid(tmfc, nx, ny, cap, now, odamFallback);
+            long wallMs = (System.nanoTime() - series0) / 1_000_000L;
+            log.info(
+                    "KMA vsrt_grd_series(odam) nx={} ny={} wallMs={}ms tmfc={} hours={} rows={}",
+                    nx,
+                    ny,
+                    wallMs,
+                    tmfc,
+                    cap,
+                    odamRows.size());
+            return odamRows;
         }
 
         List<CompletableFuture<Map<String, Object>>> hourFutures = new ArrayList<>();
@@ -101,6 +114,16 @@ public class KmaVsrtGrdHourlyService {
                 rows.add(row);
             }
         }
+        long wallMs = (System.nanoTime() - series0) / 1_000_000L;
+        log.info(
+                "KMA vsrt_grd_series nx={} ny={} wallMs={}ms tmfc={} hours={} rows={} odamFallback={}",
+                nx,
+                ny,
+                wallMs,
+                tmfc,
+                cap,
+                rows.size(),
+                odamFallback);
         return rows;
     }
 

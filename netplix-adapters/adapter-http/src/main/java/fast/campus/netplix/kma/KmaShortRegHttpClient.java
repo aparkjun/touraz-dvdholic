@@ -69,8 +69,31 @@ public class KmaShortRegHttpClient {
 
     /**
      * {@link #fetchRaw} 와 동일 호출이나, 실패 시 HTTP·본문 미리보기·예외 요약을 함께 돌려 추적에 쓴다.
+     * Heroku 로그에서 전체 벽시계·성공 여부를 보기 위해 요청당 한 줄 INFO 를 남긴다.
      */
     public KmaShortRegFetchResult fetchWithDiagnostics(String reg, String tmfcOverride) {
+        long wall0 = System.nanoTime();
+        KmaShortRegFetchResult res = fetchWithDiagnosticsCore(reg, tmfcOverride);
+        long wallMs = (System.nanoTime() - wall0) / 1_000_000L;
+        String rLog = (reg != null && !reg.isBlank()) ? reg.trim() : defaultReg;
+        boolean success = res.raw() != null && !res.raw().isBlank();
+        String exShort = res.lastExceptionSummary();
+        if (exShort != null && exShort.length() > 120) {
+            exShort = exShort.substring(0, 120) + "…";
+        }
+        log.info(
+                "KMA short_reg_chain reg={} wallMs={} success={} attempts={} catalogSkips={} lastHttp={} lastEx={}",
+                rLog,
+                wallMs,
+                success,
+                res.attempts(),
+                res.catalogTextResponsesSkipped(),
+                res.lastHttpStatus(),
+                exShort);
+        return res;
+    }
+
+    private KmaShortRegFetchResult fetchWithDiagnosticsCore(String reg, String tmfcOverride) {
         if (hubAuthKey().isEmpty()) {
             log.warn("KMA_API_KEY 미설정 — 단기예보 프록시 비활성");
             return new KmaShortRegFetchResult(null, null, null, "api_key_not_configured", 0, 0);
@@ -307,15 +330,38 @@ public class KmaShortRegHttpClient {
                     .build(true)
                     .toUri();
             RestClient rc = restClient();
-            String body = KmaHubJson.getWithRetry(rc, uri);
-            log.debug(
-                    "KMA fct_afs_ds reg={} stn={} disp={} tmfc1={} tmfc2={} len={}",
-                    reg,
-                    stn,
-                    disp,
-                    win[0],
-                    win[1],
-                    body != null ? body.length() : 0);
+            String body = null;
+            long hubMs = 0;
+            {
+                long hub0 = System.nanoTime();
+                try {
+                    body = KmaHubJson.getWithRetry(rc, uri);
+                } finally {
+                    hubMs = (System.nanoTime() - hub0) / 1_000_000L;
+                    int len = body != null ? body.length() : -1;
+                    if (hubMs >= 2_000) {
+                        log.warn(
+                                "KMA fct_afs_ds 허브 지연 hubLatencyMs={} reg={} stn={} disp={} tmfc1={} tmfc2={} len={}",
+                                hubMs,
+                                reg,
+                                stn,
+                                disp,
+                                win[0],
+                                win[1],
+                                len);
+                    } else {
+                        log.debug(
+                                "KMA fct_afs_ds hubLatencyMs={} reg={} stn={} disp={} tmfc1={} tmfc2={} len={}",
+                                hubMs,
+                                reg,
+                                stn,
+                                disp,
+                                win[0],
+                                win[1],
+                                len);
+                    }
+                }
+            }
             if (body == null || body.isBlank()) {
                 return new OnceFetch(null, 200, "(empty body)", null, false);
             }
@@ -392,8 +438,34 @@ public class KmaShortRegHttpClient {
             }
             URI uri = ub.build(true).toUri();
             RestClient rc = restClient();
-            String body = KmaHubJson.getWithRetry(rc, uri);
-            log.debug("KMA fct_shrt_reg ok reg={} tmfc={} disp1={} len={}", reg, tmfc, jsonDisp, body != null ? body.length() : 0);
+            String body = null;
+            long hubMs = 0;
+            {
+                long hub0 = System.nanoTime();
+                try {
+                    body = KmaHubJson.getWithRetry(rc, uri);
+                } finally {
+                    hubMs = (System.nanoTime() - hub0) / 1_000_000L;
+                    int len = body != null ? body.length() : -1;
+                    if (hubMs >= 2_000) {
+                        log.warn(
+                                "KMA fct_shrt_reg 허브 지연 hubLatencyMs={} reg={} tmfc={} disp1={} len={}",
+                                hubMs,
+                                reg,
+                                tmfc,
+                                jsonDisp,
+                                len);
+                    } else {
+                        log.debug(
+                                "KMA fct_shrt_reg hubLatencyMs={} reg={} tmfc={} disp1={} len={}",
+                                hubMs,
+                                reg,
+                                tmfc,
+                                jsonDisp,
+                                len);
+                    }
+                }
+            }
             if (body == null || body.isBlank()) {
                 return new OnceFetch(null, 200, "(empty body)", null, false);
             }

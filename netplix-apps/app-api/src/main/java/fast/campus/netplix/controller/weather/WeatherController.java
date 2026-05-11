@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 기상청 단기예보(API허브) 프록시 — 클라이언트에 authKey 노출 방지.
@@ -171,20 +172,65 @@ public class WeatherController {
         final String regForKma = effectiveReg;
         final String tmfcForKma = tmfc;
         final double[] gridCoords = resolveGridCoords(lat, lng, effectiveReg, out);
+        final long parallelWall0 = System.nanoTime();
+        AtomicLong shortBranchMs = new AtomicLong(-1);
+        AtomicLong shrtPrefetchMs = new AtomicLong(0);
+        AtomicLong vsrtPrefetchMs = new AtomicLong(0);
         CompletableFuture<KmaShortRegFetchResult> shortFut =
                 CompletableFuture.supplyAsync(
-                        () -> kmaShortRegHttpClient.fetchWithDiagnostics(regForKma, tmfcForKma), kmaGridExecutor);
+                        () -> {
+                            long b0 = System.nanoTime();
+                            try {
+                                return kmaShortRegHttpClient.fetchWithDiagnostics(regForKma, tmfcForKma);
+                            } finally {
+                                shortBranchMs.set((System.nanoTime() - b0) / 1_000_000L);
+                            }
+                        },
+                        kmaGridExecutor);
         CompletableFuture<List<Map<String, Object>>> shrtPrefetchFut =
                 gridCoords != null
                         ? CompletableFuture.supplyAsync(
-                                () -> prefetchShrtGridSeries(gridCoords[0], gridCoords[1]), kmaGridExecutor)
+                                () -> {
+                                    long b0 = System.nanoTime();
+                                    try {
+                                        return prefetchShrtGridSeries(gridCoords[0], gridCoords[1]);
+                                    } finally {
+                                        shrtPrefetchMs.set((System.nanoTime() - b0) / 1_000_000L);
+                                    }
+                                },
+                                kmaGridExecutor)
                         : CompletableFuture.completedFuture(List.of());
         CompletableFuture<List<Map<String, Object>>> vsrtPrefetchFut =
                 gridCoords != null
                         ? CompletableFuture.supplyAsync(
-                                () -> prefetchVsrtHourlySeries(gridCoords[0], gridCoords[1]), kmaGridExecutor)
+                                () -> {
+                                    long b0 = System.nanoTime();
+                                    try {
+                                        return prefetchVsrtHourlySeries(gridCoords[0], gridCoords[1]);
+                                    } finally {
+                                        vsrtPrefetchMs.set((System.nanoTime() - b0) / 1_000_000L);
+                                    }
+                                },
+                                kmaGridExecutor)
                         : CompletableFuture.completedFuture(List.of());
         CompletableFuture.allOf(shortFut, shrtPrefetchFut, vsrtPrefetchFut).join();
+        long parallelJoinWallMs = (System.nanoTime() - parallelWall0) / 1_000_000L;
+        String gridTag =
+                gridCoords == null
+                        ? "-"
+                        : String.format(
+                                Locale.US,
+                                "%.4f,%.4f",
+                                gridCoords[0],
+                                gridCoords[1]);
+        log.info(
+                "KMA weather_short_reg_parallel reg={} gridLatLng={} shortRegBranchMs={} dfsShrtPrefetchMs={} vsrtPrefetchMs={} parallelJoinWallMs={}",
+                effectiveReg,
+                gridTag,
+                shortBranchMs.get(),
+                shrtPrefetchMs.get(),
+                vsrtPrefetchMs.get(),
+                parallelJoinWallMs);
 
         KmaShortRegFetchResult shortRegFetch = shortFut.join();
         List<Map<String, Object>> prefetchedShrt = shrtPrefetchFut.join();

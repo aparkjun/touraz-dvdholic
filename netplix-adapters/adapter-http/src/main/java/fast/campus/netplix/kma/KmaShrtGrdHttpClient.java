@@ -70,14 +70,42 @@ public class KmaShrtGrdHttpClient {
                     .build(true)
                     .toUri();
             RestClient rc = restClient();
-            String body = KmaHubJson.getWithRetry(rc, uri);
+            String body = null;
+            long hubMs = 0;
+            {
+                long hub0 = System.nanoTime();
+                try {
+                    body = KmaHubJson.getWithRetry(rc, uri);
+                } finally {
+                    hubMs = (System.nanoTime() - hub0) / 1_000_000L;
+                    int len = body != null ? body.length() : -1;
+                    if (hubMs >= 2_000) {
+                        log.warn(
+                                "KMA dfs_shrt_grd 허브 지연 hubLatencyMs={} tmfc={} tmef={} nx={} ny={} len={}",
+                                hubMs,
+                                tmfc,
+                                tmef,
+                                nx,
+                                ny,
+                                len);
+                    } else {
+                        log.debug(
+                                "KMA dfs_shrt_grd hubLatencyMs={} tmfc={} tmef={} nx={} ny={} len={}",
+                                hubMs,
+                                tmfc,
+                                tmef,
+                                nx,
+                                ny,
+                                len);
+                    }
+                }
+            }
             if (body == null || body.isBlank()) {
                 return KmaHubJson.syntheticResult(502, "(empty body)");
             }
             if (!KmaHubJson.looksLikeJson(body)) {
                 return KmaHubJson.syntheticResult(502, "Non-JSON: " + KmaHubJson.previewSnippet(body));
             }
-            log.debug("KMA dfs_shrt_grd ok tmfc={} tmef={} nx={} ny={} len={}", tmfc, tmef, nx, ny, body.length());
             return body;
         } catch (RestClientResponseException e) {
             String b = null;

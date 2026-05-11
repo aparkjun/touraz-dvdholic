@@ -52,16 +52,19 @@ public class KmaShrtGrdSeriesService {
     }
 
     public List<Map<String, Object>> fetchSeriesForGrid(int nx, int ny, int maxSlots) {
+        long series0 = System.nanoTime();
         if (!client.isConfigured()) {
             return List.of();
         }
         int cap = Math.min(12, Math.max(4, maxSlots));
         Optional<String> tmfcOpt = resolveWorkingTmfc(nx, ny);
         if (tmfcOpt.isEmpty()) {
+            long wallMs = (System.nanoTime() - series0) / 1_000_000L;
             log.warn(
-                    "dfs_shrt_grd: 유효 tmfc 없음(모든 프로브 실패·upstream JSON·격자점 미포함 등) nx={} ny={} — 단기(reg) 실패 시 격자 폴백도 비게 됨",
+                    "dfs_shrt_grd: 유효 tmfc 없음(모든 프로브 실패·upstream JSON·격자점 미포함 등) nx={} ny={} wallMs={}ms — 단기(reg) 실패 시 격자 폴백도 비게 됨",
                     nx,
-                    ny);
+                    ny,
+                    wallMs);
             return List.of();
         }
         String tmfc = tmfcOpt.get();
@@ -81,6 +84,15 @@ public class KmaShrtGrdSeriesService {
                 rows.add(row);
             }
         }
+        long wallMs = (System.nanoTime() - series0) / 1_000_000L;
+        log.info(
+                "KMA dfs_shrt_grd_series nx={} ny={} wallMs={}ms tmfc={} slots={} rows={}",
+                nx,
+                ny,
+                wallMs,
+                tmfc,
+                cap,
+                rows.size());
         return rows;
     }
 
