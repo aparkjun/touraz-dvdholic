@@ -20,6 +20,43 @@ public final class KmaAfsDsParser {
     private KmaAfsDsParser() {}
 
     /**
+     * 일부 허브 응답은 {@code $0#} 블록 없이 {@code #START7777}…{@code #7777END} 껍데기 안에만
+     * 개황 문장을 넣는다. 그 경우에도 앱이 개황을 쓸 수 있도록 최소 {@code afsDs} JSON 을 만든다.
+     *
+     * @return JSON; 추출할 본문이 없으면 null
+     */
+    public static String tryBuildJsonFromShellEnvelope(String rawText, int stn, String tmfc1, String tmfc2) {
+        if (rawText == null || rawText.isBlank() || rawText.contains("$0#")) {
+            return null;
+        }
+        String norm = rawText.replace("\r\n", "\n").replace('\r', '\n');
+        int s = norm.indexOf("#START7777");
+        int endMark = norm.indexOf("#7777END");
+        if (s < 0 || endMark <= s) {
+            return null;
+        }
+        String mid = norm.substring(s + "#START7777".length(), endMark).strip();
+        mid = mid.replaceFirst("(?m)^\\s*단기예보\\s*개황\\s*$", "").strip();
+        mid = compactPreview(mid, 8000);
+        if (mid.length() < 12) {
+            return null;
+        }
+        try {
+            ObjectNode root = M.createObjectNode();
+            root.putObject("result").put("status", 0);
+            root.put("source", "fct_afs_ds_shell");
+            ObjectNode afs = root.putObject("afsDs");
+            afs.put("stn", stn);
+            afs.put("tmfc1", tmfc1);
+            afs.put("tmfc2", tmfc2);
+            afs.put("summary", mid);
+            return M.writeValueAsString(root);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
      * @return JSON 문자열; 파싱 실패 시 null
      */
     public static String toForecastJson(String rawText, int targetStn, String tmfc1, String tmfc2) {

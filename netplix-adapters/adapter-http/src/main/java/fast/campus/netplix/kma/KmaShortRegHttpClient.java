@@ -146,6 +146,26 @@ public class KmaShortRegHttpClient {
             if (disp1Once.body() != null && KmaHubJson.looksLikeJson(disp1Once.body())) {
                 lastPreview = KmaHubJson.previewSnippet(disp1Once.body());
             }
+            // 최신 tmfc 1개만이 아닌, 두 번째 후보로 disp=1 재시도(발표 시각 불일치 완화)
+            if (tries.size() > 1) {
+                OnceFetch disp1b = afsDsHttp(r, stn0, tries.get(1), 1);
+                attempts++;
+                if (disp1b.body() != null && KmaHubJson.isHubSuccessEnvelope(disp1b.body())) {
+                    return new KmaShortRegFetchResult(disp1b.body(), null, null, null, attempts, catalogSkips);
+                }
+                if (disp1b.httpStatus() != null) {
+                    lastHttp = disp1b.httpStatus();
+                }
+                if (disp1b.nonJsonPreview() != null) {
+                    lastPreview = disp1b.nonJsonPreview();
+                }
+                if (disp1b.exceptionSummary() != null) {
+                    lastEx = disp1b.exceptionSummary();
+                }
+                if (disp1b.body() != null && KmaHubJson.looksLikeJson(disp1b.body())) {
+                    lastPreview = KmaHubJson.previewSnippet(disp1b.body());
+                }
+            }
         }
         for (String tmfc : tries) {
             AfsBundle afsB = useAfs ? fetchAfsDsTextStrategiesOnly(r, tmfc) : null;
@@ -283,10 +303,23 @@ public class KmaShortRegHttpClient {
         if (fctAfsDsUrl == null || fctAfsDsUrl.isBlank()) {
             return new AfsBundle(null, 0);
         }
-        int stn = KmaRegToAfsDsStn.stnForReg(reg, defaultAfsStn);
+        int primaryStn = KmaRegToAfsDsStn.stnForReg(reg, defaultAfsStn);
+        AfsBundle out = fetchAfsDsTextStrategiesForStn(reg, tmfc12, primaryStn);
+        if (afsBundleHasUsableBody(out)) {
+            return out;
+        }
+        if (primaryStn != defaultAfsStn) {
+            AfsBundle alt = fetchAfsDsTextStrategiesForStn(reg, tmfc12, defaultAfsStn);
+            int rounds = out.rounds() + alt.rounds();
+            OnceFetch merged = pickRicherAfsFetch(out.fetch(), alt.fetch());
+            return new AfsBundle(merged, rounds);
+        }
+        return out;
+    }
+
+    private AfsBundle fetchAfsDsTextStrategiesForStn(String reg, String tmfc12, int stn) {
         int rounds = 0;
         OnceFetch last = null;
-
         String tPrimary = KmaShortRegIssuanceTime.normalizeTmfc(tmfc12);
         if (tPrimary == null) {
             return new AfsBundle(last, rounds);
@@ -296,6 +329,10 @@ public class KmaShortRegHttpClient {
         String tMinus3 = KmaAfsDsTimeWindow.shiftTmfc12(tPrimary, -3);
         if (tMinus3 != null && !tMinus3.equals(tPrimary)) {
             textTmfcTries.add(tMinus3);
+        }
+        String tMinus6 = KmaAfsDsTimeWindow.shiftTmfc12(tPrimary, -6);
+        if (tMinus6 != null && !textTmfcTries.contains(tMinus6)) {
+            textTmfcTries.add(tMinus6);
         }
         for (String t12 : textTmfcTries) {
             OnceFetch z = afsDsHttp(reg, stn, t12, 0);
@@ -316,6 +353,55 @@ public class KmaShortRegHttpClient {
             }
         }
         return new AfsBundle(last, rounds);
+    }
+
+    private static boolean afsBundleHasUsableBody(AfsBundle b) {
+        if (b == null || b.fetch() == null) {
+            return false;
+        }
+        String body = b.fetch().body();
+        return body != null
+                && !body.isBlank()
+                && (KmaHubJson.isHubSuccessEnvelope(body)
+                        || (KmaHubJson.looksLikeJson(body) && !KmaHubJson.isHubJsonOnlyErrorEnvelope(body)));
+    }
+
+    /** 둘 중 본문이 더 길거나(개황 JSON), 합성 오류가 아닌 쪽을 남긴다. */
+    private static OnceFetch pickRicherAfsFetch(OnceFetch a, OnceFetch b) {
+        if (b == null) {
+            return a;
+        }
+        if (a == null) {
+            return b;
+        }
+        String ab = a.body();
+        String bb = b.body();
+        if (ab != null && KmaHubJson.isHubSuccessEnvelope(ab)) {
+            return a;
+        }
+        if (bb != null && KmaHubJson.isHubSuccessEnvelope(bb)) {
+            return b;
+        }
+        if (ab != null && KmaHubJson.looksLikeJson(ab) && !looksLikeSyntheticHubErrorJson(ab)) {
+            return a;
+        }
+        if (bb != null && KmaHubJson.looksLikeJson(bb) && !looksLikeSyntheticHubErrorJson(bb)) {
+            return b;
+        }
+        int la = ab != null ? ab.length() : 0;
+        int lb = bb != null ? bb.length() : 0;
+        return la >= lb ? a : b;
+    }
+
+    private static boolean looksLikeSyntheticHubErrorJson(String body) {
+        if (!KmaHubJson.looksLikeJson(body)) {
+            return false;
+        }
+        try {
+            return KmaHubJson.isHubJsonOnlyErrorEnvelope(body);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private OnceFetch afsDsHttp(String reg, int stn, String tmfc12, int disp) {
@@ -377,6 +463,20 @@ public class KmaShortRegHttpClient {
                 return new OnceFetch(body, null, null, null, false);
             }
             if (!body.contains("$0#")) {
+                String shellJson = KmaAfsDsParser.tryBuildJsonFromShellEnvelope(body, stn, win[0], win[1]);
+                if (shellJson != null) {
+                    log.debug("KMA fct_afs_ds shell envelope → minimal JSON reg={} stn={} len={}", reg, stn, shellJson.length());
+                    return new OnceFetch(shellJson, null, null, null, false);
+                }
+                if (isAfsDsEmptyForecastShell(body)) {
+                    log.debug("KMA fct_afs_ds empty shell (no $0#) reg={} stn={} tmfc1={}", reg, stn, win[0]);
+                    return new OnceFetch(
+                            null,
+                            null,
+                            "(fct_afs_ds 껍데기, $0# 없음) " + KmaHubJson.previewSnippet(body),
+                            null,
+                            false);
+                }
                 String syn = KmaHubJson.syntheticResult(502, "fct_afs_ds: " + KmaHubJson.previewSnippet(body));
                 return new OnceFetch(syn, null, null, null, false);
             }
@@ -522,5 +622,14 @@ public class KmaShortRegHttpClient {
             }
             return new OnceFetch(KmaHubJson.syntheticResult(503, msg), null, null, null, false);
         }
+    }
+
+    /** 허브가 $0# 없이 #START7777 … #7777END 만 주는 빈 개황 껍데기. */
+    private static boolean isAfsDsEmptyForecastShell(String body) {
+        if (body == null || body.isBlank() || body.contains("$0#")) {
+            return false;
+        }
+        String t = body.stripLeading();
+        return t.startsWith("#START7777") && body.contains("#7777END");
     }
 }
