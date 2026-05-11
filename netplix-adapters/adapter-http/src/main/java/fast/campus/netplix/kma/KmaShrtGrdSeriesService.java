@@ -1,8 +1,8 @@
 package fast.campus.netplix.kma;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.time.ZoneId;
@@ -15,13 +15,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * 동네예보 단기 격자({@code nph-dfs_shrt_grd})로 3시간 간격 예보 시계열을 만든다.
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class KmaShrtGrdSeriesService {
 
     private static final ZoneId KST = ZoneId.of("Asia/Seoul");
@@ -34,6 +34,16 @@ public class KmaShrtGrdSeriesService {
 
     private final KmaShrtGrdHttpClient client;
     private final ObjectMapper objectMapper;
+    private final Executor kmaGridExecutor;
+
+    public KmaShrtGrdSeriesService(
+            KmaShrtGrdHttpClient client,
+            ObjectMapper objectMapper,
+            @Qualifier("kmaGridExecutor") Executor kmaGridExecutor) {
+        this.client = client;
+        this.objectMapper = objectMapper;
+        this.kmaGridExecutor = kmaGridExecutor;
+    }
 
     /** @param maxSlots 3시간 간격 슬롯 수 (기본 4~16 권장) */
     public List<Map<String, Object>> fetchSeriesForLatLng(double lat, double lng, int maxSlots) {
@@ -58,7 +68,7 @@ public class KmaShrtGrdSeriesService {
         for (int i = 0; i < cap; i++) {
             final int idx = i;
             slotFutures.add(
-                    CompletableFuture.supplyAsync(() -> fetchOneShrtSlot(tmfc, nx, ny, anchor, idx)));
+                    CompletableFuture.supplyAsync(() -> fetchOneShrtSlot(tmfc, nx, ny, anchor, idx), kmaGridExecutor));
         }
         CompletableFuture.allOf(slotFutures.toArray(new CompletableFuture[0])).join();
         List<Map<String, Object>> rows = new ArrayList<>();
@@ -137,7 +147,8 @@ public class KmaShrtGrdSeriesService {
         List<CompletableFuture<Boolean>> probeFutures = new ArrayList<>();
         for (String tmfc : probeOrder) {
             final String t = tmfc;
-            probeFutures.add(CompletableFuture.supplyAsync(() -> shrtTmfcProbeOk(t, nx, ny, tmefProbe)));
+            probeFutures.add(
+                    CompletableFuture.supplyAsync(() -> shrtTmfcProbeOk(t, nx, ny, tmefProbe), kmaGridExecutor));
         }
         CompletableFuture.allOf(probeFutures.toArray(new CompletableFuture[0])).join();
         for (int i = 0; i < nTry; i++) {

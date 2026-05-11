@@ -1,8 +1,8 @@
 package fast.campus.netplix.kma;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.time.ZoneId;
@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 
 /**
  * 초단기·실황 격자 API — 주소가 {@code vsrt_grd} 이면 시간대별 예보, {@code odam_grd} 이면 실황 1회 후 슬롯 복제.
@@ -22,7 +23,6 @@ import java.util.concurrent.CompletableFuture;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class KmaVsrtGrdHourlyService {
 
     /** tmfc 10분 후보 탐색 상한 — 병렬 프로브와 함께 조정 */
@@ -36,6 +36,16 @@ public class KmaVsrtGrdHourlyService {
 
     private final KmaVsrtGrdHttpClient client;
     private final ObjectMapper objectMapper;
+    private final Executor kmaGridExecutor;
+
+    public KmaVsrtGrdHourlyService(
+            KmaVsrtGrdHttpClient client,
+            ObjectMapper objectMapper,
+            @Qualifier("kmaGridExecutor") Executor kmaGridExecutor) {
+        this.client = client;
+        this.objectMapper = objectMapper;
+        this.kmaGridExecutor = kmaGridExecutor;
+    }
 
     /**
      * @param lookaheadHours 1..12 권장 (API 호출 수 = lookaheadHours)
@@ -76,7 +86,8 @@ public class KmaVsrtGrdHourlyService {
         for (int h = 1; h <= cap; h++) {
             final int hourAhead = h;
             hourFutures.add(
-                    CompletableFuture.supplyAsync(() -> fetchOneVsrtHour(tmfc, nx, ny, now, hourAhead, odamFallback)));
+                    CompletableFuture.supplyAsync(
+                            () -> fetchOneVsrtHour(tmfc, nx, ny, now, hourAhead, odamFallback), kmaGridExecutor));
         }
         CompletableFuture.allOf(hourFutures.toArray(new CompletableFuture[0])).join();
         List<Map<String, Object>> rows = new ArrayList<>();
@@ -174,7 +185,8 @@ public class KmaVsrtGrdHourlyService {
         List<CompletableFuture<Boolean>> ok = new ArrayList<>();
         for (String tmfc : tmfcCandidates) {
             final String t = tmfc;
-            ok.add(CompletableFuture.supplyAsync(() -> vsrtTmfcProbeValid(t, nx, ny, tmefProbe, odamFallback)));
+            ok.add(CompletableFuture.supplyAsync(
+                    () -> vsrtTmfcProbeValid(t, nx, ny, tmefProbe, odamFallback), kmaGridExecutor));
         }
         CompletableFuture.allOf(ok.toArray(new CompletableFuture[0])).join();
         for (int back = 0; back < TMFC_BACK_MAX; back++) {

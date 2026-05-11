@@ -16,6 +16,8 @@ import fast.campus.netplix.kma.KmaShortRegHttpClient;
 import fast.campus.netplix.kma.KmaVsrtGrdHourlyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,6 +31,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 
 /**
  * 기상청 단기예보(API허브) 프록시 — 클라이언트에 authKey 노출 방지.
@@ -51,6 +54,14 @@ public class WeatherController {
     private final KmaShrtGrdSeriesService kmaShrtGrdSeriesService;
     private final KmaVsrtGrdHourlyService kmaVsrtGrdHourlyService;
     private final ObjectMapper objectMapper;
+
+    /** {@link fast.campus.netplix.config.RestTemplateConfig#kmaGridExecutor()} — commonPool 고갈 방지 */
+    private Executor kmaGridExecutor;
+
+    @Autowired
+    public void setKmaGridExecutor(@Qualifier("kmaGridExecutor") Executor kmaGridExecutor) {
+        this.kmaGridExecutor = kmaGridExecutor;
+    }
 
     @Value("${kma.auth.default-reg}")
     private String defaultReg;
@@ -161,16 +172,17 @@ public class WeatherController {
         final String tmfcForKma = tmfc;
         final double[] gridCoords = resolveGridCoords(lat, lng, effectiveReg, out);
         CompletableFuture<KmaShortRegFetchResult> shortFut =
-                CompletableFuture.supplyAsync(() -> kmaShortRegHttpClient.fetchWithDiagnostics(regForKma, tmfcForKma));
+                CompletableFuture.supplyAsync(
+                        () -> kmaShortRegHttpClient.fetchWithDiagnostics(regForKma, tmfcForKma), kmaGridExecutor);
         CompletableFuture<List<Map<String, Object>>> shrtPrefetchFut =
                 gridCoords != null
                         ? CompletableFuture.supplyAsync(
-                                () -> prefetchShrtGridSeries(gridCoords[0], gridCoords[1]))
+                                () -> prefetchShrtGridSeries(gridCoords[0], gridCoords[1]), kmaGridExecutor)
                         : CompletableFuture.completedFuture(List.of());
         CompletableFuture<List<Map<String, Object>>> vsrtPrefetchFut =
                 gridCoords != null
                         ? CompletableFuture.supplyAsync(
-                                () -> prefetchVsrtHourlySeries(gridCoords[0], gridCoords[1]))
+                                () -> prefetchVsrtHourlySeries(gridCoords[0], gridCoords[1]), kmaGridExecutor)
                         : CompletableFuture.completedFuture(List.of());
         CompletableFuture.allOf(shortFut, shrtPrefetchFut, vsrtPrefetchFut).join();
 

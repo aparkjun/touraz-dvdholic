@@ -19,6 +19,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ForkJoinPool;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyDouble;
@@ -62,6 +63,7 @@ class WeatherControllerTest {
                 kmaShrtGrdSeriesService,
                 kmaVsrtGrdHourlyService,
                 objectMapper);
+        weatherController.setKmaGridExecutor(ForkJoinPool.commonPool());
         ReflectionTestUtils.setField(weatherController, "defaultReg", "11B10101");
         mockMvc = MockMvcBuilders.standaloneSetup(weatherController)
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
