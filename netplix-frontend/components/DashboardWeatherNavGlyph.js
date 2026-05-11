@@ -162,7 +162,8 @@ export default function DashboardWeatherNavGlyph() {
   const [regionCache, setRegionCache] = useState({});
   const [regionErr, setRegionErr] = useState({});
   const [fetchingReg, setFetchingReg] = useState(null);
-  const [panelPos, setPanelPos] = useState({ top: 0, right: 12, width: 320 });
+  /** mode: anchor — 버튼 기준 우측 정렬 / center — 뷰포트 가로 중앙(휴대폰) */
+  const [panelPos, setPanelPos] = useState({ top: 0, right: 12, width: 320, mode: 'anchor' });
   const wrapRef = useRef(null);
   const anchorRef = useRef(null);
   const panelId = 'app-dashboard-weather-panel';
@@ -311,13 +312,26 @@ export default function DashboardWeatherNavGlyph() {
   const updatePanelPosition = useCallback(() => {
     const el = anchorRef.current;
     if (!el) return;
+    const vw = window.innerWidth;
+    const w = Math.min(360, Math.max(280, vw - 24));
     const r = el.getBoundingClientRect();
-    const w = Math.min(360, Math.max(280, window.innerWidth - 24));
-    setPanelPos({
-      top: r.bottom + 8,
-      right: Math.max(12, window.innerWidth - r.right),
-      width: w,
-    });
+    const top = r.bottom + 8;
+    const useCenter = vw <= 640;
+    if (useCenter) {
+      setPanelPos({
+        top,
+        left: Math.max(12, (vw - w) / 2),
+        width: w,
+        mode: 'center',
+      });
+    } else {
+      setPanelPos({
+        top,
+        right: Math.max(12, vw - r.right),
+        width: w,
+        mode: 'anchor',
+      });
+    }
   }, []);
 
   useLayoutEffect(() => {
@@ -558,8 +572,11 @@ export default function DashboardWeatherNavGlyph() {
             position: 'fixed',
             zIndex: 1300,
             top: panelPos.top,
-            right: panelPos.right,
+            ...(panelPos.mode === 'center'
+              ? { left: panelPos.left, right: 'auto', marginLeft: 0, marginRight: 0 }
+              : { right: panelPos.right, left: 'auto' }),
             width: panelPos.width,
+            maxWidth: 'calc(100vw - 24px)',
             maxHeight: 'min(75vh, 480px)',
             overflowY: 'auto',
             padding: '14px 14px 16px',
