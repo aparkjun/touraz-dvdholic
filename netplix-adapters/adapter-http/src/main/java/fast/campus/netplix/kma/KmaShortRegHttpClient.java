@@ -25,7 +25,7 @@ import java.util.List;
 public class KmaShortRegHttpClient {
 
     /** 자동 tmfc 후보가 많으면 끝까지 시도 시 Heroku 30초 한도에 걸린다 — 최신 N회만 시도 (HH00+HH10·정각 중복 확장 반영) */
-    private static final int MAX_AUTO_TMFC_CANDIDATES = 20;
+    private static final int MAX_AUTO_TMFC_CANDIDATES = 14;
 
     @Value("${kma.api.fct-afs-ds:}")
     private String fctAfsDsUrl;
@@ -102,9 +102,30 @@ public class KmaShortRegHttpClient {
         Integer lastHttp = null;
         String lastPreview = null;
         String lastEx = null;
+        boolean useAfs = fctAfsDsUrl != null && !fctAfsDsUrl.isBlank();
+        // disp=1(JSON)은 tmfc마다 반복하면 라우터 30초 한도에 걸리기 쉬움 — 최신 후보 1회만 시도
+        if (useAfs && !tries.isEmpty()) {
+            int stn0 = KmaRegToAfsDsStn.stnForReg(r, defaultAfsStn);
+            OnceFetch disp1Once = afsDsHttp(r, stn0, tries.get(0), 1);
+            attempts++;
+            if (disp1Once.body() != null && KmaHubJson.isHubSuccessEnvelope(disp1Once.body())) {
+                return new KmaShortRegFetchResult(disp1Once.body(), null, null, null, attempts, catalogSkips);
+            }
+            if (disp1Once.httpStatus() != null) {
+                lastHttp = disp1Once.httpStatus();
+            }
+            if (disp1Once.nonJsonPreview() != null) {
+                lastPreview = disp1Once.nonJsonPreview();
+            }
+            if (disp1Once.exceptionSummary() != null) {
+                lastEx = disp1Once.exceptionSummary();
+            }
+            if (disp1Once.body() != null && KmaHubJson.looksLikeJson(disp1Once.body())) {
+                lastPreview = KmaHubJson.previewSnippet(disp1Once.body());
+            }
+        }
         for (String tmfc : tries) {
-            boolean useAfs = fctAfsDsUrl != null && !fctAfsDsUrl.isBlank();
-            AfsBundle afsB = useAfs ? fetchAfsDsStrategies(r, tmfc) : null;
+            AfsBundle afsB = useAfs ? fetchAfsDsTextStrategiesOnly(r, tmfc) : null;
             OnceFetch afs = afsB != null ? afsB.fetch() : null;
             if (useAfs) {
                 attempts += afsB != null ? afsB.rounds() : 0;
@@ -232,23 +253,16 @@ public class KmaShortRegHttpClient {
     }
 
     /**
-     * 단기 개황(fct_afs_ds): 허브가 텍스트에 {@code $0#} 없이 껍데기만 줄 때가 있어
-     * {@code disp=1}(JSON) 우선 → {@code disp=0} 본 창 → 동일 관서로 발표시각 -3h 재시도.
+     * 단기 개황(fct_afs_ds) 텍스트 경로만: {@code disp=0} 본 창 → 동일 관서 발표시각 -3h 재시도.
+     * {@code disp=1}(JSON)은 {@link #fetchWithDiagnostics}에서 최신 tmfc 1회만 호출한다.
      */
-    private AfsBundle fetchAfsDsStrategies(String reg, String tmfc12) {
+    private AfsBundle fetchAfsDsTextStrategiesOnly(String reg, String tmfc12) {
         if (fctAfsDsUrl == null || fctAfsDsUrl.isBlank()) {
             return new AfsBundle(null, 0);
         }
         int stn = KmaRegToAfsDsStn.stnForReg(reg, defaultAfsStn);
         int rounds = 0;
         OnceFetch last = null;
-
-        OnceFetch disp1 = afsDsHttp(reg, stn, tmfc12, 1);
-        rounds++;
-        last = disp1;
-        if (disp1.body() != null && KmaHubJson.isHubSuccessEnvelope(disp1.body())) {
-            return new AfsBundle(disp1, rounds);
-        }
 
         String tPrimary = KmaShortRegIssuanceTime.normalizeTmfc(tmfc12);
         if (tPrimary == null) {
