@@ -975,12 +975,13 @@
       "directionsStartCurrent": "My location",
       "tts": {
         "title": "Listen with AI voice",
-        "sub": "The Odii public API does not expose audio files. We read the narration script aloud using your browser's speech synthesis.",
+        "sub": "When Odii returns an mp3 link (audioUrl), we play that recording as-is. We only use browser speech synthesis when no file is provided.",
         "start": "Listen with AI voice",
         "resume": "Resume",
         "pause": "Pause",
         "stop": "Stop",
         "note": "Voice quality depends on your browser/OS.",
+        "odiiTtsFallbackHint": "Korean and Chinese items often include Odii recordings; English and Japanese rows may ship text-only. When there is no mp3, the browser reads the script—we parse more audio URL field names on the server and pin English/Japanese-capable voices when reading aloud.",
         "voiceLabelKo": "Voice for Korean script",
         "voiceBrowserDefaultKo": "Browser default (same as before)",
         "voiceAriaKo": "Text-to-speech voice for Korean narration",
@@ -990,7 +991,7 @@
       },
       "stories": {
         "title": "Narration stories for this spot",
-        "sub": "Odii does not expose audio files. Pick a related narration story and listen with AI voice.",
+        "sub": "When a row has an mp3, we play the Odii recording; otherwise you can listen to the script with the browser voice.",
         "loading": "Loading related narration stories...",
         "empty": "No narration stories linked to this spot yet. The server cache may still be warming up — please try again in a moment."
       }

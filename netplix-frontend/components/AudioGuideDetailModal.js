@@ -9,8 +9,7 @@
  *  - ESC 키 / 배경 클릭 / X 버튼으로 닫기
  *  - 모달이 닫힐 때 재생 자동 정지
  *  - Odii 스크립트 TTS: 합성 언어는 API 의 language(langCode) 우선·요청 Odii 언어 보조.
- *    ko 는 utter.voice 피커, ja 는 일본어 음성을 명시(한자 스크립트가 중국어 음으로 읽히는 것 방지),
- *    en/zh 는 utter.lang(BCP47)만 지정하고 voice 는 브라우저 기본.
+ *  - Odii가 audioUrl(mp3)를 주면 네이티브 재생; 없을 때만 브라우저 TTS(대본). ko=음성 피커, en/ja=해당 언어 음성 자동 선택.
  *    Odii 가 내려준 audioUrl 이 있으면 네이티브 오디오 재생(TTS 미사용).
  *
  * <p>Props:
@@ -168,6 +167,48 @@ function pickBestJaVoice(allVoices) {
   return [...list].sort((a, b) => jaVoicePreferenceScore(b) - jaVoicePreferenceScore(a))[0];
 }
 
+/** 영어 TTS — es/fr 등 다른 로캘 음성이 잡히지 않게 en* 위주로 고른다. */
+function filterEnVoices(voices) {
+  if (!voices?.length) return [];
+  const out = [];
+  for (const v of voices) {
+    const l = (v.lang || "").toLowerCase().replace(/_/g, "-");
+    const n = (v.name || "").toLowerCase();
+    if (l.startsWith("zh") || l.startsWith("ja") || l.startsWith("ko")) continue;
+    if (l.startsWith("es") || l.startsWith("fr") || l.startsWith("de") || l.startsWith("it") || l.startsWith("pt")) {
+      if (!n.includes("english")) continue;
+    }
+    if (l.startsWith("en")) {
+      out.push(v);
+      continue;
+    }
+    if (n.includes("english") || /\benglish\b/i.test(n)) {
+      out.push(v);
+    }
+  }
+  return dedupeTtsVoices(out);
+}
+
+function enVoicePreferenceScore(v) {
+  const l = (v.lang || "").toLowerCase().replace(/_/g, "-");
+  const n = (v.name || "").toLowerCase();
+  let s = 0;
+  if (l === "en-us") s += 110;
+  else if (l.startsWith("en-gb")) s += 95;
+  else if (l.startsWith("en")) s += 80;
+  if (v.default) s += 18;
+  if (n.includes("google") && l.startsWith("en")) s += 42;
+  if (n.includes("microsoft") && l.startsWith("en")) s += 38;
+  if (n.includes("neural") || n.includes("premium") || n.includes("natural")) s += 20;
+  return s;
+}
+
+function pickBestEnVoice(allVoices) {
+  const list = filterEnVoices(allVoices);
+  if (!list.length) return null;
+  return [...list].sort((a, b) => enVoicePreferenceScore(b) - enVoicePreferenceScore(a))[0];
+}
+
 /** Chrome 등에서 최초 getVoices() 가 빈 배열일 때 voiceschanged 까지 대기 */
 function waitForSpeechVoicesLoaded(synth, { timeoutMs = 700 } = {}) {
   const initial = synth.getVoices();
@@ -216,7 +257,7 @@ function effectiveOdiiLangForSpeech(itemLangField, requestOdiiLang) {
   return "ko";
 }
 
-/** Web Speech API 용 BCP47 — Odii canonical 만 반영하고 utter.voice 는 비움(브라우저/OS 선택). */
+/** Web Speech API 용 BCP47 — zh 등은 utter.voice 미지정 시 lang 만 지정. */
 function odiiCanonicalToBcp47Lang(canonical) {
   switch (canonical) {
     case "en":
@@ -244,8 +285,7 @@ function pickInitialKoVoiceKey(list) {
 }
 
 /**
- * Odii canonical(ko|en|zh|ja): ko 는 사용자 피커, ja 는 일본어 음성 명시(한자→중국어 오독 방지),
- * en/zh 는 utter.voice 미지정으로 브라우저 기본.
+ * Odii canonical: ko=피커, ja/en=해당 언어 음성 명시(브라우저 기본 오독·잡음 완화), zh=lang 만 지정.
  */
 function applyTtsVoiceToUtter(utter, odiiCanonical, koKey) {
   if (typeof window === "undefined" || !window.speechSynthesis) return;
@@ -265,6 +305,20 @@ function applyTtsVoiceToUtter(utter, odiiCanonical, koKey) {
     } else {
       utter.voice = null;
       utter.lang = "ja-JP";
+    }
+    return;
+  }
+
+  if (canonical === "en") {
+    utter.lang = "en-US";
+    const enVoice = pickBestEnVoice(all);
+    if (enVoice) {
+      utter.voice = enVoice;
+      const el = (enVoice.lang || "").trim();
+      utter.lang = el.toLowerCase().startsWith("en") ? el : "en-US";
+    } else {
+      utter.voice = null;
+      utter.lang = "en-US";
     }
     return;
   }
@@ -336,8 +390,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
   const [audioError, setAudioError] = useState(false);
 
   // --- TTS (Web Speech API) 상태 ---
-  // Odii 공공 OpenAPI 는 audioUrl 을 외부 공개하지 않고 script(대본)만 내려주므로,
-  // 오디오 파일이 없을 때 브라우저의 음성 합성(speechSynthesis)으로 스크립트를 읽어 준다.
+  // Odii: audioUrl 이 있으면 네이티브 <audio> 재생. 없을 때만 Web Speech API 로 대본 읽기.
   const [ttsPlaying, setTtsPlaying] = useState(false);
   const [ttsPaused, setTtsPaused] = useState(false);
   const [ttsSupported, setTtsSupported] = useState(false);
@@ -632,7 +685,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
     try {
       const synth = window.speechSynthesis;
       synth.cancel();
-      if (odiiLangForMainSpeech === "ja") {
+      if (odiiLangForMainSpeech === "ja" || odiiLangForMainSpeech === "en") {
         await waitForSpeechVoicesLoaded(synth);
       }
       const utter = new SpeechSynthesisUtterance(ttsText);
@@ -684,7 +737,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       const synth = window.speechSynthesis;
       synth.cancel();
       const odiiForStorySpeech = effectiveOdiiLangForSpeech(story?.language, modalOdiiLang);
-      if (odiiForStorySpeech === "ja") {
+      if (odiiForStorySpeech === "ja" || odiiForStorySpeech === "en") {
         await waitForSpeechVoicesLoaded(synth);
       }
       const utter = new SpeechSynthesisUtterance(text);
@@ -924,8 +977,8 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
               {(ttsContentIsEn || ttsContentIsZh || ttsContentIsJa) ? (
                 <p className="agm-tts-voice-hint">
                   {t(
-                    "audioGuide.detail.tts.odiiFemaleAuto",
-                    "영어·중국어·일본어 해설은 Odii API 에서 받은 언어·대본만 쓰고, 브라우저가 그 언어 기본 음성으로 읽어 줘요. (PC/Voice 패키지마다 다릅니다.)",
+                    "audioGuide.detail.tts.odiiTtsFallbackHint",
+                    "Odii가 mp3(audioUrl)를 주면 그 녹음을 그대로 재생합니다. 영·일 등 일부 언어 행에는 파일이 없어 대본만 브라우저 음성으로 읽을 때가 있어요 — 서버가 URL 필드를 넓게 인식하고, 영·일은 브라우저에서 해당 언어 음성을 골라 씁니다.",
                   )}
                 </p>
               ) : null}
@@ -1133,8 +1186,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
             </div>
             </>
           ) : hasScript && ttsSupported ? (
-            // Odii 공공 OpenAPI 가 audioUrl 을 비공개로 제공하므로,
-            // 스크립트를 브라우저 내장 TTS 로 읽어 주는 fallback 플레이어.
+            // audioUrl 이 없을 때만 Web Speech API 로 대본 재생.
             <div className="agm-tts">
               <div className="agm-tts-top">
                 {!ttsPlaying ? (

@@ -97,7 +97,12 @@ public class VisitKoreaOdiiResponse {
         /** 오디오 파일(mp3) URL — 플레이어 재생 대상. */
         @JsonAlias({
                 "audioURL", "storyAudioUrl", "tAudioUrl", "audio_url", "mediaUrl",
-                "audioLink", "audio_link", "mp3Url", "mp3", "storyMp3", "t_mp3_url"
+                "audioLink", "audio_link", "mp3Url", "mp3", "storyMp3", "t_mp3_url",
+                "audiourl", "AUDIO_URL", "audioContentsUrl", "contentsUrl", "svcUrl",
+                "narrUrl", "narrationUrl", "downloadUrl", "download", "fileUrl", "voiceUrl",
+                "soundUrl", "strUrl", "audioFile", "audiofile", "orgAudioUrl", "playUrl",
+                "streamUrl", "tourAudioUrl", "storyAudioMp3", "t_audio_url", "audioPath",
+                "audio_path", "voiceFile", "mp3File", "storyCntUrl", "cntAudioUrl"
         })
         private String audioUrl;
 
