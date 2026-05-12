@@ -174,17 +174,23 @@ function jaVoicePreferenceScore(v) {
 
 /**
  * 중국어(간체·북경어 우선) TTS 음성만 남긴다. ja/ko/en 단독 로캘이면서 중국어 표식이 없으면 제외.
+ * 광동어(yue)는 관광 한자 대본(보통 만다린)과 어울리지 않는 경우가 많아, 다른 중국어 음성이 하나라도 있으면 yue 는 제외한다.
  */
 function filterZhVoices(voices) {
   if (!voices?.length) return [];
-  const out = [];
+  const primary = [];
+  const yueOnly = [];
   for (const v of voices) {
     const l = (v.lang || "").toLowerCase().replace(/_/g, "-");
     const n = (v.name || "").toLowerCase();
     if (l.startsWith("ja") || l.startsWith("ko")) continue;
     if (l.startsWith("en") && !n.includes("chinese") && !n.includes("mandarin") && !n.includes("中文")) continue;
-    if (l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue") || l.startsWith("zho")) {
-      out.push(v);
+    if (l.startsWith("yue")) {
+      yueOnly.push(v);
+      continue;
+    }
+    if (l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("zho")) {
+      primary.push(v);
       continue;
     }
     if (
@@ -195,13 +201,15 @@ function filterZhVoices(voices) {
       || n.includes("汉语")
       || /huihui|yaoyao|kangkang|hanhan|ting-ting|zhang|meijia|xiaoxiao|yunxi/i.test(n)
     ) {
-      out.push(v);
+      primary.push(v);
     }
   }
-  return dedupeTtsVoices(out);
+  const dedupedPrimary = dedupeTtsVoices(primary);
+  if (dedupedPrimary.length) return dedupedPrimary;
+  return dedupeTtsVoices(yueOnly);
 }
 
-/** zh-CN / cmn-CN·Neural 을 우선(대륙 관광 공공 한자 스크립트에 맞춤). */
+/** zh-CN / cmn-CN·Neural 을 우선. yue(광동어)는 만다린 대비 점수 낮게(필요 시에만 후순위). */
 function zhVoicePreferenceScore(v) {
   const l = (v.lang || "").toLowerCase().replace(/_/g, "-");
   const n = (v.name || "").toLowerCase();
@@ -210,9 +218,11 @@ function zhVoicePreferenceScore(v) {
   else if (l.startsWith("cmn")) s += 110;
   else if (l.startsWith("zh-cn") || l.startsWith("zh-hans")) s += 115;
   else if (l.startsWith("zh-tw") || l.startsWith("zh-hant") || l === "cht" || l.startsWith("zh-hk")) s += 95;
-  else if (l.startsWith("zh") || l.startsWith("yue")) s += 85;
+  else if (l.startsWith("zh")) s += 84;
+  else if (l.startsWith("yue")) s += 22;
   else if (l.startsWith("zho")) s += 82;
   if (v.default) s += 20;
+  if (n.includes("cantonese") || l.startsWith("yue")) s -= 35;
   if (n.includes("google") && (l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue"))) s += 42;
   if (n.includes("microsoft") && (l.startsWith("zh") || l.startsWith("cmn"))) s += 38;
   if (n.includes("neural") || n.includes("premium") || n.includes("natural")) s += 18;
