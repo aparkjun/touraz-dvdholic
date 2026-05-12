@@ -580,7 +580,7 @@ body.app-theme-travel {
   left: calc(75% - env(safe-area-inset-right, 0px) / 2);
   max-width: min(calc(50vw - 72px), 440px);
   text-align: center;
-  transform: translate(-50%, -50%);
+  transform: translate(calc(-50% - 3em), -50%);
   background: linear-gradient(92deg, #93c5fd, #60a5fa, #3b82f6, #93c5fd, #bfdbfe);
   background-size: 220% auto;
   -webkit-background-clip: text;
