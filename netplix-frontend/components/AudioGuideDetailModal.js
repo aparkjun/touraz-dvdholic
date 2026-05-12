@@ -8,8 +8,9 @@
  *  - 좌표가 있으면 Google/Kakao Map 바로가기 · 대중교통 길찾기(내 위치→목적지) 제공
  *  - ESC 키 / 배경 클릭 / X 버튼으로 닫기
  *  - 모달이 닫힐 때 재생 자동 정지
- *  - Odii 스크립트 TTS: 합성 언어는 API 의 language(langCode) 우선·요청 Odii 언어 보조로만 정하고
- *    utter.lang(BCP47)·브라우저 기본 음성에 맡긴다. 한국어만 선택 피커로 utter.voice 지정 가능.
+ *  - Odii 스크립트 TTS: 합성 언어는 API 의 language(langCode) 우선·요청 Odii 언어 보조.
+ *    ko 는 utter.voice 피커, ja 는 일본어 음성을 명시(한자 스크립트가 중국어 음으로 읽히는 것 방지),
+ *    en/zh 는 utter.lang(BCP47)만 지정하고 voice 는 브라우저 기본.
  *    Odii 가 내려준 audioUrl 이 있으면 네이티브 오디오 재생(TTS 미사용).
  *
  * <p>Props:
@@ -120,6 +121,75 @@ function filterKoVoices(voices) {
 }
 
 /**
+ * 일본어 TTS용 음성만 남긴다. lang 이 zh·cmn 이거나 이름에 Chinese 등이 있으면 제외해
+ * 한자 대본이 중국어 음으로 읽히는 문제를 막는다.
+ */
+function filterJaVoices(voices) {
+  if (!voices?.length) return [];
+  const out = [];
+  for (const v of voices) {
+    const l = (v.lang || "").toLowerCase().replace(/_/g, "-");
+    const n = (v.name || "").toLowerCase();
+    if (l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue")) continue;
+    if (n.includes("chinese") || n.includes("mandarin") || n.includes("cantonese") || n.includes("中文")) continue;
+    if (l.startsWith("ja")) {
+      out.push(v);
+      continue;
+    }
+    if (
+      n.includes("japanese")
+      || n.includes("日本語")
+      || /\b(ja|jp)\b.*japan|japan.*\b(ja|jp)\b/i.test(n)
+      || /kyoko|otoya|hattori|nanami|haruka|leda|allison.*ja/i.test(n)
+    ) {
+      out.push(v);
+    }
+  }
+  return dedupeTtsVoices(out);
+}
+
+/** ja-JP·클라우드/Neural 계열을 우선해 현대적 일본어 발음에 가깝게 */
+function jaVoicePreferenceScore(v) {
+  const l = (v.lang || "").toLowerCase().replace(/_/g, "-");
+  const n = (v.name || "").toLowerCase();
+  let s = 0;
+  if (l === "ja-jp") s += 120;
+  else if (l.startsWith("ja")) s += 90;
+  if (v.default) s += 25;
+  if (n.includes("google") && (n.includes("ja") || l.startsWith("ja"))) s += 45;
+  if (n.includes("microsoft") && l.startsWith("ja")) s += 40;
+  if (n.includes("neural") || n.includes("premium") || n.includes("natural")) s += 20;
+  return s;
+}
+
+function pickBestJaVoice(allVoices) {
+  const list = filterJaVoices(allVoices);
+  if (!list.length) return null;
+  return [...list].sort((a, b) => jaVoicePreferenceScore(b) - jaVoicePreferenceScore(a))[0];
+}
+
+/** Chrome 등에서 최초 getVoices() 가 빈 배열일 때 voiceschanged 까지 대기 */
+function waitForSpeechVoicesLoaded(synth, { timeoutMs = 700 } = {}) {
+  const initial = synth.getVoices();
+  if (initial.length) return Promise.resolve(initial);
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      synth.removeEventListener("voiceschanged", onVoices);
+      clearTimeout(timer);
+      resolve(synth.getVoices());
+    };
+    const onVoices = () => {
+      if (synth.getVoices().length) finish();
+    };
+    const timer = setTimeout(finish, timeoutMs);
+    synth.addEventListener("voiceschanged", onVoices);
+  });
+}
+
+/**
  * Odii item.language(langCode) 에서 canonical ko|en|zh|ja 추출.
  * 서버 VisitKoreaOdiiHttpClient.canonicalOdiiLang 과 같은 규칙.
  */
@@ -174,15 +244,32 @@ function pickInitialKoVoiceKey(list) {
 }
 
 /**
- * Odii canonical(ko|en|zh|ja)만 반영: en/zh/ja 는 utter.voice 미지정으로 브라우저가 해당 lang 의 기본 음성 선택.
- * ko 만 사용자 피커로 utter.voice 지정 가능.
+ * Odii canonical(ko|en|zh|ja): ko 는 사용자 피커, ja 는 일본어 음성 명시(한자→중국어 오독 방지),
+ * en/zh 는 utter.voice 미지정으로 브라우저 기본.
  */
 function applyTtsVoiceToUtter(utter, odiiCanonical, koKey) {
   if (typeof window === "undefined" || !window.speechSynthesis) return;
   const canonical = isValidOdiiLang(odiiCanonical) ? odiiCanonical : "ko";
-  utter.lang = odiiCanonicalToBcp47Lang(canonical);
   utter.rate = 1;
   utter.pitch = 1;
+  void window.speechSynthesis.getVoices();
+  const all = window.speechSynthesis.getVoices();
+
+  if (canonical === "ja") {
+    utter.lang = "ja-JP";
+    const jaVoice = pickBestJaVoice(all);
+    if (jaVoice) {
+      utter.voice = jaVoice;
+      const jl = (jaVoice.lang || "").trim();
+      utter.lang = jl.toLowerCase().startsWith("ja") ? jl : "ja-JP";
+    } else {
+      utter.voice = null;
+      utter.lang = "ja-JP";
+    }
+    return;
+  }
+
+  utter.lang = odiiCanonicalToBcp47Lang(canonical);
   if (canonical !== "ko") {
     utter.voice = null;
     return;
@@ -191,8 +278,6 @@ function applyTtsVoiceToUtter(utter, odiiCanonical, koKey) {
     utter.voice = null;
     return;
   }
-  void window.speechSynthesis.getVoices();
-  const all = window.speechSynthesis.getVoices();
   const koVoices = filterKoVoices(all);
   if (!koVoices.length) {
     utter.voice = null;
@@ -542,15 +627,19 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
     ttsLastPickerRow === "ko"
     || (ttsLastPickerRow === null && !ttsContentIsEn && !ttsContentIsZh && !ttsContentIsJa);
 
-  const startTts = () => {
+  const startTts = async () => {
     if (!ttsSupported || !ttsText) return;
     try {
-      window.speechSynthesis.cancel();
+      const synth = window.speechSynthesis;
+      synth.cancel();
+      if (odiiLangForMainSpeech === "ja") {
+        await waitForSpeechVoicesLoaded(synth);
+      }
       const utter = new SpeechSynthesisUtterance(ttsText);
       applyTtsVoiceToUtter(utter, odiiLangForMainSpeech, ttsKoSelectValue);
       utter.onend = () => { setTtsPlaying(false); setTtsPaused(false); };
       utter.onerror = () => { setTtsPlaying(false); setTtsPaused(false); };
-      window.speechSynthesis.speak(utter);
+      synth.speak(utter);
       setTtsPlaying(true);
       setTtsPaused(false);
     } catch (_) { /* noop */ }
@@ -579,7 +668,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
     });
   };
 
-  const playStoryTts = (story) => {
+  const playStoryTts = async (story) => {
     if (!ttsSupported) return;
     const text = (story?.description && String(story.description).trim())
       ? String(story.description)
@@ -592,13 +681,17 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
         setPlaying(false);
         try { audioRef.current.pause(); } catch (_) { /* noop */ }
       }
-      window.speechSynthesis.cancel();
-      const utter = new SpeechSynthesisUtterance(text);
+      const synth = window.speechSynthesis;
+      synth.cancel();
       const odiiForStorySpeech = effectiveOdiiLangForSpeech(story?.language, modalOdiiLang);
+      if (odiiForStorySpeech === "ja") {
+        await waitForSpeechVoicesLoaded(synth);
+      }
+      const utter = new SpeechSynthesisUtterance(text);
       applyTtsVoiceToUtter(utter, odiiForStorySpeech, ttsKoSelectValue);
       utter.onend = () => { setActiveStoryId(null); setActiveStoryPaused(false); };
       utter.onerror = () => { setActiveStoryId(null); setActiveStoryPaused(false); };
-      window.speechSynthesis.speak(utter);
+      synth.speak(utter);
       setActiveStoryId(story.id);
       setActiveStoryPaused(false);
     } catch (_) { /* noop */ }
