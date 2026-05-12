@@ -13,7 +13,7 @@ import java.util.Set;
  *
  * <p>상한 정책:
  *  - MAX_LIMIT = 5,000 (이야기 포함 전체 약 수천 개 추정, 여유 버퍼)
- *  - MAX_RADIUS_M = 30,000 / DEFAULT_RADIUS_M = 10,000
+ *  - MAX_RADIUS_M = 20,000 (Odii·TourAPI locationBased 상한과 정합) / DEFAULT_RADIUS_M = 10,000
  *  - 언어 화이트리스트 (ko/en/zh/ja). 그 외 입력은 ko 로 강제.
  *  - type null → THEME 로 강제 (기본).
  */
@@ -23,7 +23,7 @@ import java.util.Set;
 public class AudioGuideItemService implements GetAudioGuideItemsUseCase {
 
     private static final int MAX_LIMIT = 5_000;
-    private static final int MAX_RADIUS_M = 30_000;
+    private static final int MAX_RADIUS_M = 20_000;
     private static final int DEFAULT_RADIUS_M = 10_000;
     private static final Set<String> ALLOWED_LANGS = Set.of("ko", "en", "zh", "ja");
     private static final String DEFAULT_LANG = "ko";

@@ -67,6 +67,8 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     // 키워드 검색 결과는 일반적으로 수백 건 이내지만 안전하게 여유.
     private static final int MAX_PAGES_KEYWORD = 30;
     private static final int LOCATION_PAGE_ROWS = 50;
+    /** TourAPI 계열 locationBased 공통: radius(m) 상한 초과 시 GW 가 빈 목록·비정상 응답을 줄 수 있음. */
+    private static final int LOCATION_RADIUS_MAX_M = 20_000;
     private static final Set<String> SUPPORTED_LANGS = Set.of("ko", "en", "zh", "ja");
 
     /** 목록 추가 페이지를 순차가 아닌 병렬로 받아 EN/ZH/JA 첫 로딩 시간을 줄인다. */
@@ -256,10 +258,14 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                                             double latitude, double longitude, int radiusM, int limit) {
         if (!guardConfigured()) return List.of();
         String l = normalize(lang);
+        int radiusClamped = Math.max(1, Math.min(radiusM, LOCATION_RADIUS_MAX_M));
+        if (radiusM > LOCATION_RADIUS_MAX_M) {
+            log.debug("[ODII] nearby radius {}m → {}m (GW 상한 {})", radiusM, radiusClamped, LOCATION_RADIUS_MAX_M);
+        }
         Map<String, String> params = Map.of(
                 "mapX", String.valueOf(longitude),
                 "mapY", String.valueOf(latitude),
-                "radius", String.valueOf(Math.max(1, radiusM))
+                "radius", String.valueOf(radiusClamped)
         );
         PageResult pr = requestPage(locationUrl(type), params, type, l, 1, LOCATION_PAGE_ROWS);
         if (pr == null) return List.of();

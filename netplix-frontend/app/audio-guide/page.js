@@ -66,7 +66,8 @@ import {
 } from "lucide-react";
 
 const PAGE_SIZE = 60;
-const RADIUS_OPTIONS = [10, 30, 50]; // km
+/** Odii theme/storyLocationBasedList 는 공통 GW 기준 반경 상한이 보통 20km(m) 근방이라, 그 이상은 의미 없음. */
+const RADIUS_OPTIONS = [5, 10, 20]; // km
 
 /**
  * 영화/DVD 답사 컨셉에 어울리는 상위 키워드 숏컷.
@@ -166,7 +167,7 @@ function AudioGuidePageInner() {
   const [type, setType] = useState(initialType);
   const [keyword, setKeyword] = useState(initialQ);
   const [keywordInput, setKeywordInput] = useState(initialQ);
-  const [radiusKm, setRadiusKm] = useState(30);
+  const [radiusKm, setRadiusKm] = useState(10);
   const [userCoords, setUserCoords] = useState(null); // { lat, lng }
   const [wantNearby, setWantNearby] = useState(nearbyFromUrl);
   const [nearbyStatus, setNearbyStatus] = useState("idle"); // idle | locating | ready | denied | error
