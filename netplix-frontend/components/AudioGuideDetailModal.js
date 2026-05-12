@@ -9,7 +9,8 @@
  *  - ESC 키 / 배경 클릭 / X 버튼으로 닫기
  *  - 모달이 닫힐 때 재생 자동 정지
  *  - Odii 스크립트 TTS: 합성 언어는 API 의 language(langCode) 우선·요청 Odii 언어 보조.
- *  - Odii가 audioUrl(mp3)를 주면 네이티브 재생; 없을 때만 브라우저 TTS(대본). ko=음성 피커, en/ja=해당 언어 음성 자동 선택.
+ *  - Odii가 audioUrl(mp3)를 주면 네이티브 재생; 없을 때만 브라우저 TTS(대본).
+ *    ko=음성 피커, en/zh/ja=해당 로케일 음성 자동 선택(전 항목 공통, 브라우저 기본 오·오선택 방지).
  *    Odii 가 내려준 audioUrl 이 있으면 네이티브 오디오 재생(TTS 미사용).
  *
  * <p>Props:
@@ -120,7 +121,7 @@ function filterKoVoices(voices) {
 }
 
 /**
- * 일본어 TTS용 음성만 남긴다. lang 이 zh·cmn 이거나 이름에 Chinese 등이 있으면 제외해
+ * 일본어 TTS용 음성만 남긴다. zh/cmn/yue·중국어 계열 이름은 제외해
  * 한자 대본이 중국어 음으로 읽히는 문제를 막는다.
  */
 function filterJaVoices(voices) {
@@ -129,8 +130,16 @@ function filterJaVoices(voices) {
   for (const v of voices) {
     const l = (v.lang || "").toLowerCase().replace(/_/g, "-");
     const n = (v.name || "").toLowerCase();
-    if (l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue")) continue;
-    if (n.includes("chinese") || n.includes("mandarin") || n.includes("cantonese") || n.includes("中文")) continue;
+    if (l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue") || l.startsWith("zho")) continue;
+    if (
+      n.includes("chinese")
+      || n.includes("mandarin")
+      || n.includes("cantonese")
+      || n.includes("中文")
+      || /huihui|yaoyao|kangkang|hanhan|ting-ting|zhang|li-na|meijia/i.test(n)
+    ) {
+      continue;
+    }
     if (l.startsWith("ja")) {
       out.push(v);
       continue;
@@ -139,7 +148,7 @@ function filterJaVoices(voices) {
       n.includes("japanese")
       || n.includes("日本語")
       || /\b(ja|jp)\b.*japan|japan.*\b(ja|jp)\b/i.test(n)
-      || /kyoko|otoya|hattori|nanami|haruka|leda|allison.*ja/i.test(n)
+      || /kyoko|otoya|hattori|nanami|haruka|leda|sakura|sumi/i.test(n)
     ) {
       out.push(v);
     }
@@ -147,7 +156,7 @@ function filterJaVoices(voices) {
   return dedupeTtsVoices(out);
 }
 
-/** ja-JP·클라우드/Neural 계열을 우선해 현대적 일본어 발음에 가깝게 */
+/** ja-JP·클라우드/Neural 계열을 우선해 일본어 네이티브에 가깝게 */
 function jaVoicePreferenceScore(v) {
   const l = (v.lang || "").toLowerCase().replace(/_/g, "-");
   const n = (v.name || "").toLowerCase();
@@ -158,7 +167,63 @@ function jaVoicePreferenceScore(v) {
   if (n.includes("google") && (n.includes("ja") || l.startsWith("ja"))) s += 45;
   if (n.includes("microsoft") && l.startsWith("ja")) s += 40;
   if (n.includes("neural") || n.includes("premium") || n.includes("natural")) s += 20;
+  if (/kyoko|otoya|hattori|nanami|haruka/i.test(n)) s += 15;
+  if (n.includes("chinese") || n.includes("mandarin")) s -= 80;
   return s;
+}
+
+/**
+ * 중국어(간체·북경어 우선) TTS 음성만 남긴다. ja/ko/en 단독 로캘이면서 중국어 표식이 없으면 제외.
+ */
+function filterZhVoices(voices) {
+  if (!voices?.length) return [];
+  const out = [];
+  for (const v of voices) {
+    const l = (v.lang || "").toLowerCase().replace(/_/g, "-");
+    const n = (v.name || "").toLowerCase();
+    if (l.startsWith("ja") || l.startsWith("ko")) continue;
+    if (l.startsWith("en") && !n.includes("chinese") && !n.includes("mandarin") && !n.includes("中文")) continue;
+    if (l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue") || l.startsWith("zho")) {
+      out.push(v);
+      continue;
+    }
+    if (
+      n.includes("chinese")
+      || n.includes("mandarin")
+      || n.includes("cantonese")
+      || n.includes("中文")
+      || n.includes("汉语")
+      || /huihui|yaoyao|kangkang|hanhan|ting-ting|zhang|meijia|xiaoxiao|yunxi/i.test(n)
+    ) {
+      out.push(v);
+    }
+  }
+  return dedupeTtsVoices(out);
+}
+
+/** zh-CN / cmn-CN·Neural 을 우선(대륙 관광 공공 한자 스크립트에 맞춤). */
+function zhVoicePreferenceScore(v) {
+  const l = (v.lang || "").toLowerCase().replace(/_/g, "-");
+  const n = (v.name || "").toLowerCase();
+  let s = 0;
+  if (l === "zh-cn" || l === "cmn-cn") s += 125;
+  else if (l.startsWith("cmn")) s += 110;
+  else if (l.startsWith("zh-cn") || l.startsWith("zh-hans")) s += 115;
+  else if (l.startsWith("zh-tw") || l.startsWith("zh-hant") || l === "cht" || l.startsWith("zh-hk")) s += 95;
+  else if (l.startsWith("zh") || l.startsWith("yue")) s += 85;
+  else if (l.startsWith("zho")) s += 82;
+  if (v.default) s += 20;
+  if (n.includes("google") && (l.startsWith("zh") || l.startsWith("cmn") || l.startsWith("yue"))) s += 42;
+  if (n.includes("microsoft") && (l.startsWith("zh") || l.startsWith("cmn"))) s += 38;
+  if (n.includes("neural") || n.includes("premium") || n.includes("natural")) s += 18;
+  if (n.includes("japanese") || n.includes("日本語")) s -= 90;
+  return s;
+}
+
+function pickBestZhVoice(allVoices) {
+  const list = filterZhVoices(allVoices);
+  if (!list.length) return null;
+  return [...list].sort((a, b) => zhVoicePreferenceScore(b) - zhVoicePreferenceScore(a))[0];
 }
 
 function pickBestJaVoice(allVoices) {
@@ -174,7 +239,16 @@ function filterEnVoices(voices) {
   for (const v of voices) {
     const l = (v.lang || "").toLowerCase().replace(/_/g, "-");
     const n = (v.name || "").toLowerCase();
-    if (l.startsWith("zh") || l.startsWith("ja") || l.startsWith("ko")) continue;
+    if (
+      l.startsWith("zh")
+      || l.startsWith("cmn")
+      || l.startsWith("zho")
+      || l.startsWith("yue")
+      || l.startsWith("ja")
+      || l.startsWith("ko")
+    ) {
+      continue;
+    }
     if (l.startsWith("es") || l.startsWith("fr") || l.startsWith("de") || l.startsWith("it") || l.startsWith("pt")) {
       if (!n.includes("english")) continue;
     }
@@ -210,7 +284,7 @@ function pickBestEnVoice(allVoices) {
 }
 
 /** Chrome 등에서 최초 getVoices() 가 빈 배열일 때 voiceschanged 까지 대기 */
-function waitForSpeechVoicesLoaded(synth, { timeoutMs = 700 } = {}) {
+function waitForSpeechVoicesLoaded(synth, { timeoutMs = 900 } = {}) {
   const initial = synth.getVoices();
   if (initial.length) return Promise.resolve(initial);
   return new Promise((resolve) => {
@@ -257,7 +331,7 @@ function effectiveOdiiLangForSpeech(itemLangField, requestOdiiLang) {
   return "ko";
 }
 
-/** Web Speech API 용 BCP47 — zh 등은 utter.voice 미지정 시 lang 만 지정. */
+/** Web Speech API 기본 lang (utter.voice 는 applyTtsVoiceToUtter 에서 zh/ja/en 별도 지정). */
 function odiiCanonicalToBcp47Lang(canonical) {
   switch (canonical) {
     case "en":
@@ -285,7 +359,7 @@ function pickInitialKoVoiceKey(list) {
 }
 
 /**
- * Odii canonical: ko=피커, ja/en=해당 언어 음성 명시(브라우저 기본 오독·잡음 완화), zh=lang 만 지정.
+ * Odii canonical: ko=피커, zh/ja/en=해당 로캘 음성 명시(모든 스토리·대본 TTS 공통).
  */
 function applyTtsVoiceToUtter(utter, odiiCanonical, koKey) {
   if (typeof window === "undefined" || !window.speechSynthesis) return;
@@ -319,6 +393,30 @@ function applyTtsVoiceToUtter(utter, odiiCanonical, koKey) {
     } else {
       utter.voice = null;
       utter.lang = "en-US";
+    }
+    return;
+  }
+
+  if (canonical === "zh") {
+    utter.lang = "zh-CN";
+    const zhVoice = pickBestZhVoice(all);
+    if (zhVoice) {
+      utter.voice = zhVoice;
+      const zl = (zhVoice.lang || "").trim();
+      const zln = zl.toLowerCase().replace(/_/g, "-");
+      if (
+        zln.startsWith("zh")
+        || zln.startsWith("cmn")
+        || zln.startsWith("yue")
+        || zln.startsWith("zho")
+      ) {
+        utter.lang = zl;
+      } else {
+        utter.lang = "zh-CN";
+      }
+    } else {
+      utter.voice = null;
+      utter.lang = "zh-CN";
     }
     return;
   }
@@ -685,7 +783,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
     try {
       const synth = window.speechSynthesis;
       synth.cancel();
-      if (odiiLangForMainSpeech === "ja" || odiiLangForMainSpeech === "en") {
+      if (odiiLangForMainSpeech === "ja" || odiiLangForMainSpeech === "en" || odiiLangForMainSpeech === "zh") {
         await waitForSpeechVoicesLoaded(synth);
       }
       const utter = new SpeechSynthesisUtterance(ttsText);
@@ -737,7 +835,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       const synth = window.speechSynthesis;
       synth.cancel();
       const odiiForStorySpeech = effectiveOdiiLangForSpeech(story?.language, modalOdiiLang);
-      if (odiiForStorySpeech === "ja" || odiiForStorySpeech === "en") {
+      if (odiiForStorySpeech === "ja" || odiiForStorySpeech === "en" || odiiForStorySpeech === "zh") {
         await waitForSpeechVoicesLoaded(synth);
       }
       const utter = new SpeechSynthesisUtterance(text);
