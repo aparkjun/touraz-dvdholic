@@ -67,8 +67,6 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     private static final int MAX_PAGES_ALL = 100;
     // 키워드 검색 결과는 일반적으로 수백 건 이내지만 안전하게 여유.
     private static final int MAX_PAGES_KEYWORD = 30;
-    /** storyBasedList 가 비었을 때 storySearchList 로 카탈로그를 채울 때 키워드당 최대 페이지 수 */
-    private static final int STORY_BOOTSTRAP_MAX_PAGES = 6;
     private static final int LOCATION_PAGE_ROWS = 50;
     /** TourAPI 계열 locationBased 공통: radius(m) 상한 초과 시 GW 가 빈 목록·비정상 응답을 줄 수 있음. */
     private static final int LOCATION_RADIUS_MAX_M = 20_000;
@@ -236,9 +234,6 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 return snap.sites;
             }
             refreshAll(type, l);
-            if (type == AudioGuideItem.Type.STORY) {
-                maybeBootstrapStoryCatalogIfCacheEmpty(l);
-            }
             snap = cache.get(key);
             return take(snap != null ? snap.sites : List.of(), limit);
         }
@@ -1246,7 +1241,6 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 refreshAll(AudioGuideItem.Type.STORY, l);
             }
         }
-        maybeBootstrapStoryCatalogIfCacheEmpty(l);
     }
 
     // =========================================================================
@@ -1311,7 +1305,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 return;
             }
             if (sites.isEmpty()) {
-                log.warn("[ODII] type={} lang={} 전체 0건 — Odii 오류·키·할당량·오퍼레이션 미승인 가능. 빈 목록은 캐시하지 않음(다음 요청에서 재시도).",
+                log.warn("[ODII] type={} lang={} 전체 0건 — Odii 오류·키·할당량 가능성. 빈 목록은 캐시하지 않음(다음 요청에서 재시도).",
                         type, lang);
                 return;
             }
@@ -1340,79 +1334,6 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             cache.put(cacheKey, new CacheSnapshot(sites, Instant.now().toEpochMilli(), false));
             log.info("[ODII] type={} lang={} 키워드={} 캐시 갱신 - {} 건", type, lang, keyword, sites.size());
         }
-    }
-
-    /**
-     * storyBasedList 가 비어 있을 때에만 storySearchList 로 STORY 캐시를 채운다.
-     * {@link #refreshAll} 의 synchronized 블록 밖에서만 호출한다.
-     */
-    private void maybeBootstrapStoryCatalogIfCacheEmpty(String lang) {
-        String l = normalize(lang);
-        String key = allKey(AudioGuideItem.Type.STORY, l);
-        CacheSnapshot snap = cache.get(key);
-        if (snap != null && !snap.sites.isEmpty()) {
-            return;
-        }
-        synchronized (monitorFor(key)) {
-            snap = cache.get(key);
-            if (snap != null && !snap.sites.isEmpty()) {
-                return;
-            }
-            try {
-                List<AudioGuideItem> boot = bootstrapStoryCatalogViaKeywordFanout(l);
-                if (boot != null && !boot.isEmpty()) {
-                    cache.put(key, new CacheSnapshot(boot, Instant.now().toEpochMilli(), false));
-                    log.info("[ODII] STORY:{} 부트스트랩(search) 캐시 저장 {}건", l, boot.size());
-                }
-            } catch (Exception ex) {
-                log.error("[ODII] STORY:{} 부트스트랩 실패", l, ex);
-            }
-        }
-    }
-
-    /**
-     * {@code storyBasedList} 가 0건이어도 {@code storySearchList} 는 활용승인·쿼터가 분리된 경우가 있어,
-     * 광역 키워드 검색으로 STORY 전역 캐시를 채운다 (스토리 탭 전체 목록·테마 조인 공용).
-     */
-    private List<AudioGuideItem> bootstrapStoryCatalogViaKeywordFanout(String lang) {
-        String l = normalize(lang);
-        LinkedHashMap<String, AudioGuideItem> byId = new LinkedHashMap<>();
-        for (String kw : storyBootstrapKeywords(l)) {
-            if (kw == null || kw.isBlank()) {
-                continue;
-            }
-            List<AudioGuideItem> chunk = requestAllPages(
-                    searchUrl(AudioGuideItem.Type.STORY),
-                    Map.of("keyword", kw.trim()),
-                    AudioGuideItem.Type.STORY,
-                    l,
-                    STORY_BOOTSTRAP_MAX_PAGES);
-            if (chunk == null || chunk.isEmpty()) {
-                continue;
-            }
-            for (AudioGuideItem s : chunk) {
-                if (isRenderableOdiiItem(s) && s.getId() != null) {
-                    byId.putIfAbsent(s.getId().trim(), s);
-                }
-            }
-            if (byId.size() >= 1800) {
-                break;
-            }
-        }
-        if (byId.isEmpty()) {
-            return List.of();
-        }
-        log.info("[ODII] STORY:{} 부트스트랩(search 기반) {} 건", l, byId.size());
-        return List.copyOf(byId.values());
-    }
-
-    private static List<String> storyBootstrapKeywords(String canonicalLang) {
-        return switch (normalize(canonicalLang)) {
-            case "en" -> List.of("palace", "temple", "Korea", "Seoul");
-            case "zh" -> List.of("观光", "宫殿", "韩国");
-            case "ja" -> List.of("観光", "宮殿", "韓国");
-            default -> List.of("관광", "역사", "문화");
-        };
     }
 
     // =========================================================================
