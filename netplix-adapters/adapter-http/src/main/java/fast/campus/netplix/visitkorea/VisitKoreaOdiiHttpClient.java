@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -69,6 +70,10 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     private static final int LOCATION_PAGE_ROWS = 50;
     /** TourAPI 계열 locationBased 공통: radius(m) 상한 초과 시 GW 가 빈 목록·비정상 응답을 줄 수 있음. */
     private static final int LOCATION_RADIUS_MAX_M = 20_000;
+    /** KO→비KO 동일 스토리 보강: 키워드 검색·근접 조회 한도 */
+    private static final int STORY_HYDRATE_KEYWORD_FETCH = 28;
+    private static final int STORY_HYDRATE_NEARBY_RADIUS_M = 4000;
+    private static final int STORY_HYDRATE_NEARBY_LIMIT = 36;
     private static final Set<String> SUPPORTED_LANGS = Set.of("ko", "en", "zh", "ja");
 
     /** 목록 추가 페이지를 순차가 아닌 병렬로 받아 EN/ZH/JA 첫 로딩 시간을 줄인다. */
@@ -745,7 +750,26 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         ensureFullStoryCacheForJoin(targetLang);
         CacheSnapshot locSnap = cache.get(allKey(AudioGuideItem.Type.STORY, targetLang));
         if (locSnap == null || locSnap.sites.isEmpty()) {
-            return take(koNearRows, limit);
+            String lng = normalize(targetLang);
+            if ("ko".equals(lng)) {
+                return take(koNearRows, limit);
+            }
+            Set<String> searchMemo = new HashSet<>();
+            Map<String, AudioGuideItem> emptyLoc = Collections.emptyMap();
+            List<AudioGuideItem> hydrated = new ArrayList<>();
+            LinkedHashSet<String> seenEmpty = new LinkedHashSet<>();
+            for (AudioGuideItem ko : koNearRows) {
+                String sid = nullIfBlank(ko.getId());
+                if (sid == null || !seenEmpty.add(sid.trim())) {
+                    continue;
+                }
+                AudioGuideItem resolved = tryResolveStoryInNonKoLang(ko, lng, emptyLoc, searchMemo);
+                hydrated.add(resolved != null ? resolved : ko);
+                if (hydrated.size() >= limit) {
+                    break;
+                }
+            }
+            return take(hydrated, limit);
         }
         Map<String, AudioGuideItem> localizedById = new HashMap<>();
         for (AudioGuideItem s : locSnap.sites) {
@@ -768,6 +792,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         }
         List<AudioGuideItem> out = new ArrayList<>();
         LinkedHashSet<String> seen = new LinkedHashSet<>();
+        Set<String> searchMemo = new HashSet<>();
         for (AudioGuideItem ko : koNearRows) {
             String sid = nullIfBlank(ko.getId());
             if (sid == null || !seen.add(sid.trim())) {
@@ -782,7 +807,15 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                     /* noop */
                 }
             }
-            out.add(hit != null ? hit : ko);
+            if (hit != null) {
+                out.add(hit);
+            } else {
+                String lng = normalize(targetLang);
+                AudioGuideItem resolved = "ko".equals(lng)
+                        ? null
+                        : tryResolveStoryInNonKoLang(ko, lng, localizedById, searchMemo);
+                out.add(resolved != null ? resolved : ko);
+            }
             if (out.size() >= limit) {
                 break;
             }
@@ -791,37 +824,41 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     }
 
     /**
-     * KO 캐시에서 정해진 스토리 id 순서를 현재 언어 레코드로 바꾼다. 없으면 KO 레코드를 그대로 반환한다.
+     * KO 캐시에서 정해진 스토리 id 순서를 현재 언어 레코드로 바꾼다.
+     * 전역 캐시에 동일 id 가 없으면 storySearchList·근접 목록으로 해당 언어 행을 한 번 더 찾는다.
      */
     private List<AudioGuideItem> bridgeKoOrderedStoryIdsToTargetLang(
             CacheSnapshot koSnap, List<String> orderedStoryIds, String targetLang, int limit) {
         if (koSnap == null || koSnap.sites == null || orderedStoryIds == null || orderedStoryIds.isEmpty()) {
             return List.of();
         }
+        String langN = normalize(targetLang);
+        Map<String, AudioGuideItem> koById = new HashMap<>();
+        for (AudioGuideItem s : koSnap.sites) {
+            indexStoryIdKeys(koById, s);
+        }
         ensureFullStoryCacheForJoin(targetLang);
         CacheSnapshot locSnap = cache.get(allKey(AudioGuideItem.Type.STORY, targetLang));
-        if (locSnap == null || locSnap.sites.isEmpty()) {
-            return koStoriesByOrderedIds(koSnap, orderedStoryIds, limit);
-        }
         Map<String, AudioGuideItem> localizedById = new HashMap<>();
-        for (AudioGuideItem s : locSnap.sites) {
-            indexStoryIdKeys(localizedById, s);
-        }
         Map<Long, AudioGuideItem> localizedByNumericStoryId = new HashMap<>();
-        for (AudioGuideItem s : locSnap.sites) {
-            String rawId = s.getId();
-            if (rawId == null) {
-                continue;
-            }
-            String nid = rawId.trim();
-            if (nid.matches("\\d+")) {
-                try {
-                    localizedByNumericStoryId.putIfAbsent(Long.parseLong(nid), s);
-                } catch (NumberFormatException ignored) {
-                    /* noop */
+        if (locSnap != null && locSnap.sites != null) {
+            for (AudioGuideItem s : locSnap.sites) {
+                indexStoryIdKeys(localizedById, s);
+                String rawId = s.getId();
+                if (rawId == null) {
+                    continue;
+                }
+                String nid = rawId.trim();
+                if (nid.matches("\\d+")) {
+                    try {
+                        localizedByNumericStoryId.putIfAbsent(Long.parseLong(nid), s);
+                    } catch (NumberFormatException ignored) {
+                        /* noop */
+                    }
                 }
             }
         }
+        Set<String> searchMemo = new HashSet<>();
         List<AudioGuideItem> out = new ArrayList<>();
         for (String sid : orderedStoryIds) {
             AudioGuideItem hit = lookupStoryIdInMap(localizedById, sid);
@@ -834,12 +871,128 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             }
             if (hit != null) {
                 out.add(hit);
+                continue;
+            }
+            AudioGuideItem koRow = lookupStoryIdInMap(koById, sid);
+            if (koRow != null) {
+                AudioGuideItem resolved = "ko".equals(langN)
+                        ? null
+                        : tryResolveStoryInNonKoLang(koRow, langN, localizedById, searchMemo);
+                out.add(resolved != null ? resolved : koRow);
             }
         }
-        if (out.isEmpty()) {
-            return koStoriesByOrderedIds(koSnap, orderedStoryIds, limit);
-        }
         return take(out, limit);
+    }
+
+    /**
+     * KO 스토리 한 건에 대응하는 대상 언어 레코드를 storySearchList·근접 API 로 찾는다.
+     * <p>{@code localizedById} 는 이미 전역 캐시를 인덱싱한 맵이며, 여기서 다시 맞춰 보지 못하면 검색을 시도한다.
+     */
+    private AudioGuideItem tryResolveStoryInNonKoLang(
+            AudioGuideItem ko,
+            String targetLang,
+            Map<String, AudioGuideItem> localizedById,
+            Set<String> searchMemo) {
+        if (ko == null || targetLang == null || "ko".equals(targetLang)) {
+            return null;
+        }
+        String sid = nullIfBlank(ko.getId());
+        if (sid != null) {
+            AudioGuideItem again = lookupStoryIdInMap(localizedById, sid);
+            if (again != null) {
+                return again;
+            }
+            String memoKey = targetLang + ":id:" + sid.trim();
+            if (searchMemo.add(memoKey)) {
+                for (AudioGuideItem s : fetchByKeyword(
+                        AudioGuideItem.Type.STORY, targetLang, sid.trim(), STORY_HYDRATE_KEYWORD_FETCH)) {
+                    if (s.getId() != null && themeIdMatches(s.getId().trim(), sid.trim())) {
+                        return s;
+                    }
+                }
+            }
+        }
+        String token = primaryStorySearchToken(ko);
+        if (token != null && token.length() >= 2) {
+            String memoTok = targetLang + ":tok:" + token.hashCode();
+            if (searchMemo.add(memoTok)) {
+                String koTid = nullIfBlank(ko.getThemeId());
+                for (AudioGuideItem s : fetchByKeyword(
+                        AudioGuideItem.Type.STORY, targetLang, token, STORY_HYDRATE_KEYWORD_FETCH)) {
+                    if (koTid != null && s.getThemeId() != null && themeIdMatches(s.getThemeId().trim(), koTid)) {
+                        if (sid != null && s.getId() != null && themeIdMatches(s.getId().trim(), sid.trim())) {
+                            return s;
+                        }
+                    }
+                }
+                if (koTid != null) {
+                    for (AudioGuideItem s : fetchByKeyword(
+                            AudioGuideItem.Type.STORY, targetLang, token, STORY_HYDRATE_KEYWORD_FETCH)) {
+                        if (s.getThemeId() != null && themeIdMatches(s.getThemeId().trim(), koTid)) {
+                            return s;
+                        }
+                    }
+                }
+            }
+        }
+        if (ko.getLatitude() != null && ko.getLongitude() != null) {
+            List<AudioGuideItem> near = fetchNearby(
+                    AudioGuideItem.Type.STORY,
+                    targetLang,
+                    ko.getLatitude(),
+                    ko.getLongitude(),
+                    STORY_HYDRATE_NEARBY_RADIUS_M,
+                    STORY_HYDRATE_NEARBY_LIMIT);
+            if (near != null) {
+                if (sid != null) {
+                    for (AudioGuideItem s : near) {
+                        if (s.getId() != null && themeIdMatches(s.getId().trim(), sid.trim())) {
+                            return s;
+                        }
+                    }
+                }
+                String koTid = nullIfBlank(ko.getThemeId());
+                if (koTid != null) {
+                    for (AudioGuideItem s : near) {
+                        if (s.getThemeId() != null && themeIdMatches(s.getThemeId(), koTid)) {
+                            return s;
+                        }
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private static String primaryStorySearchToken(AudioGuideItem ko) {
+        if (ko == null) {
+            return null;
+        }
+        String t = firstNonBlankText(nullIfBlank(ko.getTitle()), nullIfBlank(ko.getAudioTitle()));
+        if (t == null) {
+            return null;
+        }
+        t = t.trim();
+        if (t.isEmpty()) {
+            return null;
+        }
+        int cut = t.indexOf('，');
+        if (cut < 0) {
+            cut = t.indexOf(',');
+        }
+        if (cut < 0) {
+            cut = t.indexOf('·');
+        }
+        if (cut < 0) {
+            cut = t.indexOf('→');
+        }
+        if (cut >= 2) {
+            t = t.substring(0, cut).trim();
+        }
+        if (t.length() > 48) {
+            t = t.substring(0, 48).trim();
+        }
+        return t.length() >= 2 ? t : null;
     }
 
     /** 스토리 id 가 선행 0·공백만 다른 경우 동일 행으로 인덱싱한다 */
