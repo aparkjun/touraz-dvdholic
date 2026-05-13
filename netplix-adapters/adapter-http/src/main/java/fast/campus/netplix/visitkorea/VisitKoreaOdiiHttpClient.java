@@ -661,8 +661,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     }
 
     /**
-     * 전역 캐시 스토리에 좌표가 비어 있어도, Odii storyLocationBasedList 로 근처 KO 스토리를 받아 브리지한다.
-     * 풀 캐시에 없는 id 가 나오면 근접 API 행을 KO 원문으로 두고 타깃 언어 레코드만 교체한다.
+     * storyLocationBasedList 로 테마 좌표 근처 스토리를 받는다.
+     * <p>먼저 UI 언어({@code canonicalLang})로 조회해 제목·해설이 해당 언어로 내려오게 하고,
+     * tid 가 맞는 항목이 있으면 우선 반환한다. 없으면 KO 근접 목록으로 id 브리지한다.
      */
     private List<AudioGuideItem> tryKoStoryLocationApiBridge(String canonicalLang, String themeId, int limit,
                                                               Double presetLat, Double presetLon) {
@@ -671,8 +672,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         }
         Double lat = presetLat;
         Double lng = presetLon;
+        String tidKey = themeId == null ? "" : themeId.trim();
         if (lat == null || lng == null || !Double.isFinite(lat) || !Double.isFinite(lng)) {
-            AudioGuideItem anchor = resolveAnchorThemeForCrossLangBridge(canonicalLang, themeId.trim());
+            AudioGuideItem anchor = resolveAnchorThemeForCrossLangBridge(canonicalLang, tidKey);
             if (anchor == null || anchor.getLatitude() == null || anchor.getLongitude() == null) {
                 return List.of();
             }
@@ -683,7 +685,22 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         CacheSnapshot koSnap = cache.get(allKey(AudioGuideItem.Type.STORY, "ko"));
         boolean koPoolOk = koSnap != null && koSnap.sites != null && !koSnap.sites.isEmpty();
         int want = Math.max(limit * 14, 96);
+        List<AudioGuideItem> bestUiLangNear = null;
         for (int radiusM : new int[]{600, 1800, 5000, 14000, 20_000}) {
+            List<AudioGuideItem> nearUi = fetchNearby(AudioGuideItem.Type.STORY, canonicalLang, lat, lng, radiusM, want);
+            if (nearUi != null && !nearUi.isEmpty()) {
+                bestUiLangNear = nearUi;
+                if (!tidKey.isEmpty()) {
+                    List<AudioGuideItem> themed = nearUi.stream()
+                            .filter(s -> s.getThemeId() != null && themeIdMatches(s.getThemeId(), tidKey))
+                            .collect(Collectors.toList());
+                    if (!themed.isEmpty()) {
+                        return take(themed, limit);
+                    }
+                } else {
+                    return take(nearUi, limit);
+                }
+            }
             List<AudioGuideItem> near = fetchNearby(AudioGuideItem.Type.STORY, "ko", lat, lng, radiusM, want);
             if (near == null || near.isEmpty()) {
                 continue;
@@ -710,6 +727,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 return direct;
             }
         }
+        if (bestUiLangNear != null && !bestUiLangNear.isEmpty()) {
+            return take(bestUiLangNear, limit);
+        }
         return List.of();
     }
 
@@ -718,13 +738,19 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         if (koNearRows == null || koNearRows.isEmpty()) {
             return List.of();
         }
+        AudioGuideItem probe = koNearRows.get(0);
+        if (probe != null && probe.getLanguage() != null && normalize(probe.getLanguage()).equals(normalize(targetLang))) {
+            return take(koNearRows, limit);
+        }
         ensureFullStoryCacheForJoin(targetLang);
         CacheSnapshot locSnap = cache.get(allKey(AudioGuideItem.Type.STORY, targetLang));
         if (locSnap == null || locSnap.sites.isEmpty()) {
             return take(koNearRows, limit);
         }
-        Map<String, AudioGuideItem> localizedById = locSnap.sites.stream()
-                .collect(Collectors.toMap(AudioGuideItem::getId, s -> s, (a, b) -> a));
+        Map<String, AudioGuideItem> localizedById = new HashMap<>();
+        for (AudioGuideItem s : locSnap.sites) {
+            indexStoryIdKeys(localizedById, s);
+        }
         Map<Long, AudioGuideItem> localizedByNumericStoryId = new HashMap<>();
         for (AudioGuideItem s : locSnap.sites) {
             String rawId = s.getId();
@@ -748,7 +774,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 continue;
             }
             String tid = sid.trim();
-            AudioGuideItem hit = localizedById.get(tid);
+            AudioGuideItem hit = lookupStoryIdInMap(localizedById, tid);
             if (hit == null && tid.matches("\\d+")) {
                 try {
                     hit = localizedByNumericStoryId.get(Long.parseLong(tid));
@@ -777,8 +803,10 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         if (locSnap == null || locSnap.sites.isEmpty()) {
             return koStoriesByOrderedIds(koSnap, orderedStoryIds, limit);
         }
-        Map<String, AudioGuideItem> localizedById = locSnap.sites.stream()
-                .collect(Collectors.toMap(AudioGuideItem::getId, s -> s, (a, b) -> a));
+        Map<String, AudioGuideItem> localizedById = new HashMap<>();
+        for (AudioGuideItem s : locSnap.sites) {
+            indexStoryIdKeys(localizedById, s);
+        }
         Map<Long, AudioGuideItem> localizedByNumericStoryId = new HashMap<>();
         for (AudioGuideItem s : locSnap.sites) {
             String rawId = s.getId();
@@ -796,7 +824,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         }
         List<AudioGuideItem> out = new ArrayList<>();
         for (String sid : orderedStoryIds) {
-            AudioGuideItem hit = sid != null ? localizedById.get(sid) : null;
+            AudioGuideItem hit = lookupStoryIdInMap(localizedById, sid);
             if (hit == null && sid != null && sid.trim().matches("\\d+")) {
                 try {
                     hit = localizedByNumericStoryId.get(Long.parseLong(sid.trim()));
@@ -812,6 +840,47 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             return koStoriesByOrderedIds(koSnap, orderedStoryIds, limit);
         }
         return take(out, limit);
+    }
+
+    /** 스토리 id 가 선행 0·공백만 다른 경우 동일 행으로 인덱싱한다 */
+    private static void indexStoryIdKeys(Map<String, AudioGuideItem> out, AudioGuideItem s) {
+        if (s == null || s.getId() == null) {
+            return;
+        }
+        String raw = s.getId().trim();
+        if (raw.isEmpty()) {
+            return;
+        }
+        out.putIfAbsent(raw, s);
+        if (raw.matches("\\d+")) {
+            try {
+                out.putIfAbsent(Long.toString(Long.parseLong(raw)), s);
+            } catch (NumberFormatException ignored) {
+                /* noop */
+            }
+        }
+    }
+
+    private static AudioGuideItem lookupStoryIdInMap(Map<String, AudioGuideItem> byId, String sid) {
+        if (sid == null || byId == null) {
+            return null;
+        }
+        String t = sid.trim();
+        if (t.isEmpty()) {
+            return null;
+        }
+        AudioGuideItem hit = byId.get(t);
+        if (hit != null) {
+            return hit;
+        }
+        if (t.matches("\\d+")) {
+            try {
+                hit = byId.get(Long.toString(Long.parseLong(t)));
+            } catch (NumberFormatException ignored) {
+                /* noop */
+            }
+        }
+        return hit;
     }
 
     /** 현재 언어 THEME 캐시에서 카드 id 로 행을 찾아 좌표 브리지에 사용한다. */
@@ -927,14 +996,16 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         if (koSnap == null || koSnap.sites == null || orderedStoryIds == null || orderedStoryIds.isEmpty()) {
             return List.of();
         }
-        Map<String, AudioGuideItem> koById = koSnap.sites.stream()
-                .collect(Collectors.toMap(AudioGuideItem::getId, s -> s, (a, b) -> a));
+        Map<String, AudioGuideItem> koById = new HashMap<>();
+        for (AudioGuideItem s : koSnap.sites) {
+            indexStoryIdKeys(koById, s);
+        }
         List<AudioGuideItem> out = new ArrayList<>();
         for (String sid : orderedStoryIds) {
             if (sid == null || sid.isBlank()) {
                 continue;
             }
-            AudioGuideItem k = koById.get(sid);
+            AudioGuideItem k = lookupStoryIdInMap(koById, sid);
             if (k != null) {
                 out.add(k);
             }
