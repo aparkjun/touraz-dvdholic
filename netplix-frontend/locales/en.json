@@ -993,7 +993,8 @@
         "title": "Narration stories for this spot",
         "sub": "When a row has an mp3, we play the Odii recording; otherwise you can listen to the script with the browser voice.",
         "loading": "Loading related narration stories...",
-        "empty": "No narration stories linked to this spot yet. The server cache may still be warming up — please try again in a moment."
+        "empty": "No narration stories linked to this spot yet. The server cache may still be warming up — please try again in a moment.",
+        "noPlay": "This browser cannot play this item inline."
       }
     },
     "courses": {

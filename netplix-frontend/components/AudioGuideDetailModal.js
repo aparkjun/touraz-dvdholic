@@ -18,7 +18,7 @@
  *  - onClose: 닫기 콜백 (필수)
  */
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
@@ -489,12 +489,28 @@ function buildKakaoDirectionsUrl({ destLat, destLng, destName, userPos, startNam
   return `https://map.kakao.com/link/to/${encodeURIComponent(d)},${destLat},${destLng}`;
 }
 
+/** 상단 Odii 칩(ko|en|zh|ja)과 i18n 리소스 언어를 맞춘다 — 사이트 UI 언어와 무관하게 모달 카피를 바꾼다 */
+function odiiLangToI18nLng(odii) {
+  if (odii === "en") return "en";
+  if (odii === "zh") return "zh";
+  if (odii === "ja") return "ja";
+  return "ko";
+}
+
 export default function AudioGuideDetailModal({
   item, onClose, odiiLang: odiiLangProp, anchorLat, anchorLng,
 }) {
   const { t, i18n } = useTranslation();
   /** 모달 안에서 바꿀 수 있는 Odii 데이터 언어(ko|en|zh|ja) — 상단 칩과 sessionStorage 동기화 */
   const [modalOdiiLang, setModalOdiiLang] = useState("ko");
+  const odiiUiLng = useMemo(
+    () => odiiLangToI18nLng(isValidOdiiLang(modalOdiiLang) ? modalOdiiLang : "ko"),
+    [modalOdiiLang],
+  );
+  const td = useCallback(
+    (key, def) => t(key, { lng: odiiUiLng, defaultValue: def }),
+    [t, odiiUiLng],
+  );
   const audioRef = useRef(null);
   const mediaSessionDetachRef = useRef(null);
   const ttsVoiceSelectId = useId();
@@ -793,8 +809,8 @@ export default function AudioGuideDetailModal({
     const destName =
       titleForNav
       || audioTForNav
-      || t("audioGuide.detail.directionsDestFallback", "목적지");
-    const startName = t("audioGuide.detail.directionsStartCurrent", "내 위치");
+      || td("audioGuide.detail.directionsDestFallback", "목적지");
+    const startName = td("audioGuide.detail.directionsStartCurrent", "내 위치");
     return buildKakaoDirectionsUrl({
       destLat: item.latitude,
       destLng: item.longitude,
@@ -802,7 +818,7 @@ export default function AudioGuideDetailModal({
       userPos: userNavPos,
       startName,
     });
-  }, [item?.id, item?.latitude, item?.longitude, item?.title, item?.audioTitle, themeLangDetail?.title, themeLangDetail?.audioTitle, userNavPos, t]);
+  }, [item?.id, item?.latitude, item?.longitude, item?.title, item?.audioTitle, themeLangDetail?.title, themeLangDetail?.audioTitle, userNavPos, td]);
 
   // ESC 닫기 + 배경 스크롤 잠금
   useEffect(() => {
@@ -1180,18 +1196,18 @@ export default function AudioGuideDetailModal({
                   voices={koVoices}
                   value={ttsKoSelectValue}
                   onChange={onTtsKoVoiceChange}
-                  label={t("audioGuide.detail.tts.voiceLabelKo", "한국어 대본용")}
-                  ariaLabel={t("audioGuide.detail.tts.voiceAriaKo", "한국어 해설 대본에 쓸 브라우저 음성")}
+                  label={td("audioGuide.detail.tts.voiceLabelKo", "한국어 대본용")}
+                  ariaLabel={td("audioGuide.detail.tts.voiceAriaKo", "한국어 해설 대본에 쓸 브라우저 음성")}
                   isApplyRow={koVoiceRowApply}
                   firstOption={{
                     value: TTS_KO_BUILTIN_KEY,
-                    label: t("audioGuide.detail.tts.voiceBrowserDefaultKo", "브라우저 기본 (이전과 동일)"),
+                    label: td("audioGuide.detail.tts.voiceBrowserDefaultKo", "브라우저 기본 (이전과 동일)"),
                   }}
                 />
               ) : null}
               {(ttsContentIsEn || ttsContentIsZh || ttsContentIsJa) ? (
                 <p className="agm-tts-voice-hint">
-                  {t(
+                  {td(
                     "audioGuide.detail.tts.odiiTtsFallbackHint",
                     "Odii가 mp3(audioUrl)를 주면 그 녹음을 그대로 재생합니다. 영·일 등 일부 언어 행에는 파일이 없어 대본만 브라우저 음성으로 읽을 때가 있어요 — 서버가 URL 필드를 넓게 인식하고, 영·일은 브라우저에서 해당 언어 음성을 골라 씁니다.",
                   )}
@@ -1230,10 +1246,10 @@ export default function AudioGuideDetailModal({
               </div>
               {audioError && (
                 <p className="agm-player-err">
-                  {t("audioGuide.detail.audioErr", "오디오를 재생할 수 없어요. 원본 링크에서 열어보세요.")}
+                  {td("audioGuide.detail.audioErr", "오디오를 재생할 수 없어요. 원본 링크에서 열어보세요.")}
                   {" · "}
                   <a href={viewAudioUrl} target="_blank" rel="noreferrer">
-                    {t("audioGuide.detail.openAudio", "오디오 파일 열기")}
+                    {td("audioGuide.detail.openAudio", "오디오 파일 열기")}
                   </a>
                 </p>
               )}
@@ -1244,10 +1260,10 @@ export default function AudioGuideDetailModal({
                 <div className="agm-theme-intro">
                   <div className="agm-theme-intro-head">
                     <div className="agm-theme-intro-title">
-                      {t("audioGuide.detail.themeIntro.title", "테마 소개 오디오")}
+                      {td("audioGuide.detail.themeIntro.title", "테마 소개 오디오")}
                     </div>
                     <div className="agm-theme-intro-sub">
-                      {t("audioGuide.detail.themeIntro.sub", "아래 목록은 같은 관광지의 세부 해설 이야기예요.")}
+                      {td("audioGuide.detail.themeIntro.sub", "아래 목록은 같은 관광지의 세부 해설 이야기예요.")}
                     </div>
                   </div>
                   <div className="agm-player agm-player-theme-compact">
@@ -1258,8 +1274,8 @@ export default function AudioGuideDetailModal({
                         onClick={togglePlay}
                         aria-label={
                           playing
-                            ? t("audioGuide.detail.themeIntro.pauseAria", "테마 소개 오디오 일시정지")
-                            : t("audioGuide.detail.themeIntro.playAria", "테마 소개 오디오 재생")
+                            ? td("audioGuide.detail.themeIntro.pauseAria", "테마 소개 오디오 일시정지")
+                            : td("audioGuide.detail.themeIntro.playAria", "테마 소개 오디오 재생")
                         }
                       >
                         {playing ? <Pause size={18} /> : <Play size={18} />}
@@ -1283,10 +1299,10 @@ export default function AudioGuideDetailModal({
                     </div>
                     {audioError && (
                       <p className="agm-player-err">
-                        {t("audioGuide.detail.audioErr", "오디오를 재생할 수 없어요. 원본 링크에서 열어보세요.")}
+                        {td("audioGuide.detail.audioErr", "오디오를 재생할 수 없어요. 원본 링크에서 열어보세요.")}
                         {" · "}
                         <a href={viewAudioUrl} target="_blank" rel="noreferrer">
-                          {t("audioGuide.detail.openAudio", "오디오 파일 열기")}
+                          {td("audioGuide.detail.openAudio", "오디오 파일 열기")}
                         </a>
                       </p>
                     )}
@@ -1296,21 +1312,21 @@ export default function AudioGuideDetailModal({
               <div className="agm-theme-stories">
               <div className="agm-theme-stories-head">
                 <div className="agm-theme-stories-title">
-                  <VoiceMicIcon active={themeStoriesVoiceActive} size={16} /> {t("audioGuide.detail.stories.title", "이 관광지의 해설 이야기")}
+                  <VoiceMicIcon active={themeStoriesVoiceActive} size={16} /> {td("audioGuide.detail.stories.title", "이 관광지의 해설 이야기")}
                 </div>
                 <div className="agm-theme-stories-sub">
-                  {t("audioGuide.detail.stories.sub", "항목마다 제공 형태가 달라요. 오디오가 있으면 바로 재생하고, 없으면 브라우저 음성으로 대본을 들을 수 있어요.")}
+                  {td("audioGuide.detail.stories.sub", "항목마다 제공 형태가 달라요. 오디오가 있으면 바로 재생하고, 없으면 브라우저 음성으로 대본을 들을 수 있어요.")}
                 </div>
               </div>
               {storiesLoading ? (
                 <div className="agm-stories-loading">
                   <Loader2 size={16} className="agm-spin" />
-                  {t("audioGuide.detail.stories.loading", "연관 해설 이야기를 불러오는 중...")}
+                  {td("audioGuide.detail.stories.loading", "연관 해설 이야기를 불러오는 중...")}
                 </div>
               ) : stories.length === 0 ? (
                 <div className="agm-stories-empty">
                   <Info size={14} />
-                  {t("audioGuide.detail.stories.empty", "이 관광지에 연결된 해설 이야기를 찾지 못했어요. 서버 캐시가 준비되는 동안 잠시 후 다시 열어 주세요.")}
+                  {td("audioGuide.detail.stories.empty", "이 관광지에 연결된 해설 이야기를 찾지 못했어요. 서버 캐시가 준비되는 동안 잠시 후 다시 열어 주세요.")}
                 </div>
               ) : (
                 <ul className="agm-stories-list">
@@ -1347,7 +1363,7 @@ export default function AudioGuideDetailModal({
                                 <span><Tag size={10} /> {s.themeCategory}</span>
                               )}
                               {!storyAudio && !ttsSupported && (
-                                <span><Info size={10} /> {t("audioGuide.detail.stories.noPlay", "이 항목은 이 브라우저에서 바로 재생할 수 없어요.")}</span>
+                                <span><Info size={10} /> {td("audioGuide.detail.stories.noPlay", "이 항목은 이 브라우저에서 바로 재생할 수 없어요.")}</span>
                               )}
                             </div>
                           </div>
@@ -1356,7 +1372,7 @@ export default function AudioGuideDetailModal({
                               type="button"
                               className="agm-story-stop"
                               onClick={stopStoryTts}
-                              aria-label={t("audioGuide.detail.tts.stop", "정지")}
+                              aria-label={td("audioGuide.detail.tts.stop", "정지")}
                             >
                               <Square size={12} />
                             </button>
@@ -1395,7 +1411,7 @@ export default function AudioGuideDetailModal({
               {ttsSupported ? (
                 <div className="agm-tts-meta">
                   <Info size={11} />
-                  {t("audioGuide.detail.tts.note", "음성 품질은 사용 중인 브라우저/OS 에 따라 달라져요.")}
+                  {td("audioGuide.detail.tts.note", "음성 품질은 사용 중인 브라우저/OS 에 따라 달라져요.")}
                 </div>
               ) : null}
             </div>
@@ -1406,38 +1422,38 @@ export default function AudioGuideDetailModal({
               <div className="agm-tts-top">
                 {!ttsPlaying ? (
                   <button type="button" className="agm-tts-main" onClick={startTts}
-                    aria-label={t("audioGuide.detail.tts.start", "AI 음성으로 듣기")}>
+                    aria-label={td("audioGuide.detail.tts.start", "AI 음성으로 듣기")}>
                     <Play size={22} />
                   </button>
                 ) : ttsPaused ? (
                   <button type="button" className="agm-tts-main" onClick={resumeTts}
-                    aria-label={t("audioGuide.detail.tts.resume", "이어 듣기")}>
+                    aria-label={td("audioGuide.detail.tts.resume", "이어 듣기")}>
                     <Play size={22} />
                   </button>
                 ) : (
                   <button type="button" className="agm-tts-main" onClick={pauseTts}
-                    aria-label={t("audioGuide.detail.tts.pause", "일시정지")}>
+                    aria-label={td("audioGuide.detail.tts.pause", "일시정지")}>
                     <Pause size={22} />
                   </button>
                 )}
                 <div className="agm-tts-texts">
                   <div className="agm-tts-title">
-                    <VoiceMicIcon active={ttsPlaying && !ttsPaused} size={14} /> {t("audioGuide.detail.tts.title", "AI 음성으로 해설 듣기")}
+                    <VoiceMicIcon active={ttsPlaying && !ttsPaused} size={14} /> {td("audioGuide.detail.tts.title", "AI 음성으로 해설 듣기")}
                   </div>
                   <div className="agm-tts-sub">
-                    {t("audioGuide.detail.tts.sub", "Odii 는 오디오 파일을 외부에 공개하지 않아요. 브라우저 음성 합성으로 대본을 읽어 드려요.")}
+                    {td("audioGuide.detail.tts.sub", "Odii 는 오디오 파일을 외부에 공개하지 않아요. 브라우저 음성 합성으로 대본을 읽어 드려요.")}
                   </div>
                 </div>
                 {ttsPlaying && (
                   <button type="button" className="agm-tts-stop" onClick={stopTts}
-                    aria-label={t("audioGuide.detail.tts.stop", "정지")}>
+                    aria-label={td("audioGuide.detail.tts.stop", "정지")}>
                     <Square size={14} />
                   </button>
                 )}
               </div>
               <div className="agm-tts-meta">
                 <Info size={11} />
-                {t("audioGuide.detail.tts.note", "음성 품질은 사용 중인 브라우저/OS 에 따라 달라져요.")}
+                {td("audioGuide.detail.tts.note", "음성 품질은 사용 중인 브라우저/OS 에 따라 달라져요.")}
                 {" · "}
                 <span>{ttsLang}</span>
               </div>
@@ -1445,13 +1461,13 @@ export default function AudioGuideDetailModal({
           ) : (
             <div className="agm-noaudio">
               <VoiceMicIcon active={false} size={14} />
-              {t("audioGuide.detail.noAudio", "이 항목에는 오디오 파일이 제공되지 않아요.")}
+              {td("audioGuide.detail.noAudio", "이 항목에는 오디오 파일이 제공되지 않아요.")}
             </div>
           )}
 
           {effectiveDescription && (
             <section className="agm-script">
-              <h3>{t("audioGuide.detail.script", "해설 스크립트")}</h3>
+              <h3>{td("audioGuide.detail.script", "해설 스크립트")}</h3>
               <p>{effectiveDescription}</p>
             </section>
           )}
@@ -1459,7 +1475,7 @@ export default function AudioGuideDetailModal({
           {hasCoords && (
             <div className="agm-map-block">
               <div className="agm-map-heading">
-                {t("audioGuide.detail.directionsSection", "길찾기 (대중교통)")}
+                {td("audioGuide.detail.directionsSection", "길찾기 (대중교통)")}
               </div>
               <div className="agm-map-actions">
                 {googleDirectionsUrl && (
@@ -1469,7 +1485,7 @@ export default function AudioGuideDetailModal({
                     rel="noreferrer"
                     className="agm-map-btn agm-map-dir agm-map-google"
                   >
-                    <Navigation size={13} /> {t("audioGuide.detail.directionsGoogle", "Google 지도 길찾기")}
+                    <Navigation size={13} /> {td("audioGuide.detail.directionsGoogle", "Google 지도 길찾기")}
                   </a>
                 )}
                 {kakaoDirectionsUrl && (
@@ -1479,30 +1495,30 @@ export default function AudioGuideDetailModal({
                     rel="noreferrer"
                     className="agm-map-btn agm-map-dir agm-map-kakao"
                   >
-                    <Navigation size={13} /> {t("audioGuide.detail.directionsKakao", "카카오맵 길찾기")}
+                    <Navigation size={13} /> {td("audioGuide.detail.directionsKakao", "카카오맵 길찾기")}
                   </a>
                 )}
               </div>
               {navLocState === "loading" && (
                 <p className="agm-map-hint">
-                  {t("audioGuide.detail.directionsLocating", "내 위치를 불러오면 출발지가 채워져요…")}
+                  {td("audioGuide.detail.directionsLocating", "내 위치를 불러오면 출발지가 채워져요…")}
                 </p>
               )}
               {navLocState === "denied" && (
                 <p className="agm-map-hint agm-map-hint-warn">
-                  {t("audioGuide.detail.directionsDeniedHint", "위치 권한이 없으면 앱에서 출발지를 직접 지정해 주세요.")}
+                  {td("audioGuide.detail.directionsDeniedHint", "위치 권한이 없으면 앱에서 출발지를 직접 지정해 주세요.")}
                 </p>
               )}
 
               <div className="agm-map-heading">
-                {t("audioGuide.detail.mapViewSection", "지도에서 보기")}
+                {td("audioGuide.detail.mapViewSection", "지도에서 보기")}
               </div>
               <div className="agm-map-actions">
                 <a href={googleMapUrl} target="_blank" rel="noreferrer" className="agm-map-btn agm-map-google">
-                  <ExternalLink size={13} /> {t("audioGuide.detail.openGoogleMap", "구글 지도에서 보기")}
+                  <ExternalLink size={13} /> {td("audioGuide.detail.openGoogleMap", "구글 지도에서 보기")}
                 </a>
                 <a href={kakaoMapUrl} target="_blank" rel="noreferrer" className="agm-map-btn agm-map-kakao">
-                  <ExternalLink size={13} /> {t("audioGuide.detail.openKakaoMap", "카카오맵에서 보기")}
+                  <ExternalLink size={13} /> {td("audioGuide.detail.openKakaoMap", "카카오맵에서 보기")}
                 </a>
               </div>
             </div>

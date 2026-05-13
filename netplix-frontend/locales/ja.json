@@ -1,0 +1,50 @@
+{
+  "audioGuide": {
+    "detail": {
+      "openAria": "詳細を開く",
+      "script": "ナレーション原稿",
+      "noAudio": "この項目にはオーディオファイルがありません。",
+      "audioErr": "再生できません。元ファイルのリンクを開いてください。",
+      "openAudio": "音声ファイルを開く",
+      "themeIntro": {
+        "title": "テーマ概要ナレーション",
+        "sub": "下のリストは同じスポットの短い解説ストーリーです。",
+        "playAria": "概要ナレーションを再生",
+        "pauseAria": "概要ナレーションを一時停止"
+      },
+      "openGoogleMap": "Googleマップで開く",
+      "openKakaoMap": "カカオマップで開く",
+      "directionsSection": "経路（公共交通機関）",
+      "directionsGoogle": "Googleマップで経路検索",
+      "directionsKakao": "カカオマップで経路検索",
+      "mapViewSection": "地図で開く",
+      "directionsLocating": "現在地を取得すると出発地が入力されます…",
+      "directionsDeniedHint": "位置情報が使えない場合は、地図アプリで出発地を指定してください。",
+      "directionsDestFallback": "目的地",
+      "directionsStartCurrent": "現在地",
+      "tts": {
+        "title": "AI音声で聴く",
+        "sub": "Odiiからmp3（audioUrl）が返ればそのまま再生します。リンクがない場合のみブラウザ音声読み上げを使います。",
+        "start": "AI音声で聴く",
+        "resume": "再開",
+        "pause": "一時停止",
+        "stop": "停止",
+        "note": "音声品質はブラウザ／OSによって異なります。",
+        "odiiTtsFallbackHint": "韓国語・中国語の項目にはOdiiの録音が付くことが多く、英語・日本語の行はテキストのみのことがあります。mp3がない場合はブラウザが原稿を読み上げます。",
+        "voiceLabelKo": "韓国語原稿用",
+        "voiceBrowserDefaultKo": "ブラウザ標準（従来どおり）",
+        "voiceAriaKo": "韓国語解説用のブラウザ音声",
+        "voiceLabelEn": "英語原稿用",
+        "voiceAriaEn": "英語解説用のブラウザ音声",
+        "voiceStackHint": "ハイライトされた行が再生に使われます。英語行で選ぶと韓国語もその英語音声で読まれます。韓国語行に戻すと韓国語音声に戻ります。"
+      },
+      "stories": {
+        "title": "このスポットの解説ストーリー",
+        "sub": "各行にmp3がある場合はOdiiの収録をそのまま再生し、ない場合は原稿をブラウザ音声で聴けます。",
+        "loading": "関連ストーリーを読み込み中…",
+        "empty": "このスポットに紐づくストーリーがまだありません。サーバー準備中の可能性があるので、しばらくしてから開き直してください。",
+        "noPlay": "このブラウザではそのまま再生できません。"
+      }
+    }
+  }
+}

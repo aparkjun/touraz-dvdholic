@@ -1,0 +1,50 @@
+{
+  "audioGuide": {
+    "detail": {
+      "openAria": "打开详情",
+      "script": "解说文稿",
+      "noAudio": "此条目未提供音频文件。",
+      "audioErr": "无法播放。请尝试打开原始文件链接。",
+      "openAudio": "打开音频文件",
+      "themeIntro": {
+        "title": "主题概览解说",
+        "sub": "下方列表为同一景点的分段解说故事。",
+        "playAria": "播放概览解说",
+        "pauseAria": "暂停概览解说"
+      },
+      "openGoogleMap": "在 Google 地图中打开",
+      "openKakaoMap": "在 Kakao 地图中打开",
+      "directionsSection": "路线（公共交通）",
+      "directionsGoogle": "在 Google 地图中规划路线",
+      "directionsKakao": "在 Kakao 地图中规划路线",
+      "mapViewSection": "在地图中打开",
+      "directionsLocating": "正在获取您的位置以填写起点…",
+      "directionsDeniedHint": "若无法使用位置权限，请在地图应用中自行设置起点。",
+      "directionsDestFallback": "目的地",
+      "directionsStartCurrent": "我的位置",
+      "tts": {
+        "title": "用 AI 语音收听",
+        "sub": "若 Odii 返回 mp3 链接（audioUrl），将直接播放该录音；仅在无链接时使用浏览器语音朗读。",
+        "start": "用 AI 语音收听",
+        "resume": "继续",
+        "pause": "暂停",
+        "stop": "停止",
+        "note": "语音质量因浏览器/系统而异。",
+        "odiiTtsFallbackHint": "韩语、中文条目常附带 Odii 录音；英语、日语行可能仅有文本。无 mp3 时由浏览器朗读文稿。",
+        "voiceLabelKo": "韩语文稿",
+        "voiceBrowserDefaultKo": "浏览器默认（与此前相同）",
+        "voiceAriaKo": "朗读韩语解说所用的浏览器语音",
+        "voiceLabelEn": "英语文稿",
+        "voiceAriaEn": "朗读英语解说所用的浏览器语音",
+        "voiceStackHint": "高亮行为当前播放所用设置。若在英语行选择语音，韩语也会用该英语语音朗读；切回韩语行即可恢复韩语语音。"
+      },
+      "stories": {
+        "title": "本景点的解说故事",
+        "sub": "若条目提供 mp3，将播放 Odii 原录音；否则可用浏览器语音收听文稿。",
+        "loading": "正在加载相关解说故事…",
+        "empty": "暂未找到与本景点关联的故事。服务器缓存可能在准备中，请稍后重新打开。",
+        "noPlay": "此浏览器无法直接播放该条目。"
+      }
+    }
+  }
+}
