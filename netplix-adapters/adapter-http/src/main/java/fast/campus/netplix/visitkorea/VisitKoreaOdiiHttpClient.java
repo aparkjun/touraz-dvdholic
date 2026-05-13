@@ -362,7 +362,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         LinkedHashSet<String> bridgeThemeCandidates = new LinkedHashSet<>();
         bridgeThemeCandidates.add(key);
         if (!"ko".equals(l)) {
-            AudioGuideItem anchorTheme = findCachedThemeForBridge(l, key);
+            AudioGuideItem anchorTheme = resolveAnchorThemeForCrossLangBridge(l, key);
             if (anchorTheme != null && anchorTheme.getLatitude() != null && anchorTheme.getLongitude() != null) {
                 double lat = anchorTheme.getLatitude();
                 double lng = anchorTheme.getLongitude();
@@ -580,7 +580,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         if ("ko".equals(canonicalLang)) {
             return List.of();
         }
-        AudioGuideItem anchorTheme = findCachedThemeForBridge(canonicalLang, themeId.trim());
+        AudioGuideItem anchorTheme = resolveAnchorThemeForCrossLangBridge(canonicalLang, themeId.trim());
         if (anchorTheme == null || anchorTheme.getLatitude() == null || anchorTheme.getLongitude() == null) {
             return List.of();
         }
@@ -643,7 +643,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         if ("ko".equals(canonicalLang)) {
             return List.of();
         }
-        AudioGuideItem anchor = findCachedThemeForBridge(canonicalLang, themeId.trim());
+        AudioGuideItem anchor = resolveAnchorThemeForCrossLangBridge(canonicalLang, themeId.trim());
         if (anchor == null || anchor.getLatitude() == null || anchor.getLongitude() == null) {
             return List.of();
         }
@@ -800,6 +800,26 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 .filter(t -> themeIdMatches(t.getId(), trimmed))
                 .findFirst()
                 .orElse(null);
+    }
+
+    /**
+     * en/zh/ja stories-by-theme 등에서 좌표·근접 tid 브리지용 앵커 테마.
+     * 요청 tid 가 대상 언어 THEME 캐시에 없거나 좌표가 비면 동일 tid 의 KO 테마를 사용한다.
+     */
+    private AudioGuideItem resolveAnchorThemeForCrossLangBridge(String targetLang, String themeId) {
+        if (themeId == null || themeId.isBlank()) {
+            return null;
+        }
+        String tid = themeId.trim();
+        AudioGuideItem inTarget = findCachedThemeForBridge(targetLang, tid);
+        AudioGuideItem inKo = findCachedThemeForBridge("ko", tid);
+        if (inTarget != null && inTarget.getLatitude() != null && inTarget.getLongitude() != null) {
+            return inTarget;
+        }
+        if (inKo != null && inKo.getLatitude() != null && inKo.getLongitude() != null) {
+            return inKo;
+        }
+        return inTarget != null ? inTarget : inKo;
     }
 
     /** 좌표 근처 KO THEME 의 tid 를 후보 집합에 더한다 (언어별 테마 tid 불일치 보완). */
