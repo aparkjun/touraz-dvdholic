@@ -76,6 +76,30 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     private static final int STORY_HYDRATE_NEARBY_LIMIT = 36;
     private static final Set<String> SUPPORTED_LANGS = Set.of("ko", "en", "zh", "ja");
 
+    /**
+     * themeBasedList/storyBasedList 는 활용 승인·GW 정책상 0건만 주는데 searchList 는 동작하는 환경이 있다.
+     * {@link #refreshAll} 이후에만 호출하며, refresh 락과 다른 모니터로 묶어 데드락을 피한다.
+     */
+    private static final String SEARCH_BOOTSTRAP_LOCK_PREFIX = "__SB__:";
+    private static final int STORY_BOOTSTRAP_MAX_PAGES_PER_KW = 4;
+    private static final int STORY_BOOTSTRAP_MAX_ITEMS = 2200;
+    private static final int THEME_BOOTSTRAP_MAX_PAGES_PER_KW = 3;
+    private static final int THEME_BOOTSTRAP_MAX_ITEMS = 600;
+    private static final String[] STORY_BOOTSTRAP_KW_KO = {
+            "관광", "여행", "문화", "역사", "자연", "서울", "부산", "경주",
+            "궁", "사찰", "해안", "박물관", "공원", "유적", "마을"
+    };
+    private static final String[] STORY_BOOTSTRAP_KW_EN = {
+            "tour", "Seoul", "palace", "museum", "park", "temple", "culture", "history",
+            "Korea", "Busan", "Gyeongju", "nature", "heritage"
+    };
+    private static final String[] THEME_BOOTSTRAP_KW_KO = {
+            "서울", "부산", "경주", "한국", "관광", "문화", "역사", "자연", "해안", "산"
+    };
+    private static final String[] THEME_BOOTSTRAP_KW_EN = {
+            "Seoul", "Busan", "tour", "museum", "palace", "park", "Korea", "temple", "heritage", "nature"
+    };
+
     /** 목록 추가 페이지를 순차가 아닌 병렬로 받아 EN/ZH/JA 첫 로딩 시간을 줄인다. */
     private static final int ODII_PARALLEL_PAGE_FETCH = 8;
 
@@ -235,6 +259,10 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             }
             refreshAll(type, l);
             snap = cache.get(key);
+            if (snap == null || snap.sites.isEmpty()) {
+                maybeFillCatalogViaSearchWhenBasedListEmpty(type, l);
+                snap = cache.get(key);
+            }
             return take(snap != null ? snap.sites : List.of(), limit);
         }
 
@@ -1241,6 +1269,10 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 refreshAll(AudioGuideItem.Type.STORY, l);
             }
         }
+        CacheSnapshot tail = cache.get(cacheKey);
+        if (tail == null || tail.sites.isEmpty()) {
+            maybeFillCatalogViaSearchWhenBasedListEmpty(AudioGuideItem.Type.STORY, l);
+        }
     }
 
     // =========================================================================
@@ -1333,6 +1365,79 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             }
             cache.put(cacheKey, new CacheSnapshot(sites, Instant.now().toEpochMilli(), false));
             log.info("[ODII] type={} lang={} 키워드={} 캐시 갱신 - {} 건", type, lang, keyword, sites.size());
+        }
+    }
+
+    private String[] searchBootstrapKeywords(AudioGuideItem.Type type, String canonicalLang) {
+        String lng = normalize(canonicalLang);
+        if (type == AudioGuideItem.Type.STORY) {
+            return switch (lng) {
+                case "en" -> STORY_BOOTSTRAP_KW_EN;
+                case "ko" -> STORY_BOOTSTRAP_KW_KO;
+                default -> STORY_BOOTSTRAP_KW_KO;
+            };
+        }
+        return switch (lng) {
+            case "en" -> THEME_BOOTSTRAP_KW_EN;
+            case "ko" -> THEME_BOOTSTRAP_KW_KO;
+            default -> THEME_BOOTSTRAP_KW_KO;
+        };
+    }
+
+    /**
+     * basedList 가 0건일 때에만: searchList 로 광역 키워드를 돌려 동일 캐시 키({@link #allKey})에 합친다.
+     * 호출자는 먼저 {@link #refreshAll} 까지 마친 뒤, 캐시가 비어 있을 때만 호출할 것.
+     */
+    private void maybeFillCatalogViaSearchWhenBasedListEmpty(AudioGuideItem.Type type, String lang) {
+        String cacheKey = allKey(type, lang);
+        synchronized (monitorFor(SEARCH_BOOTSTRAP_LOCK_PREFIX + cacheKey)) {
+            CacheSnapshot cur = cache.get(cacheKey);
+            if (cur != null && !cur.sites.isEmpty() && !cur.partial) {
+                return;
+            }
+            String[] kws = searchBootstrapKeywords(type, lang);
+            int maxPages = type == AudioGuideItem.Type.STORY
+                    ? STORY_BOOTSTRAP_MAX_PAGES_PER_KW
+                    : THEME_BOOTSTRAP_MAX_PAGES_PER_KW;
+            int cap = type == AudioGuideItem.Type.STORY
+                    ? STORY_BOOTSTRAP_MAX_ITEMS
+                    : THEME_BOOTSTRAP_MAX_ITEMS;
+            Map<String, AudioGuideItem> byId = new LinkedHashMap<>();
+            for (String kw : kws) {
+                if (kw == null || kw.isBlank()) {
+                    continue;
+                }
+                if (byId.size() >= cap) {
+                    break;
+                }
+                try {
+                    List<AudioGuideItem> chunk = requestAllPages(
+                            searchUrl(type), Map.of("keyword", kw.trim()), type, lang, maxPages);
+                    if (chunk == null) {
+                        continue;
+                    }
+                    for (AudioGuideItem s : chunk) {
+                        if (s != null && s.getId() != null && !s.getId().isBlank()) {
+                            byId.putIfAbsent(s.getId().trim(), s);
+                        }
+                        if (byId.size() >= cap) {
+                            break;
+                        }
+                    }
+                } catch (Exception ex) {
+                    log.warn("[ODII] search-bootstrap 키워드 실패 type={} lang={} kw={} err={}",
+                            type, lang, kw, ex.getMessage());
+                }
+            }
+            if (byId.isEmpty()) {
+                log.warn("[ODII] search-bootstrap 결과 0건 type={} lang={}", type, lang);
+                return;
+            }
+            List<AudioGuideItem> merged = new ArrayList<>(byId.values());
+            cache.put(cacheKey, new CacheSnapshot(Collections.unmodifiableList(merged),
+                    Instant.now().toEpochMilli(), false));
+            log.info("[ODII] search-bootstrap 캐시 저장 type={} lang={} {} 건 (basedList 0건 환경 폴백)",
+                    type, lang, merged.size());
         }
     }
 
