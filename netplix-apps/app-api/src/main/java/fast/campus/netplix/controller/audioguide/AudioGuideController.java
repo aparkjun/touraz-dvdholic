@@ -118,8 +118,10 @@ public class AudioGuideController {
             @RequestParam String themeId,
             @RequestParam(required = false) String themeTitle,
             @RequestParam(defaultValue = "ko") String lang,
-            @RequestParam(defaultValue = "20") int limit) {
-        List<AudioGuideItemResponse> body = useCase.storiesByTheme(themeId, themeTitle, lang, limit).stream()
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(required = false) Double lat,
+            @RequestParam(required = false) Double lon) {
+        List<AudioGuideItemResponse> body = useCase.storiesByTheme(themeId, themeTitle, lang, limit, lat, lon).stream()
                 .map(AudioGuideItemResponse::from).toList();
         return NetplixApiResponse.ok(body);
     }

@@ -638,14 +638,23 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       || (item.title && String(item.title).trim())
       || (item.audioTitle && String(item.audioTitle).trim())
       || "";
+    const themeLatRaw = themeLangDetail?.latitude ?? item.latitude;
+    const themeLngRaw = themeLangDetail?.longitude ?? item.longitude;
+    const themeLat = typeof themeLatRaw === "number" ? themeLatRaw : Number(themeLatRaw);
+    const themeLng = typeof themeLngRaw === "number" ? themeLngRaw : Number(themeLngRaw);
+    const params = {
+      themeId: themeIdParam,
+      themeTitle: themeTitleHint,
+      lang: effectiveLang,
+      limit: 30,
+    };
+    if (Number.isFinite(themeLat) && Number.isFinite(themeLng)) {
+      params.lat = themeLat;
+      params.lon = themeLng;
+    }
     axios
       .get("/api/v1/audio-guide/stories-by-theme", {
-        params: {
-          themeId: themeIdParam,
-          themeTitle: themeTitleHint,
-          lang: effectiveLang,
-          limit: 30,
-        },
+        params,
       })
       .then((res) => {
         if (cancelled) return;
@@ -668,6 +677,10 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
     themeLangDetail?.id,
     themeLangDetail?.title,
     themeLangDetail?.audioTitle,
+    themeLangDetail?.latitude,
+    themeLangDetail?.longitude,
+    item?.latitude,
+    item?.longitude,
   ]);
 
   // THEME: 칩 언어 ≠ 리스트 row.lang 일 때 동일 tid 의 해당 언어 레코드(오디오·대본·제목) 보강

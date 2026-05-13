@@ -49,10 +49,11 @@ public class AudioGuideItemService implements GetAudioGuideItemsUseCase {
     }
 
     @Override
-    public List<AudioGuideItem> storiesByTheme(String themeId, String themeTitleHint, String lang, int limit) {
+    public List<AudioGuideItem> storiesByTheme(String themeId, String themeTitleHint, String lang, int limit,
+                                               Double anchorLat, Double anchorLon) {
         if (themeId == null || themeId.isBlank()) return List.of();
         String hint = themeTitleHint == null || themeTitleHint.isBlank() ? null : themeTitleHint.trim();
-        return port.fetchStoriesByTheme(themeId.trim(), hint, sanitizeLang(lang), sanitize(limit));
+        return port.fetchStoriesByTheme(themeId.trim(), hint, sanitizeLang(lang), sanitize(limit), anchorLat, anchorLon);
     }
 
     @Override

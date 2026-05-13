@@ -352,7 +352,8 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
      * {@link #ensureFullStoryCacheForJoin} 으로 전체 적재를 보장한다.
      */
     @Override
-    public List<AudioGuideItem> fetchStoriesByTheme(String themeId, String themeTitleHint, String lang, int limit) {
+    public List<AudioGuideItem> fetchStoriesByTheme(String themeId, String themeTitleHint, String lang, int limit,
+                                                     Double anchorLat, Double anchorLon) {
         if (!guardConfigured()) return List.of();
         if (themeId == null || themeId.isBlank()) return List.of();
         String l = normalize(lang);
@@ -361,6 +362,13 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
 
         LinkedHashSet<String> bridgeThemeCandidates = new LinkedHashSet<>();
         bridgeThemeCandidates.add(key);
+        if (anchorLat != null && anchorLon != null && Double.isFinite(anchorLat) && Double.isFinite(anchorLon)) {
+            appendKoThemeIdsNearCoordinates(anchorLat, anchorLon, 0.45, bridgeThemeCandidates);
+            appendKoThemeIdsNearCoordinates(anchorLat, anchorLon, 1.5, bridgeThemeCandidates);
+            appendKoThemeIdsNearCoordinates(anchorLat, anchorLon, 4.0, bridgeThemeCandidates);
+            appendKoThemeIdsNearCoordinates(anchorLat, anchorLon, 12.0, bridgeThemeCandidates);
+            appendKoThemeIdsNearCoordinates(anchorLat, anchorLon, 25.0, bridgeThemeCandidates);
+        }
         if (!"ko".equals(l)) {
             AudioGuideItem anchorTheme = resolveAnchorThemeForCrossLangBridge(l, key);
             if (anchorTheme != null && anchorTheme.getLatitude() != null && anchorTheme.getLongitude() != null) {
@@ -394,16 +402,26 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                         bridged.size(), key, l, bridgeThemeCandidates.size());
                 return take(bridged, limit);
             }
+            List<AudioGuideItem> geoPreset = tryKoGeoStoryBridge(l, key, limit, anchorLat, anchorLon);
+            if (!geoPreset.isEmpty()) {
+                log.info("[ODII] stories-by-theme: 좌표 우선 geo 브리지 {}건 themeId={} lang={}", geoPreset.size(), key, l);
+                return take(geoPreset, limit);
+            }
+            List<AudioGuideItem> locPreset = tryKoStoryLocationApiBridge(l, key, limit, anchorLat, anchorLon);
+            if (!locPreset.isEmpty()) {
+                log.info("[ODII] stories-by-theme: 좌표 우선 storyLocation 브리지 {}건 themeId={} lang={}", locPreset.size(), key, l);
+                return take(locPreset, limit);
+            }
         }
         if (hints.isEmpty()) {
             if ("ko".equals(l)) {
                 return List.of();
             }
-            List<AudioGuideItem> geoEarly = tryKoGeoStoryBridge(l, key, limit);
+            List<AudioGuideItem> geoEarly = tryKoGeoStoryBridge(l, key, limit, anchorLat, anchorLon);
             if (!geoEarly.isEmpty()) {
                 return take(geoEarly, limit);
             }
-            List<AudioGuideItem> locEarly = tryKoStoryLocationApiBridge(l, key, limit);
+            List<AudioGuideItem> locEarly = tryKoStoryLocationApiBridge(l, key, limit, anchorLat, anchorLon);
             return locEarly.isEmpty() ? List.of() : take(locEarly, limit);
         }
         int kwLimit = Math.min(Math.max(limit * 5, 48), 120);
@@ -447,13 +465,13 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                         koKwBridged.size(), key, l);
                 return take(koKwBridged, limit);
             }
-            List<AudioGuideItem> geoBridged = tryKoGeoStoryBridge(l, key, limit);
+            List<AudioGuideItem> geoBridged = tryKoGeoStoryBridge(l, key, limit, anchorLat, anchorLon);
             if (!geoBridged.isEmpty()) {
                 log.info("[ODII] stories-by-theme: 좌표 근접 KO 스토리 브리지 {}건 themeId={} lang={}",
                         geoBridged.size(), key, l);
                 return take(geoBridged, limit);
             }
-            List<AudioGuideItem> locBridged = tryKoStoryLocationApiBridge(l, key, limit);
+            List<AudioGuideItem> locBridged = tryKoStoryLocationApiBridge(l, key, limit, anchorLat, anchorLon);
             if (!locBridged.isEmpty()) {
                 log.info("[ODII] stories-by-theme: storyLocation KO 브리지 {}건 themeId={} lang={}",
                         locBridged.size(), key, l);
@@ -576,16 +594,21 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     }
 
     /** 테마 좌표 주변 KO 스토리(좌표 있는 항목)를 거리순으로 고른 뒤 대상 언어로 브리지한다. */
-    private List<AudioGuideItem> tryKoGeoStoryBridge(String canonicalLang, String themeId, int limit) {
+    private List<AudioGuideItem> tryKoGeoStoryBridge(String canonicalLang, String themeId, int limit,
+                                                     Double presetLat, Double presetLon) {
         if ("ko".equals(canonicalLang)) {
             return List.of();
         }
-        AudioGuideItem anchorTheme = resolveAnchorThemeForCrossLangBridge(canonicalLang, themeId.trim());
-        if (anchorTheme == null || anchorTheme.getLatitude() == null || anchorTheme.getLongitude() == null) {
-            return List.of();
+        Double lat = presetLat;
+        Double lng = presetLon;
+        if (lat == null || lng == null || !Double.isFinite(lat) || !Double.isFinite(lng)) {
+            AudioGuideItem anchorTheme = resolveAnchorThemeForCrossLangBridge(canonicalLang, themeId.trim());
+            if (anchorTheme == null || anchorTheme.getLatitude() == null || anchorTheme.getLongitude() == null) {
+                return List.of();
+            }
+            lat = anchorTheme.getLatitude();
+            lng = anchorTheme.getLongitude();
         }
-        double lat = anchorTheme.getLatitude();
-        double lng = anchorTheme.getLongitude();
         ensureFullStoryCacheForJoin("ko");
         CacheSnapshot koSnap = cache.get(allKey(AudioGuideItem.Type.STORY, "ko"));
         if (koSnap == null || koSnap.sites.isEmpty()) {
@@ -639,16 +662,21 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
      * 전역 캐시 스토리에 좌표가 비어 있어도, Odii storyLocationBasedList 로 근처 KO 스토리를 받아 브리지한다.
      * 풀 캐시에 없는 id 가 나오면 근접 API 행을 KO 원문으로 두고 타깃 언어 레코드만 교체한다.
      */
-    private List<AudioGuideItem> tryKoStoryLocationApiBridge(String canonicalLang, String themeId, int limit) {
+    private List<AudioGuideItem> tryKoStoryLocationApiBridge(String canonicalLang, String themeId, int limit,
+                                                              Double presetLat, Double presetLon) {
         if ("ko".equals(canonicalLang)) {
             return List.of();
         }
-        AudioGuideItem anchor = resolveAnchorThemeForCrossLangBridge(canonicalLang, themeId.trim());
-        if (anchor == null || anchor.getLatitude() == null || anchor.getLongitude() == null) {
-            return List.of();
+        Double lat = presetLat;
+        Double lng = presetLon;
+        if (lat == null || lng == null || !Double.isFinite(lat) || !Double.isFinite(lng)) {
+            AudioGuideItem anchor = resolveAnchorThemeForCrossLangBridge(canonicalLang, themeId.trim());
+            if (anchor == null || anchor.getLatitude() == null || anchor.getLongitude() == null) {
+                return List.of();
+            }
+            lat = anchor.getLatitude();
+            lng = anchor.getLongitude();
         }
-        double lat = anchor.getLatitude();
-        double lng = anchor.getLongitude();
         ensureFullStoryCacheForJoin("ko");
         CacheSnapshot koSnap = cache.get(allKey(AudioGuideItem.Type.STORY, "ko"));
         if (koSnap == null || koSnap.sites.isEmpty()) {
