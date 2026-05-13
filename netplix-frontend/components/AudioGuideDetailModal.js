@@ -489,7 +489,9 @@ function buildKakaoDirectionsUrl({ destLat, destLng, destName, userPos, startNam
   return `https://map.kakao.com/link/to/${encodeURIComponent(d)},${destLat},${destLng}`;
 }
 
-export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLangProp }) {
+export default function AudioGuideDetailModal({
+  item, onClose, odiiLang: odiiLangProp, anchorLat, anchorLng,
+}) {
   const { t, i18n } = useTranslation();
   /** 모달 안에서 바꿀 수 있는 Odii 데이터 언어(ko|en|zh|ja) — 상단 칩과 sessionStorage 동기화 */
   const [modalOdiiLang, setModalOdiiLang] = useState("ko");
@@ -638,8 +640,8 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       || (item.title && String(item.title).trim())
       || (item.audioTitle && String(item.audioTitle).trim())
       || "";
-    const themeLatRaw = themeLangDetail?.latitude ?? item.latitude;
-    const themeLngRaw = themeLangDetail?.longitude ?? item.longitude;
+    const themeLatRaw = themeLangDetail?.latitude ?? item.latitude ?? anchorLat;
+    const themeLngRaw = themeLangDetail?.longitude ?? item.longitude ?? anchorLng;
     const themeLat = typeof themeLatRaw === "number" ? themeLatRaw : Number(themeLatRaw);
     const themeLng = typeof themeLngRaw === "number" ? themeLngRaw : Number(themeLngRaw);
     const params = {
@@ -681,6 +683,8 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
     themeLangDetail?.longitude,
     item?.latitude,
     item?.longitude,
+    anchorLat,
+    anchorLng,
   ]);
 
   // THEME: 칩 언어 ≠ 리스트 row.lang 일 때 동일 tid 의 해당 언어 레코드(오디오·대본·제목) 보강

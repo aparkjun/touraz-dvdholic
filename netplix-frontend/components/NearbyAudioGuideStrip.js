@@ -258,6 +258,8 @@ export default function NearbyAudioGuideStrip({
           item={detailItem}
           onClose={() => setDetailItem(null)}
           odiiLang={lang}
+          anchorLat={useCoords ? lat : undefined}
+          anchorLng={useCoords ? lng : undefined}
         />
       )}
     </section>

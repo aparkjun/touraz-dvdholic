@@ -612,7 +612,8 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         ensureFullStoryCacheForJoin("ko");
         CacheSnapshot koSnap = cache.get(allKey(AudioGuideItem.Type.STORY, "ko"));
         if (koSnap == null || koSnap.sites.isEmpty()) {
-            return List.of();
+            /* 전역 storyBasedList 적재가 비어 있어도 storyLocationBasedList 로 근처 스토리를 붙일 수 있다 */
+            return tryKoStoryLocationApiBridge(canonicalLang, themeId, limit, lat, lng);
         }
         int pool = Math.max(limit * 8, 80);
         for (double rKm : new double[]{0.6, 1.2, 2.5, 6.0, 15.0}) {
@@ -625,7 +626,8 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 return bridged;
             }
         }
-        return List.of();
+        /* 풀 캐시 스토리에 좌표가 거의 없으면 Haversine 후보가 비어도 storyLocation API 는 동작할 수 있다 */
+        return tryKoStoryLocationApiBridge(canonicalLang, themeId, limit, lat, lng);
     }
 
     private List<String> koStoryIdsNearCoordinates(double lat, double lng, double radiusKm, int maxIds) {
@@ -679,11 +681,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         }
         ensureFullStoryCacheForJoin("ko");
         CacheSnapshot koSnap = cache.get(allKey(AudioGuideItem.Type.STORY, "ko"));
-        if (koSnap == null || koSnap.sites.isEmpty()) {
-            return List.of();
-        }
+        boolean koPoolOk = koSnap != null && koSnap.sites != null && !koSnap.sites.isEmpty();
         int want = Math.max(limit * 14, 96);
-        for (int radiusM : new int[]{600, 1800, 5000, 14000}) {
+        for (int radiusM : new int[]{600, 1800, 5000, 14000, 20_000}) {
             List<AudioGuideItem> near = fetchNearby(AudioGuideItem.Type.STORY, "ko", lat, lng, radiusM, want);
             if (near == null || near.isEmpty()) {
                 continue;
@@ -699,9 +699,11 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             if (ids.isEmpty()) {
                 continue;
             }
-            List<AudioGuideItem> bridged = bridgeKoOrderedStoryIdsToTargetLang(koSnap, ids, canonicalLang, limit);
-            if (!bridged.isEmpty()) {
-                return bridged;
+            if (koPoolOk) {
+                List<AudioGuideItem> bridged = bridgeKoOrderedStoryIdsToTargetLang(koSnap, ids, canonicalLang, limit);
+                if (!bridged.isEmpty()) {
+                    return bridged;
+                }
             }
             List<AudioGuideItem> direct = bridgeDirectKoRowsToTargetLang(near, canonicalLang, limit);
             if (!direct.isEmpty()) {

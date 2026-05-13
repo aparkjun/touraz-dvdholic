@@ -69,7 +69,26 @@ public class AudioGuideItemService implements GetAudioGuideItemsUseCase {
     private String sanitizeLang(String lang) {
         if (lang == null || lang.isBlank()) return DEFAULT_LANG;
         String normalized = lang.trim().toLowerCase(Locale.ROOT);
-        return ALLOWED_LANGS.contains(normalized) ? normalized : DEFAULT_LANG;
+        if (ALLOWED_LANGS.contains(normalized)) {
+            return normalized;
+        }
+        /*
+         * i18n·클라이언트가 zh-CN, en-US, ja-JP 등 BCP47 태그를 넘기면
+         * 이전에는 무조건 ko 로 떨어져 stories-by-theme 의 비한국어 브리지 분기가 전부 스킵되었다.
+         */
+        if (normalized.startsWith("zh")) {
+            return "zh";
+        }
+        if (normalized.startsWith("ja")) {
+            return "ja";
+        }
+        if (normalized.startsWith("en")) {
+            return "en";
+        }
+        if (normalized.startsWith("ko")) {
+            return "ko";
+        }
+        return DEFAULT_LANG;
     }
 
     private AudioGuideItem.Type sanitizeType(AudioGuideItem.Type type) {

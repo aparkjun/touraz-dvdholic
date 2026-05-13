@@ -99,7 +99,7 @@ public class AudioGuideController {
         String target = id == null ? "" : id.trim();
         // 캐시된 전체 리스트에서 id 매칭 탐색. limit=0 → 무제한(캐시 전체).
         AudioGuideItemResponse found = useCase.all(t, lang, 0).stream()
-                .filter(i -> target.equals(i.getId()))
+                .filter(i -> odiiIdsMatchLoosely(i.getId(), target))
                 .findFirst()
                 .map(i -> AudioGuideItemResponse.from(i, false))
                 .orElse(null);
@@ -124,6 +124,32 @@ public class AudioGuideController {
         List<AudioGuideItemResponse> body = useCase.storiesByTheme(themeId, themeTitle, lang, limit, lat, lon).stream()
                 .map(AudioGuideItemResponse::from).toList();
         return NetplixApiResponse.ok(body);
+    }
+
+    /** Odii tid/stid 가 언어·GW 마다 선행 0·대소문자만 다른 경우가 있어 상세 조회를 느슨하게 맞춘다 */
+    private static boolean odiiIdsMatchLoosely(String candidateId, String requestedId) {
+        if (candidateId == null || requestedId == null) {
+            return false;
+        }
+        String a = candidateId.trim();
+        String b = requestedId.trim();
+        if (a.isEmpty() || b.isEmpty()) {
+            return false;
+        }
+        if (a.equals(b)) {
+            return true;
+        }
+        if (a.equalsIgnoreCase(b)) {
+            return true;
+        }
+        try {
+            if (a.matches("\\d+") && b.matches("\\d+") && Long.parseLong(a) == Long.parseLong(b)) {
+                return true;
+            }
+        } catch (NumberFormatException ignored) {
+            /* noop */
+        }
+        return false;
     }
 
     private AudioGuideItem.Type parseType(String raw) {

@@ -1095,6 +1095,16 @@ function AudioGuidePageInner() {
           item={detailItem}
           onClose={() => setDetailItem(null)}
           odiiLang={odiiLang}
+          anchorLat={
+            userCoords != null && typeof userCoords.lat === "number" && Number.isFinite(userCoords.lat)
+              ? userCoords.lat
+              : undefined
+          }
+          anchorLng={
+            userCoords != null && typeof userCoords.lng === "number" && Number.isFinite(userCoords.lng)
+              ? userCoords.lng
+              : undefined
+          }
         />
       )}
     </div>
