@@ -81,23 +81,24 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
      * {@link #refreshAll} 이후에만 호출하며, refresh 락과 다른 모니터로 묶어 데드락을 피한다.
      */
     private static final String SEARCH_BOOTSTRAP_LOCK_PREFIX = "__SB__:";
-    private static final int STORY_BOOTSTRAP_MAX_PAGES_PER_KW = 4;
-    private static final int STORY_BOOTSTRAP_MAX_ITEMS = 2200;
-    private static final int THEME_BOOTSTRAP_MAX_PAGES_PER_KW = 3;
-    private static final int THEME_BOOTSTRAP_MAX_ITEMS = 600;
+    /** 첫 요청이 Heroku 30s 라우터 한도를 넘기지 않도록 보수적으로 제한 */
+    private static final int STORY_BOOTSTRAP_MAX_PAGES_PER_KW = 2;
+    private static final int STORY_BOOTSTRAP_MAX_ITEMS = 1200;
+    private static final int STORY_BOOTSTRAP_STOP_AFTER_ITEMS = 400;
+    private static final int THEME_BOOTSTRAP_MAX_PAGES_PER_KW = 2;
+    private static final int THEME_BOOTSTRAP_MAX_ITEMS = 400;
+    private static final int THEME_BOOTSTRAP_STOP_AFTER_ITEMS = 200;
     private static final String[] STORY_BOOTSTRAP_KW_KO = {
-            "관광", "여행", "문화", "역사", "자연", "서울", "부산", "경주",
-            "궁", "사찰", "해안", "박물관", "공원", "유적", "마을"
+            "관광", "여행", "문화", "역사", "서울", "부산", "경주", "자연"
     };
     private static final String[] STORY_BOOTSTRAP_KW_EN = {
-            "tour", "Seoul", "palace", "museum", "park", "temple", "culture", "history",
-            "Korea", "Busan", "Gyeongju", "nature", "heritage"
+            "tour", "Seoul", "palace", "museum", "park", "Korea", "Busan", "culture"
     };
     private static final String[] THEME_BOOTSTRAP_KW_KO = {
-            "서울", "부산", "경주", "한국", "관광", "문화", "역사", "자연", "해안", "산"
+            "서울", "부산", "경주", "한국", "관광", "문화"
     };
     private static final String[] THEME_BOOTSTRAP_KW_EN = {
-            "Seoul", "Busan", "tour", "museum", "palace", "park", "Korea", "temple", "heritage", "nature"
+            "Seoul", "Busan", "tour", "museum", "palace", "Korea"
     };
 
     /** 목록 추가 페이지를 순차가 아닌 병렬로 받아 EN/ZH/JA 첫 로딩 시간을 줄인다. */
@@ -1434,6 +1435,12 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 } catch (Exception ex) {
                     log.warn("[ODII] search-bootstrap 키워드 실패 type={} lang={} kw={} err={}",
                             type, lang, kw, ex.getMessage());
+                }
+                int stopEarly = type == AudioGuideItem.Type.STORY
+                        ? STORY_BOOTSTRAP_STOP_AFTER_ITEMS
+                        : THEME_BOOTSTRAP_STOP_AFTER_ITEMS;
+                if (byId.size() >= stopEarly) {
+                    break;
                 }
             }
             if (byId.isEmpty()) {
