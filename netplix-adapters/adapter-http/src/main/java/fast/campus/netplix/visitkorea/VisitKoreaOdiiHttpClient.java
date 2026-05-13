@@ -274,7 +274,14 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         // 빈 스냅샷(잘못된 langCode·일시 오류 등)은 만료로만 보지 않고 매번 동기 재조회한다.
         if (snap == null || snap.sites.isEmpty()) {
             PageResult first = requestPage(basedUrl(type), Map.of(), type, l, 1);
-            if (first == null) return List.of();
+            if (first == null || first.items.isEmpty()) {
+                maybeFillCatalogViaSearchWhenBasedListEmpty(type, l);
+                CacheSnapshot filled = cache.get(key);
+                if (filled != null && !filled.sites.isEmpty()) {
+                    return take(filled.sites, limit);
+                }
+                return List.of();
+            }
             List<AudioGuideItem> partial = Collections.unmodifiableList(new ArrayList<>(first.items));
             boolean needMore = first.totalCount > partial.size();
             cache.put(key, new CacheSnapshot(partial, Instant.now().toEpochMilli(), needMore));
