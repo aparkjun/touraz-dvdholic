@@ -258,16 +258,23 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                                             double latitude, double longitude, int radiusM, int limit) {
         if (!guardConfigured()) return List.of();
         String l = normalize(lang);
-        int radiusClamped = Math.max(1, Math.min(radiusM, LOCATION_RADIUS_MAX_M));
-        if (radiusM > LOCATION_RADIUS_MAX_M) {
-            log.debug("[ODII] nearby radius {}m → {}m (GW 상한 {})", radiusM, radiusClamped, LOCATION_RADIUS_MAX_M);
+        int r = Math.max(1, radiusM);
+        if (r <= LOCATION_RADIUS_MAX_M) {
+            return nearbyViaLocationApi(type, l, latitude, longitude, r, limit);
         }
+        return nearbyViaCatalogDistance(type, l, latitude, longitude, r, limit);
+    }
+
+    /** Odii theme/storyLocationBasedList — radius 는 보통 20km 이하여야 안정적. */
+    private List<AudioGuideItem> nearbyViaLocationApi(AudioGuideItem.Type type, String canonicalLang,
+                                                      double latitude, double longitude, int radiusM, int limit) {
+        int radiusClamped = Math.max(1, Math.min(radiusM, LOCATION_RADIUS_MAX_M));
         Map<String, String> params = Map.of(
                 "mapX", String.valueOf(longitude),
                 "mapY", String.valueOf(latitude),
                 "radius", String.valueOf(radiusClamped)
         );
-        PageResult pr = requestPage(locationUrl(type), params, type, l, 1, LOCATION_PAGE_ROWS);
+        PageResult pr = requestPage(locationUrl(type), params, type, canonicalLang, 1, LOCATION_PAGE_ROWS);
         if (pr == null) return List.of();
         List<AudioGuideItem> sorted = pr.items.stream()
                 .map(s -> withDistance(s, latitude, longitude))
@@ -276,6 +283,29 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                         b.getDistanceKm() == null ? Double.MAX_VALUE : b.getDistanceKm()))
                 .collect(Collectors.toList());
         return take(sorted, limit);
+    }
+
+    /**
+     * 반경이 GW location 상한을 넘을 때: 동기 {@link #fetchAll} 풀(좌표 있는 항목만)에서 Haversine 필터.
+     * 첫 로드 시 캐시 비면 location 20km 로 폴백.
+     */
+    private List<AudioGuideItem> nearbyViaCatalogDistance(AudioGuideItem.Type type, String canonicalLang,
+                                                          double latitude, double longitude, int radiusM, int limit) {
+        double maxKm = radiusM / 1000.0;
+        List<AudioGuideItem> all = fetchAll(type, canonicalLang, 0);
+        if (all == null || all.isEmpty()) {
+            return nearbyViaLocationApi(type, canonicalLang, latitude, longitude, LOCATION_RADIUS_MAX_M, limit);
+        }
+        List<AudioGuideItem> filtered = all.stream()
+                .filter(s -> s.getLatitude() != null && s.getLongitude() != null)
+                .map(s -> withDistance(s, latitude, longitude))
+                .filter(s -> s.getDistanceKm() != null && s.getDistanceKm() <= maxKm)
+                .sorted(Comparator.comparingDouble(s -> s.getDistanceKm() == null ? Double.MAX_VALUE : s.getDistanceKm()))
+                .collect(Collectors.toList());
+        if (filtered.isEmpty()) {
+            return nearbyViaLocationApi(type, canonicalLang, latitude, longitude, LOCATION_RADIUS_MAX_M, limit);
+        }
+        return take(filtered, limit);
     }
 
     @Override

@@ -275,7 +275,7 @@ visitkorea:
   #   - /themeLocationBasedList  : 관광지 좌표 기반 (mapX/mapY/radius m, GW 상한 약 20km)
   #   - /themeSearchList         : 관광지 키워드 검색
   #   - /storyBasedList          : 이야기 기본정보 목록
-  #   - /storyLocationBasedList  : 이야기 좌표 기반
+  #   - /storyLocationBasedList  : 이야기 좌표 기반 (radius m, GW 상한 약 20km; 앱에서 더 넓은 반경은 전체 캐시+거리 필터)
   #   - /storySearchList         : 이야기 키워드 검색
   #   - /themeBasedSyncList / /storyBasedSyncList : 동기화(추후 배치용)
   # 필수 파라미터: serviceKey, MobileOS=ETC, MobileApp, numOfRows, pageNo, langDivCd(ko/en)

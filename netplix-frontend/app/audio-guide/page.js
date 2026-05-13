@@ -66,8 +66,8 @@ import {
 } from "lucide-react";
 
 const PAGE_SIZE = 60;
-/** Odii theme/storyLocationBasedList 는 공통 GW 기준 반경 상한이 보통 20km(m) 근방이라, 그 이상은 의미 없음. */
-const RADIUS_OPTIONS = [5, 10, 20]; // km
+/** 20km 이하: Odii location API. 그 초과(100km): 서버가 전체 목록+Haversine으로 넓은 반경 필터. */
+const RADIUS_OPTIONS = [5, 10, 20, 100]; // km
 
 /**
  * 영화/DVD 답사 컨셉에 어울리는 상위 키워드 숏컷.
