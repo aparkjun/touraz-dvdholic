@@ -617,6 +617,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
 
   // THEME 카드 → /api/v1/audio-guide/stories-by-theme 호출.
   // 언어 변경/다른 항목 열림 때마다 재조회. 서버는 캐시되어 있으므로 여러 번 불러도 저렴.
+  // themeLangDetail 로드 후에는 해당 언어 제목으로 힌트를 바꿔 zh/ja 브리지·키워드 매칭 성공률을 높인다.
   useEffect(() => {
     if (!item || item.type !== "THEME" || !item.id) {
       setStories([]);
@@ -625,11 +626,23 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
     let cancelled = false;
     setStoriesLoading(true);
     const effectiveLang = modalOdiiLang;
+    const themeIdParam = (themeLangDetail?.id && String(themeLangDetail.id).trim())
+      || (item.themeId && String(item.themeId).trim())
+      || String(item.id).trim();
+    const hintFromDetail =
+      (themeLangDetail?.title && String(themeLangDetail.title).trim())
+      || (themeLangDetail?.audioTitle && String(themeLangDetail.audioTitle).trim())
+      || "";
+    const themeTitleHint =
+      hintFromDetail
+      || (item.title && String(item.title).trim())
+      || (item.audioTitle && String(item.audioTitle).trim())
+      || "";
     axios
       .get("/api/v1/audio-guide/stories-by-theme", {
         params: {
-          themeId: item.themeId || item.id,
-          themeTitle: item.title,
+          themeId: themeIdParam,
+          themeTitle: themeTitleHint,
           lang: effectiveLang,
           limit: 30,
         },
@@ -645,7 +658,17 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       .catch(() => { if (!cancelled) setStories([]); })
       .finally(() => { if (!cancelled) setStoriesLoading(false); });
     return () => { cancelled = true; };
-  }, [item?.id, item?.type, modalOdiiLang]);
+  }, [
+    item?.id,
+    item?.type,
+    item?.themeId,
+    item?.title,
+    item?.audioTitle,
+    modalOdiiLang,
+    themeLangDetail?.id,
+    themeLangDetail?.title,
+    themeLangDetail?.audioTitle,
+  ]);
 
   // THEME: 칩 언어 ≠ 리스트 row.lang 일 때 동일 tid 의 해당 언어 레코드(오디오·대본·제목) 보강
   useEffect(() => {
