@@ -67,6 +67,8 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     private static final int MAX_PAGES_ALL = 100;
     // 키워드 검색 결과는 일반적으로 수백 건 이내지만 안전하게 여유.
     private static final int MAX_PAGES_KEYWORD = 30;
+    /** storyBasedList 가 비었을 때 storySearchList 로 카탈로그를 채울 때 키워드당 최대 페이지 수 */
+    private static final int STORY_BOOTSTRAP_MAX_PAGES = 12;
     private static final int LOCATION_PAGE_ROWS = 50;
     /** TourAPI 계열 locationBased 공통: radius(m) 상한 초과 시 GW 가 빈 목록·비정상 응답을 줄 수 있음. */
     private static final int LOCATION_RADIUS_MAX_M = 20_000;
@@ -1304,8 +1306,12 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 log.warn("[ODII] type={} lang={} 전체 로드 실패 - 캐시 유지", type, lang);
                 return;
             }
-            if (sites.isEmpty()) {
-                log.warn("[ODII] type={} lang={} 전체 0건 — Odii 오류·키·할당량 가능성. 빈 목록은 캐시하지 않음(다음 요청에서 재시도).",
+            if (sites.isEmpty() && type == AudioGuideItem.Type.STORY) {
+                log.warn("[ODII] type={} lang={} storyBasedList 0건 — storySearchList 로 부트스트랩 시도", type, lang);
+                sites = bootstrapStoryCatalogViaKeywordFanout(lang);
+            }
+            if (sites == null || sites.isEmpty()) {
+                log.warn("[ODII] type={} lang={} 전체 0건 — Odii 오류·키·할당량·오퍼레이션 미승인 가능. 빈 목록은 캐시하지 않음(다음 요청에서 재시도).",
                         type, lang);
                 return;
             }
@@ -1334,6 +1340,51 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             cache.put(cacheKey, new CacheSnapshot(sites, Instant.now().toEpochMilli(), false));
             log.info("[ODII] type={} lang={} 키워드={} 캐시 갱신 - {} 건", type, lang, keyword, sites.size());
         }
+    }
+
+    /**
+     * {@code storyBasedList} 가 0건이어도 {@code storySearchList} 는 활용승인·쿼터가 분리된 경우가 있어,
+     * 광역 키워드 검색으로 STORY 전역 캐시를 채운다 (스토리 탭 전체 목록·테마 조인 공용).
+     */
+    private List<AudioGuideItem> bootstrapStoryCatalogViaKeywordFanout(String lang) {
+        String l = normalize(lang);
+        LinkedHashMap<String, AudioGuideItem> byId = new LinkedHashMap<>();
+        for (String kw : storyBootstrapKeywords(l)) {
+            if (kw == null || kw.isBlank()) {
+                continue;
+            }
+            List<AudioGuideItem> chunk = requestAllPages(
+                    searchUrl(AudioGuideItem.Type.STORY),
+                    Map.of("keyword", kw.trim()),
+                    AudioGuideItem.Type.STORY,
+                    l,
+                    STORY_BOOTSTRAP_MAX_PAGES);
+            if (chunk == null || chunk.isEmpty()) {
+                continue;
+            }
+            for (AudioGuideItem s : chunk) {
+                if (isRenderableOdiiItem(s) && s.getId() != null) {
+                    byId.putIfAbsent(s.getId().trim(), s);
+                }
+            }
+            if (byId.size() >= 3500) {
+                break;
+            }
+        }
+        if (byId.isEmpty()) {
+            return List.of();
+        }
+        log.info("[ODII] STORY:{} 부트스트랩(search 기반) {} 건", l, byId.size());
+        return List.copyOf(byId.values());
+    }
+
+    private static List<String> storyBootstrapKeywords(String canonicalLang) {
+        return switch (normalize(canonicalLang)) {
+            case "en" -> List.of("palace", "temple", "heritage", "Korea", "Seoul", "Busan");
+            case "zh" -> List.of("观光", "宫殿", "韩国", "首尔", "文化");
+            case "ja" -> List.of("観光", "宮殿", "韓国", "ソウル", "寺院");
+            default -> List.of("관광", "역사", "문화", "자연", "드라마", "영화", "궁", "사찰", "여행");
+        };
     }
 
     // =========================================================================
@@ -1410,6 +1461,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         sb.append("&numOfRows=").append(rows);
         sb.append("&pageNo=").append(pageNo);
         sb.append("&langCode=").append(qLang);
+        sb.append("&langDivCd=").append(qLang);
         extraParams.forEach((k, v) -> sb.append('&').append(k).append('=')
                 .append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
 
