@@ -330,13 +330,18 @@ function normalizeOdiiLangFromApiField(langField) {
   return null;
 }
 
-/** 스크립트 읽기 언어: API 레코드 우선, 없으면 목록 요청에 쓴 Odii 언어(칩). */
+/**
+ * 스크립트 읽기(Web Speech) 언어.
+ * 목록 row 의 lang 표기와 사용자가 모달에서 고른 Odii 언어가 다르면 사용자 선택을 우선한다
+ * (예: 한국어 목록으로 열었는데 칩만 중국어로 바꾼 경우 — 대본은 zh 인데 ko 음성으로 읽는 버그 방지).
+ */
 function effectiveOdiiLangForSpeech(itemLangField, requestOdiiLang) {
   const fromItem = normalizeOdiiLangFromApiField(itemLangField);
-  if (fromItem) return fromItem;
   const req =
     normalizeOdiiLangFromApiField(requestOdiiLang)
     ?? (isValidOdiiLang(requestOdiiLang) ? requestOdiiLang : null);
+  if (req && fromItem && req !== fromItem) return req;
+  if (fromItem) return fromItem;
   if (req) return req;
   return "ko";
 }
@@ -520,6 +525,8 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
 
   // 리스트 응답은 lite(description 생략)로 내려오므로, STORY 상세에서만 필요한 script 를 지연 조회한다.
   const [loadedDesc, setLoadedDesc] = useState(null);
+  /** THEME: 모달 Odii 언어 칩이 리스트 row 와 다를 때 /detail 로 동일 tid 의 해당 언어 레코드 보강 */
+  const [themeLangDetail, setThemeLangDetail] = useState(null);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
@@ -566,6 +573,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
     setActiveStoryPaused(false);
     setLiveStoryNativeId(null);
     setLoadedDesc(null);
+    setThemeLangDetail(null);
     setTtsLastPickerRow(null);
     if (typeof window !== "undefined" && window.speechSynthesis) {
       try { window.speechSynthesis.cancel(); } catch (_) { /* noop */ }
@@ -584,6 +592,19 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       }
     };
   }, [item?.id]);
+
+  /** Odii 언어·보강된 theme audioUrl 이 바뀌면 네이티브 <audio> 인스턴스를 버려 다음 재생이 새 URL 을 쓰게 한다. */
+  useEffect(() => {
+    if (!item?.id) return;
+    if (audioRef.current) {
+      try { audioRef.current.pause(); } catch (_) { /* noop */ }
+      audioRef.current = null;
+    }
+    setPlaying(false);
+    setProgress(0);
+    setDuration(0);
+    setAudioError(false);
+  }, [item?.id, item?.type, modalOdiiLang, themeLangDetail?.audioUrl, item?.audioUrl]);
 
   // 상단 칩·세션·부모 prop 과 모달 Odii 언어 동기화 (항목 전환 시 포함)
   useEffect(() => {
@@ -625,6 +646,31 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       .finally(() => { if (!cancelled) setStoriesLoading(false); });
     return () => { cancelled = true; };
   }, [item?.id, item?.type, modalOdiiLang]);
+
+  // THEME: 칩 언어 ≠ 리스트 row.lang 일 때 동일 tid 의 해당 언어 레코드(오디오·대본·제목) 보강
+  useEffect(() => {
+    if (!item || item.type !== "THEME" || !item.id) {
+      setThemeLangDetail(null);
+      return undefined;
+    }
+    if (odiiLangFieldAlignsWithOdii(item.language, modalOdiiLang)) {
+      setThemeLangDetail(null);
+      return undefined;
+    }
+    let cancelled = false;
+    axios
+      .get("/api/v1/audio-guide/detail", {
+        params: { type: "theme", lang: modalOdiiLang, id: item.id },
+      })
+      .then((res) => {
+        if (cancelled) return;
+        const d = res?.data?.data;
+        if (d && d.id === item.id) setThemeLangDetail(d);
+        else setThemeLangDetail(null);
+      })
+      .catch(() => { if (!cancelled) setThemeLangDetail(null); });
+    return () => { cancelled = true; };
+  }, [item?.id, item?.type, item?.language, modalOdiiLang]);
 
   // Odii 데이터 언어를 바꾸면 지연 로드한 STORY 대본이 이전 언어로 남지 않게 한다 (상세 fetch 보다 먼저 비움).
   useEffect(() => {
@@ -698,9 +744,15 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
 
   const kakaoDirectionsUrl = useMemo(() => {
     if (!item || typeof item.latitude !== "number" || typeof item.longitude !== "number") return null;
+    const titleForNav =
+      (themeLangDetail?.title && String(themeLangDetail.title).trim())
+      || (item.title && String(item.title).trim());
+    const audioTForNav =
+      (themeLangDetail?.audioTitle && String(themeLangDetail.audioTitle).trim())
+      || (item.audioTitle && String(item.audioTitle).trim());
     const destName =
-      (item.title && String(item.title).trim())
-      || (item.audioTitle && String(item.audioTitle).trim())
+      titleForNav
+      || audioTForNav
       || t("audioGuide.detail.directionsDestFallback", "목적지");
     const startName = t("audioGuide.detail.directionsStartCurrent", "내 위치");
     return buildKakaoDirectionsUrl({
@@ -710,7 +762,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       userPos: userNavPos,
       startName,
     });
-  }, [item?.id, item?.latitude, item?.longitude, item?.title, item?.audioTitle, userNavPos, t]);
+  }, [item?.id, item?.latitude, item?.longitude, item?.title, item?.audioTitle, themeLangDetail?.title, themeLangDetail?.audioTitle, userNavPos, t]);
 
   // ESC 닫기 + 배경 스크롤 잠금
   useEffect(() => {
@@ -750,18 +802,33 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
 
   if (!item) return null;
 
-  const hasAudio = !!item.audioUrl;
   const isThemeCard = item.type === "THEME";
+  const themeOv = isThemeCard ? themeLangDetail : null;
+  const viewTitle = themeOv?.title || item.title;
+  const viewAudioTitle = themeOv?.audioTitle ?? item.audioTitle;
+  const viewAudioUrl = (themeOv?.audioUrl && String(themeOv.audioUrl).trim())
+    || (item.audioUrl && String(item.audioUrl).trim())
+    || "";
+  const viewImageUrl = themeOv?.imageUrl || item.imageUrl;
+  const viewLangField = themeOv?.language ?? item.language;
+
+  const hasAudio = !!viewAudioUrl;
   // THEME: 연관 STORY 가 로드 중이거나 있으면 ‘코스형’ UX — 대표 오디오는 축소 플레이어로만 두고 목록을 본론으로 둔다.
   const showThemeStoryBlock = isThemeCard && (storiesLoading || stories.length > 0);
   const showFullMainPlayer = hasAudio && (!isThemeCard || !showThemeStoryBlock);
   const showThemeIntroCompact = isThemeCard && hasAudio && showThemeStoryBlock;
-  // description 은 리스트 lite 응답에서 빠져 있을 수 있으므로 loadedDesc 로 보강.
+  // description 은 리스트 lite 응답에서 빠져 있을 수 있으므로 loadedDesc / theme detail 로 보강.
   // 모달에서 Odii 언어만 바꾼 경우 리스트에 실린 다른 언어 대본이 남지 않게 한다.
   const effectiveDescription = (() => {
-    const trimmedItem = item.description && String(item.description).trim();
+    const descPrimary = isThemeCard && themeOv != null && themeOv.description != null
+      ? themeOv.description
+      : item.description;
+    const trimmedItem = descPrimary && String(descPrimary).trim();
+    const langForAlign = isThemeCard && themeOv != null && themeOv.language != null
+      ? themeOv.language
+      : item.language;
     const inline =
-      trimmedItem && odiiLangFieldAlignsWithOdii(item.language, modalOdiiLang)
+      trimmedItem && odiiLangFieldAlignsWithOdii(langForAlign, modalOdiiLang)
         ? String(trimmedItem)
         : "";
     const lazy = (loadedDesc && String(loadedDesc).trim()) ? String(loadedDesc) : "";
@@ -778,8 +845,8 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
   // TTS 에 사용할 텍스트: 스크립트 우선, 없으면 제목 + 카테고리.
   const ttsText = hasScript
     ? effectiveDescription
-    : [item.title, item.audioTitle, item.themeCategory].filter(Boolean).join(". ");
-  const odiiLangForMainSpeech = effectiveOdiiLangForSpeech(item.language, modalOdiiLang);
+    : [viewTitle, viewAudioTitle, item.themeCategory].filter(Boolean).join(". ");
+  const odiiLangForMainSpeech = effectiveOdiiLangForSpeech(viewLangField, modalOdiiLang);
   const ttsLang = odiiCanonicalToBcp47Lang(odiiLangForMainSpeech);
   const ttsContentIsEn = odiiLangForMainSpeech === "en";
   const ttsContentIsZh = odiiLangForMainSpeech === "zh";
@@ -886,7 +953,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
         }
         mediaSessionDetachRef.current = null;
       }
-      const audio = new Audio(item.audioUrl);
+      const audio = new Audio(viewAudioUrl);
       audio.preload = "auto";
       audio.muted = muted;
       audio.addEventListener("ended", () => {
@@ -907,8 +974,8 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       audio.addEventListener("pause", () => setPlaying(false));
       audioRef.current = audio;
       mediaSessionDetachRef.current = attachAudioMediaSession(audio, {
-        title: item.audioTitle || item.title,
-        artworkUrl: item.imageUrl,
+        title: viewAudioTitle || viewTitle,
+        artworkUrl: viewImageUrl,
       });
     }
     const a = audioRef.current;
@@ -958,7 +1025,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
     ? `https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}`
     : null;
   const kakaoMapUrl = hasCoords
-    ? `https://map.kakao.com/link/map/${encodeURIComponent(item.title || "")},${item.latitude},${item.longitude}`
+    ? `https://map.kakao.com/link/map/${encodeURIComponent(viewTitle || "")},${item.latitude},${item.longitude}`
     : null;
 
   const typeLabel = item.type === "STORY"
@@ -970,7 +1037,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
       className="agm-backdrop"
       role="dialog"
       aria-modal="true"
-      aria-label={item.title}
+      aria-label={viewTitle}
       onClick={(e) => { if (e.target === e.currentTarget) onClose?.(); }}
     >
       <style>{modalCss}</style>
@@ -980,10 +1047,10 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
         </button>
 
         <div className="agm-hero">
-          {item.imageUrl ? (
+          {viewImageUrl ? (
             <img
-              src={item.imageUrl}
-              alt={item.title || ""}
+              src={viewImageUrl}
+              alt={viewTitle || ""}
               className="agm-hero-img"
               referrerPolicy="no-referrer"
               onError={(e) => { e.currentTarget.style.display = "none"; }}
@@ -999,10 +1066,10 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
               {item.type === "STORY" ? <BookOpen size={12} /> : <Radio size={12} />}
               {typeLabel}
             </span>
-            {(item.language || modalOdiiLang) && (
+            {(viewLangField || modalOdiiLang) && (
               <span className="agm-lang-badge">
                 <Globe2 size={10} />{" "}
-                {odiiLangChipLabel(isValidOdiiLang(item?.language) ? item.language : modalOdiiLang)}
+                {odiiLangChipLabel(isValidOdiiLang(modalOdiiLang) ? modalOdiiLang : "ko")}
               </span>
             )}
             {item.distanceKm != null && (
@@ -1017,10 +1084,10 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
         </div>
 
         <div className="agm-body">
-          <h2 className="agm-title">{item.title}</h2>
-          {item.audioTitle && item.audioTitle !== item.title && (
+          <h2 className="agm-title">{viewTitle}</h2>
+          {viewAudioTitle && String(viewAudioTitle).trim() && viewAudioTitle !== viewTitle && (
             <p className="agm-subtitle">
-              <VoiceMicIcon active={subtitleVoiceActive} size={14} /> {item.audioTitle}
+              <VoiceMicIcon active={subtitleVoiceActive} size={14} /> {viewAudioTitle}
             </p>
           )}
 
@@ -1125,7 +1192,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
                 <p className="agm-player-err">
                   {t("audioGuide.detail.audioErr", "오디오를 재생할 수 없어요. 원본 링크에서 열어보세요.")}
                   {" · "}
-                  <a href={item.audioUrl} target="_blank" rel="noreferrer">
+                  <a href={viewAudioUrl} target="_blank" rel="noreferrer">
                     {t("audioGuide.detail.openAudio", "오디오 파일 열기")}
                   </a>
                 </p>
@@ -1178,7 +1245,7 @@ export default function AudioGuideDetailModal({ item, onClose, odiiLang: odiiLan
                       <p className="agm-player-err">
                         {t("audioGuide.detail.audioErr", "오디오를 재생할 수 없어요. 원본 링크에서 열어보세요.")}
                         {" · "}
-                        <a href={item.audioUrl} target="_blank" rel="noreferrer">
+                        <a href={viewAudioUrl} target="_blank" rel="noreferrer">
                           {t("audioGuide.detail.openAudio", "오디오 파일 열기")}
                         </a>
                       </p>
@@ -1437,14 +1504,17 @@ function AgmLocaleVoicePicker({ fieldId, voices, value, onChange, label, ariaLab
   );
 }
 
+/** Odii GW langCode(chs/jpn/eng 등)와 UI canonical ko|en|zh|ja 정합 */
 function odiiLangFieldAlignsWithOdii(langField, odii) {
   const raw = (langField || "").toLowerCase().trim();
   const o = (odii || "ko").toLowerCase();
   if (!raw) return o === "ko";
-  if (o === "en") return raw.startsWith("en");
-  if (o === "zh") return raw.startsWith("zh");
-  if (o === "ja") return raw.startsWith("ja");
-  return raw.startsWith("ko");
+  if (o === "en") return raw.startsWith("en") || raw === "eng";
+  if (o === "zh") {
+    return raw.startsWith("zh") || raw === "chs" || raw === "cht" || raw === "cn" || raw === "cn1";
+  }
+  if (o === "ja") return raw.startsWith("ja") || raw === "jpn" || raw === "jp";
+  return raw.startsWith("ko") || raw === "kor";
 }
 
 function formatPlayTime(raw) {
