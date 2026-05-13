@@ -1308,7 +1308,12 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             }
             if (sites.isEmpty() && type == AudioGuideItem.Type.STORY) {
                 log.warn("[ODII] type={} lang={} storyBasedList 0건 — storySearchList 로 부트스트랩 시도", type, lang);
-                sites = bootstrapStoryCatalogViaKeywordFanout(lang);
+                try {
+                    sites = bootstrapStoryCatalogViaKeywordFanout(lang);
+                } catch (Exception ex) {
+                    log.error("[ODII] type={} lang={} STORY 부트스트랩 실패", type, lang, ex);
+                    sites = List.of();
+                }
             }
             if (sites == null || sites.isEmpty()) {
                 log.warn("[ODII] type={} lang={} 전체 0건 — Odii 오류·키·할당량·오퍼레이션 미승인 가능. 빈 목록은 캐시하지 않음(다음 요청에서 재시도).",
@@ -1461,7 +1466,6 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         sb.append("&numOfRows=").append(rows);
         sb.append("&pageNo=").append(pageNo);
         sb.append("&langCode=").append(qLang);
-        sb.append("&langDivCd=").append(qLang);
         extraParams.forEach((k, v) -> sb.append('&').append(k).append('=')
                 .append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
 
