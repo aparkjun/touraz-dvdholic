@@ -873,6 +873,18 @@ export default function AudioGuideDetailModal({
   const showThemeStoryBlock = isThemeCard && (storiesLoading || stories.length > 0);
   const showFullMainPlayer = hasAudio && (!isThemeCard || !showThemeStoryBlock);
   const showThemeIntroCompact = isThemeCard && hasAudio && showThemeStoryBlock;
+  const showStoriesKoOnlyNotice =
+    isThemeCard
+    && !storiesLoading
+    && stories.length > 0
+    && isValidOdiiLang(modalOdiiLang)
+    && modalOdiiLang !== "ko"
+    && stories.every((s) => !odiiLangFieldAlignsWithOdii(s?.language, modalOdiiLang));
+  const showSingleStoryKoOnlyNotice =
+    item.type === "STORY"
+    && isValidOdiiLang(modalOdiiLang)
+    && modalOdiiLang !== "ko"
+    && !odiiLangFieldAlignsWithOdii(item.language, modalOdiiLang);
   // description 은 리스트 lite 응답에서 빠져 있을 수 있으므로 loadedDesc / theme detail 로 보강.
   // 모달에서 Odii 언어만 바꾼 경우 리스트에 실린 다른 언어 대본이 남지 않게 한다.
   const effectiveDescription = (() => {
@@ -1188,6 +1200,13 @@ export default function AudioGuideDetailModal({
             </span>
           </div>
 
+          {showSingleStoryKoOnlyNotice ? (
+            <div className="agm-odii-lang-only-notice" role="status">
+              <Info size={14} aria-hidden />
+              {td("audioGuide.detail.stories.koOnlyNotice", "이 해설은 한국어로만 제공됩니다.")}
+            </div>
+          ) : null}
+
           {ttsSupported && (hasScript || isThemeCard) && (koVoices.length > 0 || ttsContentIsEn || ttsContentIsZh || ttsContentIsJa) ? (
             <div className="agm-tts-voice-stack">
               {koVoices.length > 0 ? (
@@ -1318,6 +1337,12 @@ export default function AudioGuideDetailModal({
                   {td("audioGuide.detail.stories.sub", "항목마다 제공 형태가 달라요. 오디오가 있으면 바로 재생하고, 없으면 브라우저 음성으로 대본을 들을 수 있어요.")}
                 </div>
               </div>
+              {showStoriesKoOnlyNotice ? (
+                <div className="agm-odii-lang-only-notice agm-stories-lang-only-notice" role="status">
+                  <Info size={14} aria-hidden />
+                  {td("audioGuide.detail.stories.koOnlyNotice", "이 해설은 한국어로만 제공됩니다.")}
+                </div>
+              ) : null}
               {storiesLoading ? (
                 <div className="agm-stories-loading">
                   <Loader2 size={16} className="agm-spin" />
@@ -1916,6 +1941,21 @@ const modalCss = `
   margin-top: 3px; font-size: 0.78rem; line-height: 1.45;
   color: #d8c7fd;
 }
+.agm-odii-lang-only-notice {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 10px 12px; margin: 0 0 12px;
+  border-radius: 8px;
+  font-size: 0.82rem; line-height: 1.45;
+  color: #fef3c7;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  box-sizing: border-box;
+}
+.agm-odii-lang-only-notice svg {
+  flex-shrink: 0; margin-top: 1px;
+  color: #fcd34d;
+}
+.agm-stories-lang-only-notice { margin-bottom: 10px; }
 .agm-stories-loading, .agm-stories-empty {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 10px 12px; border-radius: 8px;
