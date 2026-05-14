@@ -609,91 +609,97 @@ function SpotDetailModal({ spot, onClose, onSearchAgain }) {
           width: '100%',
           maxWidth: 560,
           maxHeight: '88vh',
-          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
           background: 'linear-gradient(180deg, rgba(15,23,42,0.98), rgba(8,12,28,0.98))',
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
           border: '1px solid rgba(165,180,252,0.18)',
           borderBottom: 'none',
           boxShadow: '0 -24px 60px rgba(0,0,0,0.55)',
-          padding: '20px 22px 28px',
+          padding: 0,
           color: '#f5f5f5',
           position: 'relative',
         }}
       >
-        {/* drag handle */}
-        <div
-          aria-hidden
-          style={{
-            width: 44,
-            height: 5,
-            borderRadius: 999,
-            background: 'rgba(255,255,255,0.18)',
-            margin: '0 auto 14px',
-          }}
-        />
-        {/* 상단 고정: 목록으로 / 닫기 — 스크롤해도 동선이 끊기지 않게 */}
-        <div
-          style={{
-            position: 'sticky',
-            top: 0,
-            zIndex: 4,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: 10,
-            margin: '-6px -22px 12px',
-            padding: '6px 14px 10px',
-            background: 'linear-gradient(180deg, rgba(15,23,42,0.98) 70%, rgba(15,23,42,0.92) 100%)',
-            borderBottom: '1px solid rgba(148,163,184,0.12)',
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t('relatedSpots.modal.backToList', '목록으로 돌아가기')}
+        {/* 상단 영역: motion transform 이 있어도 스크롤과 분리되어 뒤로가기·닫기가 항상 보임 (sticky 는 transform 조상에서 깨짐) */}
+        <div style={{ flexShrink: 0, padding: '18px 22px 0' }}>
+          <div
+            aria-hidden
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 12px',
+              width: 44,
+              height: 5,
               borderRadius: 999,
-              border: '1px solid rgba(255,255,255,0.14)',
-              background: 'rgba(255,255,255,0.06)',
-              color: '#e2e8f0',
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
+              background: 'rgba(255,255,255,0.18)',
+              margin: '0 auto 14px',
             }}
-          >
-            <ArrowLeft size={18} strokeWidth={2.25} aria-hidden />
-            {t('relatedSpots.modal.backToList', '목록으로 돌아가기')}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t('relatedSpots.modal.closeAria', '닫기')}
+          />
+          <div
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: '50%',
-              border: '1px solid rgba(255,255,255,0.1)',
-              background: 'rgba(255,255,255,0.04)',
-              color: '#cbd5e1',
-              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
+              justifyContent: 'space-between',
+              gap: 10,
+              padding: '4px 0 12px',
+              borderBottom: '1px solid rgba(148,163,184,0.12)',
             }}
           >
-            <X size={16} />
-          </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t('relatedSpots.modal.backToList', '목록으로 돌아가기')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 12px',
+                borderRadius: 999,
+                border: '1px solid rgba(255,255,255,0.14)',
+                background: 'rgba(255,255,255,0.06)',
+                color: '#e2e8f0',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              <ArrowLeft size={18} strokeWidth={2.25} aria-hidden />
+              {t('relatedSpots.modal.backToList', '목록으로 돌아가기')}
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t('relatedSpots.modal.closeAria', '닫기')}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                border: '1px solid rgba(255,255,255,0.1)',
+                background: 'rgba(255,255,255,0.04)',
+                color: '#cbd5e1',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
 
-        {/* 헤더: 순위 + 이름 + 지역 */}
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            WebkitOverflowScrolling: 'touch',
+            padding: '12px 22px 28px',
+          }}
+        >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
           <RankBadge rank={spot.rank} />
           <h2
@@ -797,7 +803,7 @@ function SpotDetailModal({ spot, onClose, onSearchAgain }) {
         >
           {t(
             'relatedSpots.modal.externalMapsHint',
-            '지도·검색은 보통 새 창으로 열려요. 같은 탭으로 열렸다면 브라우저 뒤로가기로 이 페이지로 돌아오면, 방금 보던 길잡이 모달을 다시 띄워 드려요. 위쪽 「목록으로 돌아가기」로 닫을 수도 있어요.'
+            '지도·검색은 보통 새 창으로 열려요. 같은 탭으로 열렸다면 브라우저 뒤로가기로 이 페이지로 돌아오면, 방금 보던 길잡이 모달을 다시 띄워 드려요. 시트 맨 위 「목록으로 돌아가기」는 스크롤해도 항상 보여요.'
           )}
         </div>
 
@@ -839,6 +845,7 @@ function SpotDetailModal({ spot, onClose, onSearchAgain }) {
               : t('relatedSpots.modal.deeperHint', '좌표·사진·운영시간 같은 깊은 정보는<br/>외부 지도/검색에서 잔잔히 이어 보세요.'),
           }}
         />
+        </div>
       </motion.div>
     </motion.div>
   );

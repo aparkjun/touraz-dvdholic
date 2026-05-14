@@ -768,7 +768,7 @@
       "naverMap": "Naver Maps",
       "kakaoMap": "Kakao Map",
       "googleSearch": "Search the web",
-      "externalMapsHint": "Maps usually open in a new tab. If the map opened in this tab, use the browser Back button to return here—we’ll reopen this guide sheet. You can also tap “Back to list” at the top.",
+      "externalMapsHint": "Maps usually open in a new tab. If the map opened in this tab, use the browser Back button to return here—we’ll reopen this guide sheet. “Back to list” at the top of the sheet stays visible while you scroll.",
       "restartHere": "Restart from {{keyword}}",
       "deeperHintWithBrief": "Hours, reservations and more — continue gently<br/>through external maps or search.",
       "deeperHint": "Coordinates, photos, hours — continue gently<br/>through external maps or search."
