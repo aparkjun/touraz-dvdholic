@@ -215,7 +215,7 @@ public class BatchController {
 
     /**
      * 관광공사 데이터랩 API 에서 지자체별 지표를 당겨와 tour_index_snapshots 에 upsert.
-     * 자동 스케줄은 app-batch SyncTourIndexBatch 가 매일 03:30 KST 에 실행.
+     * 자동 스케줄: app-batch SyncTourIndexBatch 또는 운영 web 의 {@code TourDataBatchScheduler} 가 매일 03:30 KST.
      *
      * @param baseDate yyyy-MM-dd 형식. 미지정 시 KST 기준 2개월 전(=KTO 데이터 공개 시차 고려).
      *                 metcoRegnVisitrDDList 등은 월 단위 지연이 커서 최근 날짜는 totalCount=0 응답.
@@ -252,7 +252,7 @@ public class BatchController {
 
     /**
      * trending_regions_cache 3 period(today/week/month) 재계산.
-     * 자동 스케줄은 app-batch ComputeTrendingRegionsBatch 가 매일 04:00 KST 에 실행.
+     * 자동 스케줄: app-batch ComputeTrendingRegionsBatch 또는 운영 web 의 {@code TourDataBatchScheduler} 가 매일 04:00 KST.
      */
     @PostMapping("/tour/trending")
     public NetplixApiResponse<String> runTrendingRecompute() {
