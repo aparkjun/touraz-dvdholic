@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Cloud, CloudRain, CloudSnow, CloudSun, Sun } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 
@@ -10,27 +10,95 @@ export function getGeoOnce() {
 }
 
 /**
- * 대시보드 날씨용: 먼저 캐시·저전력으로 빠르게 받고, 실패 시 고정밀·긴 타임아웃으로 한 번 더 시도.
+ * 대시보드 날씨용: 먼저 캐시·저전력으로 빠르게 받고, 실패 시 고정밀·긴 시도.
  * 허용만 되어 있으면 서버에 lat/lng 전달 → 가장 가까운 단기 reg + 초단시 보조.
  */
+/** Permissions API 로 위치 권한이 거절이면 getCurrentPosition 을 호출하지 않는다(일부 WebView 지연 방지). */
+async function isGeolocationPermissionDenied() {
+  if (typeof navigator === 'undefined' || !navigator.permissions?.query) {
+    return false;
+  }
+  try {
+    const r = await navigator.permissions.query({ name: 'geolocation' });
+    return r?.state === 'denied';
+  } catch {
+    return false;
+  }
+}
+
 export async function getGeoForWeather() {
+  if (await isGeolocationPermissionDenied()) {
+    return null;
+  }
   let p = await geoTryOnce({ enableHighAccuracy: false, maximumAge: 600000, timeoutMs: 4000 });
   if (p?.coords) return p;
   p = await geoTryOnce({ enableHighAccuracy: true, maximumAge: 120000, timeoutMs: 12000 });
   return p?.coords ? p : null;
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * 일부 모바일 브라우저·WebView 에서 geolocation 이 콜백 없이 멈추는 사례가 있어,
+ * 전체 위치 조회에 벽시계 상한을 둔다. 초과 시 좌표 없이 단기구역 API만 호출한다.
+ */
+export async function getGeoForWeatherCapped(maxMs = 9000) {
+  const pos = await Promise.race([getGeoForWeather(), delay(maxMs).then(() => null)]);
+  return pos && pos.coords ? pos : null;
+}
+
+/**
+ * 네트워크·타임아웃 등으로 본문을 못 받아도 네비 위젯을 {@code phase:'ready'} 로 두기 위한 최소 페이로드.
+ * {@code configured:false} → 기존 idle 아이콘·캡션 분기로 이어져 클릭(패널)·지역 탭은 그대로 사용 가능.
+ */
+export function createNavWeatherFallbackData(message) {
+  const o = {
+    configured: false,
+    navLoadFailed: true,
+  };
+  const m = message != null ? String(message).trim() : '';
+  if (m) o.message = m;
+  return o;
+}
+
+function extractApiErrorMessage(err) {
+  const d = err?.response?.data;
+  if (d && typeof d.message === 'string' && d.message.trim()) return d.message.trim();
+  return '';
+}
+
+/**
+ * Geolocation PositionOptions 의 timeout 은 iOS WebKit 등에서 무시되는 경우가 있어,
+ * 성공/에러 콜백이 오지 않으면 Promise 가 영원히 pending 이 된다(네비 날씨 무한 로딩).
+ * 반드시 벽시계 상한으로 resolve 한다.
+ */
 function geoTryOnce({ enableHighAccuracy, maximumAge, timeoutMs }) {
   return new Promise((resolve) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       resolve(null);
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (p) => resolve(p),
-      () => resolve(null),
-      { enableHighAccuracy, maximumAge, timeout: timeoutMs }
-    );
+    let settled = false;
+    const wallMs = Math.min(18_000, Math.max(timeoutMs + 2500, 6000));
+    let wallTimer;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      if (wallTimer !== undefined) clearTimeout(wallTimer);
+      resolve(value);
+    };
+    wallTimer = setTimeout(() => finish(null), wallMs);
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (p) => finish(p),
+        () => finish(null),
+        { enableHighAccuracy, maximumAge, timeout: timeoutMs }
+      );
+    } catch {
+      finish(null);
+    }
   });
 }
 
@@ -552,26 +620,76 @@ export function deriveTravelWeatherPresentation(series, payload, t) {
 
 export function useTravelWeatherShortReg() {
   const [state, setState] = useState({ phase: 'loading', data: null });
+  const [tick, setTick] = useState(0);
+
+  const reload = useCallback(() => {
+    setState({ phase: 'loading', data: null });
+    setTick((n) => n + 1);
+  }, []);
 
   useEffect(() => {
     let alive = true;
+    const GEO_CAP_MS = 9000;
+    const WEATHER_REQ_MS = 26000;
+
+    const settleReady = (data) => {
+      if (!alive) return;
+      setState({ phase: 'ready', data });
+    };
+
     (async () => {
-      const pos = await getGeoForWeather();
-      const params = pos ? { lat: pos.coords.latitude, lng: pos.coords.longitude } : {};
       try {
-        const res = await axios.get('/api/v1/weather/short-reg', { params, timeout: 55000 });
-        const d = res?.data?.data;
+        const pos = await getGeoForWeatherCapped(GEO_CAP_MS);
+        const withGeo = pos ? { lat: pos.coords.latitude, lng: pos.coords.longitude } : {};
+
+        const fetchShortReg = async (params) =>
+          axios.get('/api/v1/weather/short-reg', { params, timeout: WEATHER_REQ_MS });
+
+        let res;
+        try {
+          res = await fetchShortReg(withGeo);
+        } catch (e1) {
+          if (Object.keys(withGeo).length > 0) {
+            try {
+              res = await fetchShortReg({});
+            } catch {
+              throw e1;
+            }
+          } else {
+            throw e1;
+          }
+        }
+
+        const body = res?.data;
         if (!alive) return;
-        setState({ phase: 'ready', data: d || null });
-      } catch {
+
+        if (body && body.success === false) {
+          const msg =
+            typeof body.message === 'string' && body.message.trim()
+              ? body.message.trim()
+              : typeof body.code === 'string' && body.code.trim()
+                ? body.code.trim()
+                : '';
+          settleReady(createNavWeatherFallbackData(msg));
+          return;
+        }
+
+        const d = body?.data;
+        if (d != null && typeof d === 'object') {
+          settleReady(d);
+        } else {
+          settleReady(createNavWeatherFallbackData());
+        }
+      } catch (err) {
         if (!alive) return;
-        setState({ phase: 'error', data: null });
+        settleReady(createNavWeatherFallbackData(extractApiErrorMessage(err)));
       }
     })();
+
     return () => {
       alive = false;
     };
-  }, []);
+  }, [tick]);
 
-  return state;
+  return { phase: state.phase, data: state.data, reload };
 }

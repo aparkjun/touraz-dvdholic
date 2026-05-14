@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, Cloud, CloudOff, CloudSun, Loader2 } from 'lucide-react';
+import { ChevronDown, Cloud, CloudSun, Loader2, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import axios from '@/lib/axiosConfig';
 import {
@@ -156,7 +156,7 @@ async function fetchShortRegForPreset(preset) {
 /** 대시보드 네비 — 위젯 클릭 시 지역별 탭 · 시간대 예보(초단기+단기) */
 export default function DashboardWeatherNavGlyph() {
   const { t, i18n } = useTranslation();
-  const state = useTravelWeatherShortReg();
+  const { phase, data, reload } = useTravelWeatherShortReg();
   const [panelOpen, setPanelOpen] = useState(false);
   const [activeRegionId, setActiveRegionId] = useState(MINE_TAB);
   const [regionCache, setRegionCache] = useState({});
@@ -169,20 +169,26 @@ export default function DashboardWeatherNavGlyph() {
   const panelId = 'app-dashboard-weather-panel';
 
   const presetTabs = useMemo(() => {
-    const my = state.phase === 'ready' && state.data?.reg ? String(state.data.reg) : null;
+    const my = phase === 'ready' && data?.reg ? String(data.reg) : null;
     if (!my) return WEATHER_REGION_PRESETS;
     return WEATHER_REGION_PRESETS.filter((p) => p.reg !== my);
-  }, [state.phase, state.data?.reg]);
+  }, [phase, data?.reg]);
 
   const presentation = useMemo(() => {
-    if (state.phase !== 'ready' || !state.data) return null;
-    const d = state.data;
+    if (phase !== 'ready' || !data) return null;
+    const d = data;
     if (d.configured === false) {
+      const failed = d.navLoadFailed === true;
       return {
         kind: 'idle',
         Icon: Cloud,
         iconProps: { strokeWidth: 1.5, color: '#94a3b8' },
-        ariaLabel: t('travelWeather.ariaPreparing', '날씨 안내를 준비 중입니다.'),
+        ariaLabel: failed
+          ? t(
+              'travelWeather.ariaLoadDegraded',
+              '날씨를 불러오지 못했습니다. 패널에서 지역을 선택하거나 다시 시도할 수 있습니다.'
+            )
+          : t('travelWeather.ariaPreparing', '날씨 안내를 준비 중입니다.'),
       };
     }
     if (
@@ -224,11 +230,11 @@ export default function DashboardWeatherNavGlyph() {
       };
     }
     return deriveTravelWeatherPresentation(seriesForDerive, d.payload, t);
-  }, [state.phase, state.data, t]);
+  }, [phase, data, t]);
 
   const timeline = useMemo(() => {
-    if (state.phase !== 'ready' || !state.data) return { slots: [], source: undefined };
-    const d = state.data;
+    if (phase !== 'ready' || !data) return { slots: [], source: undefined };
+    const d = data;
     if (d.configured === false) return { slots: [], source: undefined };
     const hasVsrt = Array.isArray(d.vsrtHourly) && d.vsrtHourly.length > 0;
     const series = resolveSeriesForWeatherTimeline(d);
@@ -243,16 +249,16 @@ export default function DashboardWeatherNavGlyph() {
     }
     if (!hasSeries && !hasVsrt) return { slots: [], source: undefined };
     return buildTravelWeatherTimeline(series, { maxSlots: 8, vsrtHourly: d.vsrtHourly });
-  }, [state.phase, state.data]);
+  }, [phase, data]);
 
   const timelineAria = useMemo(() => formatTimelineAria(timeline.slots || [], t), [timeline.slots, t]);
 
   const caption = useMemo(
-    () => buildDashboardNavCaption(presentation, timeline, t, state.phase === 'ready' ? state.data : null),
-    [presentation, timeline, t, state.phase, state.data]
+    () => buildDashboardNavCaption(presentation, timeline, t, phase === 'ready' ? data : null),
+    [presentation, timeline, t, phase, data]
   );
 
-  const activePanelData = activeRegionId === MINE_TAB ? (state.phase === 'ready' ? state.data : null) : regionCache[activeRegionId];
+  const activePanelData = activeRegionId === MINE_TAB ? (phase === 'ready' ? data : null) : regionCache[activeRegionId];
 
   const activeTimelines = useMemo(() => timelinesFromApiData(activePanelData), [activePanelData]);
 
@@ -389,7 +395,7 @@ export default function DashboardWeatherNavGlyph() {
     border: '1px solid rgba(15, 23, 42, 0.06)',
   };
 
-  if (state.phase === 'loading') {
+  if (phase === 'loading') {
     return (
       <div
         className="app-nav-dashboard-weather"
@@ -404,22 +410,6 @@ export default function DashboardWeatherNavGlyph() {
         <span style={{ fontSize: 10, fontWeight: 700, color: '#64748b', lineHeight: 1.2 }}>
           {t('travelWeather.navLocatingShort', '위치·날씨')}
         </span>
-      </div>
-    );
-  }
-
-  if (state.phase === 'error') {
-    return (
-      <div
-        className="app-nav-dashboard-weather"
-        style={shellStyle}
-        aria-label={t('travelWeather.ariaError', '날씨를 불러오지 못했습니다.')}
-        title={t('travelWeather.ariaError', '날씨를 불러오지 못했습니다.')}
-      >
-        <div style={iconWrap}>
-          <CloudOff size={18} strokeWidth={1.45} style={{ color: '#94a3b8' }} aria-hidden />
-        </div>
-        <span style={{ fontSize: 10, fontWeight: 650, color: '#94a3b8' }}>{t('travelWeather.navErrorShort', '날씨 오류')}</span>
       </div>
     );
   }
@@ -595,23 +585,51 @@ export default function DashboardWeatherNavGlyph() {
                 {t('travelWeather.panelRegionTabsHint', '탭마다 해당 지역 대표 좌표로 초단기·단기 API를 다시 요청합니다.')}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setPanelOpen(false)}
-              style={{
-                flexShrink: 0,
-                border: 'none',
-                background: 'rgba(15, 23, 42, 0.06)',
-                borderRadius: 8,
-                padding: '5px 10px',
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#475569',
-                cursor: 'pointer',
-              }}
-            >
-              {t('travelWeather.widgetClose', '닫기')}
-            </button>
+            <div style={{ display: 'flex', flexShrink: 0, alignItems: 'center', gap: 6 }}>
+              {data?.navLoadFailed ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    reload();
+                    setPanelOpen(false);
+                  }}
+                  style={{
+                    border: 'none',
+                    background: 'rgba(14, 165, 233, 0.12)',
+                    borderRadius: 8,
+                    padding: '5px 10px',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: '#0369a1',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                  title={t('travelWeather.widgetRetryTitle', '날씨 다시 불러오기')}
+                >
+                  <RefreshCw size={13} strokeWidth={2.25} aria-hidden />
+                  {t('travelWeather.widgetRetry', '다시')}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setPanelOpen(false)}
+                style={{
+                  flexShrink: 0,
+                  border: 'none',
+                  background: 'rgba(15, 23, 42, 0.06)',
+                  borderRadius: 8,
+                  padding: '5px 10px',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: '#475569',
+                  cursor: 'pointer',
+                }}
+              >
+                {t('travelWeather.widgetClose', '닫기')}
+              </button>
+            </div>
           </div>
 
           <div

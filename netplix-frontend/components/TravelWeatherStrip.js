@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Cloud, CloudOff, Loader2 } from 'lucide-react';
+import { Cloud, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   deriveTravelWeatherPresentation,
@@ -36,11 +36,11 @@ const PILL_BASE = {
 
 export default function TravelWeatherStrip() {
   const { t } = useTranslation();
-  const state = useTravelWeatherShortReg();
+  const { phase, data } = useTravelWeatherShortReg();
 
   const presentation = useMemo(() => {
-    if (state.phase !== 'ready' || !state.data) return null;
-    const d = state.data;
+    if (phase !== 'ready' || !data) return null;
+    const d = data;
     if (d.configured === false) {
       return {
         kind: 'idle',
@@ -67,11 +67,11 @@ export default function TravelWeatherStrip() {
         ? d.vsrtHourly
         : resolveSeriesForWeatherTimeline(d);
     return deriveTravelWeatherPresentation(seriesForDerive, d.payload, t);
-  }, [state.phase, state.data, t]);
+  }, [phase, data, t]);
 
   const timeline = useMemo(() => {
-    if (state.phase !== 'ready' || !state.data) return { slots: [], source: null };
-    const d = state.data;
+    if (phase !== 'ready' || !data) return { slots: [], source: null };
+    const d = data;
     if (d.configured === false) return { slots: [], source: null };
     const hasVsrt = Array.isArray(d.vsrtHourly) && d.vsrtHourly.length > 0;
     const series = resolveSeriesForWeatherTimeline(d);
@@ -79,9 +79,9 @@ export default function TravelWeatherStrip() {
     if (d.upstreamError && !hasVsrt && !hasSeries) return { slots: [], source: null };
     if (!hasSeries && !hasVsrt) return { slots: [], source: null };
     return buildTravelWeatherTimeline(series, { maxSlots: 8, vsrtHourly: d.vsrtHourly });
-  }, [state.phase, state.data]);
+  }, [phase, data]);
 
-  if (state.phase === 'loading') {
+  if (phase === 'loading') {
     return (
       <section className="travel-weather-strip" style={SHELL} aria-busy="true" aria-label={t('travelWeather.ariaLoading', '날씨 확인 중')}>
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3px 0' }}>
@@ -104,34 +104,7 @@ export default function TravelWeatherStrip() {
     );
   }
 
-  if (state.phase === 'error') {
-    return (
-      <section
-        className="travel-weather-strip"
-        style={SHELL}
-        aria-label={t('travelWeather.ariaError', '날씨를 불러오지 못했습니다.')}
-      >
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '3px 0' }}>
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 16,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'linear-gradient(150deg, rgba(248, 250, 252, 0.92) 0%, rgba(241, 245, 249, 0.5) 100%)',
-              boxShadow: '0 0 0 1px rgba(148, 163, 184, 0.18), inset 0 1px 0 rgba(255,255,255,0.6)',
-            }}
-          >
-            <CloudOff size={26} strokeWidth={1.45} style={{ color: '#94a3b8' }} aria-hidden />
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  const d = state.data;
+  const d = data;
   if (!d || !presentation) return null;
 
   const { Icon, iconProps, chipDay, chipHours, ariaLabel, kind } = presentation;
