@@ -258,6 +258,13 @@ export default function DashboardWeatherNavGlyph() {
     [presentation, timeline, t, phase, data]
   );
 
+  /** 네비 위젯 가시 텍스트: 지역 + 오늘만 (단기·개황 등 기술 문구 제외) */
+  const navWidgetOneLine = useMemo(() => {
+    const today = t('travelWeather.dayToday', '오늘');
+    const reg = caption.regionLine && String(caption.regionLine).trim();
+    return reg ? `${reg} · ${today}` : today;
+  }, [caption.regionLine, t]);
+
   const activePanelData = activeRegionId === MINE_TAB ? (phase === 'ready' ? data : null) : regionCache[activeRegionId];
 
   const activeTimelines = useMemo(() => timelinesFromApiData(activePanelData), [activePanelData]);
@@ -372,6 +379,7 @@ export default function DashboardWeatherNavGlyph() {
     flex: '0 0 auto',
     display: 'flex',
     flexDirection: 'row',
+    flexWrap: 'nowrap',
     alignItems: 'center',
     gap: 8,
     maxWidth: 152,
@@ -455,65 +463,28 @@ export default function DashboardWeatherNavGlyph() {
       <div style={iconWrap}>
         <Icon size={size} aria-hidden {...iconProps} />
       </div>
-      <div style={{ minWidth: 0, flex: '1 1 auto', display: 'flex', flexDirection: 'column', gap: 1 }}>
-        {caption.regionLine ? (
-          <span
-            style={{
-              fontSize: 9,
-              fontWeight: 750,
-              color: '#0f766e',
-              lineHeight: 1.15,
-              letterSpacing: '-0.02em',
-              ...textEllipsis,
-            }}
-          >
-            {caption.regionLine}
-          </span>
-        ) : null}
+      <div
+        style={{
+          minWidth: 0,
+          flex: '1 1 auto',
+          display: 'flex',
+          flexDirection: 'row',
+          alignItems: 'center',
+          flexWrap: 'nowrap',
+        }}
+      >
         <span
           style={{
             fontSize: 10,
-            fontWeight: 750,
-            color: '#334155',
+            fontWeight: 800,
+            color: '#0f172a',
             lineHeight: 1.2,
             letterSpacing: '-0.02em',
             ...textEllipsis,
           }}
         >
-          {caption.line1}
+          {navWidgetOneLine}
         </span>
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 800,
-            fontVariantNumeric: 'tabular-nums',
-            color: '#0f172a',
-            lineHeight: 1.2,
-            letterSpacing: '-0.03em',
-            ...textEllipsis,
-          }}
-        >
-          {caption.line2}
-        </span>
-        {caption.line3 ? (
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 750,
-              fontVariantNumeric: 'tabular-nums',
-              color: '#475569',
-              lineHeight: 1.15,
-              ...textEllipsis,
-            }}
-          >
-            {caption.line3}
-          </span>
-        ) : null}
-        {caption.foot ? (
-          <span style={{ fontSize: 8, fontWeight: 650, color: '#64748b', letterSpacing: '0.02em', lineHeight: 1.15 }}>
-            {caption.foot}
-          </span>
-        ) : null}
       </div>
       <ChevronDown
         size={14}
@@ -542,7 +513,6 @@ export default function DashboardWeatherNavGlyph() {
           font: 'inherit',
           textAlign: 'left',
           width: 'auto',
-          maxWidth: 160,
         }}
         aria-expanded={panelOpen}
         aria-controls={panelId}

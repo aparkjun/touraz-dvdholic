@@ -800,7 +800,8 @@ body.app-theme-travel {
     flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
-    align-content: center;
+    /* 두 줄(브랜드+날씨·햄버거 / 하단 프로모)을 세로 중앙에 모으면 첫 줄 높이 변화 시 날씨·햄버거가 아래로 밀림 → 위쪽 정렬 */
+    align-content: flex-start;
     column-gap: clamp(10px, 3vw, 18px);
     row-gap: 6px;
     padding-bottom: 8px;
