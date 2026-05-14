@@ -7,13 +7,6 @@ const KAKAO_IMG = '/brands/kakao-map-logo.png';
 const GOOGLE_IMG = '/brands/google-g-logo.png';
 const GOOGLE_MAPS_IMG = '/brands/google-maps-product.png';
 
-function openHrefNewTab(href) {
-  const w = window.open(href, '_blank', 'noopener,noreferrer');
-  if (w == null || typeof w === 'undefined') {
-    window.open(href, '_blank');
-  }
-}
-
 function BrandMark({ brand, compact }) {
   const isCompact = compact === true;
   if (brand === 'naver') {
@@ -100,40 +93,45 @@ export function MapServiceLinkButton({
   size = 'default',
   className,
   style,
+  /** 외부 지도로 나가기 직전(복귀 시 모달 복원 등) — 기본 동작은 막지 않음 */
+  onBeforeOpen,
 }) {
   const isCompact = size === 'compact';
+  const baseStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: isCompact ? 8 : 10,
+    padding: isCompact ? '7px 10px' : '11px 14px',
+    borderRadius: 12,
+    border: '1px solid rgba(15, 23, 42, 0.1)',
+    background: '#ffffff',
+    color: '#0f172a',
+    fontSize: isCompact ? 12 : 14,
+    fontWeight: 700,
+    letterSpacing: brand === 'naver' ? -0.02 : -0.01,
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+    textAlign: 'left',
+    minHeight: isCompact ? 40 : 48,
+    outline: 'none',
+    textDecoration: 'none',
+    boxSizing: 'border-box',
+    ...style,
+  };
   return (
-    <button
-      type="button"
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
       className={className}
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        openHrefNewTab(href);
-      }}
-      role="link"
       aria-label={label}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'flex-start',
-        gap: isCompact ? 8 : 10,
-        padding: isCompact ? '7px 10px' : '11px 14px',
-        borderRadius: 12,
-        border: '1px solid rgba(15, 23, 42, 0.1)',
-        background: '#ffffff',
-        color: '#0f172a',
-        fontSize: isCompact ? 12 : 14,
-        fontWeight: 700,
-        letterSpacing: brand === 'naver' ? -0.02 : -0.01,
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
-        textAlign: 'left',
-        minHeight: isCompact ? 40 : 48,
-        outline: 'none',
-        ...style,
+      onClick={(e) => {
+        e.stopPropagation();
+        onBeforeOpen?.();
       }}
+      style={baseStyle}
       onFocus={(e) => {
         e.currentTarget.style.boxShadow = '0 0 0 2px #fff, 0 0 0 4px #6366f1';
       }}
@@ -145,6 +143,6 @@ export function MapServiceLinkButton({
         <BrandMark brand={brand} compact={isCompact} />
       </span>
       <span style={{ flex: 1, minWidth: 0 }}>{label}</span>
-    </button>
+    </a>
   );
 }

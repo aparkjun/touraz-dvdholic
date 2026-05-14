@@ -3,7 +3,7 @@
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, MapPin, Loader2, ArrowRight, Hash, X, ExternalLink, Compass } from 'lucide-react';
+import { Sparkles, MapPin, Loader2, ArrowRight, ArrowLeft, Hash, X, ExternalLink, Compass } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import axios from '@/lib/axiosConfig';
 import AmbientBackdrop from '@/components/AmbientBackdrop';
@@ -26,6 +26,9 @@ const POPULAR_PLACE_GROUPS = [
 ];
 
 const REGISTERED_KEYWORDS = POPULAR_PLACE_GROUPS.flatMap((g) => g.keywords);
+
+/** 외부 지도(동일 탭 이탈 등) 후 복귀 시 모달 상태 복원용 — 경로·시간 일치할 때만 */
+const RS_MODAL_RESUME_KEY = 'relatedSpots_resumeModal';
 
 function RelatedSpotsInner() {
   const { t } = useTranslation();
@@ -51,6 +54,9 @@ function RelatedSpotsInner() {
   /** 모달 열 때 히스토리 한 단 쌓아, 안드로이드/브라우저 뒤로가기로 닫히게 함(외부 지도로 이탈 후에도 이 탭이 목록을 유지). */
   const openSpotDetail = useCallback((picked) => {
     if (typeof window === 'undefined') return;
+    try {
+      sessionStorage.removeItem(RS_MODAL_RESUME_KEY);
+    } catch (_) {}
     const prev = window.history.state || {};
     window.history.pushState(
       { ...prev, rsSpotModal: true },
@@ -61,6 +67,9 @@ function RelatedSpotsInner() {
   }, []);
 
   const closeSpotDetail = useCallback(() => {
+    try {
+      sessionStorage.removeItem(RS_MODAL_RESUME_KEY);
+    } catch (_) {}
     if (typeof window === 'undefined') {
       setSelectedSpot(null);
       return;
@@ -85,6 +94,57 @@ function RelatedSpotsInner() {
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
+
+  const resumeModalIfNeeded = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    if (selectedSpotRef.current) return;
+    let raw;
+    try {
+      raw = sessionStorage.getItem(RS_MODAL_RESUME_KEY);
+    } catch {
+      return;
+    }
+    if (!raw) return;
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      try {
+        sessionStorage.removeItem(RS_MODAL_RESUME_KEY);
+      } catch (_) {}
+      return;
+    }
+    const { spot, ts, path } = parsed;
+    const here = `${window.location.pathname}${window.location.search}`;
+    if (!spot?.relatedSpot || typeof ts !== 'number' || Date.now() - ts > 30 * 60 * 1000 || path !== here) {
+      try {
+        sessionStorage.removeItem(RS_MODAL_RESUME_KEY);
+      } catch (_) {}
+      return;
+    }
+    try {
+      sessionStorage.removeItem(RS_MODAL_RESUME_KEY);
+    } catch (_) {}
+    try {
+      const prev = window.history.state || {};
+      window.history.pushState({ ...prev, rsSpotModal: true }, '', here);
+    } catch (_) {}
+    setSelectedSpot(spot);
+  }, []);
+
+  useEffect(() => {
+    resumeModalIfNeeded();
+    const onFocus = () => resumeModalIfNeeded();
+    const onPageShow = (e) => {
+      if (e.persisted) resumeModalIfNeeded();
+    };
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('pageshow', onPageShow);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('pageshow', onPageShow);
+    };
+  }, [resumeModalIfNeeded]);
 
   const runKeywordSearch = async (q) => {
     const trimmed = (q || '').trim();
@@ -466,11 +526,16 @@ function GroupCard({ group, onPickRelated }) {
  */
 function SpotDetailModal({ spot, onClose, onSearchAgain }) {
   const { t } = useTranslation();
-  // brief: KTO KorWith/Pet/Eng searchKeyword2 폴백을 통해 이미지/주소/전화/좌표를 가져온다.
-  // 모달이 마운트되면 비동기로 페치하고, 도착하면 부드럽게 추가 노출.
-  // 결과가 비어 있으면(앞 3개 서비스 모두 매칭 0건) 기존 외부 링크 폴백 그대로.
   const [brief, setBrief] = useState(null);
   const [briefLoading, setBriefLoading] = useState(false);
+
+  const persistSpotBeforeExternalMap = useCallback(() => {
+    if (typeof window === 'undefined' || !spot) return;
+    try {
+      const path = `${window.location.pathname}${window.location.search}`;
+      sessionStorage.setItem(RS_MODAL_RESUME_KEY, JSON.stringify({ spot, ts: Date.now(), path }));
+    } catch (_) {}
+  }, [spot]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -567,28 +632,66 @@ function SpotDetailModal({ spot, onClose, onSearchAgain }) {
             margin: '0 auto 14px',
           }}
         />
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={t('relatedSpots.modal.closeAria', '닫기')}
+        {/* 상단 고정: 목록으로 / 닫기 — 스크롤해도 동선이 끊기지 않게 */}
+        <div
           style={{
-            position: 'absolute',
-            top: 14,
-            right: 14,
-            width: 36,
-            height: 36,
-            borderRadius: '50%',
-            border: '1px solid rgba(255,255,255,0.1)',
-            background: 'rgba(255,255,255,0.04)',
-            color: '#cbd5e1',
-            cursor: 'pointer',
+            position: 'sticky',
+            top: 0,
+            zIndex: 4,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+            margin: '-6px -22px 12px',
+            padding: '6px 14px 10px',
+            background: 'linear-gradient(180deg, rgba(15,23,42,0.98) 70%, rgba(15,23,42,0.92) 100%)',
+            borderBottom: '1px solid rgba(148,163,184,0.12)',
+            backdropFilter: 'blur(8px)',
           }}
         >
-          <X size={16} />
-        </button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t('relatedSpots.modal.backToList', '목록으로 돌아가기')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 12px',
+              borderRadius: 999,
+              border: '1px solid rgba(255,255,255,0.14)',
+              background: 'rgba(255,255,255,0.06)',
+              color: '#e2e8f0',
+              fontSize: 13,
+              fontWeight: 700,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+            }}
+          >
+            <ArrowLeft size={18} strokeWidth={2.25} aria-hidden />
+            {t('relatedSpots.modal.backToList', '목록으로 돌아가기')}
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t('relatedSpots.modal.closeAria', '닫기')}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: '50%',
+              border: '1px solid rgba(255,255,255,0.1)',
+              background: 'rgba(255,255,255,0.04)',
+              color: '#cbd5e1',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <X size={16} />
+          </button>
+        </div>
 
         {/* 헤더: 순위 + 이름 + 지역 */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
@@ -679,9 +782,9 @@ function SpotDetailModal({ spot, onClose, onSearchAgain }) {
 
         {/* 외부 지도 / 검색 — 깊이를 잇는 길잡이 */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 8 }}>
-          <MapServiceLinkButton href={naverMapUrl} brand="naver" label={t('relatedSpots.modal.naverMap', '네이버 지도')} />
-          <MapServiceLinkButton href={kakaoMapUrl} brand="kakao" label={t('relatedSpots.modal.kakaoMap', '카카오맵')} />
-          <MapServiceLinkButton href={googleSearchUrl} brand="google" label={t('relatedSpots.modal.googleSearch', '더 찾아보기')} />
+          <MapServiceLinkButton href={naverMapUrl} brand="naver" label={t('relatedSpots.modal.naverMap', '네이버 지도')} onBeforeOpen={persistSpotBeforeExternalMap} />
+          <MapServiceLinkButton href={kakaoMapUrl} brand="kakao" label={t('relatedSpots.modal.kakaoMap', '카카오맵')} onBeforeOpen={persistSpotBeforeExternalMap} />
+          <MapServiceLinkButton href={googleSearchUrl} brand="google" label={t('relatedSpots.modal.googleSearch', '더 찾아보기')} onBeforeOpen={persistSpotBeforeExternalMap} />
         </div>
         <div
           style={{
@@ -694,7 +797,7 @@ function SpotDetailModal({ spot, onClose, onSearchAgain }) {
         >
           {t(
             'relatedSpots.modal.externalMapsHint',
-            '지도·검색은 새 창으로 열려요. 돌아오려면 이 브라우저 탭으로 다시 전환하고, 닫으려면 위 닫기 또는 뒤로가기를 눌러 주세요.'
+            '지도·검색은 보통 새 창으로 열려요. 같은 탭으로 열렸다면 브라우저 뒤로가기로 이 페이지로 돌아오면, 방금 보던 길잡이 모달을 다시 띄워 드려요. 위쪽 「목록으로 돌아가기」로 닫을 수도 있어요.'
           )}
         </div>
 
