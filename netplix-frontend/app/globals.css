@@ -794,16 +794,18 @@ body.app-theme-travel {
   .app-nav-dashboard-promo--left { max-width: min(calc(50vw - 52px), 216px); }
   .app-nav-dashboard-promo--right { max-width: min(calc(50vw - 68px), 304px); }
 
-  /* /dashboard 모바일: 좌우 minmax(0)로 그리드 칸이 줄어들 수 있게, padding-inline 으로 좌·우 여백 동일 */
+  /* /dashboard 모바일: 가운데 로고(auto) + 오른쪽(날씨·햄버거)은 max-content 로 절대 0폭에 눌리지 않게.
+   * 예전 minmax(0,1fr) 오른쪽 칸은 내용이 비어도 1fr 을 나눠 가져 햄버거가 화면 밖으로 밀리거나 잘릴 수 있음. */
   .app-nav-inner--dashboard {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto max-content;
     grid-template-rows: auto auto;
     row-gap: 6px;
     align-items: center;
     padding-bottom: 8px;
     padding-inline: max(12px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
     box-sizing: border-box;
+    overflow-x: visible;
   }
   .app-nav-inner--dashboard .app-nav-dashboard-promo--left,
   .app-nav-inner--dashboard .app-nav-dashboard-promo--right {
@@ -867,15 +869,30 @@ body.app-theme-travel {
     align-self: center;
     margin-right: 0;
     margin-left: 0;
-    width: 100%;
-    max-width: 100%;
+    width: auto;
+    max-width: none;
     min-width: 0;
     justify-content: flex-end;
     gap: 8px;
     box-sizing: border-box;
+    overflow: visible;
+    flex-wrap: nowrap;
+  }
+  .app-nav-inner--dashboard .app-hamburger {
+    flex-shrink: 0;
+    position: relative;
+    z-index: 3;
+  }
+  /* 밝은 travel 네비에서도 윤곽이 분명히 보이도록 */
+  .app-theme-travel .app-nav-inner--dashboard .app-hamburger {
+    color: #92400e;
+    border-color: rgba(180, 83, 9, 0.35);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
   }
   .app-nav-inner--dashboard .app-nav-dashboard-weather-wrap {
     min-width: 0;
+    flex: 1 1 auto;
+    max-width: min(200px, calc(100vw - 56px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
   }
   .app-nav.app-nav--dashboard {
     padding-bottom: 12px;
