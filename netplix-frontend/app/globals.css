@@ -794,14 +794,12 @@ body.app-theme-travel {
   .app-nav-dashboard-promo--left { max-width: min(calc(50vw - 52px), 216px); }
   .app-nav-dashboard-promo--right { max-width: min(calc(50vw - 68px), 304px); }
 
-  /* /dashboard 모바일: 브랜드(아이콘) ↔ 날씨·햄버거 를 양끝으로 최대한 밀되 padding-inline 으로 ‘자석 붙음’ 방지 */
+  /* /dashboard 모바일: grid 로 1행(브랜드 | 날씨·햄버거) 고정 — flex-wrap 시 날씨 로드 후 actions 통째로 줄바꿈되던 문제 방지 */
   .app-nav-inner--dashboard {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+    grid-template-rows: auto auto;
     align-items: center;
-    /* 두 줄(브랜드+날씨·햄버거 / 하단 프로모)을 세로 중앙에 모으면 첫 줄 높이 변화 시 날씨·햄버거가 아래로 밀림 → 위쪽 정렬 */
-    align-content: flex-start;
     column-gap: clamp(10px, 3vw, 18px);
     row-gap: 6px;
     padding-bottom: 8px;
@@ -815,15 +813,15 @@ body.app-theme-travel {
   }
   .app-nav-inner--dashboard .app-nav-dashboard-promo--combined {
     display: block;
-    flex: 1 1 100%;
+    grid-column: 1 / -1;
+    grid-row: 2;
     width: 100%;
-    order: 3;
+    max-width: 100%;
     position: static;
     left: auto;
     top: auto;
     transform: none;
     margin: 0 auto;
-    max-width: 100%;
     padding: 0 6px;
     box-sizing: border-box;
     text-align: center;
@@ -845,12 +843,13 @@ body.app-theme-travel {
     left: auto;
     top: auto;
     transform: none;
-    order: 1;
-    justify-self: unset;
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: start;
     align-self: center;
     margin: 0;
-    flex: 0 1 auto;
     min-width: 0;
+    max-width: 100%;
     display: flex;
     align-items: center;
   }
@@ -868,13 +867,13 @@ body.app-theme-travel {
     transform: scale(1.02);
   }
   .app-nav-inner--dashboard .app-nav-actions {
-    order: 2;
-    justify-self: unset;
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
     align-self: center;
     margin: 0;
-    flex: 0 0 auto;
     width: auto;
-    max-width: none;
+    max-width: min(100%, 100vw);
     min-width: 0;
     justify-content: flex-end;
     gap: 8px;
@@ -895,7 +894,7 @@ body.app-theme-travel {
   }
   .app-nav-inner--dashboard .app-nav-dashboard-weather-wrap {
     min-width: 0;
-    flex: 1 1 auto;
+    flex: 0 1 auto;
     max-width: min(200px, calc(100vw - 56px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)));
   }
   .app-nav.app-nav--dashboard {
