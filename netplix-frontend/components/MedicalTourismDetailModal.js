@@ -25,6 +25,7 @@ import Link from "next/link";
 import { useMedicalFavorites } from "@/lib/useMedicalFavorites";
 import { areaLabel, resolveAreaCode } from "@/lib/regionAreaCode";
 import useBackButtonClose from "@/lib/useBackButtonClose";
+import { MapServiceLinkButton } from "@/components/MapServiceLinkButton";
 import {
   X,
   ChevronLeft,
@@ -323,15 +324,12 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
               </button>
             )}
             {directionsUrl ? (
-              <a
+              <MapServiceLinkButton
                 href={directionsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mtd-act mtd-act-dir"
-              >
-                <Navigation size={16} />
-                <span>{t("medicalTourism.detail.directions", "경로 안내")}</span>
-              </a>
+                brand="googleMaps"
+                label={t("medicalTourism.detail.directions", "경로 안내")}
+                style={{ width: "100%" }}
+              />
             ) : (
               <button type="button" className="mtd-act mtd-act-dir" disabled>
                 <Navigation size={16} />
@@ -339,15 +337,12 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
               </button>
             )}
             {viewUrl ? (
-              <a
+              <MapServiceLinkButton
                 href={viewUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mtd-act mtd-act-map"
-              >
-                <MapIcon size={16} />
-                <span>{t("medicalTourism.detail.viewMap", "지도에서 보기")}</span>
-              </a>
+                brand="googleMaps"
+                label={t("medicalTourism.detail.viewMap", "지도에서 보기")}
+                style={{ width: "100%" }}
+              />
             ) : (
               <button type="button" className="mtd-act mtd-act-map" disabled>
                 <MapIcon size={16} />
@@ -369,15 +364,13 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
           </div>
 
           {kakaoMapUrl && (
-            <a
-              href={kakaoMapUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mtd-kakao"
-            >
-              <MapIcon size={14} />
-              {t("medicalTourism.detail.kakao", "카카오맵으로 열기")}
-            </a>
+            <div style={{ marginTop: 10 }}>
+              <MapServiceLinkButton
+                href={kakaoMapUrl}
+                brand="kakao"
+                label={t("medicalTourism.detail.kakao", "카카오맵으로 열기")}
+              />
+            </div>
           )}
 
           {shareError && <div className="mtd-error">{shareError}</div>}
@@ -645,21 +638,6 @@ const cssBlock = `
 .mtd-act-share:hover:not(:disabled) { background: linear-gradient(135deg, rgba(167,139,250,0.5), rgba(167,139,250,0.28)); }
 .mtd-act-ok { background: linear-gradient(135deg, rgba(16,185,129,0.5), rgba(16,185,129,0.28)) !important; border-color: rgba(167,243,208,0.6) !important; color: #d1fae5 !important; }
 
-.mtd-kakao {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 12px;
-  border-radius: 999px;
-  background: rgba(252,225,69,0.12);
-  border: 1px solid rgba(252,225,69,0.35);
-  color: #fde68a;
-  font-size: 0.78rem;
-  font-weight: 700;
-  text-decoration: none;
-  transition: background 0.15s;
-}
-.mtd-kakao:hover { background: rgba(252,225,69,0.22); color: #fff; }
-
-.mtd-error {
   margin-top: 10px;
   padding: 8px 10px;
   border-radius: 8px;

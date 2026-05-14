@@ -16,7 +16,7 @@ import {
   Landmark,
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
-import { KakaoMapLogo, NaverNLogo } from '@/components/BrandMapSearchIcons';
+import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
 import { useTranslation } from 'react-i18next';
 import useBackButtonClose from '@/lib/useBackButtonClose';
 
@@ -642,28 +642,20 @@ function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
           {(kakaoMapUrl || naverSearchUrl) && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10, marginBottom: 14 }}>
               {kakaoMapUrl && (
-                <a
+                <MapServiceLinkButton
                   href={kakaoMapUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="카카오맵에서 열기"
-                  title="카카오맵"
-                  style={extLinkStyle('#fbbf24')}
-                >
-                  <KakaoMapLogo size={20} />
-                </a>
+                  brand="kakao"
+                  label="카카오맵"
+                  size="compact"
+                />
               )}
               {naverSearchUrl && (
-                <a
+                <MapServiceLinkButton
                   href={naverSearchUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="네이버에서 검색"
-                  title="네이버 검색"
-                  style={extLinkStyle('#10b981')}
-                >
-                  <NaverNLogo size={20} />
-                </a>
+                  brand="naver"
+                  label="네이버 검색"
+                  size="compact"
+                />
               )}
             </div>
           )}
@@ -835,22 +827,6 @@ const detailValueStyle = {
   whiteSpace: 'pre-line',
   wordBreak: 'break-word',
 };
-
-function extLinkStyle(color) {
-  return {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 5,
-    fontSize: 12,
-    fontWeight: 600,
-    padding: '6px 10px',
-    borderRadius: 8,
-    background: `${color}22`,
-    color,
-    textDecoration: 'none',
-    border: `1px solid ${color}44`,
-  };
-}
 
 /**
  * 요약(summary) 위에 상세(detail) 값을 "비어있지 않은 경우에만" 덮어쓴다.

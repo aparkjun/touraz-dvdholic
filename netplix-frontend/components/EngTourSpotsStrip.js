@@ -7,7 +7,6 @@ import {
   UtensilsCrossed,
   Hotel,
   ExternalLink,
-  Navigation,
   X,
   Phone,
   Globe,
@@ -15,6 +14,7 @@ import {
 import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
 import useBackButtonClose from '@/lib/useBackButtonClose';
+import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
 
 /**
  * 영어 모드 전용 "Travel Spots Around This Film" 스트립.
@@ -377,15 +377,12 @@ export default function EngTourSpotsStrip({ areaCode, regionLabel = '' }) {
 
               <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
                 {activePoi.mapX != null && activePoi.mapY != null && (
-                  <a
+                  <MapServiceLinkButton
                     href={`https://www.google.com/maps/search/?api=1&query=${activePoi.mapY},${activePoi.mapX}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={buttonStyle('#10b981')}
-                  >
-                    <Navigation size={14} />
-                    {t('cineTrip.engSpots.openMap', 'Open in Maps')}
-                  </a>
+                    brand="googleMaps"
+                    label={t('cineTrip.engSpots.openMap', 'Open in Maps')}
+                    size="compact"
+                  />
                 )}
                 {activePoi.homepage && (
                   <a

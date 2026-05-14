@@ -26,6 +26,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
+import { MapServiceLinkButton } from "@/components/MapServiceLinkButton";
 import {
   Tent,
   Search,
@@ -787,20 +788,19 @@ function CampingCard({ site }) {
         <div className="cmp-ctitle" title={site.name || ""}>{site.name}</div>
         {site.induty && <div className="cmp-badges">{renderBadges(site.induty)}</div>}
         {site.address && (
-          <div className="cmp-meta">
-            <MapPin size={12} />
-            {mapUrl ? (
-              <a
+          <div
+            className="cmp-meta"
+            style={{ flexWrap: "wrap", alignItems: "center", gap: 8 }}
+          >
+            <MapPin size={12} style={{ flexShrink: 0 }} />
+            <span style={{ flex: "1 1 120px", minWidth: 0 }}>{site.address}</span>
+            {mapUrl && (
+              <MapServiceLinkButton
                 href={mapUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="cmp-addr-link"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {site.address}
-              </a>
-            ) : (
-              <span>{site.address}</span>
+                brand="kakao"
+                label={t("camping.openKakaoMap")}
+                size="compact"
+              />
             )}
           </div>
         )}

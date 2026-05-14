@@ -11,6 +11,7 @@ import NearbyWellnessStrip from "@/components/NearbyWellnessStrip";
 import NearbyMedicalTourismStrip from "@/components/NearbyMedicalTourismStrip";
 import NearbyAudioGuideStrip from "@/components/NearbyAudioGuideStrip";
 import DvdReturnQuietSpots from "@/components/DvdReturnQuietSpots";
+import { MapServiceLinkButton } from "@/components/MapServiceLinkButton";
 let L, MapContainer, TileLayer, Marker, Popup, useMap;
 let greenIcon, redIcon, blueIcon;
 
@@ -695,24 +696,26 @@ function StoreCard({ store, showDistance }) {
       </div>
 
       {addr && (
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 6, marginBottom: 4 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
           <MapPin size={14} style={{ color: "rgba(255,255,255,0.3)", flexShrink: 0, marginTop: 2 }} />
-          {mapUrl ? (
-            <a
+          <span
+            style={{
+              fontSize: "0.82rem",
+              color: "rgba(255,255,255,0.6)",
+              lineHeight: 1.4,
+              flex: "1 1 140px",
+              minWidth: 0,
+            }}
+          >
+            {addr}
+          </span>
+          {mapUrl && (
+            <MapServiceLinkButton
               href={mapUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                fontSize: "0.82rem", color: "rgba(255,255,255,0.6)", lineHeight: 1.4,
-                textDecoration: "none", borderBottom: "1px dotted rgba(255,255,255,0.2)",
-              }}
-            >
-              {addr}
-            </a>
-          ) : (
-            <span style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.6)", lineHeight: 1.4 }}>
-              {addr}
-            </span>
+              brand="kakao"
+              label={t("dvdStores.openKakaoMap", "카카오맵")}
+              size="compact"
+            />
           )}
         </div>
       )}

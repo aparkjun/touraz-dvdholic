@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import useBackButtonClose from "@/lib/useBackButtonClose";
+import { MapServiceLinkButton } from "@/components/MapServiceLinkButton";
 import {
   getAudioGuideOdiiLang,
   isValidOdiiLang,
@@ -43,14 +44,12 @@ import {
   MapPin,
   Clock,
   Globe2,
-  ExternalLink,
   Tag,
   Radio,
   BookOpen,
   Square,
   Info,
   Loader2,
-  Navigation,
   Mic,
 } from "lucide-react";
 
@@ -1504,24 +1503,22 @@ export default function AudioGuideDetailModal({
               </div>
               <div className="agm-map-actions">
                 {googleDirectionsUrl && (
-                  <a
+                  <MapServiceLinkButton
                     href={googleDirectionsUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="agm-map-btn agm-map-dir agm-map-google"
-                  >
-                    <Navigation size={13} /> {td("audioGuide.detail.directionsGoogle", "Google 지도 길찾기")}
-                  </a>
+                    brand="googleMaps"
+                    label={td("audioGuide.detail.directionsGoogle", "Google 지도 길찾기")}
+                    size="compact"
+                    style={{ width: "100%" }}
+                  />
                 )}
                 {kakaoDirectionsUrl && (
-                  <a
+                  <MapServiceLinkButton
                     href={kakaoDirectionsUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="agm-map-btn agm-map-dir agm-map-kakao"
-                  >
-                    <Navigation size={13} /> {td("audioGuide.detail.directionsKakao", "카카오맵 길찾기")}
-                  </a>
+                    brand="kakao"
+                    label={td("audioGuide.detail.directionsKakao", "카카오맵 길찾기")}
+                    size="compact"
+                    style={{ width: "100%" }}
+                  />
                 )}
               </div>
               {navLocState === "loading" && (
@@ -1539,12 +1536,20 @@ export default function AudioGuideDetailModal({
                 {td("audioGuide.detail.mapViewSection", "지도에서 보기")}
               </div>
               <div className="agm-map-actions">
-                <a href={googleMapUrl} target="_blank" rel="noreferrer" className="agm-map-btn agm-map-google">
-                  <ExternalLink size={13} /> {td("audioGuide.detail.openGoogleMap", "구글 지도에서 보기")}
-                </a>
-                <a href={kakaoMapUrl} target="_blank" rel="noreferrer" className="agm-map-btn agm-map-kakao">
-                  <ExternalLink size={13} /> {td("audioGuide.detail.openKakaoMap", "카카오맵에서 보기")}
-                </a>
+                <MapServiceLinkButton
+                  href={googleMapUrl}
+                  brand="googleMaps"
+                  label={td("audioGuide.detail.openGoogleMap", "구글 지도에서 보기")}
+                  size="compact"
+                  style={{ width: "100%" }}
+                />
+                <MapServiceLinkButton
+                  href={kakaoMapUrl}
+                  brand="kakao"
+                  label={td("audioGuide.detail.openKakaoMap", "카카오맵에서 보기")}
+                  size="compact"
+                  style={{ width: "100%" }}
+                />
               </div>
             </div>
           )}

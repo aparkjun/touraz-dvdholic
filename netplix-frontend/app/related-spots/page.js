@@ -1,12 +1,13 @@
 'use client';
 
-import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, MapPin, Loader2, ArrowRight, Hash, X, ExternalLink, Compass, Search as SearchIcon, Navigation } from 'lucide-react';
+import { Sparkles, MapPin, Loader2, ArrowRight, Hash, X, ExternalLink, Compass } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import axios from '@/lib/axiosConfig';
 import AmbientBackdrop from '@/components/AmbientBackdrop';
+import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
 
 // "조용한 명소 + 함께 가는 명소" — 잔잔한 데이터 산책 화면.
 // 단일 키워드 모드 + 인기 지역 칩.
@@ -42,6 +43,48 @@ function RelatedSpotsInner() {
   // 클릭한 연관 명소 + 기준 명소 정보를 함께 담아 상세 모달에 전달.
   const [selectedSpot, setSelectedSpot] = useState(null);
   const lastReqRef = useRef(0);
+  const selectedSpotRef = useRef(null);
+  useEffect(() => {
+    selectedSpotRef.current = selectedSpot;
+  }, [selectedSpot]);
+
+  /** 모달 열 때 히스토리 한 단 쌓아, 안드로이드/브라우저 뒤로가기로 닫히게 함(외부 지도로 이탈 후에도 이 탭이 목록을 유지). */
+  const openSpotDetail = useCallback((picked) => {
+    if (typeof window === 'undefined') return;
+    const prev = window.history.state || {};
+    window.history.pushState(
+      { ...prev, rsSpotModal: true },
+      '',
+      `${window.location.pathname}${window.location.search}`
+    );
+    setSelectedSpot(picked);
+  }, []);
+
+  const closeSpotDetail = useCallback(() => {
+    if (typeof window === 'undefined') {
+      setSelectedSpot(null);
+      return;
+    }
+    if (!selectedSpotRef.current) return;
+    try {
+      if (window.history.state?.rsSpotModal === true) {
+        window.history.back();
+      } else {
+        setSelectedSpot(null);
+      }
+    } catch {
+      setSelectedSpot(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onPopState = () => {
+      setSelectedSpot((prev) => (prev ? null : prev));
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   const runKeywordSearch = async (q) => {
     const trimmed = (q || '').trim();
@@ -292,7 +335,7 @@ function RelatedSpotsInner() {
                 <GroupCard
                   key={`${g.baseSpot}-${idx}`}
                   group={g}
-                  onPickRelated={(picked) => setSelectedSpot(picked)}
+                  onPickRelated={openSpotDetail}
                 />
               ))}
             </motion.div>
@@ -326,7 +369,7 @@ function RelatedSpotsInner() {
         {selectedSpot && (
           <SpotDetailModal
             spot={selectedSpot}
-            onClose={() => setSelectedSpot(null)}
+            onClose={closeSpotDetail}
             onSearchAgain={(kw) => { setKeyword(kw); runKeywordSearch(kw); }}
           />
         )}
@@ -635,10 +678,24 @@ function SpotDetailModal({ spot, onClose, onSearchAgain }) {
         })()}
 
         {/* 외부 지도 / 검색 — 깊이를 잇는 길잡이 */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 16 }}>
-          <ExternalAction icon={<Navigation size={15} />} label={t('relatedSpots.modal.naverMap', '네이버 지도')} href={naverMapUrl} accent="#22c55e" />
-          <ExternalAction icon={<MapPin size={15} />}     label={t('relatedSpots.modal.kakaoMap', '카카오 맵')}   href={kakaoMapUrl} accent="#fde047" />
-          <ExternalAction icon={<SearchIcon size={15} />} label={t('relatedSpots.modal.googleSearch', '더 찾아보기')}  href={googleSearchUrl} accent="#a5b4fc" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 8 }}>
+          <MapServiceLinkButton href={naverMapUrl} brand="naver" label={t('relatedSpots.modal.naverMap', '네이버 지도')} />
+          <MapServiceLinkButton href={kakaoMapUrl} brand="kakao" label={t('relatedSpots.modal.kakaoMap', '카카오맵')} />
+          <MapServiceLinkButton href={googleSearchUrl} brand="google" label={t('relatedSpots.modal.googleSearch', '더 찾아보기')} />
+        </div>
+        <div
+          style={{
+            marginBottom: 16,
+            fontSize: 11,
+            color: 'rgba(203,213,225,0.65)',
+            textAlign: 'center',
+            lineHeight: 1.55,
+          }}
+        >
+          {t(
+            'relatedSpots.modal.externalMapsHint',
+            '지도·검색은 새 창으로 열려요. 돌아오려면 이 브라우저 탭으로 다시 전환하고, 닫으려면 위 닫기 또는 뒤로가기를 눌러 주세요.'
+          )}
         </div>
 
         {/* "이 곳에서 출발해 보기" — 사전 등록된 시·군·구일 때만 의미가 있어 안내 톤으로 보여줌 */}
@@ -814,34 +871,6 @@ function SpotBriefSection({ brief, loading, title }) {
         )}
       </div>
     </div>
-  );
-}
-
-function ExternalAction({ icon, label, href, accent }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        padding: '12px 14px',
-        borderRadius: 12,
-        border: `1px solid ${accent}55`,
-        background: `${accent}14`,
-        color: '#f5f5f5',
-        fontSize: 13,
-        fontWeight: 700,
-        textDecoration: 'none',
-      }}
-    >
-      <span style={{ color: accent, display: 'inline-flex' }}>{icon}</span>
-      {label}
-      <ExternalLink size={12} style={{ opacity: 0.6 }} />
-    </a>
   );
 }
 

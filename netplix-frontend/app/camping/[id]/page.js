@@ -26,6 +26,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
+import { MapServiceLinkButton } from "@/components/MapServiceLinkButton";
 import {
   Tent,
   ArrowLeft,
@@ -290,16 +291,20 @@ function CampingDetailInner() {
           {/* ACTION BAR */}
           <section className="cmd-actions" aria-label="actions">
             {kakaoMapUrl && (
-              <a className="cmd-action" href={kakaoMapUrl} target="_blank" rel="noopener noreferrer">
-                <MapPin size={14} />
-                <span>{t("camping.openKakaoMap")}</span>
-              </a>
+              <MapServiceLinkButton
+                href={kakaoMapUrl}
+                brand="kakao"
+                label={t("camping.openKakaoMap")}
+                size="compact"
+              />
             )}
             {naverMapUrl && (
-              <a className="cmd-action" href={naverMapUrl} target="_blank" rel="noopener noreferrer">
-                <Navigation size={14} />
-                <span>{t("camping.openNaverMap")}</span>
-              </a>
+              <MapServiceLinkButton
+                href={naverMapUrl}
+                brand="naver"
+                label={t("camping.openNaverMap")}
+                size="compact"
+              />
             )}
             {site.tel && (
               <a className="cmd-action" href={`tel:${String(site.tel).replace(/[^0-9+]/g, "")}`}>

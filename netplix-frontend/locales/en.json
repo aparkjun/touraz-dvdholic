@@ -595,7 +595,7 @@
       "medical": "Medical",
       "audio": "Audio",
       "radar": "Crowds",
-      "related": "Related"
+      "related": "Routes"
     },
     "errorLoad": "Could not load",
     "empty": "No data",
@@ -767,6 +767,7 @@
       "naverMap": "Naver Maps",
       "kakaoMap": "Kakao Map",
       "googleSearch": "Search the web",
+      "externalMapsHint": "Maps and search open in a new tab or window. Switch back to this browser tab to return here; close the sheet with Close or your browser/device Back.",
       "restartHere": "Restart from {{keyword}}",
       "deeperHintWithBrief": "Hours, reservations and more — continue gently<br/>through external maps or search.",
       "deeperHint": "Coordinates, photos, hours — continue gently<br/>through external maps or search."

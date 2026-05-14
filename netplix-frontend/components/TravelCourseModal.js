@@ -13,8 +13,8 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
-import { KakaoMapLogo, NaverNLogo, GoogleGLogo } from '@/components/BrandMapSearchIcons';
 import useBackButtonClose from '@/lib/useBackButtonClose';
+import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
 import ConcentrationForecastStrip from '@/components/ConcentrationForecastStrip';
 import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
 import AccessibleSpotsStrip from '@/components/AccessibleSpotsStrip';
@@ -256,19 +256,6 @@ export default function TravelCourseModal({
           gap: 8px;
           margin: 6px 0 14px;
         }
-        .tc-link-btn {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          padding: 10px 14px;
-          border-radius: 12px;
-          font-size: 13px;
-          font-weight: 800;
-          text-decoration: none;
-          letter-spacing: -0.01em;
-          white-space: nowrap;
-        }
         @media (max-width: 600px) {
           .tc-modal {
             max-height: 90vh;
@@ -286,18 +273,6 @@ export default function TravelCourseModal({
             margin-left: 0;
             width: 100%;
             justify-content: center;
-          }
-          .tc-link-btn {
-            flex: 1 1 calc(50% - 8px);
-            min-width: 0;
-            font-size: 12px;
-            padding: 9px 10px;
-          }
-          .tc-link-btn span.tc-link-label {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            min-width: 0;
           }
         }
         @media (max-width: 380px) {
@@ -580,77 +555,32 @@ export default function TravelCourseModal({
                   </div>
 
                   {/*
-                   * 외부 링크(카카오맵 / 네이버 / Google) 바로가기.
-                   * - 각 서비스 브랜드 컬러를 반영
-                   * - hover/tap 시 확대 + 그림자 강조 마이크로인터랙션
+                   * 외부 링크: MapServiceLinkButton(공식 브랜드 PNG + 밝은 카드형).
                    */}
                   <div className="tc-link-row">
                     {kakao && (
-                      <motion.a
+                      <MapServiceLinkButton
                         href={kakao}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        whileHover={{ y: -2, scale: 1.03 }}
-                        whileTap={{ scale: 0.97 }}
-                        title={`카카오맵에서 ${regionName} 보기`}
-                        aria-label={`카카오맵에서 ${regionName} 보기`}
-                        className="tc-link-btn"
-                        style={{
-                          color: '#1a1a1a',
-                          background:
-                            'linear-gradient(180deg, #ffe94a 0%, #fee500 55%, #f7d900 100%)',
-                          border: '1px solid rgba(0,0,0,0.08)',
-                          boxShadow:
-                            '0 6px 18px rgba(254,229,0,0.25), inset 0 1px 0 rgba(255,255,255,0.6)',
-                        }}
-                      >
-                        <KakaoMapLogo size={22} dark />
-                      </motion.a>
+                        brand="kakao"
+                        label={t('travelCourse.link.kakao', '카카오맵')}
+                        size="compact"
+                      />
                     )}
                     {naver && (
-                      <motion.a
+                      <MapServiceLinkButton
                         href={naver}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        whileHover={{ y: -2, scale: 1.03 }}
-                        whileTap={{ scale: 0.97 }}
-                        title={`네이버에서 ${regionName} 검색`}
-                        aria-label={`네이버에서 ${regionName} 검색`}
-                        className="tc-link-btn"
-                        style={{
-                          color: '#fff',
-                          background:
-                            'linear-gradient(180deg, #14d96e 0%, #03c75a 55%, #03a94c 100%)',
-                          border: '1px solid rgba(0,0,0,0.08)',
-                          boxShadow:
-                            '0 6px 18px rgba(3,199,90,0.3), inset 0 1px 0 rgba(255,255,255,0.25)',
-                        }}
-                      >
-                        <NaverNLogo size={22} />
-                      </motion.a>
+                        brand="naver"
+                        label={t('travelCourse.link.naver', '네이버 검색')}
+                        size="compact"
+                      />
                     )}
                     {google && (
-                      <motion.a
+                      <MapServiceLinkButton
                         href={google}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        whileHover={{ y: -2, scale: 1.03 }}
-                        whileTap={{ scale: 0.97 }}
-                        title={`Google에서 ${regionName} 촬영지 검색`}
-                        aria-label={`Google에서 ${regionName} 촬영지 검색`}
-                        className="tc-link-btn"
-                        style={{
-                          color: '#fff',
-                          background:
-                            'linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 100%)',
-                          border: '1px solid rgba(255,255,255,0.18)',
-                          boxShadow:
-                            '0 4px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.06)',
-                          backdropFilter: 'blur(6px)',
-                        }}
-                      >
-                        <GoogleGLogo size={22} />
-                      </motion.a>
+                        brand="google"
+                        label={t('travelCourse.link.google', 'Google 검색')}
+                        size="compact"
+                      />
                     )}
                   </div>
 

@@ -595,7 +595,7 @@
       "medical": "의료",
       "audio": "오디오",
       "radar": "혼잡도",
-      "related": "연관"
+      "related": "동선 추천"
     },
     "errorLoad": "불러오기 실패",
     "empty": "목록 없음",
@@ -765,8 +765,9 @@
       "togetherRelation": "<strong>{{baseSpot}}</strong>{{baseRegionPart}}<br/>를 다녀간 사람들이 함께로 발걸음을 옮긴 자리예요.",
       "noBaseRelation": "이 곳에서 사람들이 다음으로 향했던 자리예요.",
       "naverMap": "네이버 지도",
-      "kakaoMap": "카카오 맵",
+      "kakaoMap": "카카오맵",
       "googleSearch": "더 찾아보기",
+      "externalMapsHint": "지도·검색은 새 창으로 열려요. 돌아오려면 이 브라우저 탭으로 다시 전환하고, 모달을 닫으려면 위 닫기 또는 기기의 뒤로가기를 눌러 주세요.",
       "restartHere": "{{keyword}} 에서 다시 출발해 보기",
       "deeperHintWithBrief": "운영시간·예약 같은 더 깊은 정보는<br/>외부 지도/검색에서 잔잔히 이어 보세요.",
       "deeperHint": "좌표·사진·운영시간 같은 깊은 정보는<br/>외부 지도/검색에서 잔잔히 이어 보세요."

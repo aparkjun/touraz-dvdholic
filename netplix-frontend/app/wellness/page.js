@@ -44,6 +44,7 @@ import {
 import WellnessRecoveryCalendar from "@/components/WellnessRecoveryCalendar";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 import WellnessSpotDetailModal from "@/components/WellnessSpotDetailModal";
+import { MapServiceLinkButton } from "@/components/MapServiceLinkButton";
 
 const RADIUS_OPTIONS = [10, 30, 50]; // km
 const PAGE_SIZE = 60;
@@ -630,20 +631,19 @@ function WellnessCard({ spot, onOpenDetail }) {
       <div className="wel-body">
         <div className="wel-ctitle" title={spot.name || ""}>{spot.name}</div>
         {spot.address && (
-          <div className="wel-meta">
-            <MapPin size={12} />
-            {mapUrl ? (
-              <a
+          <div
+            className="wel-meta"
+            style={{ flexWrap: "wrap", alignItems: "center", gap: 8 }}
+          >
+            <MapPin size={12} style={{ flexShrink: 0 }} />
+            <span style={{ flex: "1 1 120px", minWidth: 0 }}>{spot.address}</span>
+            {mapUrl && (
+              <MapServiceLinkButton
                 href={mapUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="wel-addr-link"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {spot.address}
-              </a>
-            ) : (
-              <span>{spot.address}</span>
+                brand="kakao"
+                label={t("wellness.openKakaoMap", "카카오맵")}
+                size="compact"
+              />
             )}
           </div>
         )}

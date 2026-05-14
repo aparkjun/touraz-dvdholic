@@ -12,6 +12,7 @@ import {
   Tag,
 } from 'lucide-react';
 import useBackButtonClose from '@/lib/useBackButtonClose';
+import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
 
 /**
  * 웰니스 스팟 상세 모달.
@@ -196,28 +197,18 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
 
           <div className="ws-mod-actions">
             {kakaoMapUrl && (
-              <a
+              <MapServiceLinkButton
                 href={kakaoMapUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ws-mod-act ws-mod-act-primary"
-              >
-                <MapPin size={14} />
-                카카오맵에서 보기
-                <ExternalLink size={12} className="ws-mod-act-ext" />
-              </a>
+                brand="kakao"
+                label={t('wellness.modal.kakaoMap', '카카오맵에서 보기')}
+              />
             )}
             {naverMapUrl && (
-              <a
+              <MapServiceLinkButton
                 href={naverMapUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ws-mod-act ws-mod-act-naver"
-              >
-                <Navigation size={14} />
-                네이버지도
-                <ExternalLink size={12} className="ws-mod-act-ext" />
-              </a>
+                brand="naver"
+                label={t('wellness.modal.naverMap', '네이버 지도')}
+              />
             )}
             {spot.homepage && String(spot.homepage).trim() !== '' && (
               <a
