@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
  * - Windows·macOS: Google Earth Pro 데스크톱 설치 안내(동일 게이트에서 OS 선택)
  */
 const URLS = {
-  ios: 'https://apps.apple.com/app/google-earth/id293177435',
+  ios: 'https://apps.apple.com/app/google-earth/id293622097',
   android: 'https://play.google.com/store/apps/details?id=com.google.earth',
   windows: 'https://www.google.com/intl/ko/earth/download/gep/agree.html',
   mac: 'https://www.google.com/intl/ko/earth/download/gep/agree.html',
