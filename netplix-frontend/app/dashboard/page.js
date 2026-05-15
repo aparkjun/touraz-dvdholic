@@ -76,39 +76,23 @@ function DvdBadge({ size = 40 }) {
 
 function MovieBadge({ size = 40 }) {
   return (
-    <div
-      aria-hidden
+    <img
+      src="/icons/movie-reel.gif"
+      alt="Movie"
+      draggable={false}
       style={{
         position: "absolute",
         top: "6px",
         right: "6px",
-        width: `${size}px`,
-        height: `${size}px`,
-        borderRadius: "50%",
-        background: "radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(253,224,71,0.85) 60%, rgba(245,158,11,0.6) 100%)",
-        boxShadow: "0 0 14px 2px rgba(245,158,11,0.85), 0 0 0 2px rgba(255,255,255,0.9)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        width: `${Math.round(size * 0.86)}px`,
+        height: `${Math.round(size * 0.86)}px`,
+        objectFit: "contain",
+        filter: "drop-shadow(0 2px 10px rgba(245,158,11,0.55)) drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
         zIndex: 2,
         pointerEvents: "none",
         userSelect: "none",
       }}
-    >
-      <img
-        src="/icons/movie-reel.gif"
-        alt="Movie"
-        draggable={false}
-        style={{
-          width: `${Math.round(size * 0.86)}px`,
-          height: `${Math.round(size * 0.86)}px`,
-          objectFit: "contain",
-          filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.35))",
-          pointerEvents: "none",
-          userSelect: "none",
-        }}
-      />
-    </div>
+    />
   );
 }
 
