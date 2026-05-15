@@ -9,6 +9,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -24,7 +25,7 @@ public class NotificationService implements NotificationUseCase {
     private final NotificationPort notificationPort;
     private final SearchUserPort searchUserPort;
 
-    /** KST 기준 당일 DVD·영화 목록 배치 시스템 알림 스냅샷(신규 가입자 캐치업). 서버 재기동 시 비어 있을 수 있음. */
+    /** KST 기준 당일 DVD·영화 목록 배치 시스템 알림 스냅샷(캐치업 1차). 재기동 시 비면 DB 샘플로 폴백한다. */
     private final Object dailyBatchSnapLock = new Object();
     private volatile LocalDate dvdListSnapKstDate;
     private volatile String dvdListSnapTitle;
@@ -185,22 +186,58 @@ public class NotificationService implements NotificationUseCase {
             movieR = movieListSnapRelated;
         }
         try {
-            if (dvdD != null && dvdD.equals(todayKst) && dvdT != null && dvdM != null) {
-                if (!notificationPort.existsByUserIdAndTitleAndNotificationTypeAndSentAtGreaterThanEqual(
-                        userId, dvdT, NOTIFICATION_TYPE_SYSTEM, startOfKstDay)) {
-                    notificationPort.save(Notification.systemNotice(userId, dvdT, dvdM, dvdR));
-                    log.info("[BATCH-NOTI-CATCHUP] userId={} DVD 목록 배치 알림 보충", userId);
-                }
-            }
-            if (movieD != null && movieD.equals(todayKst) && movieT != null && movieM != null) {
-                if (!notificationPort.existsByUserIdAndTitleAndNotificationTypeAndSentAtGreaterThanEqual(
-                        userId, movieT, NOTIFICATION_TYPE_SYSTEM, startOfKstDay)) {
-                    notificationPort.save(Notification.systemNotice(userId, movieT, movieM, movieR));
-                    log.info("[BATCH-NOTI-CATCHUP] userId={} 영화 목록 배치 알림 보충", userId);
-                }
-            }
+            catchupDailyListNoticeIfMissing(
+                    userId, todayKst, startOfKstDay,
+                    TITLE_DVD_LIST_UPDATE, dvdD, dvdT, dvdM, dvdR);
+            catchupDailyListNoticeIfMissing(
+                    userId, todayKst, startOfKstDay,
+                    TITLE_MOVIE_LIST_UPDATE, movieD, movieT, movieM, movieR);
         } catch (Exception e) {
             log.warn("[BATCH-NOTI-CATCHUP] userId={} 실패: {}", userId, e.getMessage());
         }
+    }
+
+    /**
+     * 당일(KST) DVD·영화 목록 배치 알림이 없으면, 메모리 스냅샷 또는 DB에 이미 저장된 동일 제목 알림으로 보충한다.
+     */
+    private void catchupDailyListNoticeIfMissing(
+            String userId,
+            LocalDate todayKst,
+            LocalDateTime startOfKstDay,
+            String listTitle,
+            LocalDate snapKstDate,
+            String snapTitle,
+            String snapMessage,
+            String snapRelated) {
+        if (notificationPort.existsByUserIdAndTitleAndNotificationTypeAndSentAtGreaterThanEqual(
+                userId, listTitle, NOTIFICATION_TYPE_SYSTEM, startOfKstDay)) {
+            return;
+        }
+        Optional<String> messageOpt = Optional.empty();
+        Optional<String> relatedOpt = Optional.empty();
+        if (snapKstDate != null
+                && snapKstDate.equals(todayKst)
+                && listTitle.equals(snapTitle)
+                && snapMessage != null
+                && !snapMessage.isBlank()) {
+            messageOpt = Optional.of(snapMessage);
+            relatedOpt = Optional.ofNullable(snapRelated);
+        }
+        if (messageOpt.isEmpty()) {
+            Optional<Notification> sample =
+                    notificationPort.findLatestSystemNoticeSampleSince(listTitle, NOTIFICATION_TYPE_SYSTEM, startOfKstDay);
+            if (sample.isEmpty()) {
+                return;
+            }
+            Notification s = sample.get();
+            messageOpt = Optional.ofNullable(s.getMessage()).filter(m -> !m.isBlank());
+            relatedOpt = Optional.ofNullable(s.getRelatedId());
+            if (messageOpt.isEmpty()) {
+                return;
+            }
+        }
+        notificationPort.save(
+                Notification.systemNotice(userId, listTitle, messageOpt.get(), relatedOpt.orElse(null)));
+        log.info("[BATCH-NOTI-CATCHUP] userId={} '{}' 알림 보충 (스냅샷 또는 DB 샘플)", userId, listTitle);
     }
 }

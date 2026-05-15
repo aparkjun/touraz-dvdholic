@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 @RequiredArgsConstructor
@@ -92,5 +93,15 @@ public class NotificationRepository implements NotificationPort {
             String userId, String title, String notificationType, LocalDateTime sentAtMin) {
         return notificationJpaRepository.existsByUserIdAndTitleAndNotificationTypeAndSentAtGreaterThanEqual(
                 userId, title, notificationType, sentAtMin);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Notification> findLatestSystemNoticeSampleSince(
+            String title, String notificationType, LocalDateTime sentAtMin) {
+        return notificationJpaRepository
+                .findFirstByTitleAndNotificationTypeAndSentAtGreaterThanEqualOrderBySentAtDesc(
+                        title, notificationType, sentAtMin)
+                .map(NotificationEntity::toDomain);
     }
 }

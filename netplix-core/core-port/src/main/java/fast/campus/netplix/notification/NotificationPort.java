@@ -2,6 +2,7 @@ package fast.campus.netplix.notification;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface NotificationPort {
     int deleteOlderThan(LocalDateTime cutoff);
@@ -29,4 +30,10 @@ public interface NotificationPort {
 
     boolean existsByUserIdAndTitleAndNotificationTypeAndSentAtGreaterThanEqual(
             String userId, String title, String notificationType, LocalDateTime sentAtMin);
+
+    /**
+     * 당일 배치로 이미 저장된 동일 제목의 시스템 알림 중 하나(신규 사용자 캐치업용 템플릿).
+     */
+    Optional<Notification> findLatestSystemNoticeSampleSince(
+            String title, String notificationType, LocalDateTime sentAtMin);
 }

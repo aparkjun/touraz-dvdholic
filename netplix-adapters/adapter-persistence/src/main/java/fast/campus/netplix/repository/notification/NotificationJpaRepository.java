@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 public interface NotificationJpaRepository extends JpaRepository<NotificationEntity, String> {
 
@@ -35,4 +36,7 @@ public interface NotificationJpaRepository extends JpaRepository<NotificationEnt
 
     boolean existsByUserIdAndTitleAndNotificationTypeAndSentAtGreaterThanEqual(
             String userId, String title, String notificationType, LocalDateTime sentAtMin);
+
+    Optional<NotificationEntity> findFirstByTitleAndNotificationTypeAndSentAtGreaterThanEqualOrderBySentAtDesc(
+            String title, String notificationType, LocalDateTime sentAtMin);
 }
