@@ -18,6 +18,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -63,6 +64,11 @@ public class VisitKoreaGalleryHttpClient implements TourGalleryPort {
     private long cacheMinutes;
 
     private final Map<String, CacheSnapshot> cache = new ConcurrentHashMap<>();
+    /**
+     * UI 키(소문자 정규화) → 실제 KTO gallerySearchList1 에 넘긴 검색어.
+     * 짧은 지명(서울)이 0건일 때 정식명(서울특별시)으로 맞춰 페이지네이션을 이어간다.
+     */
+    private final Map<String, String> galleryKeywordApiForm = new ConcurrentHashMap<>();
 
     @Override
     public boolean isConfigured() {
@@ -112,29 +118,55 @@ public class VisitKoreaGalleryHttpClient implements TourGalleryPort {
 
         // 캐시가 전혀 없을 때: 1페이지만 동기 로드해서 즉시 응답 (Heroku 30s timeout 회피)
         // + 나머지 페이지는 백그라운드로 적재 → 다음 호출에서 전체 반환.
+        // gallerySearchList1 은 짧은 광역명(예: "서울")에서 0건인 경우가 있어 정식명·전체캐시 폴백을 둔다.
         if (snap == null) {
-            PageResult first = requestPage(searchUrl, Map.of("keyword", keyword.trim()), 1);
-            if (first == null) return List.of();
-            List<TourGallery> partial = Collections.unmodifiableList(new ArrayList<>(first.items));
-            boolean needMore = first.totalCount > partial.size();
+            String trimmed = keyword.trim();
+            PageResult firstHit = null;
+            String apiSearchUsed = trimmed;
+
+            for (String variant : gallerySearchKeywordVariants(trimmed)) {
+                PageResult pr = requestPage(searchUrl, Map.of("keyword", variant), 1);
+                if (pr != null && !pr.items.isEmpty()) {
+                    firstHit = pr;
+                    apiSearchUsed = variant;
+                    break;
+                }
+            }
+
+            if (firstHit == null || firstHit.items.isEmpty()) {
+                List<TourGallery> fromAll = filterGalleryFromAllCache(trimmed);
+                if (fromAll.isEmpty()) {
+                    return List.of();
+                }
+                List<TourGallery> partial = Collections.unmodifiableList(new ArrayList<>(fromAll));
+                galleryKeywordApiForm.remove(key);
+                cache.put(key, new CacheSnapshot(partial, Instant.now().toEpochMilli(), false));
+                log.info("[GALLERY] 키워드={} 검색 0건 → 전체 목록 부분일치 {}건", trimmed, partial.size());
+                return take(partial, limit);
+            }
+
+            List<TourGallery> partial = Collections.unmodifiableList(new ArrayList<>(firstHit.items));
+            boolean needMore = firstHit.totalCount > partial.size();
+            galleryKeywordApiForm.put(key, apiSearchUsed);
             cache.put(key, new CacheSnapshot(partial, Instant.now().toEpochMilli(), needMore));
             if (needMore) {
-                scheduleKeywordRefresh(keyword.trim(), key);
+                scheduleKeywordRefresh(apiSearchUsed, key);
             }
             return take(partial, limit);
         }
 
         // 캐시는 있으나 partial 이거나 stale → 일단 가진 것을 돌려주고 백그라운드 갱신 예약
-        scheduleKeywordRefresh(keyword.trim(), key);
+        String apiKw = galleryKeywordApiForm.getOrDefault(key, keyword.trim());
+        scheduleKeywordRefresh(apiKw, key);
         return take(snap.photos, limit);
     }
 
-    private void scheduleKeywordRefresh(String keyword, String cacheKey) {
+    private void scheduleKeywordRefresh(String apiSearchKeyword, String cacheKey) {
         CompletableFuture.runAsync(() -> {
             try {
-                refreshByKeyword(keyword, cacheKey);
+                refreshByKeyword(apiSearchKeyword, cacheKey);
             } catch (Exception ex) {
-                log.warn("[GALLERY] 백그라운드 키워드 갱신 실패 keyword={} err={}", keyword, ex.getMessage());
+                log.warn("[GALLERY] 백그라운드 키워드 갱신 실패 keyword={} err={}", apiSearchKeyword, ex.getMessage());
             }
         });
     }
@@ -160,10 +192,122 @@ public class VisitKoreaGalleryHttpClient implements TourGalleryPort {
             cache.entrySet().stream()
                     .filter(e -> !e.getKey().equals(ALL_KEY))
                     .min((a, b) -> Long.compare(a.getValue().loadedAtEpochMs, b.getValue().loadedAtEpochMs))
-                    .ifPresent(e -> cache.remove(e.getKey()));
+                    .ifPresent(e -> {
+                        String rk = e.getKey();
+                        cache.remove(rk);
+                        galleryKeywordApiForm.remove(rk);
+                    });
         }
         cache.put(cacheKey, new CacheSnapshot(photos, Instant.now().toEpochMilli(), false));
         log.info("[GALLERY] 키워드={} 캐시 갱신 - {} 건", keyword, photos.size());
+    }
+
+    /**
+     * /photo-gallery 등 UI 단축 지명 → KTO 검색에 잘 걸리는 순서(정식 행정명 우선).
+     */
+    private static List<String> gallerySearchKeywordVariants(String keyword) {
+        String k = keyword == null ? "" : keyword.trim();
+        if (k.isEmpty()) return List.of();
+        LinkedHashSet<String> out = new LinkedHashSet<>();
+        switch (k) {
+            case "서울" -> {
+                out.add("서울특별시");
+                out.add("서울시");
+                out.add("서울");
+            }
+            case "부산" -> {
+                out.add("부산광역시");
+                out.add("부산");
+            }
+            case "대구" -> {
+                out.add("대구광역시");
+                out.add("대구");
+            }
+            case "인천" -> {
+                out.add("인천광역시");
+                out.add("인천");
+            }
+            case "광주" -> {
+                out.add("광주광역시");
+                out.add("광주");
+            }
+            case "대전" -> {
+                out.add("대전광역시");
+                out.add("대전");
+            }
+            case "울산" -> {
+                out.add("울산광역시");
+                out.add("울산");
+            }
+            case "세종" -> {
+                out.add("세종특별자치시");
+                out.add("세종시");
+                out.add("세종");
+            }
+            case "경기" -> {
+                out.add("경기도");
+                out.add("경기");
+            }
+            case "강원" -> {
+                out.add("강원특별자치도");
+                out.add("강원도");
+                out.add("강원");
+            }
+            case "충북" -> {
+                out.add("충청북도");
+                out.add("충북");
+            }
+            case "충남" -> {
+                out.add("충청남도");
+                out.add("충남");
+            }
+            case "전북" -> {
+                out.add("전북특별자치도");
+                out.add("전라북도");
+                out.add("전북");
+            }
+            case "전남" -> {
+                out.add("전라남도");
+                out.add("전남");
+            }
+            case "경북" -> {
+                out.add("경상북도");
+                out.add("경북");
+            }
+            case "경남" -> {
+                out.add("경상남도");
+                out.add("경남");
+            }
+            case "제주" -> {
+                out.add("제주특별자치도");
+                out.add("제주도");
+                out.add("제주");
+            }
+            default -> out.add(k);
+        }
+        return List.copyOf(out);
+    }
+
+    private List<TourGallery> filterGalleryFromAllCache(String userKeyword) {
+        String needle = normCompact(userKeyword);
+        if (needle.isEmpty()) return List.of();
+        CacheSnapshot all = getSnapshot(ALL_KEY);
+        if (all.photos == null || all.photos.isEmpty()) return List.of();
+        return all.photos.stream()
+                .filter(g -> fieldMatches(g.getTitle(), needle)
+                        || fieldMatches(g.getPhotoLocation(), needle)
+                        || fieldMatches(g.getSearchKeyword(), needle))
+                .collect(Collectors.toList());
+    }
+
+    private static String normCompact(String s) {
+        if (s == null) return "";
+        return s.replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
+    }
+
+    private static boolean fieldMatches(String field, String needleCompact) {
+        if (field == null || field.isBlank()) return false;
+        return normCompact(field).contains(needleCompact);
     }
 
     /**
