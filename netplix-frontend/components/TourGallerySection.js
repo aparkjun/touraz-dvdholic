@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import axios from "@/src/axiosConfig";
 import { useTranslation } from "react-i18next";
 import Link from "next/link";
-import { X, ChevronLeft, ChevronRight, Headphones, Play, Pause } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Headphones, Play, Pause, Camera } from "lucide-react";
 import useBackButtonClose from "@/lib/useBackButtonClose";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import {
@@ -444,7 +445,7 @@ export default function TourGallerySection({
                 <div className="tg-img">
                   {(item.thumbnailUrl || item.imageUrl) && (
                     <img
-                      src={item.thumbnailUrl || item.imageUrl}
+                      src={galleryImageSrc(item)}
                       alt={item.title || ""}
                       loading="lazy"
                       referrerPolicy="no-referrer"
@@ -488,23 +489,44 @@ export default function TourGallerySection({
       )}
 
       {selectedIndex !== null && items[selectedIndex] && (
-        <Lightbox
-          item={items[selectedIndex]}
-          hasPrev={selectedIndex > 0}
-          hasNext={selectedIndex < items.length - 1}
-          onClose={handleClose}
-          onPrev={handlePrev}
-          onNext={handleNext}
-          soundLayerEnabled={soundLayerEnabled}
-          playingCue={playingCue}
-          effectiveSoundKeyword={effectiveSoundKeyword}
-          galleryAudioRef={galleryAudioRef}
-          galleryAudioUiRev={galleryAudioUiRev}
-          onToggleGalleryAudio={toggleGalleryPlayback}
-        />
+        <GalleryLightboxPortal>
+          <Lightbox
+            item={items[selectedIndex]}
+            hasPrev={selectedIndex > 0}
+            hasNext={selectedIndex < items.length - 1}
+            onClose={handleClose}
+            onPrev={handlePrev}
+            onNext={handleNext}
+            soundLayerEnabled={soundLayerEnabled}
+            playingCue={playingCue}
+            effectiveSoundKeyword={effectiveSoundKeyword}
+            galleryAudioRef={galleryAudioRef}
+            galleryAudioUiRev={galleryAudioUiRev}
+            onToggleGalleryAudio={toggleGalleryPlayback}
+          />
+        </GalleryLightboxPortal>
       )}
     </section>
   );
+}
+
+function GalleryLightboxPortal({ children }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted || typeof document === "undefined") return null;
+  return createPortal(children, document.body);
+}
+
+function galleryImageSrc(item) {
+  return normalizeGalleryImageUrl(item?.imageUrl || item?.thumbnailUrl || "");
+}
+
+/** KTO 갤러리 이미지는 http 로 내려오는 경우가 많아 HTTPS 페이지에서 mixed-content 로 막힐 수 있음 */
+function normalizeGalleryImageUrl(url) {
+  const raw = String(url || "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("http://")) return `https://${raw.slice(7)}`;
+  return raw;
 }
 
 function Lightbox({
@@ -522,6 +544,23 @@ function Lightbox({
   onToggleGalleryAudio,
 }) {
   const { t } = useTranslation();
+  const [imageBroken, setImageBroken] = useState(false);
+  const [imageSrc, setImageSrc] = useState(() => galleryImageSrc(item));
+
+  useEffect(() => {
+    setImageBroken(false);
+    setImageSrc(galleryImageSrc(item));
+  }, [item?.galContentId, item?.imageUrl, item?.thumbnailUrl]);
+
+  const handleImageError = useCallback(() => {
+    const raw = String(item?.imageUrl || item?.thumbnailUrl || "").trim();
+    const https = normalizeGalleryImageUrl(raw);
+    if (imageSrc === https && raw.startsWith("http://") && https !== raw) {
+      setImageSrc(raw);
+      return;
+    }
+    setImageBroken(true);
+  }, [imageSrc, item?.imageUrl, item?.thumbnailUrl]);
 
   const audioGuideHref =
     effectiveSoundKeyword && effectiveSoundKeyword.trim()
@@ -623,12 +662,20 @@ function Lightbox({
       onClick={onClose}
     >
       <div className="tg-lb-inner" onClick={(e) => e.stopPropagation()}>
-        <img
-          src={item.imageUrl || item.thumbnailUrl}
-          alt={item.title || ""}
-          className="tg-lb-img"
-          referrerPolicy="no-referrer"
-        />
+        {imageBroken || !imageSrc ? (
+          <div className="tg-lb-fallback" role="img" aria-label={item.title || ""}>
+            <Camera size={42} strokeWidth={1.5} aria-hidden />
+            <p>{t("tourGallery.imageUnavailable")}</p>
+          </div>
+        ) : (
+          <img
+            src={imageSrc}
+            alt={item.title || ""}
+            className="tg-lb-img"
+            referrerPolicy="no-referrer"
+            onError={handleImageError}
+          />
+        )}
         <div className="tg-lb-caption">
           <div className="tg-lb-title">{item.title}</div>
           <div className="tg-lb-meta">
@@ -861,6 +908,28 @@ const cssBlock = `
   object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+}
+.tg-lb-fallback {
+  width: min(92vw, 720px);
+  min-height: 240px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 32px 24px;
+  border-radius: 12px;
+  background: rgba(30, 30, 30, 0.92);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  color: #e5e7eb;
+  text-align: center;
+}
+.tg-lb-fallback p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #d1d5db;
 }
 .tg-lb-caption {
   margin-top: 10px;

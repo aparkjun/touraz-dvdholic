@@ -323,7 +323,8 @@
     "regionSection": "이 지역의 관광 풍경",
     "dvdStoreSection": "이 동네 가볼 만한 풍경",
     "poweredBy": "출처: 한국관광공사 PhotoGalleryService1",
-    "loadMore": "더 보기 ({{shown}} / 총 {{total}}장)"
+    "loadMore": "더 보기 ({{shown}} / 총 {{total}}장)",
+    "imageUnavailable": "이미지를 불러오지 못했습니다. 제목·촬영지 정보는 한국관광공사 갤러리 메타데이터입니다."
   },
   "photoGalleryPage": {
     "pageTitle": "관광사진 갤러리",

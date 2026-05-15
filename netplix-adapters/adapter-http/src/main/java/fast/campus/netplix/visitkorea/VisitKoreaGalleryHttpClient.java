@@ -278,8 +278,8 @@ public class VisitKoreaGalleryHttpClient implements TourGalleryPort {
     }
 
     private static TourGallery toDomain(VisitKoreaGalleryResponse.Item i) {
-        String img = i.getGalWebImageUrl();
-        return TourGallery.builder()
+        String img = secureGalleryImageUrl(i.getGalWebImageUrl());
+        return TourGallery.builder())
                 .galContentId(i.getGalContentId())
                 .galContentTypeId(i.getGalContentTypeId())
                 .title(i.getGalTitle())
@@ -292,6 +292,15 @@ public class VisitKoreaGalleryHttpClient implements TourGalleryPort {
                 .createdTime(i.getCreatedtime())
                 .modifiedTime(i.getModifiedtime())
                 .build();
+    }
+
+    /** KTO 갤러리 URL은 http 로 내려오는 경우가 많아 HTTPS 사이트에서 mixed-content 차단 → https 로 승격 */
+    private static String secureGalleryImageUrl(String url) {
+        if (url == null || url.isBlank()) return url;
+        if (url.regionMatches(true, 0, "http://", 0, 7)) {
+            return "https://" + url.substring(7);
+        }
+        return url;
     }
 
     private CacheSnapshot getSnapshot(String key) {
