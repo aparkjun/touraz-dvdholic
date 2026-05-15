@@ -66,6 +66,17 @@ button,
   -webkit-user-select: none;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+  touch-action: pan-x;
+  contain: none;
+}
+.dashboard-page .dashboard-scroll-row img {
+  -webkit-user-drag: none;
+  pointer-events: none;
 }
 .dashboard-page .dashboard-scroll-row::-webkit-scrollbar {
   display: none;

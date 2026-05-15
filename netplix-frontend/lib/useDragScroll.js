@@ -8,7 +8,9 @@ import { useEffect } from "react";
  *   .dashboard-scroll-row (legacy), .cinetrip-scroll-row, .js-drag-scroll
  *
  * 동작:
- *  - 왼쪽 마우스 버튼 / 터치 / 펜 으로 좌우 드래그 → 관성 스크롤 포함
+ *  - 데스크톱(마우스): 포인터 드래그 + 관성
+ *  - 휴대폰·태블릿(터치/펜): 네이티브 overflow 가로 스크롤만 사용(Netflix 느낌의 OS 관성).
+ *    커스텀 드래그와 병행하면 iOS/WebView 에서 끊기거나 겹쳐 보일 수 있음.
  *  - 6px 이상 이동해야 드래그로 인식(→ 가벼운 클릭은 버튼/링크로 전달)
  *  - 명시적 수평 휠(Shift+wheel 또는 트랙패드 수평 제스처 |deltaX|>|deltaY|)만
  *    수평 스크롤로 매핑(관성/스무딩 포함). 일반 수직 휠은 페이지의 기본
@@ -101,6 +103,10 @@ export default function useDragScrollAll(containerRef) {
       };
 
       const onDown = (e) => {
+        // 터치·펜: 브라우저 네이티브 가로 스크롤(모멘텀)만 사용 — 커스텀 드래그와 이중 적용 방지
+        if (e.pointerType === "touch" || e.pointerType === "pen") {
+          return;
+        }
         if (e.pointerType === "mouse" && e.button !== 0) return;
 
         // 터치(pen 포함)에서는 pointerdown 에 preventDefault 를 걸지 않는다.
@@ -236,8 +242,8 @@ export default function useDragScrollAll(containerRef) {
       };
 
       el.style.cursor = "grab";
-      /* 세로 모달 안 가로 레일: 브라우저 네이티브 가로 스크롤·스와이프 허용 + JS 드래그와 병행 */
-      el.style.touchAction = "pan-x pan-y";
+      /* 가로 레일: 수평 제스처는 네이티브 스크롤에 맡김(iOS 관성). 세로는 페이지로 전달 */
+      el.style.touchAction = "pan-x";
 
       el.addEventListener("pointerdown", onDown);
       el.addEventListener("pointermove", onMove);
