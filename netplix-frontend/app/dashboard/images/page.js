@@ -613,7 +613,7 @@ function MovieImagesContent() {
               keyword={movieName}
               title={t("tourGallery.movieSection")}
               subtitle={t("tourGallery.poweredBy")}
-              limit={24}
+              limit={0}
             />
           </div>
         )}

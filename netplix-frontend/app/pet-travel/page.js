@@ -726,7 +726,7 @@ export default function PetTravelPage() {
                   keyword={areaLabelI18n(code)}
                   title={t('petTravel.galleryStripTitle', '{{region}} 관광 풍경 사진', { region: areaLabelI18n(code) })}
                   subtitle={t('tourGallery.poweredBy')}
-                  limit={36}
+                  limit={0}
                   layout="rail"
                   infinite
                   pageSize={24}
@@ -789,7 +789,7 @@ export default function PetTravelPage() {
               keyword={areaLabelI18n(selected)}
               title={t('petTravel.galleryStripTitle', '{{region}} 관광 풍경 사진', { region: areaLabelI18n(selected) })}
               subtitle={t('tourGallery.poweredBy')}
-              limit={36}
+              limit={0}
               layout="rail"
               infinite
               pageSize={24}

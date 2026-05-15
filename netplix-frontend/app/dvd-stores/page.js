@@ -542,7 +542,7 @@ function DvdStoresContent() {
             keyword={galleryKeyword}
             title={t("tourGallery.dvdStoreSection")}
             subtitle={t("tourGallery.poweredBy")}
-            limit={24}
+            limit={0}
           />
         </div>
       )}

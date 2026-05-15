@@ -25,6 +25,7 @@ import {
  * 관광사진갤러리 섹션 (공용 컴포넌트).
  *
  * <p>백엔드: GET /api/v1/tour-gallery?q=<keyword>&limit=<n>
+ *  - limit ≤ 0 이면 키워드/전체 캐시에서 잘라 내지 않고 가능한 만큼 전부 반환(서비스·어댑터 상한 내).
  *  - 영화 상세: keyword = 촬영지/지역명
  *  - /cine-trip 지역 상세: keyword = 지역명
  *  - DVD 매장 상세: keyword = 시·도명
@@ -43,7 +44,7 @@ export default function TourGallerySection({
   keyword,
   title,
   subtitle,
-  limit = 24,
+  limit = 0,
   apiBase = "/api/v1/tour-gallery",
   accent = "#e50914", // netplix 레드 포인트
   /** "grid" | "rail" — rail 은 가로 스와이프 한 줄 레일 */
@@ -51,7 +52,8 @@ export default function TourGallerySection({
   // keyword 가 비어 있어도 API 를 호출해 전체 갤러리 최신순을 노출.
   // 기본 false: 기존 접목 지점(영화·지역·매장)에서는 keyword 가 비면 섹션 자체를 숨김.
   allowEmpty = false,
-  // 무한 스크롤 모드. 초기 pageSize 만 그리고, 뷰포트 바닥에 도달하면 pageSize 씩 증가.
+  // 무한 스크롤 모드. 초기 pageSize 만 그리고, pageSize 씩 증가.
+  // 그리드: 문서 세로 스크롤로 하단 센티넬이 보일 때. rail: 가로 레일 끝 스크롤에 반응.
   // 6,000장 규모 데이터에서 DOM 부담을 줄이기 위해 /photo-gallery 에서 켜 사용.
   infinite = false,
   pageSize = 60,
@@ -68,6 +70,8 @@ export default function TourGallerySection({
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [visibleCount, setVisibleCount] = useState(pageSize);
   const sentinelRef = useRef(null);
+  /** layout="rail" + infinite 일 때 가로 스크롤 컨테이너 (끝 도달 시 더 그리기) */
+  const railRef = useRef(null);
 
   const [odiiLangRev, setOdiiLangRev] = useState(0);
   useEffect(() => subscribeAudioGuideOdiiLang(() => setOdiiLangRev((n) => n + 1)), []);
@@ -340,9 +344,9 @@ export default function TourGallerySection({
     };
   }, [keyword, limit, apiBase, allowEmpty, infinite, pageSize]);
 
-  // 무한 스크롤: 바닥 센티넬이 뷰포트에 들어오면 visibleCount 증가.
+  // 무한 스크롤(그리드): 하단 센티넬이 문서 뷰포트에 들어오면 visibleCount 증가.
   useEffect(() => {
-    if (!infinite) return undefined;
+    if (!infinite || isRail) return undefined;
     if (typeof window === "undefined") return undefined;
     if (!sentinelRef.current) return undefined;
     if (visibleCount >= items.length) return undefined;
@@ -359,7 +363,37 @@ export default function TourGallerySection({
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [infinite, pageSize, items.length, visibleCount]);
+  }, [infinite, isRail, pageSize, items.length, visibleCount]);
+
+  // 무한 스크롤(rail): 가로로 끝까지 밀면 남은 카드 chunk 로드 (세로 스크롤 없이도 동작).
+  useEffect(() => {
+    if (!infinite || !isRail || loading) return undefined;
+    const el = railRef.current;
+    if (!el) return undefined;
+    const thresholdPx = 72;
+    let raf = 0;
+    const onScroll = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        setVisibleCount((c) => {
+          if (c >= items.length) return c;
+          if (
+            el.scrollLeft + el.clientWidth >=
+            el.scrollWidth - thresholdPx
+          ) {
+            return Math.min(c + pageSize, items.length);
+          }
+          return c;
+        });
+      });
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [infinite, isRail, loading, pageSize, items.length]);
 
   const handleClose = useCallback(() => setSelectedIndex(null), []);
 
@@ -427,6 +461,7 @@ export default function TourGallerySection({
       </div>
 
       <div
+        ref={isRail ? railRef : undefined}
         className={
           isRail ? "tg-grid tg-grid--rail js-drag-scroll" : "tg-grid"
         }
@@ -478,9 +513,25 @@ export default function TourGallerySection({
             ))}
       </div>
 
-      {infinite && !loading && visibleCount < items.length && (
+      {infinite && !loading && visibleCount < items.length && !isRail && (
         <div className="tg-more">
           <div ref={sentinelRef} aria-hidden className="tg-sentinel" />
+          <button
+            type="button"
+            className="tg-more-btn"
+            onClick={() =>
+              setVisibleCount((c) => Math.min(c + pageSize, items.length))
+            }
+          >
+            {t("tourGallery.loadMore", {
+              shown: visibleCount,
+              total: items.length,
+            })}
+          </button>
+        </div>
+      )}
+      {infinite && !loading && visibleCount < items.length && isRail && (
+        <div className="tg-more tg-more--railHint">
           <button
             type="button"
             className="tg-more-btn"
@@ -896,6 +947,10 @@ const cssBlock = `
   align-items: center;
   gap: 12px;
   margin: 18px 0 4px;
+}
+.tg-more--railHint {
+  margin: 10px 0 2px;
+  gap: 8px;
 }
 .tg-sentinel { width: 1px; height: 1px; }
 .tg-more-btn {

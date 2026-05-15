@@ -1123,7 +1123,7 @@ function CineTripPageInner() {
             keyword={REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''}
             title={t('tourGallery.regionSection')}
             subtitle={t('tourGallery.poweredBy')}
-            limit={24}
+            limit={0}
           />
         )}
 
