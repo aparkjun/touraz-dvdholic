@@ -2,10 +2,12 @@ package fast.campus.netplix.user;
 
 import fast.campus.netplix.auth.NetplixUser;
 import fast.campus.netplix.exception.UserException;
+import fast.campus.netplix.notification.NotificationUseCase;
 import fast.campus.netplix.user.command.SocialUserRegistrationCommand;
 import fast.campus.netplix.user.command.UserRegistrationCommand;
 import fast.campus.netplix.user.response.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -13,6 +15,7 @@ import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserService implements RegisterUserUseCase, FetchUserUseCase, DeleteUserUseCase {
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
@@ -22,6 +25,7 @@ public class UserService implements RegisterUserUseCase, FetchUserUseCase, Delet
     private final InsertUserPort insertUserPort;
     private final DeleteUserPort deleteUserPort;
     private final KakaoUserPort kakaoUserPort;
+    private final NotificationUseCase notificationUseCase;
 
     @Override
     public UserRegistrationResponse register(UserRegistrationCommand request) {
@@ -53,6 +57,7 @@ public class UserService implements RegisterUserUseCase, FetchUserUseCase, Delet
                         .phone(request.phone())
                         .build()
         );
+        runDailyBatchCatchupForNewUser(netplixUser.getUserId());
         return new UserRegistrationResponse(netplixUser.getUsername(), netplixUser.getEmail(), netplixUser.getPhone());
     }
 
@@ -64,6 +69,7 @@ public class UserService implements RegisterUserUseCase, FetchUserUseCase, Delet
         }
 
         NetplixUser socialUser = insertUserPort.createSocialUser(request.username(), request.provider(), request.providerId());
+        runDailyBatchCatchupForNewUser(socialUser.getUserId());
         return new UserRegistrationResponse(socialUser.getUsername(), null, null);
     }
 
@@ -103,7 +109,7 @@ public class UserService implements RegisterUserUseCase, FetchUserUseCase, Delet
                 .map(UserResponse::toUserResponse)
                 .orElse(null);
     }
-    
+
     @Override
     public UserResponse findByEmail(String email) {
         return searchUserPort.findByEmail(email)
@@ -115,7 +121,10 @@ public class UserService implements RegisterUserUseCase, FetchUserUseCase, Delet
     public SocialUserResponse findKakaoUser(String accessToken) {
         NetplixUser userFromKakao = kakaoUserPort.findUserFromKakao(accessToken);
         return new SocialUserResponse(
-                userFromKakao.getUsername(), "kakao", userFromKakao.getProviderId()
+                userFromKakao.getUsername(),
+                "kakao",
+                userFromKakao.getProviderId(),
+                userFromKakao.getEmail()
         );
     }
 
@@ -127,5 +136,13 @@ public class UserService implements RegisterUserUseCase, FetchUserUseCase, Delet
     @Override
     public void deleteByUserId(String userId) {
         deleteUserPort.deleteByUserId(userId);
+    }
+
+    private void runDailyBatchCatchupForNewUser(String userId) {
+        try {
+            notificationUseCase.sendDailyBatchCatchupForNewUser(userId);
+        } catch (Exception e) {
+            log.warn("[user-register] 당일 배치 알림 캐치업 실패 userId={}: {}", userId, e.getMessage());
+        }
     }
 }

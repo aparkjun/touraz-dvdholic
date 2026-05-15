@@ -7,12 +7,11 @@ import fast.campus.netplix.auth.response.TokenResponse;
 import fast.campus.netplix.controller.NetplixApiResponse;
 import fast.campus.netplix.controller.auth.request.LoginRequest;
 import fast.campus.netplix.exception.ErrorCode;
+import fast.campus.netplix.notification.NotificationUseCase;
+import fast.campus.netplix.oauth.OAuthLoginTokenIssuer;
 import fast.campus.netplix.security.NetplixAuthUser;
 import fast.campus.netplix.user.FetchUserUseCase;
-import fast.campus.netplix.user.RegisterUserUseCase;
-import fast.campus.netplix.user.command.SocialUserRegistrationCommand;
 import fast.campus.netplix.user.response.SocialUserResponse;
-import fast.campus.netplix.user.response.UserResponse;
 import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -20,7 +19,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.core.Authentication;
-import org.springframework.util.ObjectUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,8 +36,9 @@ public class AuthController {
     private final FetchTokenUseCase fetchTokenUseCase;
     private final FetchUserUseCase fetchUserUseCase;
     private final AuthenticationManagerBuilder authenticationManagerBuilder;
-    private final RegisterUserUseCase registerUserUseCase;
     private final AdminDashboardUseCase adminDashboardUseCase;
+    private final OAuthLoginTokenIssuer oauthLoginTokenIssuer;
+    private final NotificationUseCase notificationUseCase;
 
     @PostMapping("/login")
     public NetplixApiResponse<TokenResponse> login(@RequestBody LoginRequest request, HttpServletRequest httpRequest) {
@@ -58,6 +57,12 @@ public class AuthController {
                 httpRequest.getRemoteAddr()
         );
         TokenResponse tokenResponse = updateTokenUseCase.upsertToken(principal.getEmail());
+
+        try {
+            notificationUseCase.sendDailyBatchCatchupForNewUser(principal.getUserId());
+        } catch (Exception e) {
+            log.warn("[auth/login] 당일 배치 알림 캐치업 실패: {}", e.getMessage());
+        }
 
         return NetplixApiResponse.ok(tokenResponse);
     }
@@ -80,14 +85,12 @@ public class AuthController {
         String tokenFromKakao = fetchTokenUseCase.getTokenFromKakao(code);
         SocialUserResponse kakaoUser = fetchUserUseCase.findKakaoUser(tokenFromKakao);
 
-        UserResponse byProviderId = fetchUserUseCase.findByProviderId(kakaoUser.providerId());
-        if (ObjectUtils.isEmpty(byProviderId)) {
-            registerUserUseCase.registerSocialUser(new SocialUserRegistrationCommand(
-                    kakaoUser.name(),
-                    kakaoUser.provider(),
-                    kakaoUser.providerId()
-            ));
-        }
-        return NetplixApiResponse.ok(updateTokenUseCase.upsertToken(kakaoUser.providerId()));
+        TokenResponse tokenResponse = oauthLoginTokenIssuer.issueTokenAfterOAuth(
+                kakaoUser.providerId(),
+                kakaoUser.provider(),
+                kakaoUser.name(),
+                kakaoUser.oauthEmail());
+
+        return NetplixApiResponse.ok(tokenResponse);
     }
 }

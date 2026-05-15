@@ -35,12 +35,25 @@ public class KakaoUserHttpClient implements KakaoUserPort {
 
         Long providerId = (Long) response.getBody().get("id");
 
-        Map properties = (Map) response.getBody().get("properties");
-        String nickname = (String) properties.get("nickname");
+        String nickname = "카카오사용자";
+        Map<?, ?> body = response.getBody();
+        Map<?, ?> properties = body.get("properties") instanceof Map ? (Map<?, ?>) body.get("properties") : null;
+        if (properties != null && properties.get("nickname") != null) {
+            nickname = String.valueOf(properties.get("nickname"));
+        }
+
+        String email = null;
+        if (body.get("kakao_account") instanceof Map<?, ?> kakaoAccount) {
+            Object emailObj = kakaoAccount.get("email");
+            if (emailObj instanceof String es && !es.isBlank()) {
+                email = es.trim();
+            }
+        }
 
         return NetplixUser.builder()
                 .username(nickname)
                 .providerId(providerId.toString())
+                .email(email)
                 .build();
     }
 }

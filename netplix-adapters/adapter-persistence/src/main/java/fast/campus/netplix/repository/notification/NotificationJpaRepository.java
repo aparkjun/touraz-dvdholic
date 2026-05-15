@@ -28,4 +28,11 @@ public interface NotificationJpaRepository extends JpaRepository<NotificationEnt
     @Modifying
     @Query("UPDATE NotificationEntity n SET n.isRead = true WHERE n.userId = :userId")
     void markAllAsReadByUserId(@Param("userId") String userId);
+
+    @Modifying
+    @Query("UPDATE NotificationEntity n SET n.userId = :toUserId WHERE n.userId = :fromUserId")
+    int reassignUserId(@Param("fromUserId") String fromUserId, @Param("toUserId") String toUserId);
+
+    boolean existsByUserIdAndTitleAndNotificationTypeAndSentAtGreaterThanEqual(
+            String userId, String title, String notificationType, LocalDateTime sentAtMin);
 }

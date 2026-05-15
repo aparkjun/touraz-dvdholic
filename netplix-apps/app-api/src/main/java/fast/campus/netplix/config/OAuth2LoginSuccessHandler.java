@@ -1,11 +1,7 @@
 package fast.campus.netplix.config;
 
-import fast.campus.netplix.auth.UpdateTokenUseCase;
 import fast.campus.netplix.auth.response.TokenResponse;
-import fast.campus.netplix.user.FetchUserUseCase;
-import fast.campus.netplix.user.RegisterUserUseCase;
-import fast.campus.netplix.user.command.SocialUserRegistrationCommand;
-import fast.campus.netplix.user.response.UserResponse;
+import fast.campus.netplix.oauth.OAuthLoginTokenIssuer;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -15,23 +11,21 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
-import org.springframework.util.ObjectUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.io.IOException;
 import java.util.Map;
 
 /**
- * 카카오 OAuth2 로그인 성공 시 JWT 발급 후 /dashboard 로 리다이렉트 (쿼리 파라미터로 토큰 전달).
+ * 카카오·애플 OAuth2 로그인 성공 시 JWT 발급 후 /dashboard 로 리다이렉트 (쿼리 파라미터로 토큰 전달).
+ * 일반 회원(이메일)과 동일한 이메일이면 소셜 전용 행 없이 그 계정으로 토큰을 맞춘다.
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
-    private final UpdateTokenUseCase updateTokenUseCase;
-    private final FetchUserUseCase fetchUserUseCase;
-    private final RegisterUserUseCase registerUserUseCase;
+    private final OAuthLoginTokenIssuer oauthLoginTokenIssuer;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response,
@@ -43,15 +37,10 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
                 ? ((OAuth2AuthenticationToken) authentication).getAuthorizedClientRegistrationId()
                 : "kakao";
         String name = resolveName(oauth2User, provider);
+        String oauthEmail = OAuthLoginTokenIssuer.resolveOAuthEmail(oauth2User, provider);
 
-        UserResponse existing = fetchUserUseCase.findByProviderId(providerId);
-        if (ObjectUtils.isEmpty(existing)) {
-            registerUserUseCase.registerSocialUser(
-                    new SocialUserRegistrationCommand(name, provider, providerId));
-        }
+        TokenResponse tokens = oauthLoginTokenIssuer.issueTokenAfterOAuth(providerId, provider, name, oauthEmail);
 
-        TokenResponse tokens = updateTokenUseCase.upsertToken(providerId);
-        
         boolean isIOSApp = isNativeAppByCookie(request);
 
         if (isIOSApp) {

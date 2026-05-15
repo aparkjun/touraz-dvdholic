@@ -76,4 +76,21 @@ public class NotificationRepository implements NotificationPort {
     public void deleteAll() {
         notificationJpaRepository.deleteAllInBatch();
     }
+
+    @Override
+    @Transactional
+    public int reassignUserId(String fromUserId, String toUserId) {
+        if (fromUserId == null || toUserId == null || fromUserId.equals(toUserId)) {
+            return 0;
+        }
+        return notificationJpaRepository.reassignUserId(fromUserId, toUserId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsByUserIdAndTitleAndNotificationTypeAndSentAtGreaterThanEqual(
+            String userId, String title, String notificationType, LocalDateTime sentAtMin) {
+        return notificationJpaRepository.existsByUserIdAndTitleAndNotificationTypeAndSentAtGreaterThanEqual(
+                userId, title, notificationType, sentAtMin);
+    }
 }

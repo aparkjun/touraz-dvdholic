@@ -19,7 +19,7 @@ public class UserCustomRepositoryImpl implements UserCustomRepository {
     @Override
     public Optional<UserEntity> findByEmail(String email) {
         return jpaQueryFactory.selectFrom(userEntity)
-                .where(userEntity.email.eq(email))
+                .where(userEntity.email.equalsIgnoreCase(email))
                 .fetch()
                 .stream().findFirst();
     }

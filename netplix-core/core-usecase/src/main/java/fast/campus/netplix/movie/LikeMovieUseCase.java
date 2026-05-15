@@ -14,4 +14,11 @@ public interface LikeMovieUseCase {
 
     List<NetplixMovie> getTodayPopular(String contentType, int limit);
     List<NetplixMovie> getPopular(String period, String contentType, int limit);
+
+    /**
+     * 소셜 전용 계정의 찜·투표를 일반(이메일) 계정으로 이전한다. 동일 작품은 일반 계정 쪽을 유지한다.
+     *
+     * @return USER_ID가 갱신된 행 수
+     */
+    int reassignUserMovieLikesToUser(String fromUserId, String toUserId);
 }

@@ -51,4 +51,23 @@ public interface UserMovieLikeJpaRepository extends JpaRepository<UserMovieLikeE
     List<String> findTopLikedMovieIdsSinceCombiningMovieAndDvd(
             @Param("since") LocalDateTime since,
             org.springframework.data.domain.Pageable pageable);
+
+    /**
+     * 통합 계정(to)에 이미 같은 영화·타입이 있으면 소셜(from) 쪽 중복 행만 제거한다.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = """
+            DELETE u1 FROM user_movie_likes u1
+            INNER JOIN user_movie_likes u2
+                ON u1.MOVIE_ID = u2.MOVIE_ID
+                AND COALESCE(u1.CONTENT_TYPE, 'movie') = COALESCE(u2.CONTENT_TYPE, 'movie')
+            WHERE u1.USER_ID = :fromUserId AND u2.USER_ID = :toUserId
+            """, nativeQuery = true)
+    int deleteSourceLikesWhereTargetHasSameMovie(
+            @Param("fromUserId") String fromUserId,
+            @Param("toUserId") String toUserId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE UserMovieLikeEntity u SET u.userId = :toUserId WHERE u.userId = :fromUserId")
+    int updateUserIdForAllLikes(@Param("fromUserId") String fromUserId, @Param("toUserId") String toUserId);
 }

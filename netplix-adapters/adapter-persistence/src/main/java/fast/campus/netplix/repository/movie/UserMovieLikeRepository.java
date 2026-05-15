@@ -75,4 +75,14 @@ public class UserMovieLikeRepository implements LikeMoviePort {
     public List<String> findTopLikedMovieIdsSinceCombiningMovieAndDvd(LocalDateTime since, int limit) {
         return userMovieLikeJpaRepository.findTopLikedMovieIdsSinceCombiningMovieAndDvd(since, PageRequest.of(0, limit));
     }
+
+    @Override
+    @Transactional
+    public int reassignUserMovieLikesToUser(String fromUserId, String toUserId) {
+        if (fromUserId == null || toUserId == null || fromUserId.equals(toUserId)) {
+            return 0;
+        }
+        userMovieLikeJpaRepository.deleteSourceLikesWhereTargetHasSameMovie(fromUserId, toUserId);
+        return userMovieLikeJpaRepository.updateUserIdForAllLikes(fromUserId, toUserId);
+    }
 }

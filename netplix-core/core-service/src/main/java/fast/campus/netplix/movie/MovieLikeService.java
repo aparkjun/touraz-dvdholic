@@ -148,4 +148,13 @@ public class MovieLikeService implements LikeMovieUseCase {
                 .flatMap(id -> movies.stream().filter(m -> id.equals(m.getMovieName())).limit(1))
                 .toList();
     }
+
+    @Override
+    public int reassignUserMovieLikesToUser(String fromUserId, String toUserId) {
+        int n = likeMoviePort.reassignUserMovieLikesToUser(fromUserId, toUserId);
+        if (n > 0) {
+            log.info("찜·투표 이전 완료 fromUserId={} → toUserId={} (갱신 행: {})", fromUserId, toUserId, n);
+        }
+        return n;
+    }
 }
