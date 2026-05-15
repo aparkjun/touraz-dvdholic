@@ -40,6 +40,7 @@ export default function NavBar() {
     localStorage.removeItem('token');
     localStorage.removeItem('refresh_token');
     setIsLoggedIn(false);
+    router.replace('/dashboard');
   };
 
   // 메인(랜딩) 페이지에서는 로그인 전에도 사용자가 빠르게 언어를 전환할 수 있도록

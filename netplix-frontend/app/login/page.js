@@ -24,24 +24,10 @@ if (typeof window !== "undefined") {
 }
 import OAuthLoadingOverlay from "@/components/ui/OAuthLoadingOverlay";
 
-/** App Store 2.1a: iOS에서 navigate() 실패 시 window.location 강제 사용 */
+/** 로그인 성공 후 현재 사이트(Next)의 마이페이지로 이동. getApiBaseUrl()은 API 호스트일 수 있어 그걸로 /mypage를 열면 백엔드 500이 난다. */
 function redirectAfterLogin() {
   if (typeof window === "undefined") return;
-  const origin = (window.location?.origin || "").toLowerCase();
-  const isNativeOrigin =
-    origin.startsWith("capacitor://") ||
-    origin.startsWith("ionic://") ||
-    origin.startsWith("file://") ||
-    origin === "" ||
-    origin === "null";
-  // Capacitor 네이티브에서는 절대 URL로 나가면 앱 밖으로 빠지므로 상대 경로 사용
-  if (isNativeOrigin) {
-    window.location.replace("/mypage");
-    return;
-  }
-  const base = getApiBaseUrl() || window.location.origin;
-  const url = base.startsWith("http") ? `${base.replace(/\/$/, "")}/mypage` : "/mypage";
-  window.location.replace(url);
+  window.location.replace("/mypage");
 }
 
 function LoginContent() {

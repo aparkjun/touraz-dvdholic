@@ -229,6 +229,7 @@ function AuthActions({ isLoggedIn, isAuthPage, pathname, onLogout }) {
 function AppContent() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const location = useLocation();
   const isAuthPage =
     location.pathname === "/login" || location.pathname === "/signup";
@@ -249,10 +250,10 @@ function AppContent() {
   const handleLogout = async (e) => {
     e.preventDefault();
     try {
-      // 로컬 스토리지에서 토큰 삭제
       localStorage.removeItem("token");
-      // 로그인 페이지로 리디렉션
+      localStorage.removeItem("refresh_token");
       setIsLoggedIn(false);
+      navigate("/dashboard", { replace: true });
     } catch (error) {
       alert(t("nav.logoutFailed"));
     }

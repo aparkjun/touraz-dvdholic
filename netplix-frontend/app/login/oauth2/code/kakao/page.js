@@ -2,31 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import axios from '@/lib/axiosConfig';
-import { getApiBaseUrl } from '@/lib/apiConfig';
 import OAuthLoadingOverlay from '@/components/ui/OAuthLoadingOverlay';
-
-function isNativeOrigin() {
-    if (typeof window === 'undefined') return false;
-    const origin = (window.location?.origin || '').toLowerCase();
-    return (
-        origin.startsWith('capacitor://') ||
-        origin.startsWith('ionic://') ||
-        origin.startsWith('file://') ||
-        origin === '' ||
-        origin === 'null'
-    );
-}
 
 function redirectTo(path) {
     if (typeof window === 'undefined') return;
-    // Capacitor 네이티브/로컬 스킴에서는 Heroku 절대 URL로 나가면 앱 밖으로 빠지므로 상대 경로 사용
-    if (isNativeOrigin()) {
-        window.location.replace(path);
-        return;
-    }
-    const base = getApiBaseUrl() || window.location.origin;
-    const url = base.startsWith('http') ? base.replace(/\/$/, '') + path : path;
-    window.location.replace(url);
+    // SPA 경로는 항상 현재 WebView/브라우저 origin 기준(상대 경로). API 베이스 URL로 열면 Spring이 페이지를 못 줘 500.
+    window.location.replace(path.startsWith('/') ? path : `/${path}`);
 }
 
 // 이미 소비된 code로 재진입(뒤로가기 등) 시 무한 로딩을 막기 위한 가드 키
