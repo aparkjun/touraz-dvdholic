@@ -947,13 +947,8 @@ function CineTripPageInner() {
         position: 'relative',
         isolation: 'isolate',
         overflow: 'hidden',
-        // 페이지 배경: 딥 인디고 + 핑크/앰버 글로우 → 사진/포스터는 어두운 캔버스 위에서
-        // 또렷하게 보이면서도 전체적으로 활기찬 톤. 하단으로 갈수록 살짝 어두워지도록.
-        background:
-          'radial-gradient(1200px 600px at 15% -10%, rgba(236, 72, 153, 0.18), transparent 60%),' +
-          'radial-gradient(1000px 500px at 100% -10%, rgba(251, 191, 36, 0.14), transparent 60%),' +
-          'radial-gradient(900px 500px at 50% 110%, rgba(96, 165, 250, 0.16), transparent 60%),' +
-          'linear-gradient(180deg, #11111e 0%, #0c0c18 60%, #08080f 100%)',
+        /* 배경은 app-shell[data-travel-sector=cine-trip] 시네마틱 그라디언트 */
+        background: 'transparent',
         color: '#fff',
         fontFamily: 'var(--font-app)',
       }}

@@ -681,11 +681,7 @@ const cssBlock = `
   position: relative;
   isolation: isolate;
   overflow-x: hidden;
-  background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(102, 118, 108, 0.16) 0%, transparent 60%),
-    radial-gradient(1000px 400px at 100% 0%, rgba(115, 108, 128, 0.12) 0%, transparent 60%),
-    radial-gradient(900px 480px at 50% 110%, rgba(95, 117, 124, 0.1) 0%, transparent 60%),
-    linear-gradient(180deg, #0a0d10 0%, #101420 60%, #0c1018 100%);
+  background: transparent;
   color: #e8e8e6;
 }
 .wel-hero {

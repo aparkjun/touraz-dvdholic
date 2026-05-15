@@ -841,8 +841,7 @@ const styles = {
     isolation: "isolate",
     minHeight: "100vh",
     color: "#f1f5f9",
-    background:
-      "radial-gradient(1100px 560px at 0% 0%, rgba(107, 132, 148, 0.14), transparent 58%),\n       radial-gradient(900px 480px at 100% 100%, rgba(120, 115, 140, 0.1), transparent 55%),\n       radial-gradient(800px 420px at 50% 110%, rgba(122, 138, 120, 0.08), transparent 60%),\n       linear-gradient(180deg, #0a0e14 0%, #0f141c 48%, #0a0e14 100%)",
+    background: "transparent",
     overflow: "hidden",
   },
   bgGrid: {
@@ -1068,8 +1067,7 @@ export default function CrowdRadarPage() {
         <div
           style={{
             minHeight: "100vh",
-            background:
-              "radial-gradient(1100px 520px at 18% -8%, rgba(107, 132, 148, 0.1), transparent), radial-gradient(125% 125% at 50% 100%, #080c10 35%, #0f141c 100%)",
+            background: "transparent",
           }}
         />
       }

@@ -1279,11 +1279,7 @@ const agpCss = `
   overflow-x: hidden;
   padding-bottom: 120px;
   color: #f5f5ff;
-  background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(167,139,250,0.26) 0%, transparent 60%),
-    radial-gradient(1000px 400px at 100% 0%, rgba(34,211,238,0.18) 0%, transparent 60%),
-    radial-gradient(900px 480px at 50% 110%, rgba(244,114,182,0.14) 0%, transparent 60%),
-    linear-gradient(180deg, #07041a 0%, #0a0614 45%, #100a1c 100%);
+  background: transparent;
 }
 .agp-odii-banner {
   max-width: 1200px;

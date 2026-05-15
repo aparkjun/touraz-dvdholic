@@ -206,11 +206,7 @@ function TrekkingPageInner() {
         position: 'relative',
         isolation: 'isolate',
         overflow: 'hidden',
-        background:
-          'radial-gradient(1000px 600px at 85% -10%, rgba(14,165,233,0.22) 0%, transparent 60%),' +
-          'radial-gradient(900px 520px at 10% 110%, rgba(251,191,36,0.18) 0%, transparent 60%),' +
-          'radial-gradient(900px 520px at 50% 40%, rgba(34,197,94,0.10) 0%, transparent 60%),' +
-          'linear-gradient(180deg, #04131a 0%, #07212a 55%, #04141a 100%)',
+        background: 'transparent',
         color: '#ecfeff',
         paddingBottom: 80,
       }}

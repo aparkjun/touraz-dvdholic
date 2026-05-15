@@ -243,11 +243,7 @@ const cssBlock = `
   position: relative;
   isolation: isolate;
   overflow-x: hidden;
-  background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(244, 114, 182, 0.22) 0%, transparent 60%),
-    radial-gradient(1000px 400px at 100% 0%, rgba(167, 139, 250, 0.18) 0%, transparent 60%),
-    radial-gradient(900px 480px at 50% 110%, rgba(251,191,36,0.10) 0%, transparent 60%),
-    linear-gradient(180deg, #0b0b0f 0%, #141418 60%, #0c0c10 100%);
+  background: transparent;
   color: #f5f5f5;
 }
 .pgp-hero {

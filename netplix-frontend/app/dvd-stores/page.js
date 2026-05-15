@@ -234,7 +234,7 @@ function DvdStoresContent() {
   const isLoading = nearbyMode ? nearbyLoading : loading;
 
   return (
-    <div style={{ maxWidth: 1200, margin: "0 auto", padding: "20px 16px", minHeight: "100vh", background: "radial-gradient(1200px 600px at 20% -10%, rgba(249, 115, 22, 0.08), transparent), radial-gradient(800px 400px at 80% 10%, rgba(245, 158, 11, 0.06), transparent), radial-gradient(125% 125% at 50% 100%, #000000 40%, #2b0707 100%)" }}>
+    <div style={{ maxWidth: 1200, margin: "0 auto", padding: "20px 16px", minHeight: "100vh", background: "transparent" }}>
       <div style={{
         textAlign: "center",
         marginBottom: 28,

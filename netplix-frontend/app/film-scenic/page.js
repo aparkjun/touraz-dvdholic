@@ -60,10 +60,7 @@ export default function FilmScenicPage() {
         minHeight: '100vh',
         width: '100%',
         overflow: 'hidden',
-        background:
-          'radial-gradient(900px 520px at 12% -8%, rgba(251,191,36,0.14), transparent),' +
-          ' radial-gradient(720px 480px at 92% 12%, rgba(244,114,182,0.12), transparent),' +
-          ' radial-gradient(800px 100% at 50% 100%, rgba(30,27,75,0.95), #050508 100%)',
+        background: 'transparent',
         color: '#f8fafc',
         padding: '32px 16px 88px',
       }}

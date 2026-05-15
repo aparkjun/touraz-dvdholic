@@ -199,11 +199,7 @@ function RelatedSpotsInner() {
         minHeight: '100vh',
         width: '100%',
         overflow: 'hidden',
-        background:
-          'radial-gradient(900px 540px at 15% -10%, rgba(99,102,241,0.22), transparent),' +
-          ' radial-gradient(900px 540px at 100% 10%, rgba(236,72,153,0.18), transparent),' +
-          ' radial-gradient(900px 480px at 50% 110%, rgba(52,211,153,0.10), transparent),' +
-          ' radial-gradient(140% 140% at 50% 110%, #04060c 40%, #0c1330 100%)',
+        background: 'transparent',
         color: '#f5f5f5',
         padding: '36px 16px 80px',
       }}

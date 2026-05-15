@@ -176,8 +176,7 @@ export default function PetTravelPage() {
         overflowX: 'hidden',
         overflowY: 'visible',
         touchAction: 'pan-y pinch-zoom',
-        background:
-          'linear-gradient(180deg, #7dd3fc 0%, #5eead4 45%, #99f6e4 75%, #ecfeff 100%)',
+        background: 'transparent',
       }}
     >
       <AmbientBackdrop

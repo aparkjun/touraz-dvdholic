@@ -795,11 +795,7 @@ const cssBlock = `
   position: relative;
   isolation: isolate;
   overflow-x: hidden;
-  background:
-    radial-gradient(1200px 500px at 10% -10%, rgba(14, 165, 233, 0.22) 0%, transparent 60%),
-    radial-gradient(1000px 400px at 100% 0%, rgba(139, 92, 246, 0.18) 0%, transparent 60%),
-    radial-gradient(900px 480px at 50% 110%, rgba(245,158,11,0.10) 0%, transparent 60%),
-    linear-gradient(180deg, #0a0d10 0%, #101420 60%, #0b0f18 100%);
+  background: transparent;
   color: #f5f5f5;
 }
 .mt-hero {
