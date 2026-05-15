@@ -40,6 +40,26 @@ public class UserRepository implements SearchUserPort, InsertUserPort, DeleteUse
 
     @Override
     @Transactional(readOnly = true)
+    public Optional<NetplixUser> findUserById(String userId) {
+        return userJpaRepository.findById(userId).map(userEntity -> {
+            Optional<UserSubscription> subscription = userSubscriptionRepository.findByUserId(userEntity.getUserId());
+            String role = subscription
+                    .orElse(UserSubscription.newSubscription(userEntity.getUserId()))
+                    .getSubscriptionType()
+                    .toRole();
+            return NetplixUser.builder()
+                    .userId(userEntity.getUserId())
+                    .username(userEntity.getUsername())
+                    .encryptedPassword(userEntity.getPassword())
+                    .email(userEntity.getEmail())
+                    .phone(userEntity.getPhone())
+                    .role(role)
+                    .build();
+        });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Optional<NetplixUser> findByEmail(String email) {
         Optional<UserEntity> userEntityOptional = userJpaRepository.findByEmail(email);
         if (userEntityOptional.isEmpty()) {

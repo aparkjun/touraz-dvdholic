@@ -111,6 +111,13 @@ public class UserService implements RegisterUserUseCase, FetchUserUseCase, Delet
     }
 
     @Override
+    public UserResponse findUserByUserId(String userId) {
+        return searchUserPort.findUserById(userId)
+                .map(UserResponse::toUserResponse)
+                .orElse(null);
+    }
+
+    @Override
     public UserResponse findByEmail(String email) {
         return searchUserPort.findByEmail(email)
                 .map(UserResponse::toUserResponse)

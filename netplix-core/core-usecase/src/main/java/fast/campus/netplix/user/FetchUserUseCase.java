@@ -11,6 +11,9 @@ public interface FetchUserUseCase {
     DetailUserResponse findDetailUserByEmail(String email);
 
     UserResponse findByProviderId(String providerId);
+
+    /** users 테이블 PK로 조회 (일반 회원). 없으면 null */
+    UserResponse findUserByUserId(String userId);
     
     UserResponse findByEmail(String email);
 
