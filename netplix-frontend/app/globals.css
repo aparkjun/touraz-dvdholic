@@ -633,6 +633,99 @@ body.app-theme-travel-cinema:has(.app-shell[data-travel-sector="pet-travel"]) {
   --ds-shadow: 0 14px 36px rgba(15, 23, 42, 0.08);
 }
 
+/* 시네마틱 여행 세부 구간 — 상단 네비 순백(메인/로그인과 동일) */
+body.app-theme-travel-cinema .app-nav {
+  position: relative;
+  background: #ffffff;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 1) inset, 0 4px 18px rgba(15, 23, 42, 0.06);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+body.app-theme-travel-cinema .app-nav .app-brand-snake {
+  mix-blend-mode: normal;
+}
+body.app-theme-travel-cinema .app-nav::after {
+  content: "";
+  display: block;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.25), transparent);
+  pointer-events: none;
+}
+body.app-theme-travel-cinema .app-nav-status span {
+  color: #475569;
+  background: rgba(148, 163, 184, 0.16);
+  border-color: rgba(100, 116, 139, 0.22);
+}
+body.app-theme-travel-cinema .app-chip-secondary {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(100, 116, 139, 0.22);
+  color: #334155;
+}
+body.app-theme-travel-cinema .app-chip-secondary:hover {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+body.app-theme-travel-cinema .app-menu-overlay {
+  background: rgba(15, 23, 42, 0.35);
+}
+body.app-theme-travel-cinema .app-hamburger {
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.35), rgba(253, 230, 138, 0.25));
+  border-color: rgba(180, 83, 9, 0.2);
+  color: #92400e;
+}
+body.app-theme-travel-cinema .app-hamburger:hover {
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.55), rgba(253, 230, 138, 0.4));
+  border-color: rgba(180, 83, 9, 0.35);
+}
+body.app-theme-travel-cinema .app-nav-mobile-panel {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: 0 12px 40px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+body.app-theme-travel-cinema .app-nav-mobile .app-chip-secondary {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(100, 116, 139, 0.22);
+  color: #334155;
+}
+body.app-theme-travel-cinema .app-nav-mobile .app-chip-secondary:hover {
+  background: rgba(248, 250, 252, 1);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #1e293b;
+}
+body.app-theme-travel-cinema .app-nav-mobile .app-chip-primary {
+  border: none;
+  background: linear-gradient(135deg, #ec4899, #8b5cf6);
+  color: #fff;
+}
+body.app-theme-travel-cinema .app-nav-mobile .app-chip-primary:hover {
+  background: linear-gradient(135deg, #db2777, #7c3aed);
+}
+body.app-theme-travel-cinema .app-nav-mobile .app-chip-owner {
+  border: 1px solid rgba(236, 72, 153, 0.25);
+  background: rgba(253, 242, 248, 0.95);
+  color: #be185d;
+}
+body.app-theme-travel-cinema .app-nav-mobile .app-chip-owner:hover {
+  background: rgba(252, 231, 243, 1);
+  color: #9d174d;
+}
+body.app-theme-travel-cinema .app-nav-mobile .app-chip-mypage {
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: rgba(236, 253, 245, 0.95);
+  color: #047857;
+}
+body.app-theme-travel-cinema .app-nav-mobile .app-chip-mypage:hover {
+  background: rgba(209, 250, 229, 1);
+  color: #065f46;
+}
+
 .app-nav {
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 27, 75, 0.95));
   padding: 14px 0 14px; padding-top: calc(env(safe-area-inset-top, 0px) + 14px);
