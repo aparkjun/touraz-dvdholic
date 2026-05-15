@@ -681,7 +681,7 @@
     "feature3Desc": "Nature exploration under the sun",
     "bannerTitle": "Ready for a breath of fresh air?",
     "bannerBody": "Pick pet-friendly places below, then follow film curation, Photo Korea winners, the tourism photo gallery, and trails — in order. Source: Korea Tourism Organization.",
-    "regionSwipeHint": "“All regions”: swipe sideways on the cards to switch cities. Swipe the scenery photo row horizontally.",
+    "regionSwipeHint": "“All regions”: scroll vertically for each region below. Only the tourism scenery photo row swipes horizontally.",
     "cinemaTitle": "Films set in {{region}} — perfect to revisit with your pet",
     "comboFilmBadge": "Film×Trip",
     "cinemaComboTitle": "Films set in {{region}} · curated with travel in mind",

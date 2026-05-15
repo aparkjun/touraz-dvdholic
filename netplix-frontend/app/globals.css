@@ -119,11 +119,6 @@ button,
   contain: none;
   overscroll-behavior-y: auto;
 }
-.pet-travel-page .pet-travel-region-rail {
-  contain: none;
-  overscroll-behavior-x: contain;
-  overscroll-behavior-y: auto;
-}
 
 /* ===== 스와이프 중 hover/pointer 토글 차단 =====
  * 드래그/관성 구간에 커서가 카드들을 지나가며 onMouseEnter/Leave 가 연쇄 발화되면
@@ -245,7 +240,9 @@ body {
   margin: 0;
   padding: 0;
   width: 100%;
+  max-width: 100%;
   min-height: 100%;
+  overflow-x: hidden;
   overscroll-behavior-x: none;
   touch-action: pan-y pinch-zoom;
   -webkit-tap-highlight-color: transparent;
@@ -779,7 +776,14 @@ body.app-theme-travel {
   .app-chip-landing-owner { padding: 6px 10px; font-size: 11.5px; gap: 4px; }
 }
 .app-chip-button { cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-.app-route-wrap { width: 100%; margin: 0; padding: 0; overscroll-behavior-x: none; }
+.app-route-wrap {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+}
 
 .app-notification-badge {
   position: absolute; top: -4px; right: -4px; background: linear-gradient(135deg, #ef4444, #ec4899); color: #fff;

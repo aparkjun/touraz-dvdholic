@@ -169,6 +169,8 @@ export default function PetTravelPage() {
         fontFamily: 'var(--font-app)',
         position: 'relative',
         isolation: 'isolate',
+        maxWidth: '100%',
+        overscrollBehaviorX: 'none',
         /* 모바일: overflow:hidden 이 문서 세로 스크롤·자식 레이아웃과 충돌해 PET-Cinema 아래가 비어 보이는
          * 증상이 있어 가로만 막고 세로는 visible 로 둔다. */
         overflowX: 'hidden',
@@ -673,51 +675,30 @@ export default function PetTravelPage() {
           >
             {t(
               'petTravel.regionSwipeHint',
-              '「전국」: 아래 지역 카드를 좌우로 밀어 바꿔 보세요. 관광 풍경 사진은 가로 스와이프로 넘길 수 있어요.'
+              '「전국」: 아래에서 지역별 정보를 위아래로 넘겨 보세요. 관광 풍경 사진 줄만 가로로 스와이프할 수 있어요.'
             )}
           </p>
         )}
 
         {selected == null ? (
-          <div
-            className="js-drag-scroll pet-travel-region-rail"
-            style={{
-              display: 'flex',
-              gap: 16,
-              overflowX: 'auto',
-              overflowY: 'visible',
-              scrollSnapType: 'x mandatory',
-              WebkitOverflowScrolling: 'touch',
-              marginBottom: 20,
-              marginLeft: -20,
-              marginRight: -20,
-              paddingLeft: 20,
-              paddingRight: 20,
-              paddingBottom: 6,
-            }}
-          >
-            {NATIONAL_AREA_CODES.map((code, idx) => (
-              <motion.section
-                key={code}
-                initial={{ opacity: 1, y: 0 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.02, margin: '0px 0px 120px 0px' }}
-                transition={{ duration: 0.35, delay: Math.min(idx * 0.04, 0.4) }}
-                style={{
-                  flex: '0 0 min(calc(100vw - 56px), 560px)',
-                  width: 'min(calc(100vw - 56px), 560px)',
-                  maxWidth: 560,
-                  scrollSnapAlign: 'center',
-                  marginBottom: 0,
-                  padding: 18,
-                  borderRadius: 20,
-                  background: 'rgba(255,255,255,0.82)',
-                  border: '1px solid rgba(13, 148, 136, 0.14)',
-                  boxShadow:
-                    '0 12px 32px rgba(14, 116, 144, 0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                  backdropFilter: 'blur(6px)',
-                }}
-              >
+          NATIONAL_AREA_CODES.map((code, idx) => (
+            <motion.section
+              key={code}
+              initial={{ opacity: 1, y: 0 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, amount: 0.02, margin: '0px 0px 120px 0px' }}
+              transition={{ duration: 0.35, delay: Math.min(idx * 0.04, 0.4) }}
+              style={{
+                marginBottom: 28,
+                padding: 18,
+                borderRadius: 20,
+                background: 'rgba(255,255,255,0.82)',
+                border: '1px solid rgba(13, 148, 136, 0.14)',
+                boxShadow:
+                  '0 12px 32px rgba(14, 116, 144, 0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+                backdropFilter: 'blur(6px)',
+              }}
+            >
                 <PetFriendlySpotsStrip
                   areaCode={code}
                   regionLabel={areaLabelI18n(code)}
@@ -763,9 +744,8 @@ export default function PetTravelPage() {
                   subtitle={t('petTravel.walkSubtitle', '{{region}} 인근 두루누비 코스', { region: areaLabelI18n(code) })}
                   limit={PETWALK_TREK_LIMIT}
                 />
-              </motion.section>
-            ))}
-          </div>
+            </motion.section>
+          ))
         ) : (
           <motion.section
             key={selected}

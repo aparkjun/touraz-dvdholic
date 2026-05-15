@@ -782,7 +782,7 @@ const cssBlock = `
 @media (min-width: 1024px) {
   .tg-grid:not(.tg-grid--rail) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
-/* 가로 스와이프 레일 (pet-travel 등) */
+/* 가로 스와이프 레일 (pet-travel 등) — 가로 제스처는 이 박스 안에서만 소비 */
 .tg-grid.tg-grid--rail {
   display: flex;
   flex-direction: row;
@@ -792,6 +792,8 @@ const cssBlock = `
   gap: 12px;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pinch-zoom;
+  overscroll-behavior-x: contain;
   align-items: stretch;
   grid-template-columns: unset;
   padding-bottom: 4px;
