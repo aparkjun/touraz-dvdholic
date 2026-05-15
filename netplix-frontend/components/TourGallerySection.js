@@ -36,6 +36,7 @@ import {
  *  - 응답이 빈 배열이면 섹션 자체를 렌더링하지 않아 UX 공백을 없앰
  *  - 라이트박스: ESC 닫기 / ← → 이동 / 카드 클릭 열기
  *  - 반응형 그리드: 2(모바일) / 3(태블릿) / 4(데스크톱) 열
+ *  - layout="rail": 한 줄 가로 스크롤(스와이프) — pet-travel 등 긴 페이지에서 세로 길이 절약
  *  - 스타일은 self-contained (외부 CSS 파일 오염 최소화)
  */
 export default function TourGallerySection({
@@ -45,6 +46,8 @@ export default function TourGallerySection({
   limit = 24,
   apiBase = "/api/v1/tour-gallery",
   accent = "#e50914", // netplix 레드 포인트
+  /** "grid" | "rail" — rail 은 가로 스와이프 한 줄 레일 */
+  layout = "grid",
   // keyword 가 비어 있어도 API 를 호출해 전체 갤러리 최신순을 노출.
   // 기본 false: 기존 접목 지점(영화·지역·매장)에서는 keyword 가 비면 섹션 자체를 숨김.
   allowEmpty = false,
@@ -58,6 +61,7 @@ export default function TourGallerySection({
   soundSearchKeyword,
 }) {
   const { t, i18n } = useTranslation();
+  const isRail = layout === "rail";
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errored, setErrored] = useState(false);
@@ -422,9 +426,13 @@ export default function TourGallerySection({
         )}
       </div>
 
-      <div className="tg-grid">
+      <div
+        className={
+          isRail ? "tg-grid tg-grid--rail js-drag-scroll" : "tg-grid"
+        }
+      >
         {loading
-          ? Array.from({ length: 8 }).map((_, i) => (
+          ? Array.from({ length: isRail ? 6 : 8 }).map((_, i) => (
               <div key={`sk-${i}`} className="tg-card tg-skeleton">
                 <div className="tg-img tg-sk-img" />
                 <div className="tg-body">
@@ -769,10 +777,31 @@ const cssBlock = `
   gap: 12px;
 }
 @media (min-width: 640px) {
-  .tg-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .tg-grid:not(.tg-grid--rail) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (min-width: 1024px) {
-  .tg-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .tg-grid:not(.tg-grid--rail) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+/* 가로 스와이프 레일 (pet-travel 등) */
+.tg-grid.tg-grid--rail {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: visible;
+  gap: 12px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  align-items: stretch;
+  grid-template-columns: unset;
+  padding-bottom: 4px;
+}
+.tg-grid.tg-grid--rail .tg-card,
+.tg-grid.tg-grid--rail .tg-skeleton {
+  flex: 0 0 auto;
+  width: min(46vw, 200px);
+  max-width: 220px;
+  scroll-snap-align: start;
 }
 .tg-card {
   display: flex;

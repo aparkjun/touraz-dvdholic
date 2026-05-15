@@ -681,6 +681,7 @@
     "feature3Desc": "햇살 아래 자연 탐험",
     "bannerTitle": "신선한 바람 한 모금, 준비되셨나요?",
     "bannerBody": "아래에서 반려 동반 장소를 고르고, 같은 지역의 영화 큐레이션·포토코리아 관광공모전 수상작·관광사진갤러리·두루누비를 차례로 엮어 보세요. 출처: 한국관광공사.",
+    "regionSwipeHint": "「전국」: 지역 카드를 좌우로 밀어 바꿔 보세요. 관광 풍경 사진은 가로로 스와이프할 수 있어요.",
     "cinemaTitle": "{{region}} 배경, 반려와 돌아와 보면 좋은 영화",
     "comboFilmBadge": "Film×Trip",
     "cinemaComboTitle": "{{region}} 배경 영화 · 여행과 같이 보는 큐레이션",

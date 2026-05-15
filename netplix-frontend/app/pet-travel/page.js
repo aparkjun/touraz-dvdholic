@@ -659,71 +659,113 @@ export default function PetTravelPage() {
         {/* Pet-Cinema: 영화 큐레이션 — 여행·공모전 이미지와 같은 무드로 조합 */}
         <PetCinemaCurationStrip />
 
+        {selected == null && (
+          <p
+            style={{
+              fontSize: 12,
+              color: '#0369a1',
+              fontWeight: 600,
+              textAlign: 'center',
+              marginBottom: 12,
+              lineHeight: 1.45,
+              padding: '0 8px',
+            }}
+          >
+            {t(
+              'petTravel.regionSwipeHint',
+              '「전국」: 아래 지역 카드를 좌우로 밀어 바꿔 보세요. 관광 풍경 사진은 가로 스와이프로 넘길 수 있어요.'
+            )}
+          </p>
+        )}
+
         {selected == null ? (
-          NATIONAL_AREA_CODES.map((code, idx) => (
-            <motion.section
-              key={code}
-              initial={{ opacity: 1, y: 0 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.02, margin: '0px 0px 120px 0px' }}
-              transition={{ duration: 0.35, delay: Math.min(idx * 0.04, 0.4) }}
-              style={{
-                marginBottom: 28,
-                padding: 18,
-                borderRadius: 20,
-                background: 'rgba(255,255,255,0.82)',
-                border: '1px solid rgba(13, 148, 136, 0.14)',
-                boxShadow:
-                  '0 12px 32px rgba(14, 116, 144, 0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
-                backdropFilter: 'blur(6px)',
-              }}
-            >
-              <PetFriendlySpotsStrip
-                areaCode={code}
-                regionLabel={areaLabelI18n(code)}
-                theme="light"
-              />
+          <div
+            className="js-drag-scroll pet-travel-region-rail"
+            style={{
+              display: 'flex',
+              gap: 16,
+              overflowX: 'auto',
+              overflowY: 'visible',
+              scrollSnapType: 'x mandatory',
+              WebkitOverflowScrolling: 'touch',
+              marginBottom: 20,
+              marginLeft: -20,
+              marginRight: -20,
+              paddingLeft: 20,
+              paddingRight: 20,
+              paddingBottom: 6,
+            }}
+          >
+            {NATIONAL_AREA_CODES.map((code, idx) => (
+              <motion.section
+                key={code}
+                initial={{ opacity: 1, y: 0 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.02, margin: '0px 0px 120px 0px' }}
+                transition={{ duration: 0.35, delay: Math.min(idx * 0.04, 0.4) }}
+                style={{
+                  flex: '0 0 min(calc(100vw - 56px), 560px)',
+                  width: 'min(calc(100vw - 56px), 560px)',
+                  maxWidth: 560,
+                  scrollSnapAlign: 'center',
+                  marginBottom: 0,
+                  padding: 18,
+                  borderRadius: 20,
+                  background: 'rgba(255,255,255,0.82)',
+                  border: '1px solid rgba(13, 148, 136, 0.14)',
+                  boxShadow:
+                    '0 12px 32px rgba(14, 116, 144, 0.08), inset 0 1px 0 rgba(255,255,255,0.8)',
+                  backdropFilter: 'blur(6px)',
+                }}
+              >
+                <PetFriendlySpotsStrip
+                  areaCode={code}
+                  regionLabel={areaLabelI18n(code)}
+                  theme="light"
+                />
 
-              <div style={{ height: 14 }} />
-              <NearbyCineTripStrip
-                areaCode={code}
-                theme="light"
-                badgeLabel={t('petTravel.comboFilmBadge', 'Film×Trip')}
-                title={t('petTravel.cinemaComboTitle', '{{region}} 배경 영화 · 여행과 같이 보는 큐레이션', { region: areaLabelI18n(code) })}
-                limit={10}
-              />
+                <div style={{ height: 14 }} />
+                <NearbyCineTripStrip
+                  areaCode={code}
+                  theme="light"
+                  badgeLabel={t('petTravel.comboFilmBadge', 'Film×Trip')}
+                  title={t('petTravel.cinemaComboTitle', '{{region}} 배경 영화 · 여행과 같이 보는 큐레이션', { region: areaLabelI18n(code) })}
+                  limit={10}
+                />
 
-              <div style={{ height: 14 }} />
-              <PhotoGalleryStrip
-                areaCode={code}
-                limit={24}
-                title={t('petTravel.photoContestStripTitle', '{{region}} 관광공모전 수상 사진', { region: areaLabelI18n(code) })}
-              />
+                <div style={{ height: 14 }} />
+                <PhotoGalleryStrip
+                  areaCode={code}
+                  limit={24}
+                  title={t('petTravel.photoContestStripTitle', '{{region}} 관광공모전 수상 사진', { region: areaLabelI18n(code) })}
+                />
 
-              <div style={{ height: 14 }} />
-              <TourGallerySection
-                keyword={areaLabelI18n(code)}
-                title={t('petTravel.galleryStripTitle', '{{region}} 관광 풍경 사진', { region: areaLabelI18n(code) })}
-                subtitle={t('tourGallery.poweredBy')}
-                limit={48}
-                infinite
-                pageSize={36}
-                accent="#0d9488"
-              />
+                <div style={{ height: 14 }} />
+                <TourGallerySection
+                  keyword={areaLabelI18n(code)}
+                  title={t('petTravel.galleryStripTitle', '{{region}} 관광 풍경 사진', { region: areaLabelI18n(code) })}
+                  subtitle={t('tourGallery.poweredBy')}
+                  limit={36}
+                  layout="rail"
+                  infinite
+                  pageSize={24}
+                  accent="#0d9488"
+                />
 
-              <div style={{ height: 14 }} />
-              {/* 두루누비 · 같은 지역에서 산책 코스로 여행 동선 확장 */}
-              <NearbyTrekkingStrip
-                areaCode={code}
-                regionName={areaLabelI18n(code)}
-                theme="light"
-                badgeLabel={t('petTravel.petWalkBadge', 'PetWalk')}
-                title={t('petTravel.walkTitle', '반려와 산책 삼아 걷기 좋은 코스')}
-                subtitle={t('petTravel.walkSubtitle', '{{region}} 인근 두루누비 코스', { region: areaLabelI18n(code) })}
-                limit={PETWALK_TREK_LIMIT}
-              />
-            </motion.section>
-          ))
+                <div style={{ height: 14 }} />
+                {/* 두루누비 · 같은 지역에서 산책 코스로 여행 동선 확장 */}
+                <NearbyTrekkingStrip
+                  areaCode={code}
+                  regionName={areaLabelI18n(code)}
+                  theme="light"
+                  badgeLabel={t('petTravel.petWalkBadge', 'PetWalk')}
+                  title={t('petTravel.walkTitle', '반려와 산책 삼아 걷기 좋은 코스')}
+                  subtitle={t('petTravel.walkSubtitle', '{{region}} 인근 두루누비 코스', { region: areaLabelI18n(code) })}
+                  limit={PETWALK_TREK_LIMIT}
+                />
+              </motion.section>
+            ))}
+          </div>
         ) : (
           <motion.section
             key={selected}
@@ -767,9 +809,10 @@ export default function PetTravelPage() {
               keyword={areaLabelI18n(selected)}
               title={t('petTravel.galleryStripTitle', '{{region}} 관광 풍경 사진', { region: areaLabelI18n(selected) })}
               subtitle={t('tourGallery.poweredBy')}
-              limit={48}
+              limit={36}
+              layout="rail"
               infinite
-              pageSize={36}
+              pageSize={24}
               accent="#0d9488"
             />
 
