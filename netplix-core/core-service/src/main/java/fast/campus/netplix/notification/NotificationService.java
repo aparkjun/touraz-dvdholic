@@ -169,7 +169,7 @@ public class NotificationService implements NotificationUseCase {
             return;
         }
         LocalDate todayKst = LocalDate.now(ZoneId.of("Asia/Seoul"));
-        LocalDateTime startOfKstDay = todayKst.atStartOfDay();
+        LocalDateTime startOfKstDay = todayKst.atStartOfDay(ZoneId.of("Asia/Seoul")).toLocalDateTime();
 
         LocalDate dvdD;
         String dvdT, dvdM, dvdR;
@@ -227,6 +227,7 @@ public class NotificationService implements NotificationUseCase {
             Optional<Notification> sample =
                     notificationPort.findLatestSystemNoticeSampleSince(listTitle, NOTIFICATION_TYPE_SYSTEM, startOfKstDay);
             if (sample.isEmpty()) {
+                log.warn("[BATCH-NOTI-CATCHUP] userId={} '{}' 당일 템플릿 없음 (sentAt>={}, KST일={})", userId, listTitle, startOfKstDay, todayKst);
                 return;
             }
             Notification s = sample.get();

@@ -4,6 +4,7 @@ import fast.campus.netplix.entity.notification.NotificationEntity;
 import fast.campus.netplix.notification.Notification;
 import fast.campus.netplix.notification.NotificationPort;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -100,8 +101,9 @@ public class NotificationRepository implements NotificationPort {
     public Optional<Notification> findLatestSystemNoticeSampleSince(
             String title, String notificationType, LocalDateTime sentAtMin) {
         return notificationJpaRepository
-                .findFirstByTitleAndNotificationTypeAndSentAtGreaterThanEqualOrderBySentAtDesc(
-                        title, notificationType, sentAtMin)
+                .findLatestSystemNoticeCandidates(title, notificationType, sentAtMin, PageRequest.of(0, 1))
+                .stream()
+                .findFirst()
                 .map(NotificationEntity::toDomain);
     }
 }

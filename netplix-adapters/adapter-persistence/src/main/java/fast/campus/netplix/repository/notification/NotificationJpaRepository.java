@@ -1,6 +1,7 @@
 package fast.campus.netplix.repository.notification;
 
 import fast.campus.netplix.entity.notification.NotificationEntity;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -8,7 +9,6 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 public interface NotificationJpaRepository extends JpaRepository<NotificationEntity, String> {
 
@@ -37,6 +37,11 @@ public interface NotificationJpaRepository extends JpaRepository<NotificationEnt
     boolean existsByUserIdAndTitleAndNotificationTypeAndSentAtGreaterThanEqual(
             String userId, String title, String notificationType, LocalDateTime sentAtMin);
 
-    Optional<NotificationEntity> findFirstByTitleAndNotificationTypeAndSentAtGreaterThanEqualOrderBySentAtDesc(
-            String title, String notificationType, LocalDateTime sentAtMin);
+    @Query("SELECT n FROM NotificationEntity n WHERE n.title = :title AND n.notificationType = :notificationType "
+            + "AND n.sentAt >= :minSentAt ORDER BY n.sentAt DESC")
+    List<NotificationEntity> findLatestSystemNoticeCandidates(
+            @Param("title") String title,
+            @Param("notificationType") String notificationType,
+            @Param("minSentAt") LocalDateTime minSentAt,
+            Pageable pageable);
 }
