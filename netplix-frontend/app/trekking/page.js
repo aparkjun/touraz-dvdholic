@@ -311,20 +311,26 @@ function TrekkingPageInner() {
           margin: '0 auto',
           padding: '32px 20px 0',
           display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          gap: 16,
+          flexDirection: 'column',
+          alignItems: 'stretch',
+          gap: 14,
+          width: '100%',
+          boxSizing: 'border-box',
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         <Link
           href="/dashboard"
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
+            alignSelf: 'flex-start',
             color: 'rgba(236,254,255,0.75)', textDecoration: 'none',
             fontSize: 13, fontWeight: 600, padding: '6px 12px',
             border: '1px solid rgba(110,231,183,0.22)', borderRadius: 999,
             background: 'rgba(6,95,70,0.18)',
+            maxWidth: '100%',
+            boxSizing: 'border-box',
           }}
         >
           <ArrowLeft size={14} />

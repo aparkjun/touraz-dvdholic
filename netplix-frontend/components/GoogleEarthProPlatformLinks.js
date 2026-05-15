@@ -52,6 +52,9 @@ export default function GoogleEarthProPlatformLinks({ variant = 'dark', compact 
         flexDirection: 'column',
         gap: compact ? 6 : 8,
         alignItems: 'flex-start',
+        maxWidth: '100%',
+        minWidth: 0,
+        boxSizing: 'border-box',
       }}
     >
       <span
@@ -61,6 +64,9 @@ export default function GoogleEarthProPlatformLinks({ variant = 'dark', compact 
           letterSpacing: '0.02em',
           color: isLight ? '#0f172a' : 'rgba(236, 254, 255, 0.82)',
           lineHeight: 1.35,
+          maxWidth: '100%',
+          wordBreak: 'keep-all',
+          overflowWrap: 'break-word',
         }}
       >
         {t(
@@ -74,6 +80,8 @@ export default function GoogleEarthProPlatformLinks({ variant = 'dark', compact 
           flexWrap: 'wrap',
           gap: 6,
           alignItems: 'center',
+          maxWidth: '100%',
+          minWidth: 0,
         }}
       >
         {items.map(({ key, href, labelKey, fb }) => (
