@@ -13,6 +13,8 @@ export default function NavBar() {
   const { t } = useTranslation();
   const pathname = usePathname();
   const router = useRouter();
+  /** 대시보드 메인·/dashboard/images 등 하위 경로에서 동일 네비 레이아웃(날씨 글리프·프로모 문구) 유지 */
+  const isDashboardRoute = pathname === '/dashboard' || (pathname?.startsWith('/dashboard/') ?? false);
   const isAuthPage = pathname === '/login' || pathname === '/signup';
 
   useEffect(() => {
@@ -58,18 +60,18 @@ export default function NavBar() {
 
   const navClass =
     'app-nav' +
-    (pathname === '/dashboard' ? ' app-nav--dashboard' : '') +
+    (isDashboardRoute ? ' app-nav--dashboard' : '') +
     (useSolidWhiteNav ? ' app-nav--landing-light' : '');
 
   return (
     <nav className={navClass}>
-      <div className={`app-nav-inner${pathname === '/dashboard' ? ' app-nav-inner--dashboard' : ''}`}>
+      <div className={`app-nav-inner${isDashboardRoute ? ' app-nav-inner--dashboard' : ''}`}>
         {isLandingPage && (
           <div className="app-nav-leftmost">
             <LanguageToggle />
           </div>
         )}
-        {pathname === '/dashboard' && (
+        {isDashboardRoute && (
           <>
             <span className="app-nav-dashboard-promo app-nav-dashboard-promo--left">
               DVD는 오전 2시
@@ -79,15 +81,16 @@ export default function NavBar() {
             </span>
           </>
         )}
-        <BrandLink isDashboard={pathname === '/dashboard'} isLoggedIn={isLoggedIn} />
+        <BrandLink isDashboard={isDashboardRoute} isLoggedIn={isLoggedIn} />
         <AuthActions
           isLoggedIn={isLoggedIn}
           isAdmin={isAdmin}
           isAuthPage={isAuthPage}
           pathname={pathname}
+          isDashboardRoute={isDashboardRoute}
           onLogout={handleLogout}
         />
-        {pathname === '/dashboard' && (
+        {isDashboardRoute && (
           <span className="app-nav-dashboard-promo app-nav-dashboard-promo--combined">
             DVD는 오전 2시 · MOVIE는 오전 3시에 업데이트됩니다!
           </span>
@@ -136,7 +139,7 @@ function LanguageToggle() {
   );
 }
 
-function AuthActions({ isLoggedIn, isAdmin, isAuthPage, pathname, onLogout }) {
+function AuthActions({ isLoggedIn, isAdmin, isAuthPage, pathname, isDashboardRoute, onLogout }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { t } = useTranslation();
   const menuRef = useRef(null);
@@ -282,7 +285,7 @@ function AuthActions({ isLoggedIn, isAdmin, isAuthPage, pathname, onLogout }) {
 
   return (
     <div className="app-nav-actions">
-      {pathname === '/dashboard' || pathname?.startsWith('/dashboard/') ? <DashboardWeatherNavGlyph /> : null}
+      {isDashboardRoute ? <DashboardWeatherNavGlyph /> : null}
       <button
         ref={hamburgerRef}
         className="app-hamburger"
