@@ -60,36 +60,32 @@ public class TokenService implements FetchTokenUseCase, CreateTokenUseCase, Upda
 
     @Override
     public UserResponse findUserByAccessToken(String accessToken) {
-        System.out.println("========== 토큰으로 사용자 조회 ==========");
         Claims claims = parseClaims(accessToken);
 
         Object userId = claims.get("userId");
-        System.out.println("토큰에서 추출한 userId: " + userId);
 
         if (ObjectUtils.isEmpty(userId)) {
             throw new RuntimeException("권한 정보가 없는 토큰입니다.");
         }
 
-        String userIdString = userId.toString();
-        
-        // 먼저 소셜 사용자(providerId)로 조회 시도
-        UserResponse userResponse = fetchUserUseCase.findByProviderId(userIdString);
-        System.out.println("소셜 사용자 조회 결과: " + (userResponse != null ? "찾음" : "없음"));
-        
-        // 소셜 사용자가 아니면 일반 사용자(email)로 조회
-        if (userResponse == null) {
-            userResponse = fetchUserUseCase.findByEmail(userIdString);
-            System.out.println("일반 사용자 조회 결과: " + (userResponse != null ? "찾음" : "없음"));
+        String key = userId.toString().trim();
+        // OAuth 통합 후 JWT subject 가 이메일인 경우가 많다. 이메일 형태면 일반 회원을 먼저 찾는다.
+        UserResponse userResponse = null;
+        if (key.indexOf('@') >= 0) {
+            userResponse = fetchUserUseCase.findByEmail(key);
         }
-        
         if (userResponse == null) {
-            System.out.println("사용자를 찾을 수 없음!");
+            userResponse = fetchUserUseCase.findByProviderId(key);
+        }
+        if (userResponse == null && key.indexOf('@') < 0) {
+            userResponse = fetchUserUseCase.findByEmail(key);
+        }
+
+        if (userResponse == null) {
+            log.warn("[JWT] accessToken subject 로 사용자를 찾을 수 없음: {}", key);
             throw new RuntimeException("사용자를 찾을 수 없습니다.");
         }
-        
-        System.out.println("조회된 사용자 role: " + userResponse.role());
-        System.out.println("==========================================");
-        
+
         return userResponse;
     }
 

@@ -23,7 +23,12 @@ public class NotificationController {
     @PreAuthorize("hasAnyRole('ROLE_FREE', 'ROLE_BRONZE', 'ROLE_SILVER', 'ROLE_GOLD')")
     public NetplixApiResponse<List<Notification>> getNotifications() {
         String userId = jwtTokenProvider.getUserId();
-        return NetplixApiResponse.ok(notificationUseCase.getNotifications(userId));
+        List<Notification> list = notificationUseCase.getNotifications(userId);
+        if (list.isEmpty()) {
+            notificationUseCase.sendDailyBatchCatchupForNewUser(userId);
+            list = notificationUseCase.getNotifications(userId);
+        }
+        return NetplixApiResponse.ok(list);
     }
 
     @GetMapping("/unread")
