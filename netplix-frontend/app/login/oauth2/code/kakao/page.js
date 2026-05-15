@@ -68,12 +68,12 @@ function KakaoAuthRedirect() {
             return;
         }
 
-        // 뒤로가기 등으로 이 페이지에 재진입했을 때: 토큰이 이미 있으면 대시보드로,
+        // 뒤로가기 등으로 이 페이지에 재진입했을 때: 토큰이 이미 있으면 마이페이지로,
         // 이미 소비된 code면 재호출하지 않고 상태에 맞춰 이동 (무한 로딩 방지)
         const existingToken = (typeof localStorage !== 'undefined') && localStorage.getItem('token');
         const consumed = code && getConsumedCodes().includes(code);
         if (existingToken) {
-            redirectTo('/dashboard');
+            redirectTo('/mypage');
             return;
         }
         if (consumed) {
@@ -86,11 +86,11 @@ function KakaoAuthRedirect() {
             return;
         }
 
-        // 네트워크 행업 대비 안전 타임아웃 (15초): 토큰이 있으면 대시보드로, 없으면 로그인으로
+        // 네트워크 행업 대비 안전 타임아웃 (15초): 토큰이 있으면 마이페이지로, 없으면 로그인으로
         const timeoutId = setTimeout(() => {
             setTimeoutReached(true);
             const t = (typeof localStorage !== 'undefined') && localStorage.getItem('token');
-            redirectTo(t ? '/dashboard' : '/login?error=timeout');
+            redirectTo(t ? '/mypage' : '/login?error=timeout');
         }, 15000);
 
         axios
@@ -105,7 +105,7 @@ function KakaoAuthRedirect() {
                     }
                     window.dispatchEvent(new CustomEvent('token-stored'));
                     clearTimeout(timeoutId);
-                    redirectTo('/dashboard');
+                    redirectTo('/mypage');
                 } else {
                     clearTimeout(timeoutId);
                     redirectTo('/login');
@@ -116,7 +116,7 @@ function KakaoAuthRedirect() {
                 markCodeConsumed(code);
                 clearTimeout(timeoutId);
                 const t = (typeof localStorage !== 'undefined') && localStorage.getItem('token');
-                redirectTo(t ? '/dashboard' : '/login?error=callback');
+                redirectTo(t ? '/mypage' : '/login?error=callback');
             });
 
         return () => clearTimeout(timeoutId);

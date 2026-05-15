@@ -25,7 +25,7 @@ if (typeof window !== "undefined") {
 import OAuthLoadingOverlay from "@/components/ui/OAuthLoadingOverlay";
 
 /** App Store 2.1a: iOS에서 navigate() 실패 시 window.location 강제 사용 */
-function redirectToDashboard() {
+function redirectAfterLogin() {
   if (typeof window === "undefined") return;
   const origin = (window.location?.origin || "").toLowerCase();
   const isNativeOrigin =
@@ -36,11 +36,11 @@ function redirectToDashboard() {
     origin === "null";
   // Capacitor 네이티브에서는 절대 URL로 나가면 앱 밖으로 빠지므로 상대 경로 사용
   if (isNativeOrigin) {
-    window.location.replace("/dashboard");
+    window.location.replace("/mypage");
     return;
   }
   const base = getApiBaseUrl() || window.location.origin;
-  const url = base.startsWith("http") ? `${base.replace(/\/$/, "")}/dashboard` : "/dashboard";
+  const url = base.startsWith("http") ? `${base.replace(/\/$/, "")}/mypage` : "/mypage";
   window.location.replace(url);
 }
 
@@ -53,7 +53,7 @@ function LoginContent() {
     const token = localStorage.getItem("token");
     if (token) {
       window.dispatchEvent(new CustomEvent('token-stored'));
-      redirectToDashboard();
+      redirectAfterLogin();
       return;
     }
     if (typeof window !== "undefined" && searchParams.get("error")) {
@@ -108,7 +108,7 @@ function LoginContent() {
         localStorage.setItem("token", response.data.data.accessToken);
         localStorage.setItem("refresh_token", response.data.data.refreshToken);
         window.dispatchEvent(new CustomEvent('token-stored'));
-        redirectToDashboard();
+        redirectAfterLogin();
       }
     } catch (error) {
       console.error("Login failed:", error);

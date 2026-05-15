@@ -89,7 +89,7 @@ export default function Providers({ children }) {
               sessionStorage.setItem('oauth_callback_ts', Date.now().toString());
               window.dispatchEvent(new CustomEvent('token-stored'));
               try { await Browser.close(); } catch (_) {}
-              window.location.replace('/dashboard');
+              window.location.replace('/mypage');
             }
           } catch (e) {
             console.error('[App] Error handling deep link:', e);

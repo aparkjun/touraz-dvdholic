@@ -75,12 +75,14 @@ axios.interceptors.response.use(
         url.includes("/unlike") ||
         url.includes("/meh");
       // OAuth 콜백 직후: URL을 비운 후에도 401 시 리다이렉트 방지 (5초간)
-      const isOnDashboard = typeof window !== "undefined" && window.location.pathname === "/dashboard";
+      const isPostOAuthLanding =
+        typeof window !== "undefined" &&
+        (window.location.pathname === "/dashboard" || window.location.pathname === "/mypage");
       const urlHasToken = typeof window !== "undefined" && window.location.search.includes("token=");
       const oauthTs = typeof sessionStorage !== "undefined" && sessionStorage.getItem("oauth_callback_ts");
       const oauthWindowMs = 10000;
       const isRecentOAuth = oauthTs && (Date.now() - parseInt(oauthTs, 10)) < oauthWindowMs;
-      const isOAuthCallback = isOnDashboard && (urlHasToken || isRecentOAuth);
+      const isOAuthCallback = isPostOAuthLanding && (urlHasToken || isRecentOAuth);
       if (!noRedirectOn401 && !isOAuthCallback) {
         console.error("인증 실패: 로그인이 필요합니다.");
         localStorage.removeItem("token");

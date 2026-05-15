@@ -17,7 +17,7 @@ import java.io.IOException;
 import java.util.Map;
 
 /**
- * 카카오·애플 OAuth2 로그인 성공 시 JWT 발급 후 /dashboard 로 리다이렉트 (쿼리 파라미터로 토큰 전달).
+ * 카카오·애플 OAuth2 로그인 성공 시 JWT 발급 후 /mypage 로 리다이렉트 (쿼리 파라미터로 토큰 전달).
  * 일반 회원(이메일)과 동일한 이메일이면 소셜 전용 행 없이 그 계정으로 토큰을 맞춘다.
  */
 @Slf4j
@@ -54,7 +54,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         } else {
             // 상대 경로 리다이렉트: Next.js 리버스 프록시 뒤에서 Host 헤더가
             // localhost:3001로 바뀌는 문제를 회피 (Apple form_post 콜백 등)
-            String redirectUrl = UriComponentsBuilder.fromPath("/dashboard")
+            String redirectUrl = UriComponentsBuilder.fromPath("/mypage")
                     .queryParam("token", tokens.accessToken())
                     .queryParam("refresh_token", tokens.refreshToken() != null ? tokens.refreshToken() : "")
                     .build()

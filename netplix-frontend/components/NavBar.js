@@ -100,7 +100,7 @@ function BrandLink({ isDashboard, isLoggedIn }) {
   const router = useRouter();
   const { t } = useTranslation();
 
-  const homeHref = isLoggedIn ? '/dashboard' : '/';
+  const homeHref = isLoggedIn ? '/mypage' : '/';
 
   const handleClick = (e) => {
     if (isDashboard && isLoggedIn) {

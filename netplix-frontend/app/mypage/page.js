@@ -1,14 +1,16 @@
 'use client';
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { Heart, Bell, Film, Sparkles, Megaphone, CheckCheck, BellOff } from "lucide-react";
 import axios from "@/lib/axiosConfig";
 import BatchNotificationPosters from "@/components/BatchNotificationPosters";
 
-function Mypage() {
+function MypageContent() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { t, i18n } = useTranslation();
   const [authChecked, setAuthChecked] = useState(false);
   const [likedMovies, setLikedMovies] = useState([]);
@@ -16,7 +18,31 @@ function Mypage() {
   const [notifications, setNotifications] = useState([]);
   const [notifLoading, setNotifLoading] = useState(true);
 
+  // 카카오 OAuth2(서버 리다이렉트) 등: URL 쿼리의 토큰을 저장한 뒤 주소창에서 제거
   useEffect(() => {
+    const token = searchParams.get("token");
+    const refreshToken = searchParams.get("refresh_token");
+    if (token) {
+      localStorage.setItem("token", token);
+      if (refreshToken) {
+        localStorage.setItem("refresh_token", refreshToken);
+      }
+      sessionStorage.setItem("oauth_callback_ts", Date.now().toString());
+      router.replace(pathname);
+      window.dispatchEvent(new CustomEvent("token-stored"));
+    }
+  }, [searchParams, router, pathname]);
+
+  useEffect(() => {
+    if (!localStorage.getItem("token")) {
+      router.replace("/login");
+    } else {
+      setAuthChecked(true);
+    }
+  }, [router, searchParams]);
+
+  useEffect(() => {
+    if (!authChecked) return;
     const loadLiked = async () => {
       try {
         const res = await axios.get("/api/v1/user/me/liked-movies");
@@ -43,7 +69,7 @@ function Mypage() {
     };
     loadLiked();
     loadNotifications();
-  }, []);
+  }, [authChecked]);
 
   const markAsRead = async (notificationId) => {
     try {
@@ -127,14 +153,6 @@ function Mypage() {
   };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
-
-  useEffect(() => {
-    if (!localStorage.getItem("token")) {
-      router.replace("/login");
-    } else {
-      setAuthChecked(true);
-    }
-  }, [router]);
 
   if (!authChecked) return null;
 
@@ -640,4 +658,10 @@ function Mypage() {
   );
 }
 
-export default Mypage;
+export default function Mypage() {
+  return (
+    <Suspense fallback={null}>
+      <MypageContent />
+    </Suspense>
+  );
+}
