@@ -1147,9 +1147,9 @@ function DashboardContent() {
               padding: "10px 20px",
               background: searchKeyword.trim()
                 ? "linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%)"
-                : "rgba(255,255,255,0.08)",
-              color: searchKeyword.trim() ? "#fff" : "rgba(255,255,255,0.4)",
-              border: "none",
+                : "rgba(255,255,255,0.14)",
+              color: searchKeyword.trim() ? "#fff" : "rgba(255,255,255,0.92)",
+              border: searchKeyword.trim() ? "none" : "1px solid rgba(255,255,255,0.22)",
               borderRadius: "10px",
               fontWeight: 700,
               fontSize: "14px",
@@ -1159,6 +1159,7 @@ function DashboardContent() {
               display: "flex",
               alignItems: "center",
               gap: "6px",
+              WebkitFontSmoothing: "antialiased",
             }}
             onMouseEnter={(e) => {
               if (!searchLoading && searchKeyword.trim()) {
