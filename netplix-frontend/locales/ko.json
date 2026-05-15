@@ -15,6 +15,7 @@
     "nearbyWellness": "내 주변 힐링 스팟",
     "nearbyMedicalTourism": "내 주변 의료관광",
     "nearbyAudioGuide": "내 주변 오디오 가이드",
+    "filmScenic": "풍경 릴",
     "logoutFailed": "로그아웃 실패"
   },
   "main": {
@@ -595,7 +596,8 @@
       "medical": "의료",
       "audio": "오디오",
       "radar": "혼잡도",
-      "related": "동선 추천"
+      "related": "동선 추천",
+      "filmScenic": "풍경 릴"
     },
     "errorLoad": "불러오기 실패",
     "empty": "목록 없음",
@@ -789,6 +791,50 @@
       "unsupportedNote": "한국관광공사 빅데이터는 시·군·구 단위로 모아져 있어요.<br/>아래 인기 지역 중에서 가까운 한 곳을 골라 보면, 그 동네에서 사람들이 함께 다닌 자리들이 살며시 이어서 보여집니다.",
       "fallback": "영화로 떠나는 여행에서 다른 길 보기"
     }
+  },
+  "filmScenic": {
+    "badge": "Film × KTO · Scenic Reel",
+    "heroTitle": "풍경 릴",
+    "heroBody": "DVD·MOVIE 큐레이션과 같은 무드로, 한국관광공사 포토코리아 관광공모전 수상 사진(PhokoAwrd)과 여행 정보를 한 릴에 감았습니다. 촬영지·동선·오디오 가이드로 장면을 이어 가 보세요.",
+    "pill1": "한 화면에 담는 것은 ‘장면의 질’입니다. 공모전 수상작은 한 컷으로 목적지의 공기와 빛을 전합니다.",
+    "pill2": "Touraz Holic 백엔드가 KTO OpenAPI(PhokoAwrd 등)를 거쳐 사진·메타를 안전하게 넘깁니다.",
+    "pill3": "영화 느낌의 여행 인포는 촬영지(CineTrip)·동선(related-spots)·DVD매장·오디오 가이드와 맞물립니다.",
+    "areaLabel": "지역 필터",
+    "areas": {
+      "all": "전국",
+      "jeju": "제주",
+      "busan": "부산",
+      "gangwon": "강원",
+      "gyeonggi": "경기",
+      "seoul": "서울",
+      "jeonnam": "전남"
+    },
+    "galleryTitleAll": "관광공모전 수상 풍경 — 전국 릴",
+    "galleryTitleArea": "관광공모전 수상 풍경 — {{area}} 릴",
+    "hubsTitle": "다음 장면으로",
+    "hubs": {
+      "cine": {
+        "title": "CineTrip · 촬영지",
+        "desc": "지역·영화 기반 촬영지 카드와 OST 무드로 체크인."
+      },
+      "related": {
+        "title": "동선 추천",
+        "desc": "한국관광공사 빅데이터로 ‘함께 다닌 다음 자리’를 잔잔히."
+      },
+      "dvd": {
+        "title": "DVD 매장",
+        "desc": "빌려 온 영화 한 편으로 여행 전야를 채워 보세요."
+      },
+      "gallery": {
+        "title": "관광사진 갤러리",
+        "desc": "공모전 말고도 KTO 관광사진 갤러리를 넓게 탐색."
+      },
+      "audio": {
+        "title": "오디오 가이드",
+        "desc": "현장 해설을 이어폰으로 — 영화 답사 동선에 어울립니다."
+      }
+    },
+    "attribution": "관광공모전 수상 사진 데이터: 한국관광공사 포토코리아(PhokoAwrd) · 앱 내 API 경유 제공. 영화/DVD 및 기타 여행 정보는 기존 Touraz Holic 서비스와 연결됩니다."
   },
   "wellness": {
     "pageTitle": "정주행 번아웃 · 내 주변 힐링 스팟",

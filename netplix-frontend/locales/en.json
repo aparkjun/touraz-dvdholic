@@ -15,6 +15,7 @@
     "nearbyWellness": "Healing Spots Near Me",
     "nearbyMedicalTourism": "Medical Tourism Near Me",
     "nearbyAudioGuide": "Audio Guide Near Me",
+    "filmScenic": "Scenic Reel",
     "logoutFailed": "Logout failed"
   },
   "main": {
@@ -595,7 +596,8 @@
       "medical": "Medical",
       "audio": "Audio",
       "radar": "Crowds",
-      "related": "Routes"
+      "related": "Routes",
+      "filmScenic": "Scenic Reel"
     },
     "errorLoad": "Could not load",
     "empty": "No data",
@@ -789,6 +791,50 @@
       "unsupportedNote": "KTO big data is grouped at the city/district level.<br/>Pick a nearby popular region below to gently see places visited together.",
       "fallback": "Try other paths in Cinematic Journeys"
     }
+  },
+  "filmScenic": {
+    "badge": "Film × KTO · Scenic Reel",
+    "heroTitle": "Scenic Reel",
+    "heroBody": "Like your DVD & MOVIE picks, we spooled KTO Photo Korea contest winners (PhokoAwrd) with travel context on one reel. Continue the story with filming locations, route picks, stores, and audio guides.",
+    "pill1": "What matters is scene quality — award photos deliver a destination’s light and air in a single frame.",
+    "pill2": "Touraz Holic’s backend shapes KTO OpenAPI data (including PhokoAwrd) into safe, app-sized responses.",
+    "pill3": "Cinematic travel info clicks into CineTrip, related spots, DVD stores, and Odii audio guides.",
+    "areaLabel": "Region filter",
+    "areas": {
+      "all": "Nationwide",
+      "jeju": "Jeju",
+      "busan": "Busan",
+      "gangwon": "Gangwon",
+      "gyeonggi": "Gyeonggi",
+      "seoul": "Seoul",
+      "jeonnam": "South Jeolla"
+    },
+    "galleryTitleAll": "Contest-winning vistas — nationwide reel",
+    "galleryTitleArea": "Contest-winning vistas — {{area}} reel",
+    "hubsTitle": "Cut to the next scene",
+    "hubs": {
+      "cine": {
+        "title": "CineTrip · Locations",
+        "desc": "Region- and film-based location cards with an OST mood."
+      },
+      "related": {
+        "title": "Route picks",
+        "desc": "KTO big data for gentle “where people went next” trails."
+      },
+      "dvd": {
+        "title": "DVD stores",
+        "desc": "Rent a film and set the tone before you hit the road."
+      },
+      "gallery": {
+        "title": "Tourism photo gallery",
+        "desc": "Browse the wider KTO tourism photo gallery beyond contest picks."
+      },
+      "audio": {
+        "title": "Audio guide",
+        "desc": "On-site stories in your earbuds — great for location scouting."
+      }
+    },
+    "attribution": "Contest photos: KTO Photo Korea (PhokoAwrd), delivered via this app’s API layer. Movies/DVDs and other travel features link to existing Touraz Holic experiences."
   },
   "wellness": {
     "pageTitle": "Post-Binge Recovery · Healing Spots Near You",

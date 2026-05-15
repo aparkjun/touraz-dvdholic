@@ -51,9 +51,51 @@ const BUCKET_ORDER = [
   'restaurants',
 ];
 
-export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '' }) {
+const THEME_PALETTE = {
+  dark: {
+    headerTitle: '#fff',
+    headerSub: '#888',
+    totalCount: '#ef4444',
+    tabActiveBg: (color) => `${color}22`,
+    tabInactiveBg: 'rgba(255,255,255,0.05)',
+    tabInactiveEmptyBg: 'rgba(255,255,255,0.02)',
+    tabBorder: 'rgba(255,255,255,0.12)',
+    tabText: '#e5e7eb',
+    tabTextDisabled: '#555',
+    emptyText: '#666',
+    cardBg: '#0f0f0f',
+    cardBorder: 'rgba(255,255,255,0.08)',
+    cardImageBg: '#1a1a1a',
+    cardTitle: '#fff',
+    cardAddr: '#9ca3af',
+    cardTel: '#6ee7b7',
+    cardPlaceholderIcon: '#444',
+  },
+  light: {
+    headerTitle: '#0f172a',
+    headerSub: '#475569',
+    totalCount: '#be123c',
+    tabActiveBg: (color) => `${color}18`,
+    tabInactiveBg: 'rgba(255,255,255,0.92)',
+    tabInactiveEmptyBg: 'rgba(241, 245, 249, 0.9)',
+    tabBorder: 'rgba(13, 148, 136, 0.22)',
+    tabText: '#0f766e',
+    tabTextDisabled: '#94a3b8',
+    emptyText: '#475569',
+    cardBg: '#ffffff',
+    cardBorder: 'rgba(13, 148, 136, 0.18)',
+    cardImageBg: '#e2e8f0',
+    cardTitle: '#0f172a',
+    cardAddr: '#475569',
+    cardTel: '#0d9488',
+    cardPlaceholderIcon: '#94a3b8',
+  },
+};
+
+export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '', theme = 'dark' }) {
   const { i18n } = useTranslation();
   const isEn = i18n.language && i18n.language.startsWith('en');
+  const palette = THEME_PALETTE[theme === 'light' ? 'light' : 'dark'];
 
   const [buckets, setBuckets] = useState({});
   const [activeBucket, setActiveBucket] = useState('attractions');
@@ -115,10 +157,10 @@ export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '' }) {
         }}
       >
         <PawPrint size={18} style={{ color: '#f472b6' }} />
-        <h4 style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: 0 }}>
+        <h4 style={{ fontSize: 15, fontWeight: 700, color: palette.headerTitle, margin: 0 }}>
           {regionLabel ? `${regionLabel} 반려동물 친화 스팟` : '반려동물 친화 스팟'}
         </h4>
-        <span style={{ fontSize: 11, color: '#888' }}>
+        <span style={{ fontSize: 11, color: palette.headerSub }}>
           한국관광공사 반려동물 동반여행 정보
         </span>
       </div>
@@ -130,7 +172,7 @@ export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '' }) {
             marginBottom: 10,
             fontSize: 14,
             fontWeight: 700,
-            color: '#ef4444',
+            color: palette.totalCount,
             letterSpacing: '-0.01em',
           }}
           aria-live="polite"
@@ -160,15 +202,20 @@ export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '' }) {
                 borderRadius: 18,
                 border: active
                   ? `1px solid ${meta.color}`
-                  : '1px solid rgba(255,255,255,0.12)',
+                  : `1px solid ${palette.tabBorder}`,
                 background: active
-                  ? `${meta.color}22`
+                  ? palette.tabActiveBg(meta.color)
                   : count === 0
-                  ? 'rgba(255,255,255,0.02)'
-                  : 'rgba(255,255,255,0.05)',
-                color: count === 0 && !loading ? '#555' : '#e5e7eb',
+                  ? palette.tabInactiveEmptyBg
+                  : palette.tabInactiveBg,
+                color:
+                  count === 0 && !loading
+                    ? palette.tabTextDisabled
+                    : active
+                    ? meta.color
+                    : palette.tabText,
                 fontSize: 12,
-                fontWeight: 600,
+                fontWeight: active ? 700 : 600,
                 cursor: count === 0 && !loading ? 'not-allowed' : 'pointer',
                 transition: 'all 0.15s',
               }}
@@ -200,7 +247,9 @@ export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '' }) {
                 height: 150,
                 borderRadius: 12,
                 background:
-                  'linear-gradient(90deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%)',
+                  theme === 'light'
+                    ? 'linear-gradient(90deg, #e2e8f0 0%, #f1f5f9 50%, #e2e8f0 100%)'
+                    : 'linear-gradient(90deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%)',
                 backgroundSize: '200% 100%',
                 animation: 'cinetrip-shimmer 1.5s infinite',
               }}
@@ -208,16 +257,16 @@ export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '' }) {
           ))}
         </div>
       ) : activeList.length === 0 ? (
-        <div
+        <motion.div
           style={{
-            color: '#666',
+            color: palette.emptyText,
             fontSize: 13,
             padding: '12px 0',
             textAlign: 'center',
           }}
         >
           이 카테고리에 등록된 반려동물 동반 정보가 없어요.
-        </div>
+        </motion.div>
       ) : (
         <div
           className="js-drag-scroll"
@@ -233,6 +282,7 @@ export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '' }) {
               key={poi.contentId || idx}
               poi={poi}
               bucket={activeBucket}
+              palette={palette}
               onOpen={() => setActivePoi({ poi, bucket: activeBucket })}
             />
           ))}
@@ -252,7 +302,7 @@ export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '' }) {
   );
 }
 
-function PoiCard({ poi, bucket, onOpen }) {
+function PoiCard({ poi, bucket, palette, onOpen }) {
   const meta = BUCKET_META[bucket];
   const Icon = meta.icon;
   const addr = poi.addr1 || poi.addr2 || '';
@@ -270,8 +320,8 @@ function PoiCard({ poi, bucket, onOpen }) {
         flex: '0 0 auto',
         width: 240,
         borderRadius: 12,
-        border: '1px solid rgba(255,255,255,0.08)',
-        background: '#0f0f0f',
+        border: `1px solid ${palette.cardBorder}`,
+        background: palette.cardBg,
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
@@ -279,13 +329,14 @@ function PoiCard({ poi, bucket, onOpen }) {
         cursor: 'pointer',
         textAlign: 'left',
         color: 'inherit',
+        boxShadow: palette.cardBg === '#ffffff' ? '0 4px 14px rgba(14, 116, 144, 0.08)' : undefined,
       }}
     >
-      <div
+      <motion.div
         style={{
           width: '100%',
           height: 110,
-          background: '#1a1a1a',
+          background: palette.cardImageBg,
           position: 'relative',
         }}
       >
@@ -310,18 +361,18 @@ function PoiCard({ poi, bucket, onOpen }) {
             }}
           />
         ) : (
-          <div
+          <motion.div
             style={{
               width: '100%',
               height: '100%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#444',
+              color: palette.cardPlaceholderIcon,
             }}
           >
             <Icon size={32} />
-          </div>
+          </motion.div>
         )}
         <span
           style={{
@@ -334,19 +385,20 @@ function PoiCard({ poi, bucket, onOpen }) {
             borderRadius: 10,
             background: meta.color,
             color: '#fff',
+            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.28)',
           }}
         >
           {meta.label}
         </span>
         <AcceptanceBadge poi={poi} />
-      </div>
+      </motion.div>
       <div style={{ padding: '10px 12px', flex: 1, display: 'flex', flexDirection: 'column' }}>
         <h5
           style={{
             margin: 0,
             fontSize: 13,
             fontWeight: 700,
-            color: '#fff',
+            color: palette.cardTitle,
             lineHeight: 1.35,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -362,7 +414,7 @@ function PoiCard({ poi, bucket, onOpen }) {
             style={{
               margin: '4px 0 0',
               fontSize: 11,
-              color: '#9ca3af',
+              color: palette.cardAddr,
               display: 'flex',
               alignItems: 'center',
               gap: 4,
@@ -371,7 +423,7 @@ function PoiCard({ poi, bucket, onOpen }) {
               whiteSpace: 'nowrap',
             }}
           >
-            <MapPin size={11} style={{ color: '#6b7280', flexShrink: 0 }} />
+            <MapPin size={11} style={{ color: palette.cardAddr, flexShrink: 0 }} />
             {addr}
           </p>
         )}
@@ -380,7 +432,7 @@ function PoiCard({ poi, bucket, onOpen }) {
             style={{
               margin: '2px 0 0',
               fontSize: 11,
-              color: '#6ee7b7',
+              color: palette.cardTel,
               display: 'flex',
               alignItems: 'center',
               gap: 4,
@@ -416,6 +468,7 @@ function AcceptanceBadge({ poi }) {
         display: 'inline-flex',
         alignItems: 'center',
         gap: 4,
+        boxShadow: '0 2px 8px rgba(15, 23, 42, 0.28)',
       }}
     >
       <Icon size={10} />

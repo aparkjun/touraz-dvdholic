@@ -14,10 +14,12 @@ import {
   Radar,
   Compass,
   Footprints,
+  Clapperboard,
 } from 'lucide-react';
 
 const TRAVEL_SHORTCUTS = [
   { href: '/cine-trip', shortcutKey: 'cineTrip', Icon: PlaneTakeoff, jewel: 'dts-jewel-0' },
+  { href: '/film-scenic', shortcutKey: 'filmScenic', Icon: Clapperboard, jewel: 'dts-jewel-10' },
   { href: '/pet-travel', shortcutKey: 'petTravel', Icon: PawPrint, jewel: 'dts-jewel-1' },
   { href: '/trekking', shortcutKey: 'trekking', Icon: Footprints, jewel: 'dts-jewel-2' },
   { href: '/photo-gallery', shortcutKey: 'photoGallery', Icon: Camera, jewel: 'dts-jewel-3' },
@@ -270,6 +272,13 @@ export default function DashboardTravelShortcuts() {
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
             0 6px 18px rgba(0, 0, 0, 0.35),
             0 0 20px rgba(45, 212, 191, 0.4);
+        }
+        .dts-jewel-10 {
+          background: linear-gradient(135deg, #4c1d95 0%, #5b21b6 35%, #7c2d12 100%);
+          box-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.35) inset,
+            0 6px 18px rgba(0, 0, 0, 0.35),
+            0 0 24px rgba(251, 191, 36, 0.35);
         }
       `}</style>
     </section>

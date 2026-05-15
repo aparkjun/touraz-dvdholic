@@ -10,6 +10,7 @@ import { useEffect } from "react";
 const TRAVEL_PREFIXES = [
   "/dashboard",
   "/cine-trip",
+  "/film-scenic",
   "/wellness",
   "/crowd-radar",
   "/audio-guide",

@@ -172,6 +172,13 @@ function AuthActions({ isLoggedIn, isAdmin, isAuthPage, pathname, onLogout }) {
       </li>
     );
   }
+  if (pathname !== '/film-scenic') {
+    navItems.push(
+      <li key="film-scenic">
+        <Link href="/film-scenic" className="app-chip app-chip-secondary" onClick={closeMenu}>{t('nav.filmScenic', '풍경 릴')}</Link>
+      </li>
+    );
+  }
   if (pathname !== '/pet-travel') {
     navItems.push(
       <li key="pet-travel">

@@ -681,6 +681,7 @@ export default function PetTravelPage() {
               <PetFriendlySpotsStrip
                 areaCode={code}
                 regionLabel={areaLabelI18n(code)}
+                theme="light"
               />
 
               <div style={{ height: 14 }} />
@@ -742,6 +743,7 @@ export default function PetTravelPage() {
             <PetFriendlySpotsStrip
               areaCode={selected}
               regionLabel={areaLabelI18n(selected)}
+              theme="light"
             />
 
             <div style={{ height: 14 }} />
