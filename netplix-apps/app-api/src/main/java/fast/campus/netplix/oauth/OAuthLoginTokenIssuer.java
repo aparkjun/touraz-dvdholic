@@ -11,10 +11,12 @@ import fast.campus.netplix.user.command.SocialUserRegistrationCommand;
 import fast.campus.netplix.user.response.UserResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ObjectUtils;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -41,16 +43,19 @@ public class OAuthLoginTokenIssuer {
     private final OAuthAccountLinkPort oauthAccountLinkPort;
 
     public TokenResponse issueTokenAfterOAuth(String providerId, String provider, String displayName, String oauthEmail) {
+        String prov = provider == null ? "" : provider.trim().toLowerCase(Locale.ROOT);
+        String provId = providerId == null ? "" : providerId.trim();
+
         String normalizedEmail = normalizeEmail(oauthEmail);
         UserResponse emailUser = normalizedEmail != null ? fetchUserUseCase.findByEmail(normalizedEmail) : null;
-        UserResponse socialUser = fetchUserUseCase.findByProviderId(providerId);
+        UserResponse socialUser = fetchUserUseCase.findByProviderId(provId);
 
         if (emailUser == null) {
-            Optional<String> linkedUserId = oauthAccountLinkPort.findUserIdByProviderAndProviderId(provider, providerId);
+            Optional<String> linkedUserId = oauthAccountLinkPort.findUserIdByProviderAndProviderId(prov, provId);
             if (linkedUserId.isPresent()) {
                 emailUser = fetchUserUseCase.findUserByUserId(linkedUserId.get());
                 if (emailUser != null) {
-                    log.info("[oauth-link] provider={} 저장된 OAuth 링크로 일반 회원 userId={}", provider, linkedUserId.get());
+                    log.info("[oauth-link] provider={} 저장된 OAuth 링크로 일반 회원 userId={}", prov, linkedUserId.get());
                 }
             }
         }
@@ -62,24 +67,24 @@ public class OAuthLoginTokenIssuer {
                 likeMovieUseCase.reassignUserMovieLikesToUser(socialUser.userId(), emailUser.userId());
             }
             if (socialUser == null) {
-                log.info("[oauth-link] provider={} → 기존 일반 회원과 이메일 매칭, 소셜 행 생성 생략", provider);
+                log.info("[oauth-link] provider={} → 기존 일반 회원과 이메일 매칭, 소셜 행 생성 생략", prov);
             } else {
-                log.info("[oauth-link] provider={} 소셜+일반 이메일 매칭 → 일반 회원 토큰으로 통합", provider);
+                log.info("[oauth-link] provider={} 소셜+일반 이메일 매칭 → 일반 회원 토큰으로 통합", prov);
             }
             String subjectFromUser = normalizeEmail(emailUser.email());
             tokenSubject = subjectFromUser != null ? subjectFromUser : emailUser.email();
-            oauthAccountLinkPort.upsertLink(emailUser.userId(), provider, providerId);
+            oauthAccountLinkPort.upsertLink(emailUser.userId(), prov, provId);
         } else {
             if (ObjectUtils.isEmpty(socialUser)) {
                 registerUserUseCase.registerSocialUser(
-                        new SocialUserRegistrationCommand(displayName, provider, providerId));
+                        new SocialUserRegistrationCommand(displayName, prov, provId));
             }
-            tokenSubject = providerId;
+            tokenSubject = provId;
         }
 
         TokenResponse tokens = updateTokenUseCase.upsertToken(tokenSubject);
 
-        UserResponse forCatchup = emailUser != null ? emailUser : fetchUserUseCase.findByProviderId(providerId);
+        UserResponse forCatchup = emailUser != null ? emailUser : fetchUserUseCase.findByProviderId(provId);
         if (forCatchup != null) {
             try {
                 notificationUseCase.sendDailyBatchCatchupForNewUser(forCatchup.userId());
@@ -106,12 +111,25 @@ public class OAuthLoginTokenIssuer {
         if (oauth2User == null || provider == null) {
             return null;
         }
+        String p = provider.trim().toLowerCase(Locale.ROOT);
         try {
-            if ("apple".equals(provider)) {
+            if ("apple".equals(p)) {
+                if (oauth2User instanceof OidcUser oidcUser) {
+                    String oidEmail = oidcUser.getEmail();
+                    if (oidEmail != null && !oidEmail.isBlank()) {
+                        return oidEmail.trim();
+                    }
+                    if (oidcUser.getIdToken() != null) {
+                        String claimEmail = oidcUser.getIdToken().getClaimAsString("email");
+                        if (claimEmail != null && !claimEmail.isBlank()) {
+                            return claimEmail.trim();
+                        }
+                    }
+                }
                 Object e = oauth2User.getAttribute("email");
                 return e != null ? String.valueOf(e).trim() : null;
             }
-            if ("kakao".equals(provider)) {
+            if ("kakao".equals(p)) {
                 Object acc = oauth2User.getAttribute("kakao_account");
                 if (acc instanceof Map<?, ?> m) {
                     Object email = m.get("email");

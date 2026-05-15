@@ -227,7 +227,21 @@ public class NotificationService implements NotificationUseCase {
             Optional<Notification> sample =
                     notificationPort.findLatestSystemNoticeSampleSince(listTitle, NOTIFICATION_TYPE_SYSTEM, startOfKstDay);
             if (sample.isEmpty()) {
-                log.warn("[BATCH-NOTI-CATCHUP] userId={} '{}' 당일 템플릿 없음 (sentAt>={}, KST일={})", userId, listTitle, startOfKstDay, todayKst);
+                LocalDateTime weekAgo = startOfKstDay.minusDays(7);
+                sample = notificationPort.findLatestSystemNoticeSampleSince(
+                        listTitle, NOTIFICATION_TYPE_SYSTEM, weekAgo);
+                if (sample.isPresent()) {
+                    log.info("[BATCH-NOTI-CATCHUP] '{}' 당일(KST) 샘플 없음 → 최근 7일 내 템플릿 사용", listTitle);
+                }
+            }
+            if (sample.isEmpty()) {
+                sample = notificationPort.findLatestSystemNoticeSample(listTitle, NOTIFICATION_TYPE_SYSTEM);
+                if (sample.isPresent()) {
+                    log.info("[BATCH-NOTI-CATCHUP] '{}' 7일 내 샘플 없음 → DB 최신 템플릿 사용", listTitle);
+                }
+            }
+            if (sample.isEmpty()) {
+                log.warn("[BATCH-NOTI-CATCHUP] userId={} '{}' 템플릿 없음 (sentAt>={}, KST일={})", userId, listTitle, startOfKstDay, todayKst);
                 return;
             }
             Notification s = sample.get();

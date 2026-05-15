@@ -8,4 +8,6 @@ import java.util.Optional;
 public interface OAuthAccountLinkJpaRepository extends JpaRepository<OAuthAccountLinkEntity, String> {
 
     Optional<OAuthAccountLinkEntity> findByProviderAndProviderId(String provider, String providerId);
+
+    Optional<OAuthAccountLinkEntity> findByProviderIgnoreCaseAndProviderId(String provider, String providerId);
 }

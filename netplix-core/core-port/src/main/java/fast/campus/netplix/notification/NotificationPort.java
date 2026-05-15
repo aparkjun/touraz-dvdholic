@@ -36,4 +36,9 @@ public interface NotificationPort {
      */
     Optional<Notification> findLatestSystemNoticeSampleSince(
             String title, String notificationType, LocalDateTime sentAtMin);
+
+    /**
+     * 동일 제목·타입의 시스템 알림 중 가장 최근 1건 (날짜 하한 없음). 캐치업 최종 폴백.
+     */
+    Optional<Notification> findLatestSystemNoticeSample(String title, String notificationType);
 }

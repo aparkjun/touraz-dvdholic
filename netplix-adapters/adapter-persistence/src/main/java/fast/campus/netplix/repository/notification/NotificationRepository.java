@@ -106,4 +106,14 @@ public class NotificationRepository implements NotificationPort {
                 .findFirst()
                 .map(NotificationEntity::toDomain);
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Notification> findLatestSystemNoticeSample(String title, String notificationType) {
+        return notificationJpaRepository
+                .findLatestSystemNoticeCandidatesAnyTime(title, notificationType, PageRequest.of(0, 1))
+                .stream()
+                .findFirst()
+                .map(NotificationEntity::toDomain);
+    }
 }

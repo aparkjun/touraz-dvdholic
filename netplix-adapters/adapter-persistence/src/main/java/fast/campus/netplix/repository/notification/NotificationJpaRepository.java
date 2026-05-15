@@ -44,4 +44,11 @@ public interface NotificationJpaRepository extends JpaRepository<NotificationEnt
             @Param("notificationType") String notificationType,
             @Param("minSentAt") LocalDateTime minSentAt,
             Pageable pageable);
+
+    @Query("SELECT n FROM NotificationEntity n WHERE n.title = :title AND n.notificationType = :notificationType "
+            + "ORDER BY n.sentAt DESC")
+    List<NotificationEntity> findLatestSystemNoticeCandidatesAnyTime(
+            @Param("title") String title,
+            @Param("notificationType") String notificationType,
+            Pageable pageable);
 }

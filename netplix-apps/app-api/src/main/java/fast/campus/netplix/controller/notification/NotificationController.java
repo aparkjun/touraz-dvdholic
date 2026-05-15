@@ -23,11 +23,9 @@ public class NotificationController {
     @PreAuthorize("hasAnyRole('ROLE_FREE', 'ROLE_BRONZE', 'ROLE_SILVER', 'ROLE_GOLD')")
     public NetplixApiResponse<List<Notification>> getNotifications() {
         String userId = jwtTokenProvider.getUserId();
+        // 배치 직후 로그인·다른 userId 통합 등으로 당일 시스템 알림이 비어 있을 수 있음. exists 가드로 중복 없이 보충.
+        notificationUseCase.sendDailyBatchCatchupForNewUser(userId);
         List<Notification> list = notificationUseCase.getNotifications(userId);
-        if (list.isEmpty()) {
-            notificationUseCase.sendDailyBatchCatchupForNewUser(userId);
-            list = notificationUseCase.getNotifications(userId);
-        }
         return NetplixApiResponse.ok(list);
     }
 
