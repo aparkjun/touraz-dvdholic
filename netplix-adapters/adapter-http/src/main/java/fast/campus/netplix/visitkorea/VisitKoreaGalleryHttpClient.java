@@ -279,7 +279,7 @@ public class VisitKoreaGalleryHttpClient implements TourGalleryPort {
 
     private static TourGallery toDomain(VisitKoreaGalleryResponse.Item i) {
         String img = secureGalleryImageUrl(i.getGalWebImageUrl());
-        return TourGallery.builder())
+        return TourGallery.builder()
                 .galContentId(i.getGalContentId())
                 .galContentTypeId(i.getGalContentTypeId())
                 .title(i.getGalTitle())
