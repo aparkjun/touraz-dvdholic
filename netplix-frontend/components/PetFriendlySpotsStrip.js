@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   PawPrint,
@@ -446,6 +447,14 @@ function PoiCard({ poi, bucket, palette, onOpen }) {
   );
 }
 
+/** KTO 이미지 URL이 http 인 경우 HTTPS 페이지에서 mixed-content 차단 → https 승격 */
+function secureTourImageUrl(url) {
+  const s = String(url || '').trim();
+  if (!s) return '';
+  if (s.startsWith('http://')) return `https://${s.slice(7)}`;
+  return s;
+}
+
 function AcceptanceBadge({ poi }) {
   // acmpyTypeCd 가 없으면(미집계) 배지 숨김. 상세 모달에서 설명.
   if (!poi.acmpyTypeCd) return null;
@@ -484,10 +493,13 @@ function AcceptanceBadge({ poi }) {
  */
 function PetFriendlyPoiDetailModal({ summary, bucket, onClose }) {
   const meta = BUCKET_META[bucket];
+  const BucketIcon = meta.icon;
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
   const [imageBroken, setImageBroken] = useState(false);
+  const [imageSrc, setImageSrc] = useState('');
+  const [portalReady, setPortalReady] = useState(false);
 
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
@@ -504,6 +516,10 @@ function PetFriendlyPoiDetailModal({ summary, bucket, onClose }) {
 
   // 시스템 "뒤로 가기" → 페이지 이동 대신 모달만 닫기.
   useBackButtonClose(true, onClose);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   useEffect(() => {
     if (!summary?.contentId) {
@@ -537,10 +553,11 @@ function PetFriendlyPoiDetailModal({ summary, bucket, onClose }) {
 
   const merged = mergeDetailOverSummary(summary, detail);
   const addr = merged.addr1 || merged.addr2 || '';
-  const image = merged.firstImage || merged.firstImageThumb;
+  const rawImage = merged.firstImage || merged.firstImageThumb || '';
   useEffect(() => {
     setImageBroken(false);
-  }, [image]);
+    setImageSrc(secureTourImageUrl(rawImage));
+  }, [rawImage]);
 
   const kakaoMapUrl = merged.mapY && merged.mapX
     ? `https://map.kakao.com/link/map/${encodeURIComponent(merged.title || '장소')},${merged.mapY},${merged.mapX}`
@@ -559,7 +576,17 @@ function PetFriendlyPoiDetailModal({ summary, bucket, onClose }) {
     ? '#ef4444'
     : '#6b7280';
 
-  return (
+  const handleImageError = () => {
+    const raw = String(merged.firstImage || merged.firstImageThumb || '').trim();
+    const https = secureTourImageUrl(raw);
+    if (imageSrc === https && raw.startsWith('http://')) {
+      setImageSrc(raw);
+      return;
+    }
+    setImageBroken(true);
+  };
+
+  const overlay = (
     <motion.div
       key="pet-poi-lightbox"
       initial={{ opacity: 0 }}
@@ -625,10 +652,11 @@ function PetFriendlyPoiDetailModal({ summary, bucket, onClose }) {
           <X size={18} />
         </button>
 
-        {image && !imageBroken ? (
+        {rawImage && !imageBroken && imageSrc ? (
           <img
-            src={image}
+            src={imageSrc}
             alt={merged.title || 'poi'}
+            referrerPolicy="no-referrer"
             style={{
               width: '100%',
               maxHeight: 360,
@@ -638,7 +666,7 @@ function PetFriendlyPoiDetailModal({ summary, bucket, onClose }) {
               borderTopRightRadius: 20,
               background: '#111',
             }}
-            onError={() => setImageBroken(true)}
+            onError={handleImageError}
           />
         ) : (
           <div
@@ -649,12 +677,12 @@ function PetFriendlyPoiDetailModal({ summary, bucket, onClose }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#444',
+              color: '#64748b',
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
             }}
           >
-            <meta.icon size={48} />
+            <BucketIcon size={48} />
           </div>
         )}
 
@@ -755,6 +783,9 @@ function PetFriendlyPoiDetailModal({ summary, bucket, onClose }) {
       </motion.div>
     </motion.div>
   );
+
+  if (!portalReady || typeof document === 'undefined') return null;
+  return createPortal(overlay, document.body);
 }
 
 function PetAcceptanceGrid({ detail, loading, err }) {

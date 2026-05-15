@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Accessibility,
@@ -429,6 +430,13 @@ function AccessibilityChips({ poi }) {
   );
 }
 
+function secureTourImageUrl(url) {
+  const s = String(url || '').trim();
+  if (!s) return '';
+  if (s.startsWith('http://')) return `https://${s.slice(7)}`;
+  return s;
+}
+
 /**
  * POI 상세 모달.
  * - areaBasedList2 로 얻은 summary 를 즉시 표시하고,
@@ -437,10 +445,13 @@ function AccessibilityChips({ poi }) {
  */
 function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
   const meta = BUCKET_META[bucket];
+  const BucketIcon = meta.icon;
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState(null);
   const [imageBroken, setImageBroken] = useState(false);
+  const [imageSrc, setImageSrc] = useState('');
+  const [portalReady, setPortalReady] = useState(false);
 
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
@@ -457,6 +468,10 @@ function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
 
   // 시스템 "뒤로 가기" → 페이지 이동 대신 모달만 닫기.
   useBackButtonClose(true, onClose);
+
+  useEffect(() => {
+    setPortalReady(true);
+  }, []);
 
   useEffect(() => {
     if (!summary?.contentId) {
@@ -493,11 +508,11 @@ function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
   // - accessibilityDetail 은 항목 수가 더 많은 쪽을 채택
   const merged = useMemo(() => mergeDetailOverSummary(summary, detail), [summary, detail]);
   const addr = merged.addr1 || merged.addr2 || '';
-  const image = merged.firstImage || merged.firstImageThumb;
-  // 이미지 URL 이 바뀌면 실패 상태를 리셋해 새 URL 을 다시 시도.
+  const rawImage = merged.firstImage || merged.firstImageThumb || '';
   useEffect(() => {
     setImageBroken(false);
-  }, [image]);
+    setImageSrc(secureTourImageUrl(rawImage));
+  }, [rawImage]);
   const kakaoMapUrl = merged.mapY && merged.mapX
     ? `https://map.kakao.com/link/map/${encodeURIComponent(merged.title || '장소')},${merged.mapY},${merged.mapX}`
     : null;
@@ -505,7 +520,17 @@ function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
     ? `https://search.naver.com/search.naver?query=${encodeURIComponent(merged.title)}`
     : null;
 
-  return (
+  const handleImageError = () => {
+    const raw = String(merged.firstImage || merged.firstImageThumb || '').trim();
+    const https = secureTourImageUrl(raw);
+    if (imageSrc === https && raw.startsWith('http://')) {
+      setImageSrc(raw);
+      return;
+    }
+    setImageBroken(true);
+  };
+
+  const overlay = (
     <motion.div
       key="accessible-poi-lightbox"
       initial={{ opacity: 0 }}
@@ -571,10 +596,11 @@ function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
           <X size={18} />
         </button>
 
-        {image && !imageBroken ? (
+        {rawImage && !imageBroken && imageSrc ? (
           <img
-            src={image}
+            src={imageSrc}
             alt={merged.title || 'poi'}
+            referrerPolicy="no-referrer"
             style={{
               width: '100%',
               maxHeight: 360,
@@ -584,7 +610,7 @@ function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
               borderTopRightRadius: 20,
               background: '#111',
             }}
-            onError={() => setImageBroken(true)}
+            onError={handleImageError}
           />
         ) : (
           <div
@@ -595,12 +621,12 @@ function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#444',
+              color: '#64748b',
               borderTopLeftRadius: 20,
               borderTopRightRadius: 20,
             }}
           >
-            <meta.icon size={48} />
+            <BucketIcon size={48} />
           </div>
         )}
 
@@ -688,6 +714,9 @@ function AccessiblePoiDetailModal({ summary, bucket, onClose }) {
       </motion.div>
     </motion.div>
   );
+
+  if (!portalReady || typeof document === 'undefined') return null;
+  return createPortal(overlay, document.body);
 }
 
 function AccessibilityDetailGrid({ detail, loading, err }) {
