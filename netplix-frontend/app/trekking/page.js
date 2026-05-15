@@ -22,6 +22,7 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  Loader2,
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import NearbyCineTripStrip from '@/components/NearbyCineTripStrip';
@@ -98,6 +99,39 @@ const idForRoute = (routeIdx) =>
 
 const labelForRoute = (routeIdx) =>
   ROUTE_FILTERS.find((f) => f.routeIdx === routeIdx)?.label || '기타';
+
+/** GPX 저장 파일명 (백엔드 sanitize 와 유사) */
+function safeGpxFileBase(name) {
+  const raw = (name != null && String(name).trim()) || 'durunubi-course';
+  const trimmed = raw.slice(0, 80);
+  const cleaned = trimmed
+    .replace(/[/\\?%*:|"<>.\u0000-\u001f]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+  return cleaned || 'durunubi-course';
+}
+
+function parseFilenameFromContentDisposition(cd) {
+  if (!cd || typeof cd !== 'string') return null;
+  const star = cd.match(/filename\*=UTF-8''([^;\s]+)/i);
+  if (star) {
+    try {
+      return decodeURIComponent(star[1].replace(/^"|"$/g, ''));
+    } catch {
+      return null;
+    }
+  }
+  const quoted = cd.match(/filename="((?:\\.|[^"\\])*)"/i);
+  if (quoted) return quoted[1].replace(/\\"/g, '"');
+  const plain = cd.match(/filename=([^;\s]+)/i);
+  if (plain) return plain[1].replace(/^"|"$/g, '');
+  return null;
+}
+
+function looksLikeGpxXml(textHead) {
+  const h = textHead.trimStart().replace(/^\ufeff/, '').toLowerCase();
+  return h.startsWith('<?xml') || h.startsWith('<gpx');
+}
 
 export default function TrekkingPage() {
   return (
@@ -596,8 +630,69 @@ function CourseCard({ course }) {
     : t('trekking.routeOther', '기타');
   const [open, setOpen] = useState(false);
   const [cineOpen, setCineOpen] = useState(false);
+  const [gpxLoading, setGpxLoading] = useState(false);
+  const [gpxError, setGpxError] = useState('');
+  const gpxAbortRef = useRef(null);
   const courseAreaCode = sigunToAreaCode(course.sigun);
   const courseAreaLabel = areaCodeToLabel(courseAreaCode);
+
+  useEffect(() => {
+    if (!gpxError) return undefined;
+    const id = setTimeout(() => setGpxError(''), 6500);
+    return () => clearTimeout(id);
+  }, [gpxError]);
+
+  const handleGpxDownload = async () => {
+    if (!course.gpxpath || gpxLoading) return;
+    gpxAbortRef.current?.abort();
+    const ac = new AbortController();
+    gpxAbortRef.current = ac;
+    setGpxLoading(true);
+    setGpxError('');
+    const nameQ = encodeURIComponent(course.crsKorNm || course.crsIdx || 'durunubi-course');
+    const path = `/api/v1/tour/trekking/gpx?url=${encodeURIComponent(course.gpxpath)}&name=${nameQ}`;
+    try {
+      const res = await axios.get(path, {
+        responseType: 'blob',
+        signal: ac.signal,
+        timeout: 28000,
+      });
+      const blob = res.data;
+      if (!(blob instanceof Blob) || blob.size < 200) {
+        setGpxError(t('trekking.gpxDownloadFailed', 'GPX를 받지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.'));
+        return;
+      }
+      const peekLen = Math.min(512, blob.size);
+      const head = await blob.slice(0, peekLen).text();
+      if (!looksLikeGpxXml(head)) {
+        setGpxError(t('trekking.gpxDownloadInvalid', '유효한 GPX가 아닙니다. 잠시 후 다시 시도해 주세요.'));
+        return;
+      }
+      const fromHdr = parseFilenameFromContentDisposition(res.headers?.['content-disposition']);
+      const base =
+        (fromHdr && fromHdr.replace(/\.gpx$/i, '')) || safeGpxFileBase(course.crsKorNm || course.crsIdx || 'durunubi-course');
+      const filename = `${base}.gpx`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.rel = 'noopener';
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 45_000);
+    } catch (err) {
+      if (axios.isCancel?.(err) || err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || err?.name === 'AbortError') {
+        return;
+      }
+      setGpxError(t('trekking.gpxDownloadFailed', 'GPX를 받지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.'));
+    } finally {
+      if (gpxAbortRef.current === ac) gpxAbortRef.current = null;
+      setGpxLoading(false);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
@@ -681,22 +776,35 @@ function CourseCard({ course }) {
         </>
       )}
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, marginTop: 12 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {course.gpxpath && (
-          <a
-            href={`/api/v1/tour/trekking/gpx?url=${encodeURIComponent(course.gpxpath)}&name=${encodeURIComponent(course.crsKorNm || course.crsIdx || 'durunubi-course')}`}
-            rel="noopener noreferrer"
-            download
+          <button
+            type="button"
+            onClick={handleGpxDownload}
+            disabled={gpxLoading}
+            aria-busy={gpxLoading}
+            aria-label={
+              gpxLoading
+                ? t('trekking.gpxDownloading', 'GPX 다운로드 준비 중')
+                : t('trekking.gpxDownload', 'GPX 다운로드')
+            }
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '7px 12px', borderRadius: 999, fontSize: 12, fontWeight: 700,
-              background: acc.chipBg, color: acc.chip, textDecoration: 'none',
+              background: acc.chipBg, color: acc.chip,
               border: `1px solid ${acc.chip}55`,
+              cursor: gpxLoading ? 'wait' : 'pointer',
+              opacity: gpxLoading ? 0.85 : 1,
             }}
           >
-            <Download size={12} />
-            {t('trekking.gpxDownload', 'GPX 다운로드')}
-          </a>
+            {gpxLoading ? (
+              <Loader2 size={12} className="animate-spin" aria-hidden />
+            ) : (
+              <Download size={12} aria-hidden />
+            )}
+            {gpxLoading ? t('trekking.gpxDownloading', '받는 중…') : t('trekking.gpxDownload', 'GPX 다운로드')}
+          </button>
         )}
         {courseAreaCode && (
           <button
@@ -722,6 +830,21 @@ function CourseCard({ course }) {
             {cineOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
         )}
+        </div>
+        {gpxError ? (
+          <p
+            role="alert"
+            style={{
+              margin: 0,
+              fontSize: 11.5,
+              lineHeight: 1.4,
+              color: '#fecaca',
+              maxWidth: '100%',
+            }}
+          >
+            {gpxError}
+          </p>
+        ) : null}
       </div>
 
       {cineOpen && courseAreaCode && (
