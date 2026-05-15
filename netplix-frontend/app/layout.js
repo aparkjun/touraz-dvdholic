@@ -4,7 +4,6 @@ import "./globals.css";
 import NavBar from "@/components/NavBar";
 import Providers from "@/components/Providers";
 import AppRouteTheme from "@/components/AppRouteTheme";
-import TravelWeatherBannerHost from "@/components/TravelWeatherBannerHost";
 import FloatingBackButton from "@/components/FloatingBackButton";
 
 export const metadata = {
@@ -37,7 +36,6 @@ export default function RootLayout({ children }) {
           <AppRouteTheme>
             <div className="app-shell">
               <NavBar />
-              <TravelWeatherBannerHost />
               <div className="app-route-wrap">
                 {children}
               </div>
