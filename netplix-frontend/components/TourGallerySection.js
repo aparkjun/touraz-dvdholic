@@ -26,9 +26,11 @@ import {
  *
  * <p>백엔드: GET /api/v1/tour-gallery?q=<keyword>&limit=<n>
  *  - limit ≤ 0 이면 키워드/전체 캐시에서 잘라 내지 않고 가능한 만큼 전부 반환(서비스·어댑터 상한 내).
- *  - 영화 상세: keyword = 촬영지/지역명
+ *  - 키워드 첫 요청 시 백엔드가 1페이지만 즉시 돌리고 나머지는 백그라운드 적재할 수 있어,
+ *    이 컴포넌트는 성공 직후 몇 차례 재조회해 건수가 늘면 목록을 합친다.
  *  - /cine-trip 지역 상세: keyword = 지역명
  *  - DVD 매장 상세: keyword = 시·도명
+ *  - 영화 상세 등: keyword = 촬영지/지역명
  *
  * <p>선택: soundLayerEnabled + 검색 키워드가 있으면 Odii(/api/v1/audio-guide/search) 후보 중
  * 지역 문자열 해시로 시작점을 정하고, 사진 카드 인덱스만큼 순환해 트랙을 고른다.
@@ -312,6 +314,8 @@ export default function TourGallerySection({
   }, []);
   useEffect(() => {
     let cancelled = false;
+    const healTimers = [];
+
     async function run() {
       const hasKeyword = !!(keyword && keyword.trim());
       if (!hasKeyword && !allowEmpty) {
@@ -329,6 +333,30 @@ export default function TourGallerySection({
         const arr = Array.isArray(data) ? data : [];
         setItems(arr);
         setVisibleCount(infinite ? Math.min(pageSize, arr.length) : arr.length);
+
+        // VisitKoreaGalleryHttpClient: 키워드 캐시 미스 시 1페이지만 동기 반환 후 백그라운드로 전체 적재.
+        // limit=0 이라도 첫 응답 건수가 적을 수 있어, 잠시 후 재조회해 늘어난 캐시를 반영한다.
+        if (hasKeyword && !cancelled) {
+          const healParams = { q: keyword.trim(), limit };
+          for (const delayMs of [2500, 8000, 16000]) {
+            healTimers.push(
+              setTimeout(async () => {
+                if (cancelled) return;
+                try {
+                  const res2 = await axios.get(apiBase, { params: healParams });
+                  if (cancelled) return;
+                  const d2 = res2?.data?.data ?? res2?.data ?? [];
+                  const arr2 = Array.isArray(d2) ? d2 : [];
+                  if (arr2.length === 0) return;
+                  setItems((prev) => (arr2.length > prev.length ? arr2 : prev));
+                  setVisibleCount((vc) => Math.min(vc, arr2.length));
+                } catch {
+                  /* noop */
+                }
+              }, delayMs)
+            );
+          }
+        }
       } catch (e) {
         if (!cancelled) {
           setErrored(true);
@@ -341,6 +369,7 @@ export default function TourGallerySection({
     run();
     return () => {
       cancelled = true;
+      for (const t of healTimers) clearTimeout(t);
     };
   }, [keyword, limit, apiBase, allowEmpty, infinite, pageSize]);
 
