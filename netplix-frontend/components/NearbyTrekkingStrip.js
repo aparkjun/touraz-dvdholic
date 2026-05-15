@@ -6,6 +6,7 @@ import { Footprints, Mountain, Timer, Download, ArrowRight, Compass } from 'luci
 import Link from 'next/link';
 import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
+import GoogleEarthProPlatformLinks from '@/components/GoogleEarthProPlatformLinks';
 
 /**
  * CineTrip 영화 모달의 각 Stop(지역) 섹션 하단에 노출되는
@@ -13,6 +14,7 @@ import { useTranslation } from 'react-i18next';
  *
  * - props.areaCode : 한국관광공사 광역시도 코드(1~39)
  * - props.regionName : 한글 광역명(표시용)
+ * - props.showEarthProLinks : 상단 구글 어스/Earth Pro 링크(기본 true; 상위 페이지에서 이미 노출 시 false)
  * - 내부에서 /api/v1/tour/trekking/courses?areaCode=X 호출
  * - 가로 스와이프는 globals.css 의 .js-drag-scroll + lib/useDragScrollAll.
  *   여행 코스 모달은 document.body 포털이라 페이지 루트 ref 밖에 있으며,
@@ -26,6 +28,7 @@ export default function NearbyTrekkingStrip({
   title,
   badgeLabel = 'CineWalk',
   subtitle,
+  showEarthProLinks = true,
 }) {
   const { i18n } = useTranslation();
   const isEn = i18n.language && i18n.language.startsWith('en');
@@ -163,6 +166,12 @@ export default function NearbyTrekkingStrip({
           전체 걷기여행 <ArrowRight size={isLight ? 13 : 12} strokeWidth={2.5} />
         </Link>
       </div>
+
+      {showEarthProLinks ? (
+        <div style={{ marginBottom: 10 }}>
+          <GoogleEarthProPlatformLinks variant={isLight ? 'light' : 'dark'} compact />
+        </div>
+      ) : null}
 
       <div
         className="js-drag-scroll"

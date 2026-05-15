@@ -16,6 +16,7 @@ import {
 import PetFriendlySpotsStrip from '@/components/PetFriendlySpotsStrip';
 import NearbyCineTripStrip from '@/components/NearbyCineTripStrip';
 import NearbyTrekkingStrip from '@/components/NearbyTrekkingStrip';
+import GoogleEarthProPlatformLinks from '@/components/GoogleEarthProPlatformLinks';
 import PetCinemaCurationStrip from '@/components/PetCinemaCurationStrip';
 import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
 import TourGallerySection from '@/components/TourGallerySection';
@@ -430,6 +431,16 @@ export default function PetTravelPage() {
             {t('petTravel.heroSubtitle2', '지역별 반려동물 동반 가능한 관광지·숙소·음식점을 한눈에 확인하세요.')}
           </p>
 
+          <div
+            style={{
+              maxWidth: 640,
+              margin: '20px auto 0',
+              textAlign: 'left',
+            }}
+          >
+            <GoogleEarthProPlatformLinks variant="light" compact />
+          </div>
+
           {/* 3개 특징 카드 */}
           <div
             className="pt-feature-grid"
@@ -742,6 +753,7 @@ export default function PetTravelPage() {
                   title={t('petTravel.walkTitle', '반려와 산책 삼아 걷기 좋은 코스')}
                   subtitle={t('petTravel.walkSubtitle', '{{region}} 인근 두루누비 코스', { region: areaLabelI18n(code) })}
                   limit={PETWALK_TREK_LIMIT}
+                  showEarthProLinks={false}
                 />
             </motion.section>
           ))
@@ -804,6 +816,7 @@ export default function PetTravelPage() {
               title={t('petTravel.walkTitle', '반려와 산책 삼아 걷기 좋은 코스')}
               subtitle={t('petTravel.walkSubtitle', '{{region}} 인근 두루누비 코스', { region: areaLabelI18n(selected) })}
               limit={PETWALK_TREK_LIMIT}
+              showEarthProLinks={false}
             />
           </motion.section>
         )}

@@ -739,6 +739,7 @@
     "gpxDownloading": "Downloading…",
     "gpxDownloadFailed": "Could not download the GPX file. Check your connection and try again.",
     "gpxDownloadInvalid": "The file is not a valid GPX. Please try again in a moment.",
+    "gpxDownloadOsHint": "Older notifications can be cleared from your Downloads or Files app by removing that item.",
     "cineToggle": "Films along this trail",
     "cineToggleArea": "Films along this trail ({{region}})",
     "cineToggleAria": "{{state}} films set in {{region}}",
@@ -1228,7 +1229,12 @@
     "search": "Search",
     "share": "Share",
     "copy": "Copy",
-    "copied": "Copied"
+    "copied": "Copied",
+    "earthProLinksHint": "To view GPX tracks, install Google Earth (mobile) or Earth Pro (Windows·macOS) for your device.",
+    "earthProLinkIos": "iOS · App Store",
+    "earthProLinkAndroid": "Android · Play Store",
+    "earthProLinkWindows": "Windows · Earth Pro",
+    "earthProLinkMac": "macOS · Earth Pro"
   },
   "att": {
     "title": "Allow Ad Tracking",

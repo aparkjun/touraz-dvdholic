@@ -739,6 +739,7 @@
     "gpxDownloading": "받는 중…",
     "gpxDownloadFailed": "GPX를 받지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.",
     "gpxDownloadInvalid": "유효한 GPX가 아닙니다. 잠시 후 다시 시도해 주세요.",
+    "gpxDownloadOsHint": "이전에 남은 알림은 휴대폰의 다운로드·파일 앱에서 해당 항목을 삭제하면 사라집니다.",
     "cineToggle": "이 길의 영화",
     "cineToggleArea": "이 길의 영화 ({{region}})",
     "cineToggleAria": "{{region}} 배경 영화 {{state}}",
@@ -1228,7 +1229,12 @@
     "search": "검색",
     "share": "공유",
     "copy": "복사",
-    "copied": "복사됨"
+    "copied": "복사됨",
+    "earthProLinksHint": "GPX 경로 보기 — 기기에 맞게 구글 어스(모바일) 또는 Earth Pro(Windows·Mac)를 설치해 주세요.",
+    "earthProLinkIos": "iOS · App Store",
+    "earthProLinkAndroid": "Android · Play 스토어",
+    "earthProLinkWindows": "Windows · Earth Pro",
+    "earthProLinkMac": "macOS · Earth Pro"
   },
   "att": {
     "title": "광고 추적 허용 안내",

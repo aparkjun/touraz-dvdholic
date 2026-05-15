@@ -30,6 +30,7 @@ import { sigunToAreaCode, areaCodeToLabel } from '@/lib/regionMap';
 import { getCuratedCourses } from '@/lib/curatedTrekkingCourses';
 import useDragScrollAll from '@/lib/useDragScroll';
 import AmbientBackdrop from '@/components/AmbientBackdrop';
+import GoogleEarthProPlatformLinks from '@/components/GoogleEarthProPlatformLinks';
 
 /**
  * 코스로 떠나는 걷기여행 (코리아둘레길 · 두루누비) 페이지.
@@ -131,6 +132,48 @@ function parseFilenameFromContentDisposition(cd) {
 function looksLikeGpxXml(textHead) {
   const h = textHead.trimStart().replace(/^\ufeff/, '').toLowerCase();
   return h.startsWith('<?xml') || h.startsWith('<gpx');
+}
+
+/**
+ * GPX를 사용자 기기로 넘긴다.
+ * 모바일에서 Blob URL + anchor download 만 쓰면 시스템 다운로드 관리자에 "실패" 알림이
+ * 앱 종료 후에도 남는 경우가 있어, 지원하면 Web Share(파일)를 먼저 쓴다.
+ * 공유 시트를 사용자가 닫은(AbortError) 경우에는 폴백 다운로드를 하지 않는다.
+ */
+async function deliverGpxToUser(blob, filename) {
+  const type = blob.type || 'application/gpx+xml';
+  let file;
+  try {
+    file = new File([blob], filename, { type });
+  } catch {
+    file = null;
+  }
+  if (file && typeof navigator !== 'undefined' && typeof navigator.share === 'function' && typeof navigator.canShare === 'function') {
+    try {
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: filename.replace(/\.gpx$/i, ''),
+        });
+        return;
+      }
+    } catch (e) {
+      if (e?.name === 'AbortError') return;
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 45_000);
+  }
 }
 
 export default function TrekkingPage() {
@@ -262,7 +305,18 @@ function TrekkingPageInner() {
         }
       `}</style>
 
-      <div style={{ maxWidth: 1160, margin: '0 auto', padding: '32px 20px 0' }}>
+      <div
+        style={{
+          maxWidth: 1160,
+          margin: '0 auto',
+          padding: '32px 20px 0',
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: 16,
+        }}
+      >
         <Link
           href="/dashboard"
           style={{
@@ -276,6 +330,7 @@ function TrekkingPageInner() {
           <ArrowLeft size={14} />
           {t('trekking.backToDashboard', '대시보드로 돌아가기')}
         </Link>
+        <GoogleEarthProPlatformLinks variant="dark" compact />
       </div>
 
       {/* Hero */}
@@ -672,16 +727,7 @@ function CourseCard({ course }) {
       const base =
         (fromHdr && fromHdr.replace(/\.gpx$/i, '')) || safeGpxFileBase(course.crsKorNm || course.crsIdx || 'durunubi-course');
       const filename = `${base}.gpx`;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.rel = 'noopener';
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 45_000);
+      await deliverGpxToUser(blob, filename);
     } catch (err) {
       if (axios.isCancel?.(err) || err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || err?.name === 'AbortError') {
         return;
@@ -832,18 +878,31 @@ function CourseCard({ course }) {
         )}
         </div>
         {gpxError ? (
-          <p
-            role="alert"
-            style={{
-              margin: 0,
-              fontSize: 11.5,
-              lineHeight: 1.4,
-              color: '#fecaca',
-              maxWidth: '100%',
-            }}
-          >
-            {gpxError}
-          </p>
+          <div role="alert" style={{ maxWidth: '100%' }}>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 11.5,
+                lineHeight: 1.4,
+                color: '#fecaca',
+              }}
+            >
+              {gpxError}
+            </p>
+            <p
+              style={{
+                margin: '6px 0 0',
+                fontSize: 10,
+                lineHeight: 1.35,
+                color: 'rgba(254, 202, 202, 0.78)',
+              }}
+            >
+              {t(
+                'trekking.gpxDownloadOsHint',
+                '이전에 남은 알림은 휴대폰의 다운로드·파일 앱에서 해당 항목을 삭제하면 사라집니다.'
+              )}
+            </p>
+          </div>
         ) : null}
       </div>
 
