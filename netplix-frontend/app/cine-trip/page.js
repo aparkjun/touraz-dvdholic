@@ -29,6 +29,7 @@ import ConcentrationHeatmap30 from '@/components/ConcentrationHeatmap30';
 import EngTourSpotsStrip from '@/components/EngTourSpotsStrip';
 import TravelCourseModal from '@/components/TravelCourseModal';
 import CineTripCinematicHero from '@/components/CineTripCinematicHero';
+import RegionWeatherGlyph from '@/components/RegionWeatherGlyph';
 import useDragScrollAll from '@/lib/useDragScroll';
 
 const REGION_FILTERS = [
@@ -1065,9 +1066,15 @@ function CineTripPageInner() {
                     ? '0 8px 22px -4px rgba(236, 72, 153, 0.55), 0 0 0 4px rgba(251, 191, 36, 0.18)'
                     : '0 2px 8px rgba(0, 0, 0, 0.25)',
                   textShadow: active ? '0 1px 2px rgba(0, 0, 0, 0.2)' : 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
                 }}
               >
-                {localizedLabel}
+                <span>{localizedLabel}</span>
+                {region.areaCode != null && (
+                  <RegionWeatherGlyph regionCode={region.areaCode} size={17} />
+                )}
               </motion.button>
             );
           })}

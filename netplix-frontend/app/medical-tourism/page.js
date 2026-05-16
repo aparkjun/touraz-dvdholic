@@ -34,6 +34,7 @@ import MedicalTourismDetailModal from "@/components/MedicalTourismDetailModal";
 import MedicalTourismDailyPicks from "@/components/MedicalTourismDailyPicks";
 import { useMedicalFavorites } from "@/lib/useMedicalFavorites";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
+import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
 import {
   Stethoscope,
   Globe2,
@@ -420,8 +421,10 @@ function MedicalTourismInner() {
                 type="button"
                 className={`mt-chip ${keyword === r.keyword ? "mt-chip-active" : ""}`}
                 onClick={() => applyKeyword(r.keyword)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
               >
-                {t(`regionShortcuts.${r.code}`, r.keyword)}
+                <span>{t(`regionShortcuts.${r.code}`, r.keyword)}</span>
+                <RegionWeatherGlyph regionCode={r.code} size={16} />
               </button>
             ))}
           </div>

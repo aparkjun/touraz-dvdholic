@@ -26,6 +26,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
+import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
 import { MapServiceLinkButton } from "@/components/MapServiceLinkButton";
 import {
   Tent,
@@ -504,8 +505,10 @@ function CampingInner() {
                 type="button"
                 className={`cmp-chip ${keyword === r.keyword ? "cmp-chip-active" : ""}`}
                 onClick={() => applyKeyword(r.keyword)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
               >
-                {t(`regionShortcuts.${r.code}`, r.keyword)}
+                <span>{t(`regionShortcuts.${r.code}`, r.keyword)}</span>
+                <RegionWeatherGlyph regionCode={r.code} size={16} />
               </button>
             ))}
           </div>

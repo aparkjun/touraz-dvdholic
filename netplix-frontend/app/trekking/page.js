@@ -31,6 +31,7 @@ import { getCuratedCourses } from '@/lib/curatedTrekkingCourses';
 import useDragScrollAll from '@/lib/useDragScroll';
 import AmbientBackdrop from '@/components/AmbientBackdrop';
 import GoogleEarthProPlatformLinks from '@/components/GoogleEarthProPlatformLinks';
+import RegionWeatherGlyph from '@/components/RegionWeatherGlyph';
 
 /**
  * 코스로 떠나는 걷기여행 (코리아둘레길 · 두루누비) 페이지.
@@ -761,6 +762,11 @@ function CourseCard({ course }) {
           borderRadius: '50%', background: acc.bg, opacity: 0.18, filter: 'blur(8px)',
         }}
       />
+      {courseAreaCode ? (
+        <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 4 }}>
+          <RegionWeatherGlyph regionCode={courseAreaCode} size={20} />
+        </div>
+      ) : null}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         {routeLabel && (
           <span
@@ -954,6 +960,11 @@ function CuratedCourseCard({ course, areaCode }) {
           borderRadius: '50%', background: accent.bg, opacity: 0.15, filter: 'blur(8px)',
         }}
       />
+      {areaCode ? (
+        <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 4 }}>
+          <RegionWeatherGlyph regionCode={areaCode} size={20} />
+        </div>
+      ) : null}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
         <span
           style={{

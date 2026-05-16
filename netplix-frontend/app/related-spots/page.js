@@ -7,6 +7,7 @@ import { Sparkles, MapPin, Loader2, ArrowRight, ArrowLeft, Hash, X, ExternalLink
 import { useTranslation } from 'react-i18next';
 import axios from '@/lib/axiosConfig';
 import AmbientBackdrop from '@/components/AmbientBackdrop';
+import RegionWeatherGlyph from '@/components/RegionWeatherGlyph';
 import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
 
 // "조용한 명소 + 함께 가는 명소" — 잔잔한 데이터 산책 화면.
@@ -588,6 +589,7 @@ function GroupCard({ group, onPickRelated }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 11, color: '#94a3b8', letterSpacing: 0.4 }}>{t('relatedSpots.groupStartLabel', '여기서 출발')}</span>
         <span style={{ fontSize: 17, fontWeight: 800, color: '#fef3c7' }}>{group.baseSpot}</span>
+        <RegionWeatherGlyph areaName={group.areaName} signguName={group.signguName} size={18} />
         {region && <span style={{ fontSize: 11, color: '#a5b4fc' }}>· {region}</span>}
       </div>
       <p style={{ margin: '0 0 12px', fontSize: 12, color: '#94a3b8' }}>

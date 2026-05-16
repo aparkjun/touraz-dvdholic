@@ -40,6 +40,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
+import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
 
 // KTO area code 표준: 35=전북, 36=전남, 37=경북, 38=경남
 const AREA_LABEL = {
@@ -529,9 +530,11 @@ function CrowdRadarInner() {
                     style={{
                       ...styles.chip,
                       ...(areaFilter === code ? styles.chipActive : null),
+                      gap: 6,
                     }}
                   >
-                    {t(`regionShortcuts.${code}`, AREA_LABEL[code])}
+                    <span>{t(`regionShortcuts.${code}`, AREA_LABEL[code])}</span>
+                    <RegionWeatherGlyph regionCode={code} size={15} />
                   </button>
                 ))}
               </div>
@@ -676,17 +679,33 @@ function SpotCard({ spot, rank, preset }) {
           </span>
         </div>
       </div>
-      <h3
+      <div
         style={{
-          fontSize: 16,
-          fontWeight: 800,
-          margin: 0,
-          lineHeight: 1.25,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
         }}
-        title={spot.spotName}
       >
-        {spot.spotName}
-      </h3>
+        <h3
+          style={{
+            fontSize: 16,
+            fontWeight: 800,
+            margin: 0,
+            lineHeight: 1.25,
+            flex: "1 1 auto",
+            minWidth: 0,
+          }}
+          title={spot.spotName}
+        >
+          {spot.spotName}
+        </h3>
+        <RegionWeatherGlyph
+          areaName={spot.areaName}
+          signguName={spot.signguName}
+          size={20}
+        />
+      </div>
 
       <Sparkline series={series} isInRange={isInRange} />
 

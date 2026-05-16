@@ -40,6 +40,7 @@ import {
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
+import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
 import VoiceMicIcon from "@/components/VoiceMicIcon";
 import {
   Headphones,
@@ -973,8 +974,10 @@ function AudioGuidePageInner() {
                 type="button"
                 className={`agp-chip ${on ? "agp-chip-on" : ""}`}
                 onClick={() => applyRegion(regionKeyword)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
               >
-                {t(`regionShortcuts.${r.code}`, r.keyword)}
+                <span>{t(`regionShortcuts.${r.code}`, r.keyword)}</span>
+                <RegionWeatherGlyph regionCode={r.code} size={15} />
               </button>
             );
           })}

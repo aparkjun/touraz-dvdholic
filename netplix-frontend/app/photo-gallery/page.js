@@ -22,6 +22,7 @@ import { useTranslation } from "react-i18next";
 import { Search, Camera, Headphones, Image as ImageIcon } from "lucide-react";
 import TourGallerySection from "@/components/TourGallerySection";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
+import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
 
 // 관광사진 DB 에서 히트율이 높은 대표 지역 키워드 (한국 광역 17곳).
 // "경기도"/"경상남도" 같은 정식명보다 축약형이 PhotoGalleryService1 검색에 유리.
@@ -161,8 +162,10 @@ function PhotoGalleryInner() {
                 type="button"
                 className={`pgp-chip ${keyword === r.keyword ? "pgp-chip-active" : ""}`}
                 onClick={() => applyKeyword(r.keyword)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
               >
-                {t(`regionShortcuts.${r.code}`, r.keyword)}
+                <span>{t(`regionShortcuts.${r.code}`, r.keyword)}</span>
+                <RegionWeatherGlyph regionCode={r.code} size={16} />
               </button>
             ))}
           </div>

@@ -1,7 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Cloud, CloudRain, CloudSnow, CloudSun, Sun } from 'lucide-react';
+import {
+  Cloud,
+  CloudDrizzle,
+  CloudLightning,
+  CloudRain,
+  CloudSnow,
+  CloudSun,
+  Sun,
+} from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 
 /** 빠른 1회 시도 (다른 화면·테스트용) */
@@ -167,12 +175,22 @@ export function skyStateLabel(sky, pty, wet, t) {
     if (ps === '2') return t('travelWeather.ptyRainSnow', '비 또는 눈');
     if (ps === '3') return t('travelWeather.ptySnow', '눈');
     if (ps === '4') return t('travelWeather.ptyShower', '소나기');
+    // 초단기·일부 격자: 빗방울 / 빗방울·눈날림 / 눈날림 (기상청 PTY 코드)
+    if (ps === '5') return t('travelWeather.ptyDrizzle', '빗방울');
+    if (ps === '6') return t('travelWeather.ptyDrizzleSnow', '빗방울·눈날림');
+    if (ps === '7') return t('travelWeather.ptySnowFlurry', '눈날림');
+    if (wet && !isWetPty(ps)) {
+      return t('travelWeather.statePrecipLikely', '강수 가능');
+    }
     return t('travelWeather.statePrecip', '강수');
   }
   const sk = sky != null ? String(sky) : '';
   if (sk === '1') return t('travelWeather.skyClear', '맑음');
+  // 일부 응답에서 SKY=2(구름 조금) 등이 섞일 때 대비
+  if (sk === '2') return t('travelWeather.skyPartlyCloud', '구름 조금');
   if (sk === '3') return t('travelWeather.skyMostlyCloud', '구름 많음');
   if (sk === '4') return t('travelWeather.skyOvercast', '흐림');
+  if (sk !== '') return t('travelWeather.skyOther', '하늘 코드 {{code}}', { code: sk });
   return t('travelWeather.skyUnknown', '하늘 상태 미제공');
 }
 
@@ -211,15 +229,46 @@ function nowYyyymmddHour(d = new Date()) {
 function iconForMergedRow(row) {
   if (isRainyRow(row)) {
     const ps = String(row.pty ?? '0');
-    if (ps === '3' || ps === '2') {
+    // PTY만으로 강수가 없어도 POP 등으로 wet 인 경우 → 일반 비 가능 아이콘
+    if (!isWetPty(ps)) {
+      return {
+        Icon: CloudRain,
+        iconProps: { strokeWidth: 1.5, color: '#0d9488' },
+      };
+    }
+    if (ps === '3' || ps === '7') {
       return {
         Icon: CloudSnow,
-        iconProps: { strokeWidth: 1.55, color: '#0284c7' },
+        iconProps: { strokeWidth: 1.55, color: '#e2e8f0' },
+      };
+    }
+    if (ps === '2' || ps === '6') {
+      return {
+        Icon: CloudSnow,
+        iconProps: { strokeWidth: 1.55, color: '#7dd3fc' },
+      };
+    }
+    if (ps === '4') {
+      return {
+        Icon: CloudLightning,
+        iconProps: { strokeWidth: 1.45, color: '#f59e0b' },
+      };
+    }
+    if (ps === '5') {
+      return {
+        Icon: CloudDrizzle,
+        iconProps: { strokeWidth: 1.45, color: '#38bdf8' },
+      };
+    }
+    if (ps === '1') {
+      return {
+        Icon: CloudRain,
+        iconProps: { strokeWidth: 1.5, color: '#0369a1' },
       };
     }
     return {
       Icon: CloudRain,
-      iconProps: { strokeWidth: 1.5, color: '#0369a1' },
+      iconProps: { strokeWidth: 1.5, color: '#334155' },
     };
   }
   const sk = String(row.sky ?? '');
@@ -227,6 +276,12 @@ function iconForMergedRow(row) {
     return {
       Icon: Sun,
       iconProps: { strokeWidth: 1.5, color: '#ca8a04' },
+    };
+  }
+  if (sk === '2') {
+    return {
+      Icon: CloudSun,
+      iconProps: { strokeWidth: 1.45, color: '#fcd34d' },
     };
   }
   if (sk === '3') {
@@ -239,6 +294,12 @@ function iconForMergedRow(row) {
     return {
       Icon: Cloud,
       iconProps: { strokeWidth: 1.5, color: '#475569' },
+    };
+  }
+  if (sk !== '') {
+    return {
+      Icon: Cloud,
+      iconProps: { strokeWidth: 1.45, color: '#64748b' },
     };
   }
   return {

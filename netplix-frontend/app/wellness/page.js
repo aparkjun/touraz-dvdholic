@@ -45,6 +45,7 @@ import WellnessRecoveryCalendar from "@/components/WellnessRecoveryCalendar";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 import WellnessSpotDetailModal from "@/components/WellnessSpotDetailModal";
 import { MapServiceLinkButton } from "@/components/MapServiceLinkButton";
+import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
 
 const RADIUS_OPTIONS = [10, 30, 50]; // km
 const PAGE_SIZE = 60;
@@ -461,8 +462,10 @@ function WellnessInner() {
                 type="button"
                 className={`wel-chip ${keyword === r.keyword ? "wel-chip-active" : ""}`}
                 onClick={() => applyKeyword(r.keyword)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
               >
-                {t(`regionShortcuts.${r.code}`, r.keyword)}
+                <span>{t(`regionShortcuts.${r.code}`, r.keyword)}</span>
+                <RegionWeatherGlyph regionCode={r.code} size={16} />
               </button>
             ))}
           </div>
@@ -588,6 +591,7 @@ function WellnessInner() {
 
 function WellnessCard({ spot, onOpenDetail }) {
   const { t } = useTranslation();
+  const weatherRegionCode = spot.address ? resolveAreaCode(spot.address) : null;
   const mapUrl = spot.address
     ? `https://map.kakao.com/link/search/${encodeURIComponent(spot.address)}`
     : null;
@@ -626,6 +630,14 @@ function WellnessCard({ spot, onOpenDetail }) {
               ? `${Math.round(spot.distanceKm * 1000)}m`
               : `${spot.distanceKm.toFixed(1)}km`}
           </span>
+        )}
+        {weatherRegionCode && (
+          <div
+            className="wel-weather-glyph"
+            style={{ position: "absolute", top: 8, right: 8, zIndex: 2 }}
+          >
+            <RegionWeatherGlyph regionCode={weatherRegionCode} size={18} />
+          </div>
         )}
       </div>
       <div className="wel-body">
