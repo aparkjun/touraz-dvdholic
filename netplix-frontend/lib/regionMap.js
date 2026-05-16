@@ -1,3 +1,5 @@
+import { resolveAreaCode } from '@/lib/regionAreaCode';
+
 /**
  * 한국관광공사 광역시도 areaCode ↔ 두루누비 sigun 광역 약칭 매핑.
  *
@@ -20,23 +22,23 @@ export const AREA_CODE_TO_LABEL = {
 
 // areaCode → sigun 문자열 내에서 매칭할 광역 토큰 후보
 const AREA_CODE_TO_SIGUN_PREFIXES = {
-  1:  ['서울'],
-  2:  ['인천'],
-  3:  ['대전'],
-  4:  ['대구'],
-  5:  ['광주'],
-  6:  ['부산'],
-  7:  ['울산'],
-  8:  ['세종'],
-  31: ['경기'],
-  32: ['강원'],
+  1:  ['서울', '서울특별시'],
+  2:  ['인천', '인천광역시'],
+  3:  ['대전', '대전광역시'],
+  4:  ['대구', '대구광역시'],
+  5:  ['광주', '광주광역시'],
+  6:  ['부산', '부산광역시'],
+  7:  ['울산', '울산광역시'],
+  8:  ['세종', '세종특별자치시'],
+  31: ['경기', '경기도'],
+  32: ['강원', '강원도', '강원특별자치도'],
   33: ['충북', '충청북도'],
   34: ['충남', '충청남도'],
-  35: ['전북', '전라북도'],
+  35: ['전북', '전라북도', '전북특별자치도'],
   36: ['전남', '전라남도'],
   37: ['경북', '경상북도'],
   38: ['경남', '경상남도'],
-  39: ['제주'],
+  39: ['제주', '제주도', '제주특별자치도'],
 };
 
 // 역방향: sigun 접두사 → areaCode
@@ -52,20 +54,43 @@ const SIGUN_PREFIX_TO_AREA_CODE = (() => {
  * 두루누비 sigun 문자열(예: "경남 창원시") → areaCode(38).
  * 매칭되지 않으면 null 반환.
  */
+function normalizeAreaCode(code) {
+  if (code == null || code === '') return null;
+  const n = Number(code);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * 두루누비 sigun 문자열(예: "경남 창원시") → areaCode(38).
+ * 매칭되지 않으면 {@link resolveAreaCode} 로 한 번 더 시도.
+ */
 export function sigunToAreaCode(sigun) {
   if (!sigun || typeof sigun !== 'string') return null;
   const trimmed = sigun.trim();
   if (!trimmed) return null;
-  // 1) 공백 첫 토큰 우선 매칭 (가장 일반적인 포맷)
   const firstToken = trimmed.split(/\s+/)[0];
   if (SIGUN_PREFIX_TO_AREA_CODE.has(firstToken)) {
     return SIGUN_PREFIX_TO_AREA_CODE.get(firstToken);
   }
-  // 2) 느슨한 contains 매칭 (전라북도/충청남도 등 긴 표기 대응)
   for (const [prefix, code] of SIGUN_PREFIX_TO_AREA_CODE.entries()) {
     if (trimmed.startsWith(prefix) || trimmed.includes(prefix)) return code;
   }
-  return null;
+  return normalizeAreaCode(resolveAreaCode(trimmed));
+}
+
+/**
+ * 두루누비·큐레이션 코스 객체에서 날씨용 광역 코드 추정.
+ * sigun → 시·종점 주소 → 화면에서 선택한 지역 필터 순으로 시도.
+ */
+export function resolveDurunubiCourseAreaCode(course, fallbackAreaCode = null) {
+  const fields = [course?.sigun, course?.cpnBgng, course?.cpnEnd];
+  for (const raw of fields) {
+    if (raw == null || String(raw).trim() === '') continue;
+    const text = String(raw).trim();
+    const code = sigunToAreaCode(text) ?? normalizeAreaCode(resolveAreaCode(text));
+    if (code != null) return code;
+  }
+  return normalizeAreaCode(fallbackAreaCode);
 }
 
 /** areaCode → 한글 광역 라벨 (없으면 빈 문자열) */

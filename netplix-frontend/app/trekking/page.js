@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import NearbyCineTripStrip from '@/components/NearbyCineTripStrip';
-import { sigunToAreaCode, areaCodeToLabel } from '@/lib/regionMap';
+import { resolveDurunubiCourseAreaCode, areaCodeToLabel } from '@/lib/regionMap';
 import { getCuratedCourses } from '@/lib/curatedTrekkingCourses';
 import useDragScrollAll from '@/lib/useDragScroll';
 import AmbientBackdrop from '@/components/AmbientBackdrop';
@@ -246,11 +246,9 @@ function TrekkingPageInner() {
         let list = Array.isArray(data) ? data : [];
         // 백엔드가 areaCode 를 무시/미지원하는 경우를 대비해 클라이언트에서도 한 번 더 필터링
         if (selectedAreaCode) {
-          const filtered = list.filter(
-            (c) => sigunToAreaCode(c.sigun) === selectedAreaCode
+          list = list.filter(
+            (c) => resolveDurunubiCourseAreaCode(c, selectedAreaCode) === selectedAreaCode
           );
-          // 서버 필터가 정상 동작했다면 그대로, 아니면 클라이언트 결과 사용
-          list = filtered.length > 0 || list.length === 0 ? filtered : filtered;
         }
         setCourses(list);
       } catch (e) {
@@ -653,7 +651,11 @@ function TrekkingPageInner() {
             }}
           >
             {courses.map((c) => (
-              <CourseCard key={c.crsIdx || `${c.crsKorNm}-${c.routeIdx}`} course={c} />
+              <CourseCard
+                key={c.crsIdx || `${c.crsKorNm}-${c.routeIdx}`}
+                course={c}
+                fallbackAreaCode={selectedAreaCode}
+              />
             ))}
           </div>
         )}
@@ -683,7 +685,7 @@ function ChipButton({ active, onClick, label, color }) {
   );
 }
 
-function CourseCard({ course }) {
+function CourseCard({ course, fallbackAreaCode }) {
   const { t } = useTranslation();
   const acc = accentForRoute(course.routeIdx);
   const routeId = idForRoute(course.routeIdx);
@@ -695,7 +697,7 @@ function CourseCard({ course }) {
   const [gpxLoading, setGpxLoading] = useState(false);
   const [gpxError, setGpxError] = useState('');
   const gpxAbortRef = useRef(null);
-  const courseAreaCode = sigunToAreaCode(course.sigun);
+  const courseAreaCode = resolveDurunubiCourseAreaCode(course, fallbackAreaCode);
   const courseAreaLabel = areaCodeToLabel(courseAreaCode);
 
   useEffect(() => {
@@ -939,6 +941,7 @@ function CourseCard({ course }) {
 function CuratedCourseCard({ course, areaCode }) {
   const { t } = useTranslation();
   const [cineOpen, setCineOpen] = useState(false);
+  const weatherAreaCode = resolveDurunubiCourseAreaCode(course, areaCode);
   const accent = {
     bg: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
     chipBg: 'rgba(253,224,71,0.18)',
@@ -960,9 +963,9 @@ function CuratedCourseCard({ course, areaCode }) {
           borderRadius: '50%', background: accent.bg, opacity: 0.15, filter: 'blur(8px)',
         }}
       />
-      {areaCode ? (
+      {weatherAreaCode ? (
         <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 4 }}>
-          <RegionWeatherGlyph regionCode={areaCode} size={20} />
+          <RegionWeatherGlyph regionCode={weatherAreaCode} size={20} />
         </div>
       ) : null}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
