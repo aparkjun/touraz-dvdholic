@@ -837,7 +837,34 @@
     "cineToggleAria": "{{state}} films set in {{region}}",
     "curatedBadge": "Featured walk",
     "officialGuide": "Official guide",
-    "regionalCine": "Films set here"
+    "regionalCine": "Films set here",
+    "startWalk": "Start walk",
+    "examples": {
+      "sectionTitle": "Durunubi API in the wild",
+      "sectionSub": "KTO Korea Trails GPX and course data powers mobile and web services like these. Touraz uses the same open API for walking courses.",
+      "snapicTitle": "Snapic",
+      "snapicBody": "Mobile app combining photo spots, photo mates, and heritage curation",
+      "heyrouteTitle": "Hey-route",
+      "heyrouteBody": "Web platform for trekking course search, guides, and user-created routes"
+    },
+    "walk": {
+      "title": "Walk session",
+      "backList": "Trail list",
+      "loading": "Loading course GPX…",
+      "noGpx": "No GPX path for this course.",
+      "gpxInvalid": "Could not load GPX.",
+      "gpxEmpty": "Course has no track points.",
+      "courseDist": "Course length",
+      "walkedDist": "You walked",
+      "elapsed": "Time",
+      "start": "Start walk",
+      "pause": "Pause",
+      "geoUnsupported": "Geolocation is not available on this device.",
+      "geoDenied": "Please allow location access (iOS/Android settings).",
+      "geoFailed": "Could not get GPS signal.",
+      "hint": "Blue line: official Durunubi GPX. Green line: your GPS track. Works in Capacitor iOS/Android apps too.",
+      "apiNote": "Data: KTO Durunubi GW (courseList · GPX). You can also download GPX for watches and other apps."
+    }
   },
   "relatedSpots": {
     "heroBadge": "KTO Big Data · Where Visitors Went Next",

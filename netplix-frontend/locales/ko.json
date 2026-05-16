@@ -837,7 +837,34 @@
     "cineToggleAria": "{{region}} 배경 영화 {{state}}",
     "curatedBadge": "추천 도보",
     "officialGuide": "공식 안내 보기",
-    "regionalCine": "이 지역의 영화"
+    "regionalCine": "이 지역의 영화",
+    "startWalk": "걷기 시작",
+    "examples": {
+      "sectionTitle": "두루누비 API 활용 사례",
+      "sectionSub": "한국관광공사 코리아둘레길 GPX·코스 데이터는 아래와 같이 모바일·웹 서비스에서 재생산되고 있습니다. Touraz도 같은 공공 API로 걷기 코스를 제공합니다.",
+      "snapicTitle": "스내픽 Snapic",
+      "snapicBody": "포토스팟·포토메이트·문화재 큐레이션을 결합한 모바일 앱 활용 사례",
+      "heyrouteTitle": "헤이루트",
+      "heyrouteBody": "트레킹 코스 검색·가이드·사용자 코스를 제공하는 웹 플랫폼 활용 사례"
+    },
+    "walk": {
+      "title": "걷기 기록",
+      "backList": "걷기 코스 목록",
+      "loading": "코스 GPX 불러오는 중…",
+      "noGpx": "GPX 경로가 없어요.",
+      "gpxInvalid": "GPX를 불러오지 못했어요.",
+      "gpxEmpty": "코스 좌표가 비어 있어요.",
+      "courseDist": "코스 길이",
+      "walkedDist": "내가 걸은 거리",
+      "elapsed": "시간",
+      "start": "걷기 시작",
+      "pause": "일시 정지",
+      "geoUnsupported": "이 기기에서는 위치(GPS)를 사용할 수 없어요.",
+      "geoDenied": "위치 권한을 허용해 주세요. (iOS·Android 설정)",
+      "geoFailed": "GPS 신호를 받지 못했어요.",
+      "hint": "파란 선은 두루누비 공식 코스(GPX), 초록 선은 내 GPS 기록입니다. iOS·Android 앱(Capacitor)에서도 동일하게 동작합니다.",
+      "apiNote": "데이터: 한국관광공사 두루누비 정보 서비스_GW (courseList · GPX). 스마트워치·외부 앱에도 GPX를 내려받아 사용할 수 있어요."
+    }
   },
   "relatedSpots": {
     "heroBadge": "한국관광공사 빅데이터 · 함께 다녀간 곳",

@@ -32,6 +32,7 @@ import useDragScrollAll from '@/lib/useDragScroll';
 import AmbientBackdrop from '@/components/AmbientBackdrop';
 import GoogleEarthProPlatformLinks from '@/components/GoogleEarthProPlatformLinks';
 import RegionWeatherGlyph from '@/components/RegionWeatherGlyph';
+import DurunubiUtilizationExamples from '@/components/DurunubiUtilizationExamples';
 
 /**
  * 코스로 떠나는 걷기여행 (코리아둘레길 · 두루누비) 페이지.
@@ -470,6 +471,8 @@ function TrekkingPageInner() {
         </motion.div>
       </section>
 
+      <DurunubiUtilizationExamples />
+
       {selectedAreaCode && (
         <section style={{ maxWidth: 1160, margin: '24px auto 0', padding: '0 20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
@@ -695,8 +698,22 @@ function ChipButton({ active, onClick, label, color }) {
   );
 }
 
+function openWalkSession(router, course, fromPath) {
+  if (!course?.gpxpath) return;
+  if (typeof window !== 'undefined' && fromPath) {
+    sessionStorage.setItem('trekking-return', fromPath);
+  }
+  const params = new URLSearchParams({
+    url: course.gpxpath,
+    title: course.crsKorNm || course.crsIdx || '',
+    from: fromPath || '/trekking',
+  });
+  router.push(`/trekking/walk?${params.toString()}`);
+}
+
 function CourseCard({ course, fallbackAreaCode }) {
   const { t } = useTranslation();
+  const router = useRouter();
   const acc = accentForRoute(course.routeIdx);
   const routeId = idForRoute(course.routeIdx);
   const routeLabel = routeId
@@ -847,7 +864,30 @@ function CourseCard({ course, fallbackAreaCode }) {
       )}
 
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 6, marginTop: 12 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <motion.div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {course.gpxpath && (
+          <button
+            type="button"
+            onClick={() => {
+              const from =
+                typeof window !== 'undefined'
+                  ? `${window.location.pathname}${window.location.search}`
+                  : '/trekking';
+              openWalkSession(router, course, from);
+            }}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '7px 12px', borderRadius: 999, fontSize: 12, fontWeight: 800,
+              background: 'linear-gradient(135deg, rgba(34,197,94,0.35), rgba(14,165,233,0.35))',
+              color: '#bbf7d0',
+              border: '1px solid rgba(74,222,128,0.55)',
+              cursor: 'pointer',
+            }}
+          >
+            <Footprints size={12} aria-hidden />
+            {t('trekking.startWalk', '걷기 시작')}
+          </button>
+        )}
         {course.gpxpath && (
           <button
             type="button"
@@ -900,7 +940,7 @@ function CourseCard({ course, fallbackAreaCode }) {
             {cineOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
           </button>
         )}
-        </div>
+        </motion.div>
         {gpxError ? (
           <div role="alert" style={{ maxWidth: '100%' }}>
             <p
