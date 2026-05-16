@@ -8,7 +8,6 @@ import {
   CloudRain,
   CloudSnow,
   CloudSun,
-  Loader2,
   Sun,
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
@@ -25,6 +24,16 @@ function cacheKeyForQuery(q) {
   const lat = q.lat != null ? Number(q.lat).toFixed(3) : '';
   const lng = q.lng != null ? Number(q.lng).toFixed(3) : '';
   return `w:${q.reg || ''}:${lat}:${lng}`;
+}
+
+function readCachedPick(query) {
+  const key = cacheKeyForQuery(query);
+  if (!key) return null;
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.ts < CACHE_TTL_MS) {
+    return hit.pick ?? FALLBACK_PICK;
+  }
+  return null;
 }
 
 async function fetchShortRegOnce(params) {
@@ -108,7 +117,6 @@ export default function RegionWeatherGlyph({
   const { t } = useTranslation();
   const wrapRef = useRef(null);
   const [visible, setVisible] = useState(eager);
-  const [phase, setPhase] = useState(eager ? 'loading' : 'idle');
   const [pick, setPick] = useState(null);
 
   const query = useMemo(() => {
@@ -143,19 +151,30 @@ export default function RegionWeatherGlyph({
   }, [query, eager]);
 
   useEffect(() => {
+    if (!query) {
+      setPick(null);
+      return undefined;
+    }
+    const cached = readCachedPick(query);
+    if (cached) {
+      setPick(cached);
+    } else if (!visible) {
+      setPick(null);
+    }
+  }, [query, visible]);
+
+  useEffect(() => {
     if (!visible || !query) return undefined;
     const key = cacheKeyForQuery(query);
     if (!key) return undefined;
 
-    const hit = cache.get(key);
-    if (hit && Date.now() - hit.ts < CACHE_TTL_MS) {
-      setPick(hit.pick ?? FALLBACK_PICK);
-      setPhase('ready');
+    const cached = readCachedPick(query);
+    if (cached) {
+      setPick(cached);
       return undefined;
     }
 
     let alive = true;
-    setPhase((p) => (p === 'ready' ? 'ready' : 'loading'));
 
     let promise = inflight.get(key);
     if (!promise) {
@@ -176,13 +195,9 @@ export default function RegionWeatherGlyph({
       .then((nextPick) => {
         if (!alive) return;
         setPick(nextPick ?? FALLBACK_PICK);
-        setPhase('ready');
       })
       .catch(() => {
-        if (alive) {
-          setPick(FALLBACK_PICK);
-          setPhase('ready');
-        }
+        if (alive) setPick(FALLBACK_PICK);
       });
 
     return () => {
@@ -199,9 +214,8 @@ export default function RegionWeatherGlyph({
       : t('travelWeather.navWeather', '날씨'));
 
   const onLight = variant === 'onLight';
-  const WIcon = pick?.Icon ?? Cloud;
-  const glyphProps = simpleGlyphProps(WIcon, onLight);
-  const loaderColor = onLight ? '#94a3b8' : 'rgba(248,250,252,0.55)';
+  const WIcon = pick?.Icon;
+  const glyphProps = WIcon ? simpleGlyphProps(WIcon, onLight) : null;
 
   return (
     <span
@@ -216,17 +230,9 @@ export default function RegionWeatherGlyph({
         flexShrink: 0,
       }}
     >
-      {phase === 'loading' ? (
-        <Loader2
-          size={Math.max(12, size - 2)}
-          className="animate-spin"
-          stroke={loaderColor}
-          strokeWidth={1.75}
-          aria-hidden
-        />
-      ) : (
+      {WIcon && glyphProps ? (
         <WIcon size={size} {...glyphProps} aria-hidden />
-      )}
+      ) : null}
     </span>
   );
 }
