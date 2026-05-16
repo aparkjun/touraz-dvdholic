@@ -1,7 +1,7 @@
 'use client';
 
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, MapPin, Loader2, ArrowRight, ArrowLeft, Hash, X, ExternalLink, Compass } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -10,7 +10,7 @@ import AmbientBackdrop from '@/components/AmbientBackdrop';
 import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
 
 // "조용한 명소 + 함께 가는 명소" — 잔잔한 데이터 산책 화면.
-// 단일 키워드 모드 + 인기 지역 칩.
+// 키워드(/grouped/keyword) + 광역 코드(/grouped/area) + 인기 지역(trending-regions) 칩.
 //
 // KTO TarRlteTarService1 는 (baseYm, areaCd, signguCd, keyword) 를 모두 필수로 요구하므로,
 // 백엔드 KoreanPlaceCodes 가 지명 키워드를 BJD (광역2자리, 시군구5자리) 쌍으로 해석한다.
@@ -33,14 +33,18 @@ const RS_MODAL_RESUME_KEY = 'relatedSpots_resumeModal';
 function RelatedSpotsInner() {
   const { t } = useTranslation();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const initialKeyword = searchParams.get('q') || '';
+  const initialAreaFromUrl = (searchParams.get('area') || searchParams.get('areaCode') || '').trim();
+  const initialSignguFromUrl = (searchParams.get('signgu') || searchParams.get('signguCode') || '').trim();
 
   const [keyword, setKeyword] = useState(initialKeyword);
+  const [trendingRegions, setTrendingRegions] = useState([]);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [touched, setTouched] = useState(Boolean(initialKeyword));
+  const [touched, setTouched] = useState(Boolean(initialKeyword) || Boolean(initialAreaFromUrl));
   const [error, setError] = useState(null);
   const [unsupported, setUnsupported] = useState(false);
   // 클릭한 연관 명소 + 기준 명소 정보를 함께 담아 상세 모달에 전달.
@@ -162,6 +166,13 @@ function RelatedSpotsInner() {
       const data = res?.data?.data ?? [];
       const arr = Array.isArray(data) ? data : [];
       setGroups(arr);
+      try {
+        const qs = new URLSearchParams();
+        qs.set('q', trimmed);
+        router.replace(`${pathname}?${qs.toString()}`, { scroll: false });
+      } catch (_) {
+        /* ignore */
+      }
       // 빈 결과인데 사전 미등록 키워드면 안내 토글
       if (arr.length === 0) {
         const norm = trimmed.replace(/\s+/g, '').toLowerCase();
@@ -179,6 +190,81 @@ function RelatedSpotsInner() {
       if (reqId === lastReqRef.current) setLoading(false);
     }
   };
+
+  const runAreaSearch = useCallback(
+    async (areaCode, signguCode, regionLabel) => {
+      const ac = String(areaCode || '').trim();
+      if (!ac) return;
+      const reqId = ++lastReqRef.current;
+      setLoading(true);
+      setError(null);
+      setTouched(true);
+      setUnsupported(false);
+      if (regionLabel && String(regionLabel).trim()) {
+        setKeyword(String(regionLabel).trim());
+      }
+      try {
+        const params = { areaCode: ac, limit: 60 };
+        const sg = signguCode != null ? String(signguCode).trim() : '';
+        if (sg) params.signguCode = sg;
+        const res = await axios.get(`/api/v1/tour/related/grouped/area`, { params });
+        if (reqId !== lastReqRef.current) return;
+        const data = res?.data?.data ?? [];
+        const arr = Array.isArray(data) ? data : [];
+        setGroups(arr);
+        try {
+          const qs = new URLSearchParams();
+          qs.set('area', ac);
+          if (sg) qs.set('signgu', sg);
+          router.replace(`${pathname}?${qs.toString()}`, { scroll: false });
+        } catch (_) {
+          /* ignore */
+        }
+      } catch (e) {
+        if (reqId !== lastReqRef.current) return;
+        console.error('[related-spots] area grouped failed', e?.message || e);
+        setError(t('relatedSpots.errorGeneric', '데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'));
+        setGroups([]);
+      } finally {
+        if (reqId === lastReqRef.current) setLoading(false);
+      }
+    },
+    [pathname, router, t]
+  );
+
+  useEffect(() => {
+    let alive = true;
+    axios
+      .get('/api/v1/tour/trending-regions', { params: { limit: 12, period: 'today' } })
+      .then((res) => {
+        const data = res?.data?.data ?? [];
+        if (alive && Array.isArray(data)) setTrendingRegions(data);
+      })
+      .catch(() => {
+        if (alive) setTrendingRegions([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (initialKeyword) return;
+    if (!initialAreaFromUrl) return;
+    runAreaSearch(initialAreaFromUrl, initialSignguFromUrl || undefined, null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const discoverTrendingRan = useRef(false);
+  useEffect(() => {
+    if (discoverTrendingRan.current) return;
+    if (searchParams.get('discover') !== 'trending') return;
+    if (initialAreaFromUrl || initialKeyword) return;
+    if (!trendingRegions.length) return;
+    discoverTrendingRan.current = true;
+    const r = trendingRegions[0];
+    runAreaSearch(r.areaCode, null, r.regionName || r.areaCode);
+  }, [trendingRegions, searchParams, initialAreaFromUrl, initialKeyword, runAreaSearch]);
 
   useEffect(() => {
     if (initialKeyword) runKeywordSearch(initialKeyword);
@@ -302,7 +388,48 @@ function RelatedSpotsInner() {
             </button>
           </div>
 
-          {/* 인기 지역 칩 — 그룹 단위 표시 */}
+          {/* 검색량 기반 인기 광역 — GET /trending-regions + GET /related/grouped/area */}
+          {trendingRegions.length > 0 && (
+            <div style={{ marginTop: 16, paddingTop: 14, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>
+                {t('relatedSpots.trendingSectionTitle', '검색량 기반 인기 지역으로 동선 보기')}
+              </div>
+              <p style={{ margin: '0 0 10px', fontSize: 11, color: '#94a3b8', lineHeight: 1.45 }}>
+                {t(
+                  'relatedSpots.trendingSectionHint',
+                  '광역(area) 코드로 한국관광공사 연관 관광지 API를 호출합니다. 아래 칩을 누르면 기준 명소별 ‘함께 다닌 자리’가 바로 펼쳐져요.'
+                )}
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {trendingRegions.map((r, idx) => (
+                  <button
+                    key={`${r.areaCode}-${idx}`}
+                    type="button"
+                    onClick={() => runAreaSearch(r.areaCode, null, r.regionName || r.areaCode)}
+                    disabled={loading}
+                    style={{
+                      fontSize: 12,
+                      padding: '6px 12px',
+                      borderRadius: 999,
+                      border: '1px solid rgba(45,212,191,0.35)',
+                      background: 'rgba(13,148,136,0.2)',
+                      color: '#ccfbf1',
+                      cursor: loading ? 'wait' : 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      opacity: loading ? 0.75 : 1,
+                    }}
+                  >
+                    <Compass size={11} />
+                    {r.regionName || r.areaCode}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 사전 키워드 칩 — 그룹 단위 표시 (KoreanPlaceCodes) */}
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
             {POPULAR_PLACE_GROUPS.map((g) => (
               <div key={g.regionId} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, flexWrap: 'wrap' }}>

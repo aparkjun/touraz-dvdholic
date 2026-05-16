@@ -35,7 +35,7 @@ const AREA_CHIPS = [
 
 const HUB_LINKS = [
   { href: '/cine-trip', icon: MapPin, titleKey: 'filmScenic.hubs.cine.title', descKey: 'filmScenic.hubs.cine.desc' },
-  { href: '/related-spots', icon: Compass, titleKey: 'filmScenic.hubs.related.title', descKey: 'filmScenic.hubs.related.desc' },
+  { href: '/related-spots?discover=trending', icon: Compass, titleKey: 'filmScenic.hubs.related.title', descKey: 'filmScenic.hubs.related.desc' },
   { href: '/dvd-stores?nearby=true', icon: Disc3, titleKey: 'filmScenic.hubs.dvd.title', descKey: 'filmScenic.hubs.dvd.desc' },
   { href: '/photo-gallery', icon: Camera, titleKey: 'filmScenic.hubs.gallery.title', descKey: 'filmScenic.hubs.gallery.desc' },
   { href: '/audio-guide?nearby=true', icon: Headphones, titleKey: 'filmScenic.hubs.audio.title', descKey: 'filmScenic.hubs.audio.desc' },

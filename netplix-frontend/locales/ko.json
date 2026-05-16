@@ -758,6 +758,8 @@
     "heroSubtitle": "한 곳을 떠올려 보세요. 그 곁을 거닐던 사람들이<br/>다음으로 향한 자리들을 데이터가 잔잔히 보여드릴게요.",
     "searchPlaceholder": "여수 · 한라산 · 경주처럼 시·군·구 또는 명소를 적어주세요",
     "searchSubmit": "잔잔히 찾기",
+    "trendingSectionTitle": "검색량 기반 인기 지역으로 동선 보기",
+    "trendingSectionHint": "광역(area) 코드로 한국관광공사 연관 관광지 API를 호출합니다. 아래 칩을 누르면 기준 명소별 ‘함께 다닌 자리’가 바로 펼쳐져요.",
     "regions": {
       "jeju": "제주",
       "gangwon": "강원",

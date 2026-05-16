@@ -28,7 +28,7 @@ const TRAVEL_SHORTCUTS = [
   { href: '/medical-tourism', shortcutKey: 'medical', Icon: Stethoscope, jewel: 'dts-jewel-6' },
   { href: '/audio-guide', shortcutKey: 'audio', Icon: Headphones, jewel: 'dts-jewel-7' },
   { href: '/crowd-radar', shortcutKey: 'radar', Icon: Radar, jewel: 'dts-jewel-8' },
-  { href: '/related-spots', shortcutKey: 'related', Icon: Compass, jewel: 'dts-jewel-9' },
+  { href: '/related-spots?discover=trending', shortcutKey: 'related', Icon: Compass, jewel: 'dts-jewel-9' },
 ];
 
 /**

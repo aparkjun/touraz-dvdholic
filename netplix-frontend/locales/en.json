@@ -758,6 +758,8 @@
     "heroSubtitle": "Think of one place. Data quietly traces<br/>the nearby spots its visitors wandered to next.",
     "searchPlaceholder": "Try a city/region or landmark (e.g. Yeosu · Hallasan · Gyeongju)",
     "searchSubmit": "Search gently",
+    "trendingSectionTitle": "Popular regions (search signals) → related routes",
+    "trendingSectionHint": "Uses the KTO related-spots API by regional area code. Tap a chip to load grouped “where people went next” cards.",
     "regions": {
       "jeju": "Jeju",
       "gangwon": "Gangwon",

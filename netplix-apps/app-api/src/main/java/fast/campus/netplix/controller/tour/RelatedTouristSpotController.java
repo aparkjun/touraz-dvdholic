@@ -22,6 +22,7 @@ import java.util.Map;
  *   <li>GET /api/v1/tour/related/keyword?q=한라산&limit=20  — 키워드 검색</li>
  *   <li>GET /api/v1/tour/related/area?areaCode=39&signguCode=39010&limit=20 — 지역기반</li>
  *   <li>GET /api/v1/tour/related/grouped/keyword?q=한라산  — 기준 관광지별 그룹화 + 카테고리/순위 정렬</li>
+ *   <li>GET /api/v1/tour/related/grouped/area?areaCode=39&signguCode= — 광역(·시군구) 코드로 조회 후 동일 그룹화</li>
  *   <li>GET /api/v1/tour/related/status — 어댑터 설정 상태</li>
  * </ul>
  *
@@ -66,7 +67,22 @@ public class RelatedTouristSpotController {
     public NetplixApiResponse<List<RelatedTouristGroupResponse>> groupedByKeyword(
             @RequestParam String q,
             @RequestParam(defaultValue = "60") int limit) {
-        List<RelatedTouristSpot> raw = useCase.byKeyword(q, limit);
+        return NetplixApiResponse.ok(groupByBaseSpot(useCase.byKeyword(q, limit)));
+    }
+
+    /**
+     * 광역·시군구 코드 기반 연관 관광지를 키워드 그룹과 동일한 묶음 구조로 반환.
+     * 대시보드 인기 지역(areaCode)에서 바로 동선(연관 명소) 카드까지 이어갈 때 사용.
+     */
+    @GetMapping("/grouped/area")
+    public NetplixApiResponse<List<RelatedTouristGroupResponse>> groupedByArea(
+            @RequestParam String areaCode,
+            @RequestParam(required = false) String signguCode,
+            @RequestParam(defaultValue = "60") int limit) {
+        return NetplixApiResponse.ok(groupByBaseSpot(useCase.byArea(areaCode, signguCode, limit)));
+    }
+
+    private List<RelatedTouristGroupResponse> groupByBaseSpot(List<RelatedTouristSpot> raw) {
         Map<String, RelatedTouristGroupResponse> bucket = new LinkedHashMap<>();
         for (RelatedTouristSpot s : raw) {
             String key = nullSafe(s.getTAtsNm());
@@ -82,7 +98,7 @@ public class RelatedTouristSpotController {
             if (rb == null) return -1;
             return Integer.compare(ra, rb);
         }));
-        return NetplixApiResponse.ok(List.copyOf(bucket.values()));
+        return List.copyOf(bucket.values());
     }
 
     @GetMapping("/status")
