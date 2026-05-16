@@ -74,10 +74,10 @@ export default function NavBar() {
         {isDashboardRoute && (
           <>
             <span className="app-nav-dashboard-promo app-nav-dashboard-promo--left">
-              DVD는 오전 2시
+              {t('nav.dashboardPromoDvd')}
             </span>
             <span className="app-nav-dashboard-promo app-nav-dashboard-promo--right">
-              MOVIE는 오전 3시에 업데이트됩니다!
+              {t('nav.dashboardPromoMovie')}
             </span>
           </>
         )}
@@ -92,7 +92,7 @@ export default function NavBar() {
         />
         {isDashboardRoute && (
           <span className="app-nav-dashboard-promo app-nav-dashboard-promo--combined">
-            DVD는 오전 2시 · MOVIE는 오전 3시에 업데이트됩니다!
+            {t('nav.dashboardPromoCombined')}
           </span>
         )}
       </div>

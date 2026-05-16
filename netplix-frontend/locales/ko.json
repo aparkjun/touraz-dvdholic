@@ -16,6 +16,9 @@
     "nearbyMedicalTourism": "내 주변 의료관광",
     "nearbyAudioGuide": "내 주변 오디오 가이드",
     "filmScenic": "풍경 릴",
+    "dashboardPromoDvd": "DVD는 오전 2시",
+    "dashboardPromoMovie": "MOVIE는 오전 3시에 업데이트됩니다!",
+    "dashboardPromoCombined": "DVD는 오전 2시 · MOVIE는 오전 3시에 업데이트됩니다!",
     "logoutFailed": "로그아웃 실패"
   },
   "main": {
@@ -457,7 +460,9 @@
     "travelMode": "여행 모드",
     "travelModeTooltip": "한국관광공사 지역 지표를 AI 추천 컨텍스트로 주입",
     "travelModeDesc": "여행 모드를 켜 보세요.(예: 제주 여행 중 비 오는 날에 볼 감성 영화, 주말 부산에서 가족과 볼 가벼운 코미디)",
-    "totalCount": "총 {{count}}편"
+    "totalCount": "총 {{count}}편",
+    "rowTotalAria": "총 {{count}}편",
+    "rowTotalParen": "(총 {{count}}편)"
   },
   "crowdRadarPage": {
     "dow": ["일", "월", "화", "수", "목", "금", "토"]

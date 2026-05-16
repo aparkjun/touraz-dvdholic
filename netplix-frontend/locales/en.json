@@ -16,6 +16,9 @@
     "nearbyMedicalTourism": "Medical Tourism Near Me",
     "nearbyAudioGuide": "Audio Guide Near Me",
     "filmScenic": "Scenic Reel",
+    "dashboardPromoDvd": "DVD updates at 2 AM",
+    "dashboardPromoMovie": "MOVIE updates at 3 AM (KST)",
+    "dashboardPromoCombined": "DVD at 2 AM · MOVIE at 3 AM KST",
     "logoutFailed": "Logout failed"
   },
   "main": {
@@ -457,7 +460,9 @@
     "travelMode": "Travel Mode",
     "travelModeTooltip": "Injects KTO regional metrics into AI recommendation context",
     "travelModeDesc": "Try Travel Mode. (e.g., a moody film for a rainy day while traveling in Jeju, a light family comedy in Busan on a weekend)",
-    "totalCount": "Total {{count}}"
+    "totalCount": "Total {{count}}",
+    "rowTotalAria": "Total {{count}} titles",
+    "rowTotalParen": "(total {{count}})"
   },
   "crowdRadarPage": {
     "dow": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]

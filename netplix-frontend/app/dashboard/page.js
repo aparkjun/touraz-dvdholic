@@ -166,8 +166,7 @@ function DashboardContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const { t, i18n } = useTranslation();
-  const isEn = i18n?.language && String(i18n.language).startsWith('en');
+  const { t } = useTranslation();
 
   // 카카오 OAuth2 로그인 성공 후 리다이렉트 시 URL에 token이 있으면 저장하고 URL 정리
   useEffect(() => {
@@ -1727,9 +1726,9 @@ function DashboardContent() {
                       fontSize: "15px",
                       letterSpacing: "-0.01em",
                     }}
-                    aria-label={isEn ? `total ${displayCount} titles` : `총 ${displayCount}편`}
+                    aria-label={t('dashboardPage.rowTotalAria', { count: displayCount })}
                   >
-                    {isEn ? `(total ${displayCount})` : `(총 ${displayCount}편)`}
+                    {t('dashboardPage.rowTotalParen', { count: displayCount })}
                   </span>
                 )}
               </h3>
