@@ -35,6 +35,7 @@ import MedicalTourismDailyPicks from "@/components/MedicalTourismDailyPicks";
 import { useMedicalFavorites } from "@/lib/useMedicalFavorites";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
+import { resolveAreaCode } from "@/lib/regionAreaCode";
 import {
   Stethoscope,
   Globe2,
@@ -211,6 +212,15 @@ function MedicalTourismInner() {
     const qs = v ? `?q=${encodeURIComponent(v)}` : "";
     router.replace(`/medical-tourism${qs}`);
   }, [router]);
+
+  const medicalWeatherRegionCode = useMemo(() => {
+    if (nearbyMode) return null;
+    const kw = keyword.trim();
+    if (!kw) return null;
+    const hit = REGION_SHORTCUTS.find((r) => r.keyword === kw);
+    if (hit) return hit.code;
+    return resolveAreaCode(kw);
+  }, [keyword, nearbyMode]);
 
   const onSubmit = (e) => {
     e.preventDefault();
@@ -421,10 +431,8 @@ function MedicalTourismInner() {
                 type="button"
                 className={`mt-chip ${keyword === r.keyword ? "mt-chip-active" : ""}`}
                 onClick={() => applyKeyword(r.keyword)}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
               >
-                <span>{t(`regionShortcuts.${r.code}`, r.keyword)}</span>
-                <RegionWeatherGlyph regionCode={r.code} size={16} />
+                {t(`regionShortcuts.${r.code}`, r.keyword)}
               </button>
             ))}
           </div>
@@ -594,6 +602,7 @@ function MedicalTourismInner() {
                     <MedicalTourismCard
                       key={s.id}
                       spot={s}
+                      weatherRegionCode={medicalWeatherRegionCode}
                       onOpen={() => setDetailSpot(s)}
                       isSaved={favHydrated ? isSaved(s.id) : false}
                       onToggleFav={() => toggleFav(s)}
@@ -688,7 +697,7 @@ function MarkerPopup({ spot, onOpen }) {
   );
 }
 
-function MedicalTourismCard({ spot, onOpen, isSaved: savedProp, onToggleFav }) {
+function MedicalTourismCard({ spot, weatherRegionCode, onOpen, isSaved: savedProp, onToggleFav }) {
   const { t } = useTranslation();
   const handleKey = (e) => {
     if (e.key === "Enter" || e.key === " ") {
@@ -734,11 +743,21 @@ function MedicalTourismCard({ spot, onOpen, isSaved: savedProp, onToggleFav }) {
               : `${spot.distanceKm.toFixed(1)}km`}
           </span>
         )}
+        {weatherRegionCode && (
+          <div
+            className="mt-weather-glyph"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            role="presentation"
+          >
+            <RegionWeatherGlyph regionCode={weatherRegionCode} size={18} variant="default" />
+          </div>
+        )}
         {/* 즐겨찾기 토글: 이미지 우측 상단, 카드 클릭과 이벤트 분리 */}
         {onToggleFav && (
           <button
             type="button"
-            className={`mt-fav ${savedProp ? "mt-fav-on" : ""}`}
+            className={`mt-fav ${savedProp ? "mt-fav-on" : ""} ${weatherRegionCode ? "mt-fav-nudge" : ""}`}
             onClick={handleFavClick}
             onKeyDown={(e) => e.stopPropagation()}
             aria-pressed={!!savedProp}
@@ -1074,9 +1093,16 @@ const cssBlock = `
   padding: 4px 10px; border-radius: 999px;
   backdrop-filter: blur(6px);
 }
+.mt-weather-glyph {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
+}
 .mt-fav {
   position: absolute;
-  top: 10px; right: 10px;
+  top: 10px;
+  right: 10px;
   width: 30px; height: 30px;
   border-radius: 999px;
   display: inline-flex; align-items: center; justify-content: center;
@@ -1086,6 +1112,9 @@ const cssBlock = `
   cursor: pointer;
   backdrop-filter: blur(6px);
   transition: transform 0.15s, background 0.15s, color 0.15s;
+}
+.mt-fav-nudge {
+  right: 46px;
 }
 .mt-fav:hover { transform: scale(1.1); background: rgba(239,68,68,0.4); }
 .mt-fav-on {

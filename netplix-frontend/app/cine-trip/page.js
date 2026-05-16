@@ -1073,7 +1073,11 @@ function CineTripPageInner() {
               >
                 <span>{localizedLabel}</span>
                 {region.areaCode != null && (
-                  <RegionWeatherGlyph regionCode={region.areaCode} size={17} />
+                  <RegionWeatherGlyph
+                    regionCode={region.areaCode}
+                    size={18}
+                    variant={active ? 'default' : 'onLight'}
+                  />
                 )}
               </motion.button>
             );
@@ -1126,6 +1130,7 @@ function CineTripPageInner() {
             title={t('tourGallery.regionSection')}
             subtitle={t('tourGallery.poweredBy')}
             limit={0}
+            weatherRegionCode={selectedAreaCode}
           />
         )}
 

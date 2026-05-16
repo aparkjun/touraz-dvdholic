@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { CalendarHeart, Sparkles, ArrowRight, Leaf } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
+import RegionWeatherGlyph from '@/components/RegionWeatherGlyph';
 
 /**
  * 정주행 회복 캘린더 · 웰니스 × 집중률 크로스오버 위젯.
@@ -292,10 +293,12 @@ function QuietDayCard({ r, rank, delay }) {
         />
         <div
           style={{
+            position: 'relative',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             marginBottom: 6,
+            minHeight: 26,
           }}
         >
           <span
@@ -306,12 +309,17 @@ function QuietDayCard({ r, rank, delay }) {
               fontSize: 11,
               fontWeight: 800,
               color: '#fde68a',
+              zIndex: 1,
             }}
           >
             <Sparkles size={12} /> #{rank}
           </span>
           <span
             style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              textAlign: 'center',
               fontSize: 11,
               padding: '3px 8px',
               borderRadius: 999,
@@ -319,9 +327,13 @@ function QuietDayCard({ r, rank, delay }) {
               background: `${color}22`,
               border: `1px solid ${color}55`,
               fontWeight: 700,
+              pointerEvents: 'none',
             }}
           >
             {t('wellnessCalendar.concentration', '혼잡도')} {r.concentrationRate.toFixed(1)}
+          </span>
+          <span style={{ zIndex: 1, display: 'inline-flex', alignItems: 'center' }}>
+            <RegionWeatherGlyph areaName={r.areaName} signguName={r.signguName} size={18} variant="default" />
           </span>
         </div>
         <div

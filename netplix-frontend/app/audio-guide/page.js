@@ -38,6 +38,7 @@ import {
   odiiLangChipLabel,
 } from "@/lib/audioGuideOdiiLang";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
+import { resolveAreaCode } from "@/lib/regionAreaCode";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
@@ -172,6 +173,15 @@ function AudioGuidePageInner() {
   const [userCoords, setUserCoords] = useState(null); // { lat, lng }
   const [wantNearby, setWantNearby] = useState(nearbyFromUrl);
   const [nearbyStatus, setNearbyStatus] = useState("idle"); // idle | locating | ready | denied | error
+
+  const audioWeatherRegionCode = useMemo(() => {
+    if (wantNearby) return null;
+    const kw = keyword.trim();
+    if (!kw) return null;
+    const hit = REGION_SHORTCUTS.find((r) => regionSearchKeyword(r, odiiLang) === kw);
+    if (hit) return hit.code;
+    return resolveAreaCode(kw);
+  }, [keyword, odiiLang, wantNearby]);
 
   const [items, setItems] = useState([]);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -974,10 +984,8 @@ function AudioGuidePageInner() {
                 type="button"
                 className={`agp-chip ${on ? "agp-chip-on" : ""}`}
                 onClick={() => applyRegion(regionKeyword)}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
               >
-                <span>{t(`regionShortcuts.${r.code}`, r.keyword)}</span>
-                <RegionWeatherGlyph regionCode={r.code} size={15} />
+                {t(`regionShortcuts.${r.code}`, r.keyword)}
               </button>
             );
           })}
@@ -1005,6 +1013,7 @@ function AudioGuidePageInner() {
               key={item.id}
               item={item}
               listKind={type}
+              weatherRegionCode={audioWeatherRegionCode}
               playing={
                 playingId != null && String(playingId) === String(item.id)
               }
@@ -1144,7 +1153,7 @@ function CourseCard({ icon, theme, title, desc, active, actionLabel, onClick, di
   );
 }
 
-function AudioCard({ item, listKind, playing, onToggle, onOpen }) {
+function AudioCard({ item, listKind, weatherRegionCode, playing, onToggle, onOpen }) {
   const { t } = useTranslation();
   const hasAudio = !!item.audioUrl;
   const isThemeList = listKind === "theme" || item.type === "THEME";
@@ -1190,10 +1199,20 @@ function AudioCard({ item, listKind, playing, onToggle, onOpen }) {
           </span>
         )}
         {isThemeList ? (
-          <span className="agp-card-theme-pill">
+          <span className={`agp-card-theme-pill ${weatherRegionCode ? "agp-card-theme-pill--weather" : ""}`}>
             {t("audioGuide.card.themeCourseBadge", "코스형")}
           </span>
         ) : null}
+        {weatherRegionCode && (
+          <div
+            className="agp-card-weather"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            role="presentation"
+          >
+            <RegionWeatherGlyph regionCode={weatherRegionCode} size={17} variant="default" />
+          </div>
+        )}
         {hasAudio ? (
           <button
             type="button"
@@ -1730,6 +1749,15 @@ const agpCss = `
   color: #a5f3fc;
   letter-spacing: 0.04em;
   pointer-events: none;
+}
+.agp-card-theme-pill--weather {
+  right: 50px;
+}
+.agp-card-weather {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
 }
 .agp-card-open-linked {
   position: absolute; right: 10px; bottom: 10px;

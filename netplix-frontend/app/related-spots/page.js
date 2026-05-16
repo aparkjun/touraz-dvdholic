@@ -623,9 +623,10 @@ function GroupCard({ group, onPickRelated }) {
               e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
               <RankBadge rank={r.rank} />
               <span style={{ fontSize: 14, fontWeight: 700, color: '#f5f5f5' }}>{r.relatedSpot}</span>
+              <RegionWeatherGlyph areaName={r.relatedAreaName} signguName={r.relatedSignguName} size={16} variant="default" />
             </div>
             <div style={{ fontSize: 11, color: '#94a3b8' }}>
               {[r.relatedAreaName, r.relatedSignguName].filter(Boolean).join(' · ') || '—'}

@@ -20,6 +20,7 @@ import {
   buildOdiiSearchFallbackQueries,
   mergeAudioGuideItemsById,
 } from "@/lib/photoGalleryRegionalAudio";
+import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
 
 /**
  * 관광사진갤러리 섹션 (공용 컴포넌트).
@@ -63,6 +64,8 @@ export default function TourGallerySection({
   soundLayerEnabled = false,
   /** Odii 검색어. 미입력 시 keyword 와 동일하게 사용 */
   soundSearchKeyword,
+  /** 광역 코드(1~39 등) — 카드 썸네일 우상단 동일 지역 날씨 표시 */
+  weatherRegionCode = null,
 }) {
   const { t, i18n } = useTranslation();
   const isRail = layout === "rail";
@@ -523,6 +526,16 @@ export default function TourGallerySection({
                       referrerPolicy="no-referrer"
                     />
                   )}
+                  {weatherRegionCode && (
+                    <span
+                      className="tg-weather"
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      role="presentation"
+                    >
+                      <RegionWeatherGlyph regionCode={weatherRegionCode} size={20} variant="default" />
+                    </span>
+                  )}
                 </div>
                 <div className="tg-body">
                   <div className="tg-ctitle" title={item.title || ""}>
@@ -922,6 +935,13 @@ const cssBlock = `
   height: 100%;
   object-fit: cover;
   display: block;
+}
+.tg-weather {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  pointer-events: auto;
 }
 .tg-body {
   padding: 10px 12px 12px;

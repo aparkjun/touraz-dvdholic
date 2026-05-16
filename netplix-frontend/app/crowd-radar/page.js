@@ -530,11 +530,9 @@ function CrowdRadarInner() {
                     style={{
                       ...styles.chip,
                       ...(areaFilter === code ? styles.chipActive : null),
-                      gap: 6,
                     }}
                   >
-                    <span>{t(`regionShortcuts.${code}`, AREA_LABEL[code])}</span>
-                    <RegionWeatherGlyph regionCode={code} size={15} />
+                    {t(`regionShortcuts.${code}`, AREA_LABEL[code])}
                   </button>
                 ))}
               </div>

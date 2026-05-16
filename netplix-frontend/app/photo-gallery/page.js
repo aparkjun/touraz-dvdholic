@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { Search, Camera, Headphones, Image as ImageIcon } from "lucide-react";
 import TourGallerySection from "@/components/TourGallerySection";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
-import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
+import { resolveAreaCode } from "@/lib/regionAreaCode";
 
 // 관광사진 DB 에서 히트율이 높은 대표 지역 키워드 (한국 광역 17곳).
 // "경기도"/"경상남도" 같은 정식명보다 축약형이 PhotoGalleryService1 검색에 유리.
@@ -84,6 +84,14 @@ function PhotoGalleryInner() {
       : t("photoGalleryPage.latest")),
     [keyword, t]
   );
+
+  const galleryWeatherRegionCode = useMemo(() => {
+    const kw = keyword.trim();
+    if (!kw) return null;
+    const hit = REGION_SHORTCUTS.find((r) => r.keyword === kw);
+    if (hit) return hit.code;
+    return resolveAreaCode(kw);
+  }, [keyword]);
 
   return (
     <div className="pgp-root">
@@ -162,10 +170,8 @@ function PhotoGalleryInner() {
                 type="button"
                 className={`pgp-chip ${keyword === r.keyword ? "pgp-chip-active" : ""}`}
                 onClick={() => applyKeyword(r.keyword)}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
               >
-                <span>{t(`regionShortcuts.${r.code}`, r.keyword)}</span>
-                <RegionWeatherGlyph regionCode={r.code} size={16} />
+                {t(`regionShortcuts.${r.code}`, r.keyword)}
               </button>
             ))}
           </div>
@@ -182,6 +188,7 @@ function PhotoGalleryInner() {
           infinite
           pageSize={60}
           soundLayerEnabled={layerMode === "sound"}
+          weatherRegionCode={galleryWeatherRegionCode}
         />
         {/* 섹션이 숨겨진(0건) 경우를 위한 빈 상태 안내 */}
         <NoResultsHint keyword={keyword} />

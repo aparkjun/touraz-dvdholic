@@ -58,6 +58,10 @@ function derivePickFromPayload(d) {
  * 광역 코드·행정명·좌표 중 하나로 기상청 단기/초단기 첫 슬롯 날씨 아이콘 표시.
  * 뷰포트 진입 후 로드(칩 다수 화면에서 요청 폭주 완화).
  */
+/**
+ * @param {'default'|'onLight'} variant — `onLight`: 밝은 칩(시네트립 비선택 등)에서 아이콘 대비·필 배경.
+ * @param {boolean} vivid — 그라데이션 링·채도로 컬러감 강화(기본 true).
+ */
 export default function RegionWeatherGlyph({
   regionCode,
   areaName,
@@ -67,6 +71,8 @@ export default function RegionWeatherGlyph({
   lng,
   size = 18,
   title: titleProp,
+  variant = 'default',
+  vivid = true,
 }) {
   const { t } = useTranslation();
   const wrapRef = useRef(null);
@@ -95,7 +101,7 @@ export default function RegionWeatherGlyph({
       ([e]) => {
         if (e.isIntersecting) setVisible(true);
       },
-      { rootMargin: '100px', threshold: 0.01 }
+      { rootMargin: '320px', threshold: 0 }
     );
     io.observe(el);
     return () => io.disconnect();
@@ -157,6 +163,48 @@ export default function RegionWeatherGlyph({
       : t('travelWeather.navWeather', '날씨'));
 
   const WIcon = pick?.Icon;
+  const onLight = variant === 'onLight';
+  const ip = pick?.iconProps && typeof pick.iconProps === 'object' ? pick.iconProps : {};
+  const strokeFromProps = ip.stroke ?? ip.color;
+
+  const pillBase = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 999,
+    padding: 3,
+  };
+  const pillStyle = onLight
+    ? {
+        ...pillBase,
+        background: 'rgba(255,255,255,0.88)',
+        border: '1px solid rgba(15,23,42,0.12)',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+      }
+    : {
+        ...pillBase,
+        background: 'rgba(15,23,42,0.45)',
+        border: '1px solid rgba(148,163,184,0.35)',
+        boxShadow: '0 1px 6px rgba(0,0,0,0.25)',
+        backdropFilter: 'blur(6px)',
+      };
+
+  const vividRing =
+    vivid && (phase === 'ready' || phase === 'loading')
+      ? {
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 2,
+          borderRadius: 999,
+          background: onLight
+            ? 'linear-gradient(135deg, rgba(251,191,36,0.55), rgba(56,189,248,0.45), rgba(167,139,250,0.5))'
+            : 'linear-gradient(135deg, rgba(251,191,36,0.85), rgba(14,165,233,0.65), rgba(168,85,247,0.7))',
+          boxShadow: onLight
+            ? '0 2px 10px rgba(56,189,248,0.25)'
+            : '0 2px 14px rgba(251,191,36,0.35)',
+        }
+      : null;
 
   return (
     <span
@@ -170,44 +218,106 @@ export default function RegionWeatherGlyph({
         lineHeight: 0,
       }}
     >
-      {phase === 'loading' && (
-        <Loader2
-          size={Math.max(12, size - 4)}
-          className="animate-spin"
-          style={{ opacity: 0.65, color: 'rgba(148,163,184,0.95)' }}
-          aria-hidden
-        />
-      )}
-      {phase !== 'loading' && WIcon && (
-        <span
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: 999,
-            padding: 3,
-            background: 'rgba(15,23,42,0.45)',
-            border: '1px solid rgba(148,163,184,0.35)',
-            boxShadow: '0 1px 6px rgba(0,0,0,0.25)',
-            backdropFilter: 'blur(6px)',
-          }}
-        >
-          <WIcon size={size} {...(pick.iconProps || {})} aria-hidden />
-        </span>
-      )}
-      {phase === 'ready' && !WIcon && (
-        <span
-          style={{
-            display: 'inline-flex',
-            padding: 3,
-            borderRadius: 999,
-            background: 'rgba(15,23,42,0.35)',
-            border: '1px solid rgba(148,163,184,0.25)',
-          }}
-        >
-          <Cloud size={size - 2} strokeWidth={1.4} color="#94a3b8" aria-hidden />
-        </span>
-      )}
+      {phase === 'loading' &&
+        (vividRing ? (
+          <span style={vividRing}>
+            <Loader2
+              size={Math.max(12, size - 4)}
+              className="animate-spin"
+              style={{
+                opacity: onLight ? 0.75 : 0.65,
+                color: onLight ? '#475569' : '#e2e8f0',
+                filter: vivid ? 'saturate(1.35)' : undefined,
+              }}
+              aria-hidden
+            />
+          </span>
+        ) : (
+          <Loader2
+            size={Math.max(12, size - 4)}
+            className="animate-spin"
+            style={{
+              opacity: onLight ? 0.75 : 0.65,
+              color: onLight ? '#64748b' : 'rgba(148,163,184,0.95)',
+            }}
+            aria-hidden
+          />
+        ))}
+      {phase !== 'loading' && WIcon &&
+        (vividRing ? (
+          <span style={vividRing}>
+            <span
+              style={{
+                ...pillStyle,
+                filter: vivid ? 'saturate(1.35) contrast(1.05)' : undefined,
+              }}
+            >
+              <WIcon
+                size={size}
+                {...ip}
+                stroke={strokeFromProps ?? (onLight ? '#0f172a' : '#e2e8f0')}
+                style={{
+                  ...(ip.style && typeof ip.style === 'object' ? ip.style : {}),
+                  filter: vivid ? 'drop-shadow(0 1px 3px rgba(0,0,0,0.35))' : undefined,
+                }}
+                aria-hidden
+              />
+            </span>
+          </span>
+        ) : (
+          <span
+            style={{
+              ...pillStyle,
+              filter: vivid ? 'saturate(1.35) contrast(1.05)' : undefined,
+            }}
+          >
+            <WIcon
+              size={size}
+              {...ip}
+              stroke={strokeFromProps ?? (onLight ? '#0f172a' : '#e2e8f0')}
+              style={
+                ip.style && typeof ip.style === 'object'
+                  ? { ...ip.style, filter: vivid ? 'drop-shadow(0 1px 3px rgba(0,0,0,0.35))' : ip.style.filter }
+                  : vivid
+                    ? { filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.35))' }
+                    : undefined
+              }
+              aria-hidden
+            />
+          </span>
+        ))}
+      {phase === 'ready' && !WIcon &&
+        (vividRing ? (
+          <span style={vividRing}>
+            <span
+              style={{
+                ...pillStyle,
+                filter: vivid ? 'saturate(1.25)' : undefined,
+              }}
+            >
+              <Cloud
+                size={size - 2}
+                strokeWidth={1.4}
+                stroke={onLight ? '#64748b' : '#94a3b8'}
+                aria-hidden
+              />
+            </span>
+          </span>
+        ) : (
+          <span
+            style={{
+              ...pillStyle,
+              filter: vivid ? 'saturate(1.25)' : undefined,
+            }}
+          >
+            <Cloud
+              size={size - 2}
+              strokeWidth={1.4}
+              stroke={onLight ? '#64748b' : '#94a3b8'}
+              aria-hidden
+            />
+          </span>
+        ))}
     </span>
   );
 }

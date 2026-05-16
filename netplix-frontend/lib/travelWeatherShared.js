@@ -233,78 +233,78 @@ function iconForMergedRow(row) {
     if (!isWetPty(ps)) {
       return {
         Icon: CloudRain,
-        iconProps: { strokeWidth: 1.5, color: '#0d9488' },
+        iconProps: { strokeWidth: 1.55, color: '#06b6d4' },
       };
     }
     if (ps === '3' || ps === '7') {
       return {
         Icon: CloudSnow,
-        iconProps: { strokeWidth: 1.55, color: '#e2e8f0' },
+        iconProps: { strokeWidth: 1.6, color: '#e0f2fe' },
       };
     }
     if (ps === '2' || ps === '6') {
       return {
         Icon: CloudSnow,
-        iconProps: { strokeWidth: 1.55, color: '#7dd3fc' },
+        iconProps: { strokeWidth: 1.6, color: '#7dd3fc' },
       };
     }
     if (ps === '4') {
       return {
         Icon: CloudLightning,
-        iconProps: { strokeWidth: 1.45, color: '#f59e0b' },
+        iconProps: { strokeWidth: 1.5, color: '#fbbf24' },
       };
     }
     if (ps === '5') {
       return {
         Icon: CloudDrizzle,
-        iconProps: { strokeWidth: 1.45, color: '#38bdf8' },
+        iconProps: { strokeWidth: 1.5, color: '#22d3ee' },
       };
     }
     if (ps === '1') {
       return {
         Icon: CloudRain,
-        iconProps: { strokeWidth: 1.5, color: '#0369a1' },
+        iconProps: { strokeWidth: 1.55, color: '#0ea5e9' },
       };
     }
     return {
       Icon: CloudRain,
-      iconProps: { strokeWidth: 1.5, color: '#334155' },
+      iconProps: { strokeWidth: 1.55, color: '#38bdf8' },
     };
   }
   const sk = String(row.sky ?? '');
   if (sk === '1') {
     return {
       Icon: Sun,
-      iconProps: { strokeWidth: 1.5, color: '#ca8a04' },
+      iconProps: { strokeWidth: 1.55, color: '#fbbf24' },
     };
   }
   if (sk === '2') {
     return {
       Icon: CloudSun,
-      iconProps: { strokeWidth: 1.45, color: '#fcd34d' },
+      iconProps: { strokeWidth: 1.5, color: '#fde047' },
     };
   }
   if (sk === '3') {
     return {
       Icon: CloudSun,
-      iconProps: { strokeWidth: 1.45, color: '#ca8a04' },
+      iconProps: { strokeWidth: 1.5, color: '#fcd34d' },
     };
   }
   if (sk === '4') {
     return {
       Icon: Cloud,
-      iconProps: { strokeWidth: 1.5, color: '#475569' },
+      iconProps: { strokeWidth: 1.55, color: '#94a3b8' },
     };
   }
   if (sk !== '') {
     return {
       Icon: Cloud,
-      iconProps: { strokeWidth: 1.45, color: '#64748b' },
+      iconProps: { strokeWidth: 1.5, color: '#a8b9cf' },
     };
   }
   return {
     Icon: Cloud,
-    iconProps: { strokeWidth: 1.5, color: '#64748b' },
+    iconProps: { strokeWidth: 1.5, color: '#94a3b8' },
   };
 }
 

@@ -27,6 +27,7 @@ import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
+import { resolveAreaCode } from "@/lib/regionAreaCode";
 import { MapServiceLinkButton } from "@/components/MapServiceLinkButton";
 import {
   Tent,
@@ -308,6 +309,15 @@ function CampingInner() {
     router.replace(`/camping${qs}`);
   }, [router]);
 
+  const campingWeatherRegionCode = useMemo(() => {
+    if (nearbyMode) return null;
+    const kw = keyword.trim();
+    if (!kw) return null;
+    const hit = REGION_SHORTCUTS.find((r) => r.keyword === kw);
+    if (hit) return hit.code;
+    return resolveAreaCode(kw);
+  }, [keyword, nearbyMode]);
+
   const onSubmit = (e) => {
     e.preventDefault();
     applyKeyword(searchInput);
@@ -505,10 +515,8 @@ function CampingInner() {
                 type="button"
                 className={`cmp-chip ${keyword === r.keyword ? "cmp-chip-active" : ""}`}
                 onClick={() => applyKeyword(r.keyword)}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
               >
-                <span>{t(`regionShortcuts.${r.code}`, r.keyword)}</span>
-                <RegionWeatherGlyph regionCode={r.code} size={16} />
+                {t(`regionShortcuts.${r.code}`, r.keyword)}
               </button>
             ))}
           </div>
@@ -635,7 +643,7 @@ function CampingInner() {
               <>
                 <div className="cmp-grid">
                   {sites.slice(0, visibleCount).map((s) => (
-                    <CampingCard key={s.id} site={s} />
+                    <CampingCard key={s.id} site={s} weatherRegionCode={campingWeatherRegionCode} />
                   ))}
                 </div>
                 {visibleCount < sites.length && (
@@ -728,7 +736,7 @@ function MarkerPopup({ site }) {
   );
 }
 
-function CampingCard({ site }) {
+function CampingCard({ site, weatherRegionCode }) {
   const { t } = useTranslation();
   const router = useRouter();
   const mapUrl = site.address
@@ -784,6 +792,16 @@ function CampingCard({ site }) {
             {site.distanceKm < 1
               ? `${Math.round(site.distanceKm * 1000)}m`
               : `${site.distanceKm.toFixed(1)}km`}
+          </span>
+        )}
+        {weatherRegionCode && (
+          <span
+            className="cmp-weather-glyph"
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            role="presentation"
+          >
+            <RegionWeatherGlyph regionCode={weatherRegionCode} size={18} variant="default" />
           </span>
         )}
       </div>
@@ -1137,6 +1155,12 @@ const cssBlock = `
   font-size: 0.72rem; font-weight: 800;
   padding: 4px 10px; border-radius: 999px;
   backdrop-filter: blur(6px);
+}
+.cmp-weather-glyph {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
 }
 
 .cmp-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 6px; }

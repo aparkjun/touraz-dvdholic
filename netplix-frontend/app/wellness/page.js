@@ -122,6 +122,20 @@ function WellnessInner() {
     return null;
   }, [nearbyMode, searchParams]);
 
+  const wellnessFilterWeatherCode = useMemo(() => {
+    if (nearbyMode) return null;
+    const kw = keyword.trim();
+    const regHit = REGION_SHORTCUTS.find((r) => r.keyword === kw);
+    if (regHit) return regHit.code;
+    if (korRegionFromUrl?.area) {
+      const a = String(korRegionFromUrl.area).trim();
+      if (/^\d+$/.test(a)) return a;
+      return resolveAreaCode(`${a} ${korRegionFromUrl.sigungu || ""}`.trim());
+    }
+    if (kw) return resolveAreaCode(kw);
+    return null;
+  }, [nearbyMode, keyword, korRegionFromUrl]);
+
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef(null);
   const lastKorScrollKey = useRef("");
@@ -462,10 +476,8 @@ function WellnessInner() {
                 type="button"
                 className={`wel-chip ${keyword === r.keyword ? "wel-chip-active" : ""}`}
                 onClick={() => applyKeyword(r.keyword)}
-                style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
               >
-                <span>{t(`regionShortcuts.${r.code}`, r.keyword)}</span>
-                <RegionWeatherGlyph regionCode={r.code} size={16} />
+                {t(`regionShortcuts.${r.code}`, r.keyword)}
               </button>
             ))}
           </div>
@@ -563,7 +575,7 @@ function WellnessInner() {
           <>
             <div className="wel-grid">
               {spots.slice(0, visibleCount).map((s) => (
-                <WellnessCard key={s.id} spot={s} onOpenDetail={setSelectedSpot} />
+                <WellnessCard key={s.id} spot={s} onOpenDetail={setSelectedSpot} filterWeatherCode={wellnessFilterWeatherCode} />
               ))}
             </div>
             {visibleCount < spots.length && (
@@ -589,9 +601,14 @@ function WellnessInner() {
   );
 }
 
-function WellnessCard({ spot, onOpenDetail }) {
+function WellnessCard({ spot, onOpenDetail, filterWeatherCode }) {
   const { t } = useTranslation();
-  const weatherRegionCode = spot.address ? resolveAreaCode(spot.address) : null;
+  const weatherRegionCode =
+    filterWeatherCode != null && filterWeatherCode !== ""
+      ? String(filterWeatherCode)
+      : spot.address
+        ? resolveAreaCode(spot.address)
+        : null;
   const mapUrl = spot.address
     ? `https://map.kakao.com/link/search/${encodeURIComponent(spot.address)}`
     : null;
