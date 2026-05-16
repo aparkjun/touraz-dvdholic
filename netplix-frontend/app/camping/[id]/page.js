@@ -37,7 +37,13 @@ import {
   Navigation,
   Image as ImageIcon,
   Compass,
+  Bath,
+  Droplets,
+  Flame,
+  Shield,
+  Layers,
 } from "lucide-react";
+import { buildCampingFacilityView } from "@/lib/campingFacilities";
 
 let L, MapContainer, TileLayer, Marker, Popup;
 let greenIcon;
@@ -182,6 +188,11 @@ function CampingDetailInner() {
     if (!site?.induty) return [];
     return String(site.induty).split(/[,，、\/]/).map((s) => s.trim()).filter(Boolean);
   }, [site?.induty]);
+
+  const facilities = useMemo(
+    () => buildCampingFacilityView(site),
+    [site],
+  );
 
   const onShare = useCallback(async () => {
     if (typeof window === "undefined") return;
@@ -387,6 +398,96 @@ function CampingDetailInner() {
                   </li>
                 )}
               </ul>
+            </section>
+
+            <section className="cmd-card cmd-card-wide">
+              <h2 className="cmd-card-title">
+                <Layers size={14} />
+                <span>{t("camping.amenitiesTitle")} · {t("camping.safetyTitle")}</span>
+              </h2>
+              {!facilities.hasAny ? (
+                <p className="cmd-card-text cmd-card-text-muted">{t("camping.noFacilities")}</p>
+              ) : (
+                <div className="cmd-facility-grid">
+                  {facilities.sites.length > 0 && (
+                    <div className="cmd-facility-block">
+                      <h3 className="cmd-facility-sub">{t("camping.sitesTitle")}</h3>
+                      <div className="cmd-facility-chips">
+                        {facilities.sites.map((row) => (
+                          <span key={row.key} className="cmd-fchip cmd-fchip-site">
+                            {t(`camping.site.${row.key}`)}
+                            <em>{t("camping.unitCount", { count: row.count })}</em>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {facilities.coreAmenities.length > 0 && (
+                    <div className="cmd-facility-block">
+                      <h3 className="cmd-facility-sub">{t("camping.amenitiesTitle")}</h3>
+                      <div className="cmd-facility-chips">
+                        {facilities.coreAmenities.map((row) => {
+                          const Icon = row.key === "toilet" ? Bath : Droplets;
+                          return (
+                            <span key={row.key} className="cmd-fchip cmd-fchip-amenity">
+                              <Icon size={13} aria-hidden />
+                              {t(`camping.amenity.${row.key}`)}
+                              {row.count != null && (
+                                <em>{t("camping.unitCount", { count: row.count })}</em>
+                              )}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {facilities.safety.length > 0 && (
+                    <div className="cmd-facility-block">
+                      <h3 className="cmd-facility-sub">{t("camping.safetyTitle")}</h3>
+                      <div className="cmd-facility-chips">
+                        {facilities.safety.map((row) => (
+                          <span key={row.key} className="cmd-fchip cmd-fchip-safety">
+                            {row.key === "extinguisher" || row.key === "fireWater" ? (
+                              <Flame size={13} aria-hidden />
+                            ) : (
+                              <Shield size={13} aria-hidden />
+                            )}
+                            {t(`camping.safety.${row.key}`)}
+                            <em>{t("camping.unitCount", { count: row.count })}</em>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {facilities.sbrsTags.length > 0 && (
+                    <div className="cmd-facility-block">
+                      <h3 className="cmd-facility-sub">{t("camping.sbrsTitle")}</h3>
+                      <div className="cmd-facility-chips">
+                        {facilities.sbrsTags.map((tag) => (
+                          <span key={tag} className="cmd-fchip cmd-fchip-muted">{tag}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {facilities.extras.length > 0 && (
+                    <div className="cmd-facility-block">
+                      <h3 className="cmd-facility-sub">{t("camping.extrasTitle")}</h3>
+                      <ul className="cmd-extra-list">
+                        {facilities.extras.map((row) => (
+                          <li key={row.key}>
+                            <strong>{t(`camping.extra.${row.key}`)}</strong>
+                            <span>{row.value}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
             </section>
           </main>
 
@@ -648,7 +749,30 @@ const cssBlock = `
 .cmd-card-title {
   margin: 0 0 10px; font-size: 0.98rem; font-weight: 700;
   color: #a7f3d0; letter-spacing: 0.02em;
+  display: inline-flex; align-items: center; gap: 6px;
 }
+.cmd-card-wide { grid-column: 1 / -1; }
+.cmd-facility-grid { display: flex; flex-direction: column; gap: 16px; }
+.cmd-facility-sub {
+  margin: 0 0 8px; font-size: 0.82rem; font-weight: 700;
+  color: #d1d5db; letter-spacing: 0.04em; text-transform: uppercase;
+}
+.cmd-facility-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.cmd-fchip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.8rem; font-weight: 600; color: #e5e7eb;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  padding: 6px 11px; border-radius: 999px;
+}
+.cmd-fchip em { font-style: normal; font-size: 0.74rem; color: #86efac; font-weight: 700; }
+.cmd-fchip-site { border-color: rgba(34,197,94,0.28); background: rgba(34,197,94,0.1); }
+.cmd-fchip-amenity { border-color: rgba(14,165,233,0.28); background: rgba(14,165,233,0.1); }
+.cmd-fchip-safety { border-color: rgba(245,158,11,0.32); background: rgba(245,158,11,0.12); color: #fde68a; }
+.cmd-fchip-safety em { color: #fcd34d; }
+.cmd-fchip-muted { color: #c4c8cc; font-weight: 500; }
+.cmd-extra-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cmd-extra-list li { font-size: 0.86rem; color: #dcdcdc; line-height: 1.45; }
+.cmd-extra-list strong { display: block; font-size: 0.76rem; color: #9ca3af; margin-bottom: 2px; }
 .cmd-card-text { margin: 0; color: #dcdcdc; font-size: 0.9rem; line-height: 1.6; }
 .cmd-card-text-muted { color: #888; }
 .cmd-card-pre { white-space: pre-wrap; }

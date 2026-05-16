@@ -426,7 +426,41 @@
     "noIntro": "등록된 소개가 없어요.",
     "noDirection": "등록된 안내가 없어요.",
     "noGallery": "등록된 사진이 없어요.",
-    "loadingDetail": "야영장 정보를 불러오는 중…"
+    "loadingDetail": "야영장 정보를 불러오는 중…",
+    "sitesTitle": "사이트 규모",
+    "amenitiesTitle": "편의시설",
+    "safetyTitle": "안전시설",
+    "sbrsTitle": "부대시설",
+    "extrasTitle": "기타 정보",
+    "noFacilities": "등록된 시설 정보가 없어요.",
+    "unitCount": "{{count}}개",
+    "site": {
+      "gnrl": "일반 야영",
+      "auto": "자동차 야영",
+      "glamp": "글램핑",
+      "carav": "카라반",
+      "indvdlCarav": "개인 카라반",
+      "dump": "덤프스테이션"
+    },
+    "amenity": {
+      "toilet": "화장실",
+      "shower": "샤워실",
+      "sink": "개수대"
+    },
+    "safety": {
+      "extinguisher": "소화기",
+      "fireWater": "방화수",
+      "fireSand": "방화사",
+      "fireSensor": "화재감지기"
+    },
+    "extra": {
+      "sbrsEtc": "기타 부대",
+      "nearby": "주변 이용",
+      "theme": "테마 환경",
+      "brazier": "화로대",
+      "rental": "장비 대여",
+      "pet": "반려동물"
+    }
   },
   "nearbyCamping": {
     "title": "근처 야영장",

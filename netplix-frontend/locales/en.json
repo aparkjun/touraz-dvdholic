@@ -426,7 +426,41 @@
     "noIntro": "No description registered.",
     "noDirection": "No directions registered.",
     "noGallery": "No photos registered.",
-    "loadingDetail": "Loading campsite info…"
+    "loadingDetail": "Loading campsite info…",
+    "sitesTitle": "Site capacity",
+    "amenitiesTitle": "Amenities",
+    "safetyTitle": "Safety equipment",
+    "sbrsTitle": "Facilities",
+    "extrasTitle": "More info",
+    "noFacilities": "No facility data registered.",
+    "unitCount": "{{count}}",
+    "site": {
+      "gnrl": "General camping",
+      "auto": "RV / auto camping",
+      "glamp": "Glamping",
+      "carav": "Caravan",
+      "indvdlCarav": "Private caravan",
+      "dump": "Dump station"
+    },
+    "amenity": {
+      "toilet": "Restrooms",
+      "shower": "Showers",
+      "sink": "Wash stations"
+    },
+    "safety": {
+      "extinguisher": "Fire extinguishers",
+      "fireWater": "Fire water",
+      "fireSand": "Fire sand",
+      "fireSensor": "Fire sensors"
+    },
+    "extra": {
+      "sbrsEtc": "Other facilities",
+      "nearby": "Nearby services",
+      "theme": "Theme / setting",
+      "brazier": "Fire pit",
+      "rental": "Equipment rental",
+      "pet": "Pets"
+    }
   },
   "nearbyCamping": {
     "title": "Nearby Campsites",

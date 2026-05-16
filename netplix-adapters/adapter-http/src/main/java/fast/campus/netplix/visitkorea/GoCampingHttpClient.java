@@ -486,29 +486,33 @@ public class GoCampingHttpClient implements CampingSitePort {
                 .direction(nullIfBlank(i.getDirection()))
                 .doNm(nullIfBlank(i.getDoNm()))
                 .sigunguNm(nullIfBlank(i.getSigunguNm()))
+                .gnrlSiteCo(parseInt(i.getGnrlSiteCo()))
+                .autoSiteCo(parseInt(i.getAutoSiteCo()))
+                .glampSiteCo(parseInt(i.getGlampSiteCo()))
+                .caravSiteCo(parseInt(i.getCaravSiteCo()))
+                .indvdlCaravSiteCo(parseInt(i.getIndvdlCaravSiteCo()))
+                .sitedStncCo(parseInt(i.getSitedStncCo()))
+                .toiletCo(parseInt(i.getToiletCo()))
+                .swrmCo(parseInt(i.getSwrmCo()))
+                .wpcfcCo(parseInt(i.getWpcfcCo()))
+                .extshrCo(parseInt(i.getExtshrCo()))
+                .frprvtWrppCo(parseInt(i.getFrprvtWrppCo()))
+                .frprvtSandCo(parseInt(i.getFrprvtSandCo()))
+                .fireSensorCo(parseInt(i.getFireSensorCo()))
+                .sbrsCl(nullIfBlank(i.getSbrsCl()))
+                .sbrsEtc(nullIfBlank(i.getSbrsEtc()))
+                .posblFcltyCl(nullIfBlank(i.getPosblFcltyCl()))
+                .themaEnvrnCl(nullIfBlank(i.getThemaEnvrnCl()))
+                .brazierCl(nullIfBlank(i.getBrazierCl()))
+                .eqpmnLendCl(nullIfBlank(i.getEqpmnLendCl()))
+                .animalCmgCl(nullIfBlank(i.getAnimalCmgCl()))
                 .build();
     }
 
     private static CampingSite withDistance(CampingSite s, double lat, double lng) {
         if (s.getLatitude() == null || s.getLongitude() == null) return s;
         double d = haversineKm(lat, lng, s.getLatitude(), s.getLongitude());
-        return CampingSite.builder()
-                .id(s.getId())
-                .name(s.getName())
-                .address(s.getAddress())
-                .zipcode(s.getZipcode())
-                .latitude(s.getLatitude())
-                .longitude(s.getLongitude())
-                .induty(s.getInduty())
-                .lctCl(s.getLctCl())
-                .shortIntro(s.getShortIntro())
-                .longIntro(s.getLongIntro())
-                .imageUrl(s.getImageUrl())
-                .tel(s.getTel())
-                .homepage(s.getHomepage())
-                .direction(s.getDirection())
-                .doNm(s.getDoNm())
-                .sigunguNm(s.getSigunguNm())
+        return s.toBuilder()
                 .distanceKm(Math.round(d * 100.0) / 100.0)
                 .build();
     }
@@ -528,6 +532,17 @@ public class GoCampingHttpClient implements CampingSitePort {
         if (s == null || s.isBlank()) return null;
         try { return Double.parseDouble(s.trim()); }
         catch (NumberFormatException e) { return null; }
+    }
+
+    /** GoCamping 수량 필드는 문자열 "0" / 빈값 / null 혼재 → 양수만 Integer 로 반환. */
+    private static Integer parseInt(String s) {
+        if (s == null || s.isBlank()) return null;
+        try {
+            int n = Integer.parseInt(s.trim());
+            return n > 0 ? n : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private static String nullIfBlank(String s) { return (s == null || s.isBlank()) ? null : s; }

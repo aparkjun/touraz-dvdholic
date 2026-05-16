@@ -88,5 +88,33 @@ public class GoCampingResponse {
         private String sigunguNm;
         private String createdtime;
         private String modifiedtime;
+
+        // 사이트 규모 (개수)
+        private String gnrlSiteCo;
+        private String autoSiteCo;
+        private String glampSiteCo;
+        private String caravSiteCo;
+        private String indvdlCaravSiteCo;
+        private String sitedStncCo;
+
+        // 편의시설 (개수 — 미집계 시 빈 문자열)
+        private String toiletCo;
+        private String swrmCo;
+        private String wpcfcCo;
+
+        // 안전시설 (개수)
+        private String extshrCo;
+        private String frprvtWrppCo;
+        private String frprvtSandCo;
+        private String fireSensorCo;
+
+        // 부대·주변·테마 (쉼표 구분 코드/명칭 문자열)
+        private String sbrsCl;
+        private String sbrsEtc;
+        private String posblFcltyCl;
+        private String themaEnvrnCl;
+        private String brazierCl;
+        private String eqpmnLendCl;
+        private String animalCmgCl;
     }
 }

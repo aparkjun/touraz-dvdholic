@@ -4,8 +4,6 @@ import fast.campus.netplix.camping.CampingSite;
 
 /**
  * 프론트엔드 전달용 야영장 DTO (GoCamping).
- * - 좌표는 double 로 내려 보내지도 마커 렌더에 바로 사용.
- * - 전화번호/이미지/홈페이지 는 null 허용 (UI 에서 "정보 없음" 처리).
  */
 public record CampingSiteResponse(
         String id,
@@ -24,7 +22,27 @@ public record CampingSiteResponse(
         String direction,
         String doNm,
         String sigunguNm,
-        Double distanceKm
+        Double distanceKm,
+        Integer gnrlSiteCo,
+        Integer autoSiteCo,
+        Integer glampSiteCo,
+        Integer caravSiteCo,
+        Integer indvdlCaravSiteCo,
+        Integer sitedStncCo,
+        Integer toiletCo,
+        Integer swrmCo,
+        Integer wpcfcCo,
+        Integer extshrCo,
+        Integer frprvtWrppCo,
+        Integer frprvtSandCo,
+        Integer fireSensorCo,
+        String sbrsCl,
+        String sbrsEtc,
+        String posblFcltyCl,
+        String themaEnvrnCl,
+        String brazierCl,
+        String eqpmnLendCl,
+        String animalCmgCl
 ) {
     public static CampingSiteResponse from(CampingSite s) {
         return new CampingSiteResponse(
@@ -44,7 +62,27 @@ public record CampingSiteResponse(
                 s.getDirection(),
                 s.getDoNm(),
                 s.getSigunguNm(),
-                s.getDistanceKm()
+                s.getDistanceKm(),
+                s.getGnrlSiteCo(),
+                s.getAutoSiteCo(),
+                s.getGlampSiteCo(),
+                s.getCaravSiteCo(),
+                s.getIndvdlCaravSiteCo(),
+                s.getSitedStncCo(),
+                s.getToiletCo(),
+                s.getSwrmCo(),
+                s.getWpcfcCo(),
+                s.getExtshrCo(),
+                s.getFrprvtWrppCo(),
+                s.getFrprvtSandCo(),
+                s.getFireSensorCo(),
+                s.getSbrsCl(),
+                s.getSbrsEtc(),
+                s.getPosblFcltyCl(),
+                s.getThemaEnvrnCl(),
+                s.getBrazierCl(),
+                s.getEqpmnLendCl(),
+                s.getAnimalCmgCl()
         );
     }
 }
