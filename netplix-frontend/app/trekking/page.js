@@ -25,6 +25,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
+import { fetchDurunubiGpxBlob, looksLikeGpxXml } from '@/lib/fetchDurunubiGpx';
 import NearbyCineTripStrip from '@/components/NearbyCineTripStrip';
 import { resolveDurunubiCourseAreaCode, areaCodeToLabel } from '@/lib/regionMap';
 import { getCuratedCourses } from '@/lib/curatedTrekkingCourses';
@@ -139,11 +140,6 @@ function parseFilenameFromContentDisposition(cd) {
   const plain = cd.match(/filename=([^;\s]+)/i);
   if (plain) return plain[1].replace(/^"|"$/g, '');
   return null;
-}
-
-function looksLikeGpxXml(textHead) {
-  const h = textHead.trimStart().replace(/^\ufeff/, '').toLowerCase();
-  return h.startsWith('<?xml') || h.startsWith('<gpx');
 }
 
 /**
@@ -742,21 +738,13 @@ function CourseCard({ course, fallbackAreaCode }) {
     gpxAbortRef.current = ac;
     setGpxLoading(true);
     setGpxError('');
-    const nameQ = encodeURIComponent(course.crsKorNm || course.crsIdx || 'durunubi-course');
-    const path = `/api/v1/tour/trekking/gpx?url=${encodeURIComponent(course.gpxpath)}&name=${nameQ}`;
     try {
-      const res = await axios.get(path, {
-        responseType: 'blob',
+      const blob = await fetchDurunubiGpxBlob({
+        gpxUrl: course.gpxpath,
+        name: course.crsKorNm || course.crsIdx || 'durunubi-course',
         signal: ac.signal,
-        timeout: 28000,
       });
-      const blob = res.data;
-      if (!(blob instanceof Blob) || blob.size < 200) {
-        setGpxError(t('trekking.gpxDownloadFailed', 'GPX를 받지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.'));
-        return;
-      }
-      const peekLen = Math.min(512, blob.size);
-      const head = await blob.slice(0, peekLen).text();
+      const head = await blob.slice(0, Math.min(512, blob.size)).text();
       if (!looksLikeGpxXml(head)) {
         setGpxError(t('trekking.gpxDownloadInvalid', '유효한 GPX가 아닙니다. 잠시 후 다시 시도해 주세요.'));
         return;

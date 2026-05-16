@@ -9,6 +9,9 @@ const config: CapacitorConfig = {
     cleartext: false,
   },
   plugins: {
+    CapacitorHttp: {
+      enabled: true,
+    },
     Browser: {
       presentationStyle: 'popover'
     },

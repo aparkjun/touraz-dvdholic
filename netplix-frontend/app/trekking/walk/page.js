@@ -9,18 +9,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import dynamic from 'next/dynamic';
 import { ArrowLeft, MapPin, Pause, Play, LocateFixed } from 'lucide-react';
-import axios from '@/lib/axiosConfig';
+import { fetchDurunubiGpxXml } from '@/lib/fetchDurunubiGpx';
 import { parseGpxTrackPoints } from '@/lib/gpxParser';
 import { formatDistanceMeters, formatDurationMs, haversineMeters, pathLengthMeters } from '@/lib/trekkingGeo';
 
 const TrekkingWalkMap = dynamic(() => import('@/components/TrekkingWalkMap'), { ssr: false });
 
 const RETURN_KEY = 'trekking-return';
-
-function looksLikeGpxXml(textHead) {
-  const h = (textHead || '').trim().toLowerCase();
-  return h.startsWith('<?xml') || h.startsWith('<gpx');
-}
 
 function TrekkingWalkInner() {
   const { t } = useTranslation();
@@ -62,17 +57,10 @@ function TrekkingWalkInner() {
       return undefined;
     }
     let alive = true;
-    const nameQ = encodeURIComponent(title || 'durunubi-course');
-    const path = `/api/v1/tour/trekking/gpx?url=${encodeURIComponent(gpxUrl)}&name=${nameQ}`;
-    axios
-      .get(path, { responseType: 'text', timeout: 28000 })
-      .then((res) => {
+    const ac = new AbortController();
+    fetchDurunubiGpxXml(gpxUrl, { name: title || 'durunubi-course', signal: ac.signal })
+      .then((xml) => {
         if (!alive) return;
-        const xml = typeof res.data === 'string' ? res.data : '';
-        if (!looksLikeGpxXml(xml.slice(0, 512))) {
-          setLoadError(t('trekking.walk.gpxInvalid', 'GPX를 불러오지 못했어요.'));
-          return;
-        }
         const pts = parseGpxTrackPoints(xml);
         if (!pts.length) {
           setLoadError(t('trekking.walk.gpxEmpty', '코스 좌표가 비어 있어요.'));
@@ -89,6 +77,7 @@ function TrekkingWalkInner() {
       });
     return () => {
       alive = false;
+      ac.abort();
     };
   }, [gpxUrl, title, t]);
 
