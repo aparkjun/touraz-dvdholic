@@ -78,19 +78,87 @@ export function sigunToAreaCode(sigun) {
   return normalizeAreaCode(resolveAreaCode(trimmed));
 }
 
+/** 해파랑·서해랑·남파랑 등 긴 코스에서 sigun 없을 때 지명·주소로 광역 추정 */
+const LOCALITY_TO_AREA_CODE = {
+  속초: 32, 고성: 32, 양양: 32, 강릉: 32, 동해: 32, 삼척: 32, 태백: 32, 정선: 32, 영월: 32, 원주: 32, 춘천: 32,
+  포항: 37, 경주: 37, 울진: 37, 영덕: 37, 안동: 37, 구미: 37, 김천: 37, 상주: 37, 문경: 37, 영주: 37,
+  울산: 7, 부산: 6, 해운대: 6, 기장: 6, 거제: 38, 통영: 38, 사천: 38, 남해: 38, 하동: 38, 진주: 38, 창원: 38, 김해: 38, 밀양: 38,
+  목포: 36, 여수: 36, 순천: 36, 광양: 36, 완도: 36, 해남: 36, 강진: 36, 보성: 36, 고흥: 36, 나주: 36,
+  군산: 35, 전주: 35, 익산: 35, 정읍: 35, 남원: 35, 무주: 35, 장수: 35,
+  보령: 34, 서산: 34, 태안: 34, 당진: 34, 아산: 34, 천안: 34, 공주: 34, 논산: 34, 부여: 34, 서천: 34, 홍성: 34,
+  인천: 2, 강화: 2, 옹진: 2, 평택: 31, 안산: 31, 시흥: 31, 화성: 31, 수원: 31, 용인: 31, 파주: 31, 김포: 31, 고양: 31,
+  제주: 39, 서귀포: 39,
+};
+
+/** routeIdx 별 대표 광역 풀 — 코스별 지명 매칭 실패 시 crsIdx 해시로 분산 */
+const ROUTE_IDX_AREA_POOL = {
+  T_THEME_MNG0000011235: [32, 37, 7, 6, 38],
+  T_ROUTE_MNG0000000001: [6, 38, 36, 39, 34, 35],
+  T_ROUTE_MNG0000000043: [2, 31, 34, 35, 36, 38],
+};
+
+function stripHtml(s) {
+  if (!s || typeof s !== 'string') return '';
+  return s.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function localityToAreaCode(text) {
+  if (!text || typeof text !== 'string') return null;
+  const keys = Object.keys(LOCALITY_TO_AREA_CODE).sort((a, b) => b.length - a.length);
+  for (const k of keys) {
+    if (text.includes(k)) return LOCALITY_TO_AREA_CODE[k];
+  }
+  return null;
+}
+
+function hashSeed(s) {
+  let h = 0;
+  const str = String(s || '');
+  for (let i = 0; i < str.length; i += 1) {
+    h = (h * 31 + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
 /**
- * 두루누비·큐레이션 코스 객체에서 날씨용 광역 코드 추정.
- * sigun → 시·종점 주소 → 화면에서 선택한 지역 필터 순으로 시도.
+ * 둘레길 routeIdx + 코스 식별자로 광역 코드 폴백 (해파랑·서해랑 등 지명 미기재 코스).
  */
-export function resolveDurunubiCourseAreaCode(course, fallbackAreaCode = null) {
-  const fields = [course?.sigun, course?.cpnBgng, course?.cpnEnd];
+export function routeIdxFallbackAreaCode(routeIdx, seed = '') {
+  const pool = ROUTE_IDX_AREA_POOL[routeIdx];
+  if (!pool?.length) return null;
+  return pool[hashSeed(seed || routeIdx) % pool.length];
+}
+
+/**
+ * 두루누비·큐레이션 코스 객체에서 광역 코드 추정.
+ * sigun → 시·종점 주소 → 코스명·소개 → 지명 사전 → 지역 필터 순.
+ * @param {{ forWeather?: boolean }} [opts] — true 면 routeIdx 풀·기본값까지 사용(날씨 아이콘 전용).
+ */
+export function resolveDurunubiCourseAreaCode(course, fallbackAreaCode = null, opts = {}) {
+  const { forWeather = false } = opts;
+  const fields = [
+    course?.sigun,
+    course?.cpnBgng,
+    course?.cpnEnd,
+    course?.crsKorNm,
+    stripHtml(course?.crsTourInfo),
+    stripHtml(course?.crsContents),
+  ];
   for (const raw of fields) {
     if (raw == null || String(raw).trim() === '') continue;
     const text = String(raw).trim();
-    const code = sigunToAreaCode(text) ?? normalizeAreaCode(resolveAreaCode(text));
+    const code =
+      sigunToAreaCode(text) ??
+      localityToAreaCode(text) ??
+      normalizeAreaCode(resolveAreaCode(text));
     if (code != null) return code;
   }
-  return normalizeAreaCode(fallbackAreaCode);
+  const fb = normalizeAreaCode(fallbackAreaCode);
+  if (fb != null) return fb;
+  if (!forWeather) return null;
+  return (
+    routeIdxFallbackAreaCode(course?.routeIdx, course?.crsIdx || course?.crsKorNm) ?? 32
+  );
 }
 
 /** areaCode → 한글 광역 라벨 (없으면 빈 문자열) */

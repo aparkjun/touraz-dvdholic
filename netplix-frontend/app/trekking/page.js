@@ -697,7 +697,9 @@ function CourseCard({ course, fallbackAreaCode }) {
   const [gpxLoading, setGpxLoading] = useState(false);
   const [gpxError, setGpxError] = useState('');
   const gpxAbortRef = useRef(null);
-  const courseAreaCode = resolveDurunubiCourseAreaCode(course, fallbackAreaCode);
+  const courseAreaCode = resolveDurunubiCourseAreaCode(course, fallbackAreaCode, {
+    forWeather: true,
+  });
   const courseAreaLabel = areaCodeToLabel(courseAreaCode);
 
   useEffect(() => {
@@ -764,11 +766,9 @@ function CourseCard({ course, fallbackAreaCode }) {
           borderRadius: '50%', background: acc.bg, opacity: 0.18, filter: 'blur(8px)',
         }}
       />
-      {courseAreaCode ? (
-        <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 4 }}>
-          <RegionWeatherGlyph regionCode={courseAreaCode} size={20} />
-        </div>
-      ) : null}
+      <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 4 }}>
+        <RegionWeatherGlyph regionCode={courseAreaCode} size={20} eager />
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
         {routeLabel && (
           <span
@@ -941,7 +941,7 @@ function CourseCard({ course, fallbackAreaCode }) {
 function CuratedCourseCard({ course, areaCode }) {
   const { t } = useTranslation();
   const [cineOpen, setCineOpen] = useState(false);
-  const weatherAreaCode = resolveDurunubiCourseAreaCode(course, areaCode);
+  const weatherAreaCode = resolveDurunubiCourseAreaCode(course, areaCode, { forWeather: true });
   const accent = {
     bg: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)',
     chipBg: 'rgba(253,224,71,0.18)',
@@ -963,11 +963,9 @@ function CuratedCourseCard({ course, areaCode }) {
           borderRadius: '50%', background: accent.bg, opacity: 0.15, filter: 'blur(8px)',
         }}
       />
-      {weatherAreaCode ? (
-        <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 4 }}>
-          <RegionWeatherGlyph regionCode={weatherAreaCode} size={20} />
-        </div>
-      ) : null}
+      <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 4 }}>
+        <RegionWeatherGlyph regionCode={weatherAreaCode} size={20} eager />
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
         <span
           style={{
