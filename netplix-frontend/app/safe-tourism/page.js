@@ -133,6 +133,34 @@ function SafeTourismInner() {
 
   const areaLabel = useMemo(() => areaKeyword || null, [areaKeyword]);
 
+  const goBackDashboard = useCallback(() => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+      return;
+    }
+    router.push('/dashboard');
+  }, [router]);
+
+  const openDetail = useCallback(
+    (item) => {
+      if (!item?.detailUrl) return;
+      const from =
+        typeof window !== 'undefined'
+          ? `${window.location.pathname}${window.location.search}`
+          : '/safe-tourism';
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('safe-tourism-return', from);
+      }
+      const params = new URLSearchParams({
+        url: item.detailUrl,
+        title: item.name || '',
+        from,
+      });
+      router.push(`/safe-tourism/view?${params.toString()}`);
+    },
+    [router],
+  );
+
   return (
     <div className="stc-root">
       <style>{cssBlock}</style>
@@ -140,10 +168,10 @@ function SafeTourismInner() {
 
       <header className="stc-hero">
         <div className="stc-hero-inner">
-          <Link href="/dashboard" className="stc-back">
+          <button type="button" className="stc-back" onClick={goBackDashboard}>
             <ArrowLeft size={14} />
             {t('safeTourismPage.backDashboard', '대시보드')}
-          </Link>
+          </button>
           <div className="stc-tag">
             <ShieldCheck size={14} />
             <span>KTO Safe Tourism</span>
@@ -205,12 +233,17 @@ function SafeTourismInner() {
           <ul className="stc-grid">
             {items.map((item) => (
               <li key={item.id || item.name} className="stc-card">
-                <a
-                  href={item.detailUrl || '#'}
-                  target={item.detailUrl ? '_blank' : undefined}
-                  rel={item.detailUrl ? 'noopener noreferrer' : undefined}
-                  className="stc-card-link"
-                  onClick={!item.detailUrl ? (e) => e.preventDefault() : undefined}
+                <div
+                  role={item.detailUrl ? 'button' : undefined}
+                  tabIndex={item.detailUrl ? 0 : undefined}
+                  className={`stc-card-link${item.detailUrl ? ' stc-card-link-action' : ''}`}
+                  onClick={() => openDetail(item)}
+                  onKeyDown={(e) => {
+                    if (item.detailUrl && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault();
+                      openDetail(item);
+                    }
+                  }}
                 >
                   <div className="stc-thumb">
                     {item.imageUrl ? (
@@ -241,7 +274,7 @@ function SafeTourismInner() {
                       </span>
                     )}
                   </div>
-                </a>
+                </div>
               </li>
             ))}
           </ul>
@@ -318,6 +351,11 @@ const cssBlock = `
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 16px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
 }
 .stc-tag {
   display: inline-flex;
@@ -444,6 +482,13 @@ const cssBlock = `
   height: 100%;
   text-decoration: none;
   color: inherit;
+}
+.stc-card-link-action {
+  cursor: pointer;
+}
+.stc-card-link-action:focus-visible {
+  outline: 2px solid #5eead4;
+  outline-offset: 2px;
 }
 .stc-thumb {
   position: relative;
