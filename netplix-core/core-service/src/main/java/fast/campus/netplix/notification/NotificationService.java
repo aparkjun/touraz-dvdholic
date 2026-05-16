@@ -8,8 +8,13 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 @Slf4j
 @Service
@@ -21,6 +26,9 @@ public class NotificationService implements NotificationUseCase {
     /** 앱 스케줄러의 영화 목록 배치 알림 제목과 동일해야 한다. */
     public static final String TITLE_MOVIE_LIST_UPDATE = "영화 목록 업데이트";
     private static final String NOTIFICATION_TYPE_SYSTEM = "SYSTEM";
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul");
+    private static final Set<String> DAILY_LIST_BATCH_TITLES = Set.of(
+            TITLE_DVD_LIST_UPDATE, TITLE_MOVIE_LIST_UPDATE);
 
     private final NotificationPort notificationPort;
     private final SearchUserPort searchUserPort;
@@ -38,6 +46,10 @@ public class NotificationService implements NotificationUseCase {
 
     @Override
     public List<Notification> getNotifications(String userId) {
+        int removed = removeDuplicateDailyListNotices(userId);
+        if (removed > 0) {
+            log.info("[NOTI-DEDUPE] userId={} 당일 DVD·영화 목록 알림 중복 {}건 삭제", userId, removed);
+        }
         return notificationPort.findByUserId(userId);
     }
 
@@ -100,11 +112,20 @@ public class NotificationService implements NotificationUseCase {
             log.warn("[BATCH-NOTI] 알림 발송 대상 사용자 없음");
             return;
         }
+        LocalDateTime startOfKstDay = startOfKstDay(LocalDate.now(KST));
+        boolean dailyListTitle = DAILY_LIST_BATCH_TITLES.contains(title);
         log.info("[BATCH-NOTI] 발송 시작: title='{}', message='{}', relatedData길이={}, 대상={}명",
                 title, message, relatedData != null ? relatedData.length() : 0, allUserIds.size());
         int success = 0;
+        int skippedDuplicate = 0;
         for (String userId : allUserIds) {
             try {
+                if (dailyListTitle
+                        && notificationPort.existsByUserIdAndTitleAndNotificationTypeAndSentAtGreaterThanEqual(
+                        userId, title, NOTIFICATION_TYPE_SYSTEM, startOfKstDay)) {
+                    skippedDuplicate++;
+                    continue;
+                }
                 Notification notification = Notification.systemNotice(userId, title, message, relatedData);
                 notificationPort.save(notification);
                 success++;
@@ -112,7 +133,7 @@ public class NotificationService implements NotificationUseCase {
                 log.error("[BATCH-NOTI] userId={} 알림 저장 실패: {}", userId, e.getMessage());
             }
         }
-        log.info("[BATCH-NOTI] 발송 완료: {}/{}명 성공", success, allUserIds.size());
+        log.info("[BATCH-NOTI] 발송 완료: {}/{}명 성공, 당일 중복 스킵 {}명", success, allUserIds.size(), skippedDuplicate);
         if (success > 0) {
             recordDailyListBatchSnapshotIfApplicable(title, message, relatedData);
         }
@@ -168,8 +189,8 @@ public class NotificationService implements NotificationUseCase {
         if (userId == null || userId.isBlank()) {
             return;
         }
-        LocalDate todayKst = LocalDate.now(ZoneId.of("Asia/Seoul"));
-        LocalDateTime startOfKstDay = todayKst.atStartOfDay(ZoneId.of("Asia/Seoul")).toLocalDateTime();
+        LocalDate todayKst = LocalDate.now(KST);
+        LocalDateTime startOfKstDay = startOfKstDay(todayKst);
 
         LocalDate dvdD;
         String dvdT, dvdM, dvdR;
@@ -254,5 +275,44 @@ public class NotificationService implements NotificationUseCase {
         notificationPort.save(
                 Notification.systemNotice(userId, listTitle, messageOpt.get(), relatedOpt.orElse(null)));
         log.info("[BATCH-NOTI-CATCHUP] userId={} '{}' 알림 보충 (스냅샷 또는 DB 샘플)", userId, listTitle);
+    }
+
+    private static LocalDateTime startOfKstDay(LocalDate kstDate) {
+        return kstDate.atStartOfDay(KST).toLocalDateTime();
+    }
+
+    private static boolean isDailyListBatchNotice(Notification n) {
+        return n != null
+                && NOTIFICATION_TYPE_SYSTEM.equals(n.getNotificationType())
+                && DAILY_LIST_BATCH_TITLES.contains(n.getTitle())
+                && n.getSentAt() != null;
+    }
+
+    /**
+     * 같은 KST 날짜·같은 제목(DVD/영화 목록 업데이트) 알림이 여러 건이면 최신 1건만 남긴다.
+     * reset-notifications 직후 새벽 배치 등으로 중복 INSERT 된 데이터 정리용.
+     */
+    private int removeDuplicateDailyListNotices(String userId) {
+        List<Notification> all = notificationPort.findByUserId(userId);
+        Map<String, List<Notification>> byTitleDay = new HashMap<>();
+        for (Notification n : all) {
+            if (!isDailyListBatchNotice(n)) {
+                continue;
+            }
+            String key = n.getTitle() + "|" + n.getSentAt().toLocalDate();
+            byTitleDay.computeIfAbsent(key, k -> new ArrayList<>()).add(n);
+        }
+        int removed = 0;
+        for (List<Notification> group : byTitleDay.values()) {
+            if (group.size() <= 1) {
+                continue;
+            }
+            group.sort(Comparator.comparing(Notification::getSentAt).reversed());
+            for (int i = 1; i < group.size(); i++) {
+                notificationPort.deleteByNotificationId(group.get(i).getNotificationId());
+                removed++;
+            }
+        }
+        return removed;
     }
 }
