@@ -360,6 +360,24 @@
     "audioCueError": "오디오를 재생하지 못했어요.",
     "audioCueNeedRegion": "전국 최신 목록에서는 지역 검색어가 없어 오디오를 묶지 못해요. 지역 칩을 눌러 주세요."
   },
+  "koreaCornersPage": {
+    "title": "대한민국 구석구석!",
+    "subtitle": "한국관광공사 여행기사로 전국 숨은 명소와 테마 여행을 만나보세요.",
+    "backDashboard": "대시보드",
+    "searchPlaceholder": "지역·키워드로 기사 검색",
+    "searchAria": "기사 검색",
+    "search": "검색",
+    "regionAria": "지역 필터",
+    "filterRegion": "{{region}} 지역 기사",
+    "loading": "기사를 불러오는 중…",
+    "loadError": "기사 목록을 불러올 수 없어요.",
+    "empty": "표시할 기사가 없어요.",
+    "readArticle": "기사 보기",
+    "pagerAria": "페이지",
+    "prev": "이전",
+    "next": "다음",
+    "source": "출처: 한국관광공사 여행기사목록 · 공공데이터포털"
+  },
   "camping": {
     "pageTitle": "전국 야영장 찾기",
     "pageSubtitle": "한국관광공사 고캠핑(GoCamping) DB 기반. 영화 본 그날 밤, 숲속에서 별을 보며 하루 더 머물러보세요.",
@@ -596,6 +614,7 @@
     "tabsAriaLabel": "기간",
     "shortcutsPanelTitle": "여행 바로가기",
     "shortcutsAriaLabel": "여행 바로가기",
+    "koreaCornersCta": "대한민국 구석구석!",
     "today": { "label": "오늘" },
     "week": { "label": "이번주" },
     "month": { "label": "이번달" },

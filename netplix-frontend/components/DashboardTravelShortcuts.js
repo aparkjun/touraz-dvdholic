@@ -15,6 +15,7 @@ import {
   Compass,
   Footprints,
   Clapperboard,
+  MapPinned,
 } from 'lucide-react';
 
 const TRAVEL_SHORTCUTS = [
@@ -93,6 +94,11 @@ export default function DashboardTravelShortcuts() {
             </Link>
           ))}
         </nav>
+
+        <Link href="/korea-corners" className="dts-korea-corners-cta">
+          <MapPinned size={20} strokeWidth={2.25} aria-hidden className="dts-jewel-icon" />
+          <span>{t('trendingRegions.koreaCornersCta', '대한민국 구석구석!')}</span>
+        </Link>
       </div>
 
       <style jsx global>{`
@@ -279,6 +285,36 @@ export default function DashboardTravelShortcuts() {
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
             0 6px 18px rgba(0, 0, 0, 0.35),
             0 0 24px rgba(251, 191, 36, 0.35);
+        }
+        .dts-korea-corners-cta {
+          position: relative;
+          z-index: 1;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          margin-top: 12px;
+          width: 100%;
+          padding: 12px 16px;
+          border-radius: 14px;
+          text-decoration: none;
+          font-size: 14px;
+          font-weight: 800;
+          letter-spacing: -0.02em;
+          color: #fff7ed;
+          border: 1px solid rgba(253, 186, 116, 0.55);
+          background: linear-gradient(135deg, #ea580c 0%, #f59e0b 45%, #84cc16 100%);
+          box-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.35) inset,
+            0 8px 22px rgba(234, 88, 12, 0.35);
+          transition: transform 0.2s ease, filter 0.2s ease;
+        }
+        .dts-korea-corners-cta:hover {
+          transform: translateY(-2px);
+          filter: saturate(1.08) brightness(1.05);
+        }
+        .dts-korea-corners-cta:active {
+          transform: translateY(0);
         }
       `}</style>
     </section>

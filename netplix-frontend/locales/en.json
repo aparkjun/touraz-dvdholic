@@ -360,6 +360,24 @@
     "audioCueError": "Could not start playback.",
     "audioCueNeedRegion": "Nationwide mode has no region keyword — tap a region chip first."
   },
+  "koreaCornersPage": {
+    "title": "Korea, corner to corner!",
+    "subtitle": "Discover hidden gems and themed trips through Korea Tourism Organization travel articles.",
+    "backDashboard": "Dashboard",
+    "searchPlaceholder": "Search articles by region or keyword",
+    "searchAria": "Search articles",
+    "search": "Search",
+    "regionAria": "Region filter",
+    "filterRegion": "Articles in {{region}}",
+    "loading": "Loading articles…",
+    "loadError": "Could not load articles.",
+    "empty": "No articles to show.",
+    "readArticle": "Read article",
+    "pagerAria": "Pagination",
+    "prev": "Previous",
+    "next": "Next",
+    "source": "Source: KTO travel articles · Public data portal"
+  },
   "camping": {
     "pageTitle": "Find Campsites Nationwide",
     "pageSubtitle": "Powered by Korea Tourism Organization's GoCamping database. After the movie, stay one more night under the stars in the forest.",
@@ -596,6 +614,7 @@
     "tabsAriaLabel": "Period",
     "shortcutsPanelTitle": "Travel shortcuts",
     "shortcutsAriaLabel": "Travel links",
+    "koreaCornersCta": "Korea, corner to corner!",
     "today": { "label": "Today" },
     "week": { "label": "Week" },
     "month": { "label": "Month" },
