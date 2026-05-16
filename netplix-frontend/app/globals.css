@@ -912,6 +912,52 @@ body.app-theme-travel-cinema .app-nav-mobile .app-chip-mypage:hover {
 }
 .app-hamburger:hover { background: linear-gradient(135deg, rgba(218, 165, 32, 0.22), rgba(255, 140, 0, 0.15)); border-color: rgba(218, 165, 32, 0.4); }
 
+/* 네비 왼쪽 로그아웃 — sticky 네비와 함께 스크롤 */
+.app-nav-logout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  background: linear-gradient(135deg, rgba(255, 59, 92, 0.15), rgba(91, 140, 255, 0.15));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+.app-nav-logout:hover {
+  background: linear-gradient(135deg, rgba(255, 59, 92, 0.3), rgba(91, 140, 255, 0.3));
+  border-color: rgba(255, 255, 255, 0.22);
+  transform: scale(1.05);
+}
+.app-nav.app-nav--landing-light .app-nav-logout {
+  color: #475569;
+  border-color: rgba(15, 23, 42, 0.12);
+  background: linear-gradient(135deg, rgba(255, 59, 92, 0.08), rgba(91, 140, 255, 0.08));
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+}
+.app-nav.app-nav--landing-light .app-nav-logout:hover {
+  color: #0f172a;
+  border-color: rgba(15, 23, 42, 0.2);
+}
+.app-theme-travel .app-nav-logout,
+body.app-theme-travel-cinema .app-nav-logout {
+  color: #92400e;
+  border-color: rgba(180, 83, 9, 0.25);
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.35), rgba(253, 230, 138, 0.2));
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+.app-theme-travel .app-nav-logout:hover,
+body.app-theme-travel-cinema .app-nav-logout:hover {
+  background: linear-gradient(135deg, rgba(254, 243, 199, 0.55), rgba(253, 230, 138, 0.4));
+  border-color: rgba(180, 83, 9, 0.35);
+}
+
 .app-hamburger-svg-top { transform-origin: center; transform: translateY(-7px); transition: all 0.4s cubic-bezier(.5,.85,.25,1.1); }
 .app-hamburger-svg-mid { transform-origin: center; transition: all 0.4s cubic-bezier(.5,.85,.25,1.8); }
 .app-hamburger-svg-bot { transform-origin: center; transform: translateY(7px); transition: all 0.4s cubic-bezier(.5,.85,.25,1.1); }

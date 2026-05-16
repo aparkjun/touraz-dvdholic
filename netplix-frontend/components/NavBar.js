@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
 import { setUserLanguage } from '@/lib/i18n';
-import { Globe, Crown } from 'lucide-react';
+import { Globe, Crown, LogOut } from 'lucide-react';
 import DashboardWeatherNavGlyph from '@/components/DashboardWeatherNavGlyph';
 
 export default function NavBar() {
@@ -12,6 +12,7 @@ export default function NavBar() {
   const [isAdmin, setIsAdmin] = useState(false);
   const { t } = useTranslation();
   const pathname = usePathname();
+  const router = useRouter();
   /** 대시보드 메인·/dashboard/images 등 하위 경로에서 동일 네비 레이아웃(날씨 글리프·프로모 문구) 유지 */
   const isDashboardRoute = pathname === '/dashboard' || (pathname?.startsWith('/dashboard/') ?? false);
   const isAuthPage = pathname === '/login' || pathname === '/signup';
@@ -35,6 +36,16 @@ export default function NavBar() {
       window.removeEventListener('storage', refreshAuth);
     };
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refresh_token');
+    setIsLoggedIn(false);
+    window.dispatchEvent(new CustomEvent('token-stored'));
+    router.replace('/dashboard');
+  };
+
+  const showNavLogout = isLoggedIn && !isAuthPage;
 
   // 메인(랜딩) 페이지에서는 로그인 전에도 사용자가 빠르게 언어를 전환할 수 있도록
   // 한국어/영어 토글을 네비게이션 맨 왼쪽에 단독 노출한다.
@@ -62,9 +73,10 @@ export default function NavBar() {
   return (
     <nav className={navClass}>
       <div className={`app-nav-inner${isDashboardRoute ? ' app-nav-inner--dashboard' : ''}`}>
-        {isLandingPage && (
+        {(isLandingPage || showNavLogout) && (
           <div className="app-nav-leftmost">
-            <LanguageToggle />
+            {showNavLogout && <NavLogoutButton onLogout={handleLogout} />}
+            {isLandingPage && <LanguageToggle />}
           </div>
         )}
         {isDashboardRoute && (
@@ -115,6 +127,22 @@ function BrandLink({ isDashboard, isLoggedIn }) {
       <span className="app-brand-text">Holic</span>
       <img src="/snake-icon2.gif" alt="Snake Icon" className="app-brand-snake" />
     </Link>
+  );
+}
+
+function NavLogoutButton({ onLogout }) {
+  const { t } = useTranslation();
+  const label = t('nav.logout', '로그아웃');
+  return (
+    <button
+      type="button"
+      className="app-nav-logout"
+      onClick={onLogout}
+      aria-label={label}
+      title={label}
+    >
+      <LogOut size={18} strokeWidth={2.5} />
+    </button>
   );
 }
 

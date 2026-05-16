@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { LogOut, Undo2 } from 'lucide-react';
+import { Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 /** 비로그인 시 뒤로가기 숨김 경로 */
@@ -24,13 +24,6 @@ const baseButtonStyle = {
   pointerEvents: 'auto',
 };
 
-const topFixedStyle = {
-  position: 'fixed',
-  top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
-  left: 'calc(env(safe-area-inset-left, 0px) + 12px)',
-  zIndex: 1100,
-};
-
 const bottomFixedStyle = {
   position: 'fixed',
   bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
@@ -50,6 +43,13 @@ function clearHover(e) {
   e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.2)';
 }
 
+const topFixedStyle = {
+  position: 'fixed',
+  top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+  left: 'calc(env(safe-area-inset-left, 0px) + 12px)',
+  zIndex: 1100,
+};
+
 export default function FloatingBackButton() {
   const pathname = usePathname();
   const router = useRouter();
@@ -68,33 +68,7 @@ export default function FloatingBackButton() {
   }, [pathname]);
 
   if (!pathname) return null;
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('refresh_token');
-    window.dispatchEvent(new CustomEvent('token-stored'));
-    router.replace('/dashboard');
-  };
-
-  if (isLoggedIn) {
-    if (pathname === '/') return null;
-    const label = t('nav.logout', '로그아웃');
-    return (
-      <button
-        type="button"
-        onClick={handleLogout}
-        aria-label={label}
-        title={label}
-        className="floating-logout-btn"
-        style={{ ...baseButtonStyle, ...topFixedStyle }}
-        onMouseEnter={applyHover}
-        onMouseLeave={clearHover}
-      >
-        <LogOut size={20} strokeWidth={2.5} />
-      </button>
-    );
-  }
-
+  if (isLoggedIn) return null;
   if (BACK_HIDDEN_PATHS.has(pathname)) return null;
 
   const label = t('common.back', '뒤로');
