@@ -35,7 +35,7 @@ const TRAVEL_SHORTCUTS = [
 ];
 
 /**
- * 대시보드 — 여행 바로가기(10링크). 보석/프리즘 톤 그라데이션 + 글로우.
+ * 대시보드 — 여행 바로가기. 칸마다 원색 2색 듀오 그라데이션(구석구석 CTA 톤).
  */
 export default function DashboardTravelShortcuts() {
   const { t } = useTranslation();
@@ -210,90 +210,90 @@ export default function DashboardTravelShortcuts() {
         .dts-shortcut-link:active {
           transform: translateY(0) scale(0.99);
         }
-        /* 보석 톤 — 칸마다 다른 프리즘 그라데이션 */
+        /* 2색 듀오 그라데이션 — 구석구석 CTA와 동일 톤(원색 유지, 선명한 2색 조합) */
         .dts-jewel-0 {
-          background: linear-gradient(135deg, #0e7490 0%, #155e75 40%, #0f766e 100%);
+          background: linear-gradient(135deg, #06b6d4 0%, #0d9488 100%);
           box-shadow:
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
             0 6px 18px rgba(0, 0, 0, 0.35),
-            0 0 20px rgba(34, 211, 238, 0.35);
+            0 0 22px rgba(34, 211, 238, 0.4);
         }
         .dts-jewel-1 {
-          background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 45%, #5b21b6 100%);
+          background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%);
           box-shadow:
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
             0 6px 18px rgba(0, 0, 0, 0.35),
-            0 0 20px rgba(196, 181, 253, 0.4);
+            0 0 22px rgba(196, 181, 253, 0.45);
         }
         .dts-jewel-2 {
-          background: linear-gradient(135deg, #047857 0%, #0f766e 50%, #115e59 100%);
+          background: linear-gradient(135deg, #34d399 0%, #047857 100%);
           box-shadow:
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
             0 6px 18px rgba(0, 0, 0, 0.35),
-            0 0 20px rgba(52, 211, 153, 0.35);
+            0 0 22px rgba(52, 211, 153, 0.4);
         }
         .dts-jewel-3 {
-          background: linear-gradient(135deg, #c026d3 0%, #a21caf 45%, #86198f 100%);
+          background: linear-gradient(135deg, #f472b6 0%, #c026d3 100%);
           box-shadow:
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
             0 6px 18px rgba(0, 0, 0, 0.35),
-            0 0 22px rgba(244, 114, 182, 0.4);
+            0 0 22px rgba(244, 114, 182, 0.45);
         }
         .dts-jewel-4 {
-          background: linear-gradient(135deg, #ca8a04 0%, #a16207 45%, #854d0e 100%);
+          background: linear-gradient(135deg, #fbbf24 0%, #ca8a04 100%);
           box-shadow:
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
             0 6px 18px rgba(0, 0, 0, 0.35),
-            0 0 22px rgba(250, 204, 21, 0.35);
+            0 0 22px rgba(250, 204, 21, 0.4);
         }
         .dts-jewel-5 {
-          background: linear-gradient(135deg, #15803d 0%, #166534 50%, #14532d 100%);
+          background: linear-gradient(135deg, #4ade80 0%, #15803d 100%);
           box-shadow:
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
             0 6px 18px rgba(0, 0, 0, 0.35),
-            0 0 20px rgba(74, 222, 128, 0.35);
+            0 0 22px rgba(74, 222, 128, 0.4);
         }
         .dts-jewel-6 {
-          background: linear-gradient(135deg, #0369a1 0%, #075985 50%, #0c4a6e 100%);
+          background: linear-gradient(135deg, #38bdf8 0%, #0369a1 100%);
           box-shadow:
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
             0 6px 18px rgba(0, 0, 0, 0.35),
-            0 0 20px rgba(125, 211, 252, 0.35);
+            0 0 22px rgba(125, 211, 252, 0.4);
         }
         .dts-jewel-7 {
-          background: linear-gradient(135deg, #7c2d12 0%, #9a3412 40%, #b45309 100%);
+          background: linear-gradient(135deg, #fb923c 0%, #c2410c 100%);
           box-shadow:
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
             0 6px 18px rgba(0, 0, 0, 0.35),
-            0 0 22px rgba(251, 146, 60, 0.35);
+            0 0 22px rgba(251, 146, 60, 0.45);
         }
         .dts-jewel-8 {
-          background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 45%, #312e81 100%);
+          background: linear-gradient(135deg, #818cf8 0%, #1d4ed8 100%);
           box-shadow:
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
             0 6px 18px rgba(0, 0, 0, 0.35),
             0 0 22px rgba(129, 140, 248, 0.45);
         }
         .dts-jewel-9 {
-          background: linear-gradient(135deg, #0f766e 0%, #115e59 40%, #134e4a 100%);
+          background: linear-gradient(135deg, #2dd4bf 0%, #0f766e 100%);
           box-shadow:
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
             0 6px 18px rgba(0, 0, 0, 0.35),
-            0 0 20px rgba(45, 212, 191, 0.4);
+            0 0 22px rgba(45, 212, 191, 0.45);
         }
         .dts-jewel-10 {
-          background: linear-gradient(135deg, #4c1d95 0%, #5b21b6 35%, #7c2d12 100%);
+          background: linear-gradient(135deg, #a855f7 0%, #f59e0b 100%);
           box-shadow:
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
             0 6px 18px rgba(0, 0, 0, 0.35),
-            0 0 24px rgba(251, 191, 36, 0.35);
+            0 0 24px rgba(251, 191, 36, 0.4);
         }
         .dts-jewel-11 {
-          background: linear-gradient(135deg, #0d9488 0%, #0891b2 45%, #0369a1 100%);
+          background: linear-gradient(135deg, #2dd4bf 0%, #0284c7 100%);
           box-shadow:
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
             0 6px 18px rgba(0, 0, 0, 0.35),
-            0 0 22px rgba(45, 212, 191, 0.4);
+            0 0 22px rgba(45, 212, 191, 0.45);
         }
         .dts-korea-corners-cta {
           position: relative;
