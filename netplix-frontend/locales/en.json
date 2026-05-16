@@ -378,6 +378,26 @@
     "next": "Next",
     "source": "Source: KTO travel articles · Public data portal"
   },
+  "safeTourismPage": {
+    "title": "Contactless safe tourism",
+    "subtitle": "Discover quiet, low-contact spots from Korea Tourism Organization open data.",
+    "backDashboard": "Dashboard",
+    "searchPlaceholder": "Search by name, region, or season",
+    "searchAria": "Search spots",
+    "search": "Search",
+    "regionAria": "Region filter",
+    "filterRegion": "{{region}} region",
+    "loading": "Loading spots…",
+    "loadError": "Could not load the list.",
+    "notConfigured": "The safe-tourism API URL is not configured on the server. Ask an admin to set ODCLOUD_SAFE_TOURISM_LIST_URL.",
+    "empty": "No safe tourism spots to show.",
+    "detailLink": "View details",
+    "viewDetail": "View details",
+    "pagerAria": "Pagination",
+    "prev": "Previous",
+    "next": "Next",
+    "source": "Source: KTO contactless safe tourism list · Public data portal"
+  },
   "camping": {
     "pageTitle": "Find Campsites Nationwide",
     "pageSubtitle": "Powered by Korea Tourism Organization's GoCamping database. After the movie, stay one more night under the stars in the forest.",
@@ -663,6 +683,7 @@
       "audio": "Audio",
       "radar": "Crowds",
       "related": "Routes",
+      "safeTourism": "Safe tourism",
       "filmScenic": "Scenic Reel"
     },
     "errorLoad": "Could not load",

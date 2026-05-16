@@ -50,6 +50,10 @@ odcloud:
     service-key: ${ODCLOUD_SERVICE_KEY:}
   travel-articles:
     list-url: ${ODCLOUD_TRAVEL_ARTICLES_URL:https://api.odcloud.kr/api/15121757/v1/uddi:121ae064-ea9f-4213-80da-fcb97664e7e5}
+  # 한국관광공사 비대면 안심관광지 목록 — data.go.kr 활용신청 End Point URL (Swagger namespace 와 다를 수 있음)
+  # 예: https://api.odcloud.kr/api/{publicDataPk}/v1/uddi:{resource-id}
+  safe-tourism:
+    list-url: ${ODCLOUD_SAFE_TOURISM_LIST_URL:https://api.odcloud.kr/api/15105715/v1/uddi:2843667c-8f62-4ef8-9c39-e9e1dbdf1f1a}
 
 # 한국관광공사 데이터랩 & 파생 API (2026-04 기준 Base URL + operation 명까지 확정)
 # 공공데이터포털 등록 경로 / 점검 결과:

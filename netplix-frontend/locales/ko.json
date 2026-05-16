@@ -378,6 +378,26 @@
     "next": "다음",
     "source": "출처: 한국관광공사 여행기사목록 · 공공데이터포털"
   },
+  "safeTourismPage": {
+    "title": "비대면 안심관광지",
+    "subtitle": "한적하고 안전한 비대면·언택트 관광지를 한국관광공사 공공데이터로 만나보세요.",
+    "backDashboard": "대시보드",
+    "searchPlaceholder": "관광지명·지역·시즌 검색",
+    "searchAria": "관광지 검색",
+    "search": "검색",
+    "regionAria": "지역 필터",
+    "filterRegion": "{{region}} 지역",
+    "loading": "목록을 불러오는 중…",
+    "loadError": "안심관광지 목록을 불러올 수 없어요.",
+    "notConfigured": "서버에 비대면 안심관광지 API 주소가 설정되지 않았어요. 관리자에게 ODCLOUD_SAFE_TOURISM_LIST_URL 설정을 요청해 주세요.",
+    "empty": "표시할 안심관광지가 없어요.",
+    "detailLink": "상세 보기",
+    "viewDetail": "상세 보기",
+    "pagerAria": "페이지",
+    "prev": "이전",
+    "next": "다음",
+    "source": "출처: 한국관광공사 비대면 안심관광지 목록 · 공공데이터포털"
+  },
   "camping": {
     "pageTitle": "전국 야영장 찾기",
     "pageSubtitle": "한국관광공사 고캠핑(GoCamping) DB 기반. 영화 본 그날 밤, 숲속에서 별을 보며 하루 더 머물러보세요.",
@@ -663,6 +683,7 @@
       "audio": "오디오",
       "radar": "혼잡도",
       "related": "동선 추천",
+      "safeTourism": "비대면 안심관광지",
       "filmScenic": "풍경 릴"
     },
     "errorLoad": "불러오기 실패",

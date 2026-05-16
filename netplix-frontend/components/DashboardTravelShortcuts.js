@@ -16,6 +16,7 @@ import {
   Footprints,
   Clapperboard,
   MapPinned,
+  ShieldCheck,
 } from 'lucide-react';
 
 const TRAVEL_SHORTCUTS = [
@@ -30,6 +31,7 @@ const TRAVEL_SHORTCUTS = [
   { href: '/audio-guide', shortcutKey: 'audio', Icon: Headphones, jewel: 'dts-jewel-7' },
   { href: '/crowd-radar', shortcutKey: 'radar', Icon: Radar, jewel: 'dts-jewel-8' },
   { href: '/related-spots?discover=trending', shortcutKey: 'related', Icon: Compass, jewel: 'dts-jewel-9' },
+  { href: '/safe-tourism', shortcutKey: 'safeTourism', Icon: ShieldCheck, jewel: 'dts-jewel-11' },
 ];
 
 /**
@@ -285,6 +287,13 @@ export default function DashboardTravelShortcuts() {
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
             0 6px 18px rgba(0, 0, 0, 0.35),
             0 0 24px rgba(251, 191, 36, 0.35);
+        }
+        .dts-jewel-11 {
+          background: linear-gradient(135deg, #0d9488 0%, #0891b2 45%, #0369a1 100%);
+          box-shadow:
+            0 1px 0 rgba(255, 255, 255, 0.35) inset,
+            0 6px 18px rgba(0, 0, 0, 0.35),
+            0 0 22px rgba(45, 212, 191, 0.4);
         }
         .dts-korea-corners-cta {
           position: relative;

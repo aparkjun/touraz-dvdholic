@@ -57,7 +57,8 @@ export default function NavBar() {
     pathname === '/signup' ||
     pathname === '/admin' ||
     (pathname?.startsWith('/admin/') ?? false) ||
-    pathname === '/korea-corners';
+    pathname === '/korea-corners' ||
+    pathname === '/safe-tourism';
 
   const navClass =
     'app-nav' +
