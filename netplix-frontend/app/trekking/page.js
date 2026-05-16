@@ -93,6 +93,16 @@ const DEFAULT_ACCENT = {
   chip: '#a7f3d0',
 };
 
+/** 코스·노선 카드 배경 (기존 #0b1e20 대비 톤 업) */
+const CONTENT_CARD_BG =
+  'linear-gradient(160deg, #2a6f78 0%, #33828c 52%, #255e66 100%)';
+const CONTENT_CARD_BORDER = '1px solid rgba(167, 243, 208, 0.32)';
+
+/** 추천 도보 코스 카드 */
+const CURATED_CARD_BG =
+  'linear-gradient(160deg, #524828 0%, #635a32 55%, #484020 100%)';
+const CURATED_CARD_BORDER = '1px solid rgba(253, 224, 71, 0.32)';
+
 const accentForRoute = (routeIdx) =>
   ROUTE_FILTERS.find((f) => f.routeIdx === routeIdx)?.accent || DEFAULT_ACCENT;
 
@@ -344,9 +354,9 @@ function TrekkingPageInner() {
           position: 'relative', maxWidth: 1160, margin: '24px auto 0',
           padding: '40px 24px 56px', borderRadius: 28, overflow: 'hidden',
           background:
-            'radial-gradient(120% 150% at 50% 120%, rgba(253,224,71,0.12) 0%, transparent 55%),' +
-            'linear-gradient(160deg, rgba(14,165,233,0.18) 0%, rgba(20,184,166,0.12) 60%, rgba(16,185,129,0.06) 100%)',
-          border: '1px solid rgba(110,231,183,0.16)',
+            'radial-gradient(120% 150% at 50% 120%, rgba(253,224,71,0.18) 0%, transparent 55%),' +
+            'linear-gradient(160deg, rgba(14,165,233,0.32) 0%, rgba(20,184,166,0.24) 60%, rgba(16,185,129,0.14) 100%)',
+          border: '1px solid rgba(167, 243, 208, 0.28)',
         }}
       >
         <div
@@ -528,8 +538,8 @@ function TrekkingPageInner() {
                   key={r.routeIdx || r.displayName}
                   style={{
                     position: 'relative', borderRadius: 18, padding: 18,
-                    background: 'linear-gradient(160deg, #0b1e20 0%, #0f2a2f 55%, #0a1b1f 100%)',
-                    border: '1px solid rgba(110,231,183,0.14)', overflow: 'hidden',
+                    background: CONTENT_CARD_BG,
+                    border: CONTENT_CARD_BORDER, overflow: 'hidden',
                   }}
                 >
                   <div
@@ -537,7 +547,7 @@ function TrekkingPageInner() {
                     style={{
                       position: 'absolute', top: -40, right: -40,
                       width: 140, height: 140, borderRadius: '50%',
-                      background: acc.bg, opacity: 0.18, filter: 'blur(6px)',
+                      background: acc.bg, opacity: 0.26, filter: 'blur(6px)',
                     }}
                   />
                   <span
@@ -590,8 +600,8 @@ function TrekkingPageInner() {
               style={{
                 marginLeft: 'auto',
                 padding: '6px 12px', borderRadius: 999,
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid rgba(255,255,255,0.15)',
+                background: 'rgba(255,255,255,0.1)',
+                border: '1px solid rgba(255,255,255,0.22)',
                 color: 'rgba(220,252,231,0.78)',
                 fontSize: 12, fontWeight: 700, cursor: 'pointer',
               }}
@@ -674,7 +684,7 @@ function ChipButton({ active, onClick, label, color }) {
       style={{
         padding: '7px 14px', borderRadius: 999, fontSize: 12.5, fontWeight: 700,
         cursor: 'pointer', transition: 'all 0.2s ease',
-        background: active ? `${color}22` : 'rgba(255,255,255,0.03)',
+        background: active ? `${color}22` : 'rgba(255,255,255,0.09)',
         border: active ? `1px solid ${color}` : '1px solid rgba(255,255,255,0.1)',
         color: active ? color : 'rgba(220,252,231,0.7)',
         boxShadow: active ? `0 2px 10px ${color}33` : 'none',
@@ -755,15 +765,15 @@ function CourseCard({ course, fallbackAreaCode }) {
       initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
       style={{
         position: 'relative', borderRadius: 20, padding: 18, overflow: 'hidden',
-        background: 'linear-gradient(160deg, #0b1e20 0%, #0f2a2f 55%, #0a1b1f 100%)',
-        border: '1px solid rgba(110,231,183,0.14)',
+        background: CONTENT_CARD_BG,
+        border: CONTENT_CARD_BORDER,
       }}
     >
       <div
         aria-hidden
         style={{
           position: 'absolute', top: -50, right: -50, width: 160, height: 160,
-          borderRadius: '50%', background: acc.bg, opacity: 0.18, filter: 'blur(8px)',
+          borderRadius: '50%', background: acc.bg, opacity: 0.26, filter: 'blur(8px)',
         }}
       />
       <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 4 }}>
@@ -952,15 +962,15 @@ function CuratedCourseCard({ course, areaCode }) {
       initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
       style={{
         position: 'relative', borderRadius: 20, padding: 18, overflow: 'hidden',
-        background: 'linear-gradient(160deg, #1f1602 0%, #2a1d05 55%, #1c1304 100%)',
-        border: '1px solid rgba(253,224,71,0.18)',
+        background: CURATED_CARD_BG,
+        border: CURATED_CARD_BORDER,
       }}
     >
       <div
         aria-hidden
         style={{
           position: 'absolute', top: -50, right: -50, width: 160, height: 160,
-          borderRadius: '50%', background: accent.bg, opacity: 0.15, filter: 'blur(8px)',
+          borderRadius: '50%', background: accent.bg, opacity: 0.24, filter: 'blur(8px)',
         }}
       />
       <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 4 }}>
@@ -1111,8 +1121,8 @@ function GridSkeleton({ count = 4, height = 128 }) {
           key={i}
           style={{
             height, borderRadius: 18,
-            background: 'rgba(110,231,183,0.05)',
-            border: '1px solid rgba(110,231,183,0.08)',
+            background: 'rgba(167, 243, 208, 0.12)',
+            border: '1px solid rgba(167, 243, 208, 0.2)',
             animation: 'trek-pulse 1.6s ease-in-out infinite',
           }}
         />
@@ -1126,7 +1136,7 @@ function EmptyCard({ msg, action }) {
     <div
       style={{
         padding: '28px 20px', borderRadius: 16, textAlign: 'center',
-        background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(110,231,183,0.2)',
+        background: 'rgba(255,255,255,0.09)', border: '1px dashed rgba(167, 243, 208, 0.35)',
         color: 'rgba(220,252,231,0.7)', fontSize: 13,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', gap: 12,
