@@ -124,6 +124,26 @@ function KoreaCornersInner() {
       : areaCode;
   }, [areaCode, t]);
 
+  const openArticle = useCallback(
+    (item) => {
+      if (!item?.detailUrl) return;
+      const from =
+        typeof window !== 'undefined'
+          ? `${window.location.pathname}${window.location.search}`
+          : '/korea-corners';
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('korea-corners-return', from);
+      }
+      const params = new URLSearchParams({
+        url: item.detailUrl,
+        title: item.title || '',
+        from,
+      });
+      router.push(`/korea-corners/view?${params.toString()}`);
+    },
+    [router],
+  );
+
   return (
     <div className="kcc-root">
       <style>{cssBlock}</style>
@@ -194,11 +214,17 @@ function KoreaCornersInner() {
           <ul className="kcc-grid">
             {items.map((item) => (
               <li key={item.contentId || item.detailUrl || item.title} className="kcc-card">
-                <a
-                  href={item.detailUrl || '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="kcc-card-link"
+                <div
+                  role={item.detailUrl ? 'button' : undefined}
+                  tabIndex={item.detailUrl ? 0 : undefined}
+                  className={`kcc-card-link${item.detailUrl ? ' kcc-card-link-action' : ''}`}
+                  onClick={() => openArticle(item)}
+                  onKeyDown={(e) => {
+                    if (item.detailUrl && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault();
+                      openArticle(item);
+                    }
+                  }}
                 >
                   <div className="kcc-thumb">
                     {item.imageUrl ? (
@@ -225,7 +251,7 @@ function KoreaCornersInner() {
                       <ExternalLink size={13} aria-hidden />
                     </span>
                   </div>
-                </a>
+                </div>
               </li>
             ))}
           </ul>
@@ -431,6 +457,9 @@ const cssBlock = `
   height: 100%;
   text-decoration: none;
   color: inherit;
+}
+.kcc-card-link-action {
+  cursor: pointer;
 }
 .kcc-thumb {
   aspect-ratio: 16 / 10;

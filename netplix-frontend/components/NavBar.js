@@ -12,7 +12,6 @@ export default function NavBar() {
   const [isAdmin, setIsAdmin] = useState(false);
   const { t } = useTranslation();
   const pathname = usePathname();
-  const router = useRouter();
   /** 대시보드 메인·/dashboard/images 등 하위 경로에서 동일 네비 레이아웃(날씨 글리프·프로모 문구) 유지 */
   const isDashboardRoute = pathname === '/dashboard' || (pathname?.startsWith('/dashboard/') ?? false);
   const isAuthPage = pathname === '/login' || pathname === '/signup';
@@ -36,14 +35,6 @@ export default function NavBar() {
       window.removeEventListener('storage', refreshAuth);
     };
   }, []);
-
-  const handleLogout = (e) => {
-    e.preventDefault();
-    localStorage.removeItem('token');
-    localStorage.removeItem('refresh_token');
-    setIsLoggedIn(false);
-    router.replace('/dashboard');
-  };
 
   // 메인(랜딩) 페이지에서는 로그인 전에도 사용자가 빠르게 언어를 전환할 수 있도록
   // 한국어/영어 토글을 네비게이션 맨 왼쪽에 단독 노출한다.
@@ -93,7 +84,6 @@ export default function NavBar() {
           isAuthPage={isAuthPage}
           pathname={pathname}
           isDashboardRoute={isDashboardRoute}
-          onLogout={handleLogout}
         />
         {isDashboardRoute && (
           <span className="app-nav-dashboard-promo app-nav-dashboard-promo--combined">
@@ -144,7 +134,7 @@ function LanguageToggle() {
   );
 }
 
-function AuthActions({ isLoggedIn, isAdmin, isAuthPage, pathname, isDashboardRoute, onLogout }) {
+function AuthActions({ isLoggedIn, isAdmin, isAuthPage, pathname, isDashboardRoute }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { t } = useTranslation();
   const menuRef = useRef(null);
@@ -256,13 +246,7 @@ function AuthActions({ isLoggedIn, isAdmin, isAuthPage, pathname, isDashboardRou
     }
   } else {
     navItems.push(
-      <li key="account"><Link href="/account" className="app-chip app-chip-secondary" onClick={closeMenu}>{t('nav.accountSettings')}</Link></li>,
-      <li key="mypage"><Link href="/mypage" className="app-chip app-chip-mypage" onClick={closeMenu}>{t('nav.mypage')}</Link></li>,
-      <li key="logout">
-        <button className="app-chip app-chip-primary app-chip-button" onClick={(e) => { closeMenu(); onLogout(e); }}>
-          {t('nav.logout')}
-        </button>
-      </li>
+      <li key="account"><Link href="/account" className="app-chip app-chip-secondary" onClick={closeMenu}>{t('nav.accountSettings')}</Link></li>
     );
   }
 

@@ -1,9 +1,11 @@
 'use client';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { Undo2 } from 'lucide-react';
+import { LogOut, Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-const HIDDEN_PATHS = new Set(['/', '/dashboard']);
+/** 비로그인 시 뒤로가기 숨김 경로 */
+const BACK_HIDDEN_PATHS = new Set(['/', '/dashboard']);
 
 const baseButtonStyle = {
   display: 'inline-flex',
@@ -22,6 +24,20 @@ const baseButtonStyle = {
   pointerEvents: 'auto',
 };
 
+const topFixedStyle = {
+  position: 'fixed',
+  top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+  left: 'calc(env(safe-area-inset-left, 0px) + 12px)',
+  zIndex: 1100,
+};
+
+const bottomFixedStyle = {
+  position: 'fixed',
+  bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+  left: 'calc(env(safe-area-inset-left, 0px) + 12px)',
+  zIndex: 1100,
+};
+
 function applyHover(e) {
   e.currentTarget.style.background = 'linear-gradient(135deg, rgba(255,59,92,0.3), rgba(91,140,255,0.3))';
   e.currentTarget.style.transform = 'scale(1.1)';
@@ -38,9 +54,48 @@ export default function FloatingBackButton() {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useTranslation();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const refresh = () => setIsLoggedIn(!!localStorage.getItem('token'));
+    refresh();
+    window.addEventListener('token-stored', refresh);
+    window.addEventListener('storage', refresh);
+    return () => {
+      window.removeEventListener('token-stored', refresh);
+      window.removeEventListener('storage', refresh);
+    };
+  }, [pathname]);
 
   if (!pathname) return null;
-  if (HIDDEN_PATHS.has(pathname)) return null;
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refresh_token');
+    window.dispatchEvent(new CustomEvent('token-stored'));
+    router.replace('/dashboard');
+  };
+
+  if (isLoggedIn) {
+    if (pathname === '/') return null;
+    const label = t('nav.logout', '로그아웃');
+    return (
+      <button
+        type="button"
+        onClick={handleLogout}
+        aria-label={label}
+        title={label}
+        className="floating-logout-btn"
+        style={{ ...baseButtonStyle, ...topFixedStyle }}
+        onMouseEnter={applyHover}
+        onMouseLeave={clearHover}
+      >
+        <LogOut size={20} strokeWidth={2.5} />
+      </button>
+    );
+  }
+
+  if (BACK_HIDDEN_PATHS.has(pathname)) return null;
 
   const label = t('common.back', '뒤로');
 
@@ -52,44 +107,32 @@ export default function FloatingBackButton() {
     }
   };
 
-  const positions = [
-    {
-      key: 'top',
-      style: {
-        position: 'fixed',
-        top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
-        left: 'calc(env(safe-area-inset-left, 0px) + 12px)',
-        zIndex: 1100,
-      },
-    },
-    {
-      key: 'bottom',
-      style: {
-        position: 'fixed',
-        bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
-        left: 'calc(env(safe-area-inset-left, 0px) + 12px)',
-        zIndex: 1100,
-      },
-    },
-  ];
-
   return (
     <>
-      {positions.map(({ key, style }) => (
-        <button
-          key={key}
-          type="button"
-          onClick={handleBack}
-          aria-label={label}
-          title={label}
-          className="floating-back-btn"
-          style={{ ...baseButtonStyle, ...style }}
-          onMouseEnter={applyHover}
-          onMouseLeave={clearHover}
-        >
-          <Undo2 size={20} strokeWidth={2.5} />
-        </button>
-      ))}
+      <button
+        type="button"
+        onClick={handleBack}
+        aria-label={label}
+        title={label}
+        className="floating-back-btn"
+        style={{ ...baseButtonStyle, ...topFixedStyle }}
+        onMouseEnter={applyHover}
+        onMouseLeave={clearHover}
+      >
+        <Undo2 size={20} strokeWidth={2.5} />
+      </button>
+      <button
+        type="button"
+        onClick={handleBack}
+        aria-label={label}
+        title={label}
+        className="floating-back-btn"
+        style={{ ...baseButtonStyle, ...bottomFixedStyle }}
+        onMouseEnter={applyHover}
+        onMouseLeave={clearHover}
+      >
+        <Undo2 size={20} strokeWidth={2.5} />
+      </button>
     </>
   );
 }
