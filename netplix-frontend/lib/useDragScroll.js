@@ -242,8 +242,10 @@ export default function useDragScrollAll(containerRef) {
       };
 
       el.style.cursor = "grab";
-      /* 가로 레일: 수평 제스처는 네이티브 스크롤에 맡김(iOS 관성). 세로는 페이지로 전달 */
-      el.style.touchAction = "pan-x";
+      /* 가로 레일: 수평은 네이티브·드래그, 세로는 페이지로 전달 (pan-x 만이면 모바일에서 위 스크롤 막힘) */
+      const coarsePointer =
+        typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+      el.style.touchAction = coarsePointer ? "pan-x pan-y" : "pan-x";
 
       el.addEventListener("pointerdown", onDown);
       el.addEventListener("pointermove", onMove);

@@ -6,4 +6,7 @@ package fast.campus.netplix.audioguide;
  * @param odiiApiKeyConfigured 서버에 공공데이터 API 키·베이스 URL 이 채워졌는지
  * @param themeKoSampleCount   설정된 경우 한국어 테마 목록에서 즉시 가져올 수 있는 표본 건수(최대 3)
  */
-public record AudioGuideOdiiMeta(boolean odiiApiKeyConfigured, int themeKoSampleCount) {}
+public record AudioGuideOdiiMeta(
+        boolean odiiApiKeyConfigured,
+        int themeKoSampleCount,
+        boolean odiiQuotaExceeded) {}

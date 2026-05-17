@@ -105,12 +105,14 @@ button,
   -webkit-user-select: none;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
+  overscroll-behavior-y: auto;
+  /* 세로 스크롤은 페이지로 전달 (pan-x 만 쓰면 모바일에서 위로 스크롤이 막힘) */
+  touch-action: pan-x pan-y;
   padding-bottom: 4px;
   cursor: grab;
-  /* GPU 합성 레이어 + 렌더 경로 격리(스와이프 중 리페인트 감소) */
   will-change: scroll-position;
   transform: translateZ(0);
-  contain: layout paint;
+  contain: none;
 }
 .cinetrip-scroll-row img {
   -webkit-user-drag: none;
@@ -123,6 +125,7 @@ button,
 .cinetrip-page .js-drag-scroll {
   contain: none;
   overscroll-behavior-y: auto;
+  touch-action: pan-x pan-y;
 }
 
 /* /pet-travel: 지역 탭·PET-Cinema·갤러리 등 동일 클래스 — 모바일에서 본문 세로 스크롤 유지 */

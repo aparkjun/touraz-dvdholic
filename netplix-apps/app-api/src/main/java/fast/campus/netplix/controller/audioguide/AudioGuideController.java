@@ -43,6 +43,7 @@ public class AudioGuideController {
         Map<String, Object> body = new HashMap<>();
         AudioGuideOdiiMeta m = useCase.odiiMeta();
         body.put("odiiApiKeyConfigured", m.odiiApiKeyConfigured());
+        body.put("odiiQuotaExceeded", m.odiiQuotaExceeded());
         return NetplixApiResponse.ok(body);
     }
 

@@ -58,7 +58,7 @@ public class AudioGuideItemService implements GetAudioGuideItemsUseCase {
 
     @Override
     public AudioGuideOdiiMeta odiiMeta() {
-        return new AudioGuideOdiiMeta(port.isConfigured(), 0);
+        return new AudioGuideOdiiMeta(port.isConfigured(), 0, port.isQuotaBackoffActive());
     }
 
     private int sanitize(int limit) {

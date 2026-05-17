@@ -43,4 +43,7 @@ public interface AudioGuideItemPort {
 
     /** 어댑터 호출 가능 여부(serviceKey 설정). */
     boolean isConfigured();
+
+    /** 공공데이터 Odii API 일일 할당량(429) 초과로 신규 외부 호출을 줄이는 중인지. */
+    boolean isQuotaBackoffActive();
 }

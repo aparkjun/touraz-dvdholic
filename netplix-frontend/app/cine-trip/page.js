@@ -947,7 +947,12 @@ function CineTripPageInner() {
         minHeight: '100vh',
         position: 'relative',
         isolation: 'isolate',
-        overflow: 'hidden',
+        maxWidth: '100%',
+        overscrollBehaviorX: 'none',
+        /* 모바일: overflow:hidden 이 문서 세로 스크롤과 충돌해 아래로만 되고 위로 안 올라가는 증상 유발 */
+        overflowX: 'hidden',
+        overflowY: 'visible',
+        touchAction: 'pan-y pinch-zoom',
         /* 배경은 app-shell[data-travel-sector=cine-trip] 시네마틱 그라디언트 */
         background: 'transparent',
         color: '#fff',

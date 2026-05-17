@@ -146,6 +146,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     /** 미설정 시 요청마다 로그 도배 방지 */
     private final AtomicBoolean warnedMisconfigured = new AtomicBoolean(false);
 
+    /** 429 quota exceeded 시 신규 Odii 호출 억제(캐시·stale 우선). */
+    private volatile long quotaBackoffUntilEpochMs = 0L;
+
     /** GW langCode 프로브 결과: {@code THEME:zh} 처럼 type 과 묶어 STORY/THEME 가 다른 코드를 쓰는 경우를 대비한다. */
     private final ConcurrentHashMap<String, String> resolvedOdiiQueryLangByCanonical = new ConcurrentHashMap<>();
 
@@ -176,54 +179,29 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 && baseUrl != null && !baseUrl.isBlank();
     }
 
+    @Override
+    public boolean isQuotaBackoffActive() {
+        return System.currentTimeMillis() < quotaBackoffUntilEpochMs;
+    }
+
     @PostConstruct
     void prewarm() {
         if (!isConfigured()) {
             log.info("[ODII] serviceKey/URL 미설정 - 프리워밍 생략");
             return;
         }
-        // ko 테마 + ko 스토리 프리워밍.
-        // 스토리 캐시는 THEME 카드 모달의 "연관 해설 이야기" 즉시 로딩을 위해 필수.
-        CompletableFuture<Void> koTheme = CompletableFuture.runAsync(() -> {
-            try {
-                refreshAll(AudioGuideItem.Type.THEME, "ko");
-                log.info("[ODII] 프리워밍 완료 (THEME:ko) - {} 건 로드",
-                        getSnapshot(allKey(AudioGuideItem.Type.THEME, "ko")).sites.size());
-            } catch (Exception ex) {
-                log.warn("[ODII] 프리워밍 실패 THEME:ko (활용신청 미승인 가능): {}", ex.getMessage());
-            }
-        });
-        CompletableFuture<Void> koStory = CompletableFuture.runAsync(() -> {
-            try {
-                refreshAll(AudioGuideItem.Type.STORY, "ko");
-                log.info("[ODII] 프리워밍 완료 (STORY:ko) - {} 건 로드",
-                        getSnapshot(allKey(AudioGuideItem.Type.STORY, "ko")).sites.size());
-            } catch (Exception ex) {
-                log.warn("[ODII] 프리워밍 실패 STORY:ko: {}", ex.getMessage());
-            }
-        });
-
         /*
-         * KO 테마·스토리 이후 잠시 두었다가 EN/ZH/JA 테마만 선적재 → 언어 전환 시 체감 속도 개선.
-         * 스토리 탭은 필요 시 첫 요청에서 병렬 페이지 로드·캐시로 충분.
+         * Heroku 재기동마다 refreshAll(수천 건)을 돌리면 Odii 일일 할당량(429)을 소진한다.
+         * KO 테마·스토리 1페이지만 선적재하고, 나머지는 백그라운드·사용자 요청 시 점진 로드한다.
          */
-        CompletableFuture.allOf(koTheme, koStory).whenComplete((__, err) -> CompletableFuture.runAsync(() -> {
+        CompletableFuture.runAsync(() -> {
             try {
-                Thread.sleep(4000L);
-            } catch (InterruptedException ie) {
-                Thread.currentThread().interrupt();
-                return;
+                warmFirstPageOnly(AudioGuideItem.Type.THEME, "ko");
+                warmFirstPageOnly(AudioGuideItem.Type.STORY, "ko");
+            } catch (Exception ex) {
+                log.warn("[ODII] 프리워밍 실패: {}", ex.getMessage());
             }
-            for (String lang : new String[]{"en", "zh", "ja"}) {
-                try {
-                    refreshAll(AudioGuideItem.Type.THEME, lang);
-                    log.info("[ODII] 프리워밍 완료 (THEME:{}) - {} 건 로드", lang,
-                            getSnapshot(allKey(AudioGuideItem.Type.THEME, lang)).sites.size());
-                } catch (Exception ex) {
-                    log.warn("[ODII] 프리워밍 실패 THEME:{} — {}", lang, ex.getMessage());
-                }
-            }
-        }));
+        });
     }
 
     @PreDestroy
@@ -258,11 +236,22 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             if (snap != null && !snap.partial && !isStale(snap)) {
                 return snap.sites;
             }
-            refreshAll(type, l);
-            snap = cache.get(key);
-            if (snap == null || snap.sites.isEmpty()) {
-                maybeFillCatalogViaSearchWhenBasedListEmpty(type, l);
+            if (snap != null && !snap.sites.isEmpty() && isQuotaBackoffActive()) {
+                log.info("[ODII] 할당량 제한 — 기존 캐시 반환 type={} lang={} {}건", type, l, snap.sites.size());
+                return snap.sites;
+            }
+            if (!isQuotaBackoffActive()) {
+                refreshAll(type, l);
                 snap = cache.get(key);
+                if (snap == null || snap.sites.isEmpty()) {
+                    maybeFillCatalogViaSearchWhenBasedListEmpty(type, l);
+                    snap = cache.get(key);
+                }
+            }
+            snap = bestEffortSnapshot(type, l);
+            if ((snap == null || snap.sites.isEmpty()) && !isQuotaBackoffActive()) {
+                warmFirstPageOnly(type, l);
+                snap = bestEffortSnapshot(type, l);
             }
             return take(snap != null ? snap.sites : List.of(), limit);
         }
@@ -1313,6 +1302,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     // =========================================================================
 
     private void scheduleAllRefresh(AudioGuideItem.Type type, String lang) {
+        if (isQuotaBackoffActive()) {
+            return;
+        }
         CompletableFuture.runAsync(() -> {
             try { refreshAll(type, lang); }
             catch (Exception ex) {
@@ -1332,7 +1324,66 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         });
     }
 
+    private void warmFirstPageOnly(AudioGuideItem.Type type, String lang) {
+        if (!guardConfigured() || isQuotaBackoffActive()) {
+            return;
+        }
+        String cacheKey = allKey(type, lang);
+        CacheSnapshot existing = cache.get(cacheKey);
+        if (existing != null && !existing.sites.isEmpty()) {
+            return;
+        }
+        PageResult first = requestPage(basedUrl(type), Map.of(), type, lang, 1);
+        if (first == null || first.items.isEmpty()) {
+            return;
+        }
+        List<AudioGuideItem> partial = Collections.unmodifiableList(new ArrayList<>(first.items));
+        boolean needMore = first.totalCount > partial.size();
+        cache.put(cacheKey, new CacheSnapshot(partial, Instant.now().toEpochMilli(), needMore));
+        log.info("[ODII] 1페이지 선적재 type={} lang={} {}건 (total≈{})", type, lang, partial.size(), first.totalCount);
+        if (needMore && !isQuotaBackoffActive()) {
+            scheduleAllRefresh(type, lang);
+        }
+    }
+
+    /** 할당량 제한·부분 캐시 시 KO 폴백까지 포함해 가장 나은 스냅샷을 고른다. */
+    private CacheSnapshot bestEffortSnapshot(AudioGuideItem.Type type, String lang) {
+        CacheSnapshot snap = cache.get(allKey(type, lang));
+        if (snap != null && !snap.sites.isEmpty()) {
+            return snap;
+        }
+        if (!"ko".equals(lang)) {
+            snap = cache.get(allKey(type, "ko"));
+            if (snap != null && !snap.sites.isEmpty()) {
+                log.info("[ODII] lang={} 캐시 없음 → KO 캐시 {}건 폴백 (type={})", lang, snap.sites.size(), type);
+                return snap;
+            }
+        }
+        return null;
+    }
+
+    private static boolean isQuotaExceededMessage(String msg) {
+        if (msg == null || msg.isBlank()) {
+            return false;
+        }
+        String m = msg.toLowerCase(Locale.ROOT);
+        return m.contains("429")
+                || m.contains("quota exceeded")
+                || m.contains("too many requests");
+    }
+
+    private void markQuotaBackoffIfNeeded(String msg) {
+        if (!isQuotaExceededMessage(msg)) {
+            return;
+        }
+        quotaBackoffUntilEpochMs = System.currentTimeMillis() + TimeUnit.HOURS.toMillis(6);
+        log.warn("[ODII] API 일일 할당량 초과(429) — 6시간 동안 신규 Odii 호출을 최소화합니다.");
+    }
+
     private void refreshAll(AudioGuideItem.Type type, String lang) {
+        if (isQuotaBackoffActive()) {
+            return;
+        }
         String cacheKey = allKey(type, lang);
         synchronized (monitorFor(cacheKey)) {
             CacheSnapshot existing = cache.get(cacheKey);
@@ -1355,6 +1406,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     }
 
     private void refreshByKeyword(AudioGuideItem.Type type, String lang, String keyword, String cacheKey) {
+        if (isQuotaBackoffActive()) {
+            return;
+        }
         synchronized (monitorFor(cacheKey)) {
             CacheSnapshot existing = cache.get(cacheKey);
             if (existing != null && !existing.partial && !isStale(existing)) {
@@ -1397,6 +1451,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
      * 호출자는 먼저 {@link #refreshAll} 까지 마친 뒤, 캐시가 비어 있을 때만 호출할 것.
      */
     private void maybeFillCatalogViaSearchWhenBasedListEmpty(AudioGuideItem.Type type, String lang) {
+        if (isQuotaBackoffActive()) {
+            return;
+        }
         String cacheKey = allKey(type, lang);
         synchronized (monitorFor(SEARCH_BOOTSTRAP_LOCK_PREFIX + cacheKey)) {
             CacheSnapshot cur = cache.get(cacheKey);
@@ -1541,9 +1598,12 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             raw = httpClient.requestUri(uri, HttpMethod.GET, headers);
         } catch (Exception ex) {
             String msg = ex.getMessage() != null ? ex.getMessage() : "";
+            markQuotaBackoffIfNeeded(msg);
             if (msg.contains("403") || msg.toLowerCase(Locale.ROOT).contains("forbidden")) {
                 log.info("[ODII] 403 Forbidden - 공공데이터포털 Odii 활용신청 승인 필요. type={} url={}",
                         type, urlForLog);
+            } else if (isQuotaExceededMessage(msg)) {
+                log.warn("[ODII] 429 할당량 초과 type={} page={} url={}", type, pageNo, urlForLog);
             } else {
                 log.error("[ODII] 호출 실패 type={} page={} url={} err={}",
                         type, pageNo, urlForLog, msg);
@@ -1647,6 +1707,14 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
      * 후보가 모두 실패하면 {@code null} — 호출부에서 명세 기본값만 쓰고 캐시하지 않는다.
      */
     private String probeOdiiLangCodeSuccessful(AudioGuideItem.Type type, String canonical) {
+        if (isQuotaBackoffActive()) {
+            return switch (canonical) {
+                case "en" -> "eng";
+                case "zh" -> "chs";
+                case "ja" -> "jpn";
+                default -> "ko";
+            };
+        }
         String base = basedUrl(type);
         String[] candidates = switch (canonical) {
             case "en" -> new String[]{"eng", "en"};
