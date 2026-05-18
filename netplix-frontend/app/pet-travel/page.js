@@ -671,25 +671,6 @@ export default function PetTravelPage() {
         {/* Pet-Cinema: 영화 큐레이션 — 여행·공모전 이미지와 같은 무드로 조합 */}
         <PetCinemaCurationStrip />
 
-        {selected == null && (
-          <p
-            style={{
-              fontSize: 12,
-              color: '#0369a1',
-              fontWeight: 600,
-              textAlign: 'center',
-              marginBottom: 12,
-              lineHeight: 1.45,
-              padding: '0 8px',
-            }}
-          >
-            {t(
-              'petTravel.regionSwipeHint',
-              '「전국」: 아래에서 지역별 정보를 위아래로 넘겨 보세요. 관광 풍경 사진 줄만 가로로 스와이프할 수 있어요.'
-            )}
-          </p>
-        )}
-
         {selected == null ? (
           NATIONAL_AREA_CODES.map((code, idx) => (
             <motion.section
