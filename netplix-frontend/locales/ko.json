@@ -360,7 +360,8 @@
     "resumeAudio": "다시 재생",
     "audioEnded": "이 해설 재생이 끝났어요. 다른 사진을 열면 같은 지역 풀에서 다른 편이 나올 수 있어요.",
     "openAudioGuide": "오디오 가이드 더보기",
-    "audioCueEmpty": "이 지역에서 즉시 재생 가능한 오디오를 찾지 못했어요.",
+    "audioLoading": "오디오 해설을 찾는 중…",
+    "audioCueEmpty": "이 사진과 맞는 재생 가능한 오디오를 찾지 못했어요.",
     "audioCueError": "오디오를 재생하지 못했어요.",
     "audioCueNeedRegion": "전국 최신 목록에서는 지역 검색어가 없어 오디오를 묶지 못해요. 지역 칩을 눌러 주세요.",
     "audioCueNoQueries": "이 사진에서 오디오 검색에 쓸 제목·촬영지 정보가 부족해요. 다른 사진을 열거나 지역 칩을 선택해 보세요."

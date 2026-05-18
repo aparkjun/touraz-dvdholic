@@ -360,7 +360,8 @@
     "resumeAudio": "Resume",
     "audioEnded": "This clip finished. Open another photo for another pick from the same regional pool.",
     "openAudioGuide": "Browse audio guides",
-    "audioCueEmpty": "No streamable audio matched this region right now.",
+    "audioLoading": "Finding Odii narration…",
+    "audioCueEmpty": "No streamable audio matched this photo right now.",
     "audioCueError": "Could not start playback.",
     "audioCueNeedRegion": "Nationwide mode has no region keyword — tap a region chip first.",
     "audioCueNoQueries": "This photo lacks enough title or location text to search Odii. Try another photo or pick a region chip."

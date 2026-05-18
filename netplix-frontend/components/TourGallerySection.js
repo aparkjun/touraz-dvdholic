@@ -146,7 +146,30 @@ export default function TourGallerySection({
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
     let cancelled = false;
+
+    async function searchType(type, queries) {
+      const batches = await Promise.all(
+        queries.map(async (q) => {
+          try {
+            const res = await axios.get("/api/v1/audio-guide/search", {
+              params: { type, lang, q, limit: 24 },
+              signal: controller.signal,
+              timeout: 12000,
+            });
+            return Array.isArray(res?.data?.data) ? res.data.data : [];
+          } catch {
+            return [];
+          }
+        })
+      );
+      return batches.reduce(
+        (acc, batch) => mergeAudioGuideItemsById(acc, batch),
+        []
+      );
+    }
+
     async function run() {
       if (!soundLayerEnabled || !odiiSearchQueries.length) {
         setAudioItems([]);
@@ -156,33 +179,11 @@ export default function TourGallerySection({
       try {
         setAudioLoading(true);
         const queries = odiiSearchQueries;
-        let merged = [];
 
-        const fetchType = async (type) => {
-          for (const q of queries) {
-            if (cancelled) return;
-            try {
-              const res = await axios.get("/api/v1/audio-guide/search", {
-                params: {
-                  type,
-                  lang,
-                  q,
-                  limit: 48,
-                },
-              });
-              const data = Array.isArray(res?.data?.data) ? res.data.data : [];
-              merged = mergeAudioGuideItemsById(merged, data);
-              if (filterPlayableAudioGuides(merged).length > 0) return;
-            } catch {
-              /* 다음 쿼리 시도 */
-            }
-          }
-        };
-
-        await fetchType("theme");
+        let merged = await searchType("theme", queries);
         if (cancelled) return;
         if (!filterPlayableAudioGuides(merged).length) {
-          await fetchType("story");
+          merged = await searchType("story", queries);
         }
         if (!cancelled) setAudioItems(merged);
       } catch {
@@ -194,6 +195,7 @@ export default function TourGallerySection({
     run();
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [soundLayerEnabled, odiiSearchQueries, lang, odiiLangRev]);
 
@@ -615,6 +617,7 @@ export default function TourGallerySection({
             onPrev={handlePrev}
             onNext={handleNext}
             soundLayerEnabled={soundLayerEnabled}
+            audioLoading={audioLoading}
             playingCue={playingCue}
             matchKeywordForOdii={matchKeywordForOdii}
             galleryAudioRef={galleryAudioRef}
@@ -654,6 +657,7 @@ function Lightbox({
   onPrev,
   onNext,
   soundLayerEnabled,
+  audioLoading,
   playingCue,
   matchKeywordForOdii,
   galleryAudioRef,
@@ -685,9 +689,14 @@ function Lightbox({
       : "/audio-guide";
 
   const cueBlock =
-    soundLayerEnabled && playingCue ? (
+    soundLayerEnabled && (audioLoading || playingCue) ? (
       <div className="tg-lb-audio" data-audio-ui={galleryAudioUiRev}>
-        {playingCue.kind === "ready" && playingCue.track && (
+        {audioLoading ? (
+          <div className="tg-lb-audio-muted tg-lb-audio-loading" role="status" aria-live="polite">
+            {t("photoGalleryPage.audioLoading")}
+          </div>
+        ) : null}
+        {!audioLoading && playingCue?.kind === "ready" && playingCue.track && (
           <>
             <div className="tg-lb-audio-badge">
               <Headphones size={14} aria-hidden />
@@ -761,13 +770,13 @@ function Lightbox({
             </Link>
           </>
         )}
-        {playingCue.kind === "noQueries" && (
+        {!audioLoading && playingCue?.kind === "noQueries" && (
           <div className="tg-lb-audio-muted">{t("photoGalleryPage.audioCueNoQueries")}</div>
         )}
-        {playingCue.kind === "empty" && (
+        {!audioLoading && playingCue?.kind === "empty" && (
           <div className="tg-lb-audio-muted">{t("photoGalleryPage.audioCueEmpty")}</div>
         )}
-        {playingCue.kind === "error" && (
+        {!audioLoading && playingCue?.kind === "error" && (
           <div className="tg-lb-audio-muted">{t("photoGalleryPage.audioCueError")}</div>
         )}
       </div>
@@ -1176,6 +1185,10 @@ const cssBlock = `
   font-size: 0.84rem;
   color: #d6d3d1;
   line-height: 1.45;
+}
+.tg-lb-audio-loading {
+  color: rgba(255, 255, 255, 0.88);
+  font-weight: 600;
 }
 .tg-lb-btn {
   position: absolute;

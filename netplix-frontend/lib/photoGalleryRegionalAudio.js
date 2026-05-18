@@ -69,17 +69,21 @@ export function galleryMatchCorpus(item) {
  * - 페이지에 지역/검색어가 있으면 그걸 우선.
  * - 전국 최신(키워드 없음)이면 열린 사진의 촬영지·제목·키워드에서 추론.
  */
+/** 사진 1장당 Odii search 호출 상한(순차 호출 시 10초+ 지연 방지). */
+export const MAX_ODII_GALLERY_SEARCH_QUERIES = 5;
+
 export function inferOdiiQueriesFromGalleryItem(galleryItem, pageRegionKeyword = "") {
   const pageKw = String(pageRegionKeyword || "").trim();
   if (pageKw) {
-    return buildOdiiSearchFallbackQueries(pageKw);
+    return buildOdiiSearchFallbackQueries(pageKw).slice(0, MAX_ODII_GALLERY_SEARCH_QUERIES);
   }
   if (!galleryItem) return [];
 
   const out = [];
-  const pushQueries = (s) => {
-    for (const q of buildOdiiSearchFallbackQueries(s)) {
-      if (q && !out.includes(q)) out.push(q);
+  const add = (q) => {
+    const v = String(q || "").trim();
+    if (v && !out.includes(v) && out.length < MAX_ODII_GALLERY_SEARCH_QUERIES) {
+      out.push(v);
     }
   };
 
@@ -87,12 +91,13 @@ export function inferOdiiQueriesFromGalleryItem(galleryItem, pageRegionKeyword =
   const title = String(galleryItem?.title || "").trim();
   const searchKw = String(galleryItem?.searchKeyword || "").trim();
 
-  if (loc) pushQueries(loc);
-  if (title) pushQueries(title);
-  if (searchKw && searchKw !== title) pushQueries(searchKw);
-
-  const corpus = galleryMatchCorpus(galleryItem).trim();
-  if (corpus) pushQueries(corpus);
+  // 시설명·제목이 가장 정확 — 대가야국악당 등
+  add(title);
+  for (const q of buildOdiiSearchFallbackQueries(loc)) {
+    if (q !== loc) add(q);
+  }
+  if (loc) add(loc);
+  if (searchKw && searchKw !== title) add(searchKw);
 
   return out;
 }
