@@ -16,6 +16,8 @@ public interface UserMovieLikeJpaRepository extends JpaRepository<UserMovieLikeE
     @Query("SELECT u.movieId FROM UserMovieLikeEntity u WHERE u.userId = :userId AND (u.voteType = 'like' OR (u.voteType IS NULL AND u.likeYn = true))")
     List<String> findLikedMovieIdsByUserId(@Param("userId") String userId);
 
+    List<UserMovieLikeEntity> findByUserIdOrderBySortOrderAscModifiedAtDesc(String userId);
+
     @Query("SELECT COUNT(u) FROM UserMovieLikeEntity u WHERE u.movieId = :movieId AND u.contentType = :contentType AND (u.voteType = 'like' OR (u.voteType IS NULL AND u.likeYn = true))")
     Long countLikesByMovieIdAndContentType(@Param("movieId") String movieId, @Param("contentType") String contentType);
 

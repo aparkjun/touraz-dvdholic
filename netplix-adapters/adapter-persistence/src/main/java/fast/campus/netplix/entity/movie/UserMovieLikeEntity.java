@@ -37,6 +37,25 @@ public class UserMovieLikeEntity extends MutableBaseEntity implements Persistabl
     @Column(name = "VOTE_TYPE")
     private String voteType; // "like" | "unlike" | "meh"
 
+    @Column(name = "MEMO")
+    private String memo;
+
+    @Column(name = "PLANNED_DATE")
+    private java.time.LocalDate plannedDate;
+
+    @Column(name = "TAGS_JSON")
+    private String tagsJson;
+
+    @Column(name = "SORT_ORDER")
+    private Integer sortOrder;
+
+    public void updateMeta(String memo, java.time.LocalDate plannedDate, String tagsJson, Integer sortOrder) {
+        if (memo != null) this.memo = memo;
+        this.plannedDate = plannedDate;
+        if (tagsJson != null) this.tagsJson = tagsJson;
+        if (sortOrder != null) this.sortOrder = sortOrder;
+    }
+
     @Override
     public String getId() {
         return userMovieLikeId;
@@ -57,6 +76,10 @@ public class UserMovieLikeEntity extends MutableBaseEntity implements Persistabl
                 .contentType(contentType)
                 .likeYn(ly)
                 .voteType(vt)
+                .memo(memo)
+                .plannedDate(plannedDate)
+                .tagsJson(tagsJson)
+                .sortOrder(sortOrder)
                 .build();
     }
 
@@ -74,7 +97,11 @@ public class UserMovieLikeEntity extends MutableBaseEntity implements Persistabl
                 domain.getMovieId(),
                 domain.getContentType(),
                 ly,
-                vt
+                vt,
+                domain.getMemo(),
+                domain.getPlannedDate(),
+                domain.getTagsJson(),
+                domain.getSortOrder()
         );
         entity.isNewEntity = markNew;
         return entity;

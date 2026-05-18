@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Heart, Bell, Film, Sparkles, Megaphone, CheckCheck, BellOff } from "lucide-react";
 import axios from "@/lib/axiosConfig";
 import BatchNotificationPosters from "@/components/BatchNotificationPosters";
+import LikedMoviesHub from "@/components/LikedMoviesHub";
 
 function MypageContent() {
   const router = useRouter();
@@ -13,12 +14,10 @@ function MypageContent() {
   const searchParams = useSearchParams();
   const { t, i18n } = useTranslation();
   const [authChecked, setAuthChecked] = useState(false);
-  const [likedMovies, setLikedMovies] = useState([]);
-  const [likedLoading, setLikedLoading] = useState(true);
   const [notifications, setNotifications] = useState([]);
   const [notifLoading, setNotifLoading] = useState(true);
 
-  // 카카오 OAuth2(서버 리다이렉트) 등: URL 쿼리의 토큰을 저장한 뒤 주소창에서 제거
+  // 移댁뭅??OAuth2(?쒕쾭 由щ떎?대젆?? ?? URL 荑쇰━???좏겙????ν븳 ??二쇱냼李쎌뿉???쒓굅
   useEffect(() => {
     const token = searchParams.get("token");
     const refreshToken = searchParams.get("refresh_token");
@@ -43,18 +42,6 @@ function MypageContent() {
 
   useEffect(() => {
     if (!authChecked) return;
-    const loadLiked = async () => {
-      try {
-        const res = await axios.get("/api/v1/user/me/liked-movies");
-        if (res.data?.success && Array.isArray(res.data?.data)) {
-          setLikedMovies(res.data.data);
-        }
-      } catch (e) {
-        console.error("찜 목록 로드 실패:", e);
-      } finally {
-        setLikedLoading(false);
-      }
-    };
     const loadNotifications = async () => {
       try {
         const res = await axios.get("/api/v1/notifications");
@@ -62,12 +49,11 @@ function MypageContent() {
           setNotifications(res.data.data);
         }
       } catch (e) {
-        console.error("알림 로드 실패:", e);
+        console.error("?뚮┝ 濡쒕뱶 ?ㅽ뙣:", e);
       } finally {
         setNotifLoading(false);
       }
     };
-    loadLiked();
     loadNotifications();
   }, [authChecked]);
 
@@ -78,7 +64,7 @@ function MypageContent() {
         prev.map((n) => (n.notificationId === notificationId ? { ...n, isRead: true } : n))
       );
     } catch (e) {
-      console.error("읽음 처리 실패:", e);
+      console.error("?쎌쓬 泥섎━ ?ㅽ뙣:", e);
     }
   };
 
@@ -87,7 +73,7 @@ function MypageContent() {
       await axios.post("/api/v1/notifications/read-all");
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     } catch (e) {
-      console.error("전체 읽음 처리 실패:", e);
+      console.error("?꾩껜 ?쎌쓬 泥섎━ ?ㅽ뙣:", e);
     }
   };
 
@@ -166,7 +152,7 @@ function MypageContent() {
         overflow: "hidden",
       }}
     >
-      {/* Animated Background Orbs (알림 화면과 동일) */}
+      {/* Animated Background Orbs (?뚮┝ ?붾㈃怨??숈씪) */}
       <div
         style={{
           position: "absolute",
@@ -219,7 +205,7 @@ function MypageContent() {
           padding: "32px 20px",
         }}
       >
-        {/* 알림 섹션 (위쪽) */}
+        {/* ?뚮┝ ?뱀뀡 (?꾩そ) */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -479,7 +465,7 @@ function MypageContent() {
           )}
         </motion.div>
 
-        {/* 내 찜 목록 (알림 아래) */}
+        {/* ??李?紐⑸줉 (?뚮┝ ?꾨옒) */}
         <motion.section
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -520,127 +506,7 @@ function MypageContent() {
             </h2>
           </div>
 
-          {likedLoading ? (
-            <div
-              style={{
-                padding: "40px 20px",
-                textAlign: "center",
-                backdropFilter: "blur(20px)",
-                background: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                borderRadius: "20px",
-              }}
-            >
-              <p style={{ color: "rgba(148, 163, 184, 1)", fontSize: "16px" }}>
-                {t("mypage.loadingLiked")}
-              </p>
-            </div>
-          ) : likedMovies.length > 0 ? (
-            <div
-              style={{
-                display: "flex",
-                gap: "12px",
-                overflowX: "auto",
-                paddingBottom: "8px",
-                WebkitOverflowScrolling: "touch",
-              }}
-            >
-              {likedMovies.map((item, idx) => {
-                const ct = item.contentType || "dvd";
-                return (
-                  <motion.div
-                    key={`liked-${item.movieName}-${idx}`}
-                    whileHover={{ scale: 1.02 }}
-                    style={{
-                      flex: "0 0 auto",
-                      width: "140px",
-                      minWidth: "140px",
-                      borderRadius: "16px",
-                      overflow: "hidden",
-                      backdropFilter: "blur(20px)",
-                      background: "rgba(255, 255, 255, 0.08)",
-                      border: "1px solid rgba(236, 72, 153, 0.2)",
-                      boxShadow: "0 8px 32px rgba(236, 72, 153, 0.1)",
-                    }}
-                  >
-                    <button
-                      type="button"
-                      style={{
-                        width: "100%",
-                        margin: 0,
-                        padding: 0,
-                        border: "none",
-                        background: "none",
-                        cursor: "pointer",
-                        display: "block",
-                      }}
-                      onClick={() =>
-                        router.push(`/dashboard/images?movieName=${encodeURIComponent(item.movieName)}&contentType=${ct}`)
-                      }
-                    >
-                      {item.posterPath ? (
-                        <img
-                          src={`https://image.tmdb.org/t/p/w342${item.posterPath}`}
-                          alt=""
-                          draggable={false}
-                          style={{ width: "100%", height: "200px", objectFit: "cover", display: "block" }}
-                        />
-                      ) : (
-                        <img
-                          src="/no-poster-placeholder.png"
-                          alt=""
-                          style={{ width: "100%", height: "200px", objectFit: "cover", display: "block" }}
-                        />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      style={{
-                        width: "100%",
-                        padding: "12px 10px",
-                        border: "none",
-                        background: "transparent",
-                        color: "#fff",
-                        fontSize: "14px",
-                        fontWeight: 600,
-                        textAlign: "center",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        cursor: "pointer",
-                      }}
-                      onClick={() =>
-                        router.push(`/dashboard/images?movieName=${encodeURIComponent(item.movieName)}&contentType=${ct}`)
-                      }
-                    >
-                      {item.movieName}
-                    </button>
-                  </motion.div>
-                );
-              })}
-            </div>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              style={{
-                padding: "60px 20px",
-                textAlign: "center",
-                backdropFilter: "blur(20px)",
-                background: "rgba(255, 255, 255, 0.05)",
-                border: "1px solid rgba(255, 255, 255, 0.1)",
-                borderRadius: "20px",
-              }}
-            >
-              <Heart size={40} color="rgba(244, 114, 182, 0.6)" style={{ marginBottom: "16px" }} />
-              <h3 style={{ color: "#fff", fontSize: "18px", fontWeight: 700, marginBottom: "8px" }}>
-                {t("mypage.noLiked")}
-              </h3>
-              <p style={{ color: "rgba(148, 163, 184, 1)", fontSize: "14px" }}>
-                {t("mypage.noLikedDesc")}
-              </p>
-            </motion.div>
-          )}
+          <LikedMoviesHub />
         </motion.section>
       </div>
 

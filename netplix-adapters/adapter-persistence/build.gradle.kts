@@ -1,6 +1,8 @@
 dependencies {
     implementation(project(":netplix-core:core-port"))
     implementation(project(":netplix-core:core-domain"))
+    implementation(project(":netplix-core:core-usecase"))
+    implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation(project(":netplix-commons"))
 
     implementation("org.springframework.boot:spring-boot-starter-data-jpa") // jpa

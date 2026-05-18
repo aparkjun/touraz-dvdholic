@@ -11,6 +11,7 @@ import { getMovieTitle, getPosterPath, getBackdropPath } from "@/lib/movieLang";
 import useDragScrollAll from "@/lib/useDragScroll";
 import TrendingRegionsWidget from "@/components/TrendingRegionsWidget";
 import DashboardTravelShortcuts from "@/components/DashboardTravelShortcuts";
+import LikedMoviesRecommendStrip from "@/components/LikedMoviesRecommendStrip";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 
 function CategorySentinel({ cat, isLoadingMore, loadMoreCategory, palette }) {
@@ -935,6 +936,7 @@ function DashboardContent() {
         >
           <TrendingRegionsWidget limit={5} />
           <DashboardTravelShortcuts />
+          <LikedMoviesRecommendStrip />
         </div>
 
         {/* This Week's / This Month's Popular */}

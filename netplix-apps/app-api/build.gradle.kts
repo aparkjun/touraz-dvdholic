@@ -17,7 +17,7 @@ dependencies {
     implementation("org.flywaydb:flyway-mysql")
 
     implementation(project(":netplix-adapters:adapter-http"))
-    runtimeOnly(project(":netplix-adapters:adapter-persistence"))
+    implementation(project(":netplix-adapters:adapter-persistence"))
     runtimeOnly(project(":netplix-adapters:adapter-redis"))
 
     integrationImplementation("org.springframework.boot:spring-boot-starter-test")

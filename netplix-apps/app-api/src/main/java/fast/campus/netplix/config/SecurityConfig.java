@@ -58,6 +58,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/admin/**").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/user/me").authenticated()
                         .requestMatchers("/api/v1/user/me/liked-movies").authenticated()
+                        .requestMatchers("/api/v1/user/me/favorites/**").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/favorites/share/**").permitAll()
                         .requestMatchers("/api/v1/user/**", "/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/movie/**").permitAll()
                         .requestMatchers("/api/v1/batch/**").permitAll()

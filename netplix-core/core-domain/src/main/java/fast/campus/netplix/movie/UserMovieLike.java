@@ -18,6 +18,10 @@ public class UserMovieLike {
     private final String contentType; // "movie" 또는 "dvd"
     private Boolean likeYn; // 하위 호환용 (voteType과 동기화)
     private String voteType; // "like" | "unlike" | "meh"
+    private String memo;
+    private java.time.LocalDate plannedDate;
+    private String tagsJson;
+    private Integer sortOrder;
 
     public void like() {
         this.likeYn = true;
