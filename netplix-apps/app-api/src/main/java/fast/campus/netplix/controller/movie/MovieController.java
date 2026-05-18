@@ -81,8 +81,12 @@ public class MovieController {
     }
 
     @GetMapping("/{movieName}/detail")
-    public NetplixApiResponse<NetplixMovie> getMovieDetail(@PathVariable String movieName) {
-        NetplixMovie movie = fetchMovieUseCase.findByName(movieName);
+    public NetplixApiResponse<NetplixMovie> getMovieDetail(
+            @PathVariable String movieName,
+            @RequestParam(required = false) Integer tmdbId) {
+        NetplixMovie movie = (tmdbId != null && tmdbId > 0)
+                ? fetchMovieUseCase.findByNameOrImportTmdb(movieName, tmdbId)
+                : fetchMovieUseCase.findByName(movieName);
         return NetplixApiResponse.ok(movie);
     }
 

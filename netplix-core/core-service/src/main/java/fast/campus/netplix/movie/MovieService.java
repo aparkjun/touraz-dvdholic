@@ -127,4 +127,29 @@ public class MovieService implements FetchMovieUseCase, InsertMovieUseCase, Down
     public NetplixMovie findByName(String movieName) {
         return persistenceMoviePort.findBy(movieName);
     }
+
+    @Override
+    public NetplixMovie findByNameOrImportTmdb(String movieName, Integer tmdbId) {
+        if (movieName != null && !movieName.isBlank()) {
+            NetplixMovie existing = persistenceMoviePort.findBy(movieName.trim());
+            if (existing != null) {
+                return existing;
+            }
+        }
+        if (tmdbId == null || tmdbId <= 0) {
+            return null;
+        }
+        try {
+            String preferred = movieName == null ? "" : movieName.trim();
+            NetplixMovie imported = tmdbMoviePort.buildFromTmdbId(tmdbId, preferred);
+            if (imported == null || imported.getMovieName() == null || imported.getMovieName().isBlank()) {
+                return null;
+            }
+            insert(List.of(imported));
+            return persistenceMoviePort.findBy(imported.getMovieName());
+        } catch (Exception ex) {
+            log.warn("[MOVIE-IMPORT] tmdbId={} name={} err={}", tmdbId, movieName, ex.getMessage());
+            return null;
+        }
+    }
 }

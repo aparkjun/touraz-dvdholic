@@ -125,6 +125,7 @@ function MovieImagesContent() {
   const searchParams = useSearchParams();
   const movieNameParam = searchParams.get("movieName");
   const contentTypeParam = searchParams.get("contentType");
+  const tmdbIdParam = searchParams.get("tmdbId");
 
   const [movie, setMovie] = useState(null);
   const [detailLoading, setDetailLoading] = useState(true);
@@ -135,7 +136,11 @@ function MovieImagesContent() {
       return;
     }
     setDetailLoading(true);
-    axios.get(`/api/v1/movie/${encodeURIComponent(movieNameParam)}/detail`)
+    const tmdbQ =
+      tmdbIdParam && Number.isFinite(Number(tmdbIdParam)) && Number(tmdbIdParam) > 0
+        ? `?tmdbId=${Number(tmdbIdParam)}`
+        : "";
+    axios.get(`/api/v1/movie/${encodeURIComponent(movieNameParam)}/detail${tmdbQ}`)
       .then((res) => {
         if (res.data?.success && res.data.data) {
           const apiData = res.data.data;
@@ -159,7 +164,7 @@ function MovieImagesContent() {
       })
       .catch(() => {})
       .finally(() => setDetailLoading(false));
-  }, [movieNameParam, contentTypeParam]);
+  }, [movieNameParam, contentTypeParam, tmdbIdParam]);
 
   const [likeCount, setLikeCount] = useState(0);
   const [unlikeCount, setUnlikeCount] = useState(0);

@@ -22,6 +22,7 @@ const PET_CINEMA_PICKS = [
   {
     id: 'maum',
     detailMovieName: '마음이',
+    tmdbId: 154326,
     fallback: { title: '마음이', subtitle: '한국 · 2006', blurb: '진돗개 "마음이" 와 남매의 자전거 로드무비', tag: '반려견 · 한국' },
     emoji: '🐕‍🦺',
     gradient: 'linear-gradient(135deg, #fbbf24 0%, #f97316 55%, #dc2626 100%)',
@@ -30,6 +31,7 @@ const PET_CINEMA_PICKS = [
   {
     id: 'sugar',
     detailMovieName: '각설탕',
+    tmdbId: 199697,
     fallback: { title: '각설탕', subtitle: '한국 · 2006', blurb: '소녀와 경주마 "천둥" 의 청춘 성장기', tag: '가족 · 한국' },
     emoji: '🐎',
     gradient: 'linear-gradient(135deg, #0ea5e9 0%, #14b8a6 50%, #22c55e 100%)',
@@ -38,6 +40,7 @@ const PET_CINEMA_PICKS = [
   {
     id: 'mari',
     detailMovieName: '마리 이야기',
+    tmdbId: 105280,
     fallback: { title: '마리 이야기', subtitle: '한국 애니 · 2002', blurb: '어린 날 친구가 되어준 하얀 고양이의 기억', tag: '애니 · 한국' },
     emoji: '🐈',
     gradient: 'linear-gradient(135deg, #a855f7 0%, #ec4899 50%, #f472b6 100%)',
@@ -45,7 +48,8 @@ const PET_CINEMA_PICKS = [
   },
   {
     id: 'hachi',
-    detailMovieName: '하치이야기',
+    detailMovieName: '하치 이야기',
+    tmdbId: 17979,
     fallback: { title: '하치 이야기', subtitle: 'Hachi · 2009', blurb: '주인을 기다린 전설의 견공 아키타', tag: '실화 · 견공' },
     emoji: '🐕',
     gradient: 'linear-gradient(135deg, #1e3a8a 0%, #7c3aed 55%, #db2777 100%)',
@@ -54,6 +58,7 @@ const PET_CINEMA_PICKS = [
   {
     id: 'marley',
     detailMovieName: '말리와 나',
+    tmdbId: 14306,
     fallback: { title: '말리와 나', subtitle: 'Marley & Me · 2008', blurb: '장난꾸러기 골든 리트리버가 만든 가족의 12년', tag: '가족 · 리트리버' },
     emoji: '🐶',
     gradient: 'linear-gradient(135deg, #f59e0b 0%, #10b981 50%, #0ea5e9 100%)',
@@ -62,6 +67,7 @@ const PET_CINEMA_PICKS = [
   {
     id: 'isle',
     detailMovieName: '개들의 섬',
+    tmdbId: 399170,
     fallback: { title: '개들의 섬', subtitle: 'Isle of Dogs · 2018', blurb: '추방된 개들과 소년이 만든 기묘한 모험', tag: '모험 · 애니' },
     emoji: '🦴',
     gradient: 'linear-gradient(135deg, #c2410c 0%, #a855f7 55%, #0284c7 100%)',
@@ -171,7 +177,8 @@ function PetCinemaCard({ pick, index }) {
   const blurb = t(`petCinema.picks.${pick.id}.blurb`, pick.fallback.blurb);
   const tag = t(`petCinema.picks.${pick.id}.tag`, pick.fallback.tag);
   const movieKey = pick.detailMovieName || pick.fallback.title;
-  const href = `/dashboard/images?movieName=${encodeURIComponent(movieKey)}&contentType=movie`;
+  const tmdbQuery = pick.tmdbId ? `&tmdbId=${pick.tmdbId}` : '';
+  const href = `/dashboard/images?movieName=${encodeURIComponent(movieKey)}&contentType=movie${tmdbQuery}`;
 
   return (
     <Link

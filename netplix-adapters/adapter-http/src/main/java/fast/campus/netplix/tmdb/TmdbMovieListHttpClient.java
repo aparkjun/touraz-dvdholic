@@ -50,6 +50,34 @@ public class TmdbMovieListHttpClient implements TmdbMoviePort {
     }
 
     @Override
+    public NetplixMovie buildFromTmdbId(int tmdbId, String preferredMovieName) {
+        TmdbMovieDetails details = tmdbMovieDetailsHttpClient.fetchMovieDetails(tmdbId);
+        if (details == null) {
+            return null;
+        }
+        String name = preferredMovieName != null && !preferredMovieName.isBlank()
+                ? preferredMovieName.trim()
+                : details.getTitle();
+        if (name == null || name.isBlank()) {
+            return null;
+        }
+        NetplixMovie stub = NetplixMovie.builder()
+                .movieName(name)
+                .isAdult(false)
+                .overview(details.getOverview())
+                .releasedAt(details.getReleaseDate())
+                .posterPath(details.getPosterPath())
+                .backdropPath(details.getBackdropPath())
+                .voteAverage(details.getVoteAverage())
+                .releaseDate(details.getReleaseDate())
+                .voteCount(details.getVoteCount())
+                .originalTitle(details.getOriginalTitle())
+                .originalLanguage(details.getOriginalLanguage())
+                .build();
+        return enrichMovieDetails(stub, tmdbId);
+    }
+
+    @Override
     public NetplixMovie enrichMovieDetails(NetplixMovie movie, Integer tmdbId) {
         log.info("→ Enriching movie: {} (tmdbId: {})", movie.getMovieName(), tmdbId);
         

@@ -13,4 +13,9 @@ public interface FetchMovieUseCase {
     MoviePageableResponse fetchByKeyword(String keyword, int page);
     ContentTotalsResponse getContentTotals();
     NetplixMovie findByName(String movieName);
+
+    /**
+     * DB 에 없고 {@code tmdbId} 가 있으면 TMDB 에서 1회 가져와 저장 후 반환.
+     */
+    NetplixMovie findByNameOrImportTmdb(String movieName, Integer tmdbId);
 }
