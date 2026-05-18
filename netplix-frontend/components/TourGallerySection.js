@@ -13,14 +13,13 @@ import {
   defaultOdiiLangFromUiLang,
   subscribeAudioGuideOdiiLang,
 } from "@/lib/audioGuideOdiiLang";
+import { resolveGallerySoundMatchKeyword } from "@/lib/photoGalleryRegionalAudio";
 import {
-  filterPlayableAudioGuides,
-  sortAudioGuidesStable,
-  pickBestOdiiForGalleryPhoto,
-  inferOdiiQueriesFromGalleryItem,
-  resolveGallerySoundMatchKeyword,
-  mergeAudioGuideItemsById,
-} from "@/lib/photoGalleryRegionalAudio";
+  getGalleryOdiiMatch,
+  ensureGalleryOdiiMatch,
+  prefetchGalleryOdiiBatch,
+  invalidateGalleryOdiiCache,
+} from "@/lib/galleryOdiiMatch";
 import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
 
 /**
@@ -96,14 +95,6 @@ export default function TourGallerySection({
     return items[selectedIndex];
   }, [selectedIndex, items]);
 
-  const odiiSearchQueries = useMemo(() => {
-    if (!soundLayerEnabled) return [];
-    return inferOdiiQueriesFromGalleryItem(
-      selectedGalleryItem,
-      effectiveSoundKeyword
-    );
-  }, [soundLayerEnabled, selectedGalleryItem, effectiveSoundKeyword]);
-
   const matchKeywordForOdii = useMemo(
     () =>
       resolveGallerySoundMatchKeyword(
@@ -113,8 +104,11 @@ export default function TourGallerySection({
     [selectedGalleryItem, effectiveSoundKeyword]
   );
 
-  const [audioItems, setAudioItems] = useState([]);
-  const [audioLoading, setAudioLoading] = useState(false);
+  /** 목록 선조회 캐시 갱신 시 카드 🎧 배지·라이트박스 재렌더 */
+  const [odiiMatchRev, setOdiiMatchRev] = useState(0);
+  const bumpOdiiMatch = useCallback(() => setOdiiMatchRev((n) => n + 1), []);
+
+  const [lightboxAudioLoading, setLightboxAudioLoading] = useState(false);
   const galleryAudioRef = useRef(null);
   const galleryMediaSessionDetachRef = useRef(null);
   const [playingCue, setPlayingCue] = useState(null);
@@ -146,172 +140,177 @@ export default function TourGallerySection({
   }, []);
 
   useEffect(() => {
+    if (!soundLayerEnabled) {
+      invalidateGalleryOdiiCache();
+      return;
+    }
+    invalidateGalleryOdiiCache(lang);
+  }, [soundLayerEnabled, effectiveSoundKeyword, lang, odiiLangRev]);
+
+  useEffect(() => {
+    if (!soundLayerEnabled || loading || !items.length) return undefined;
     const controller = new AbortController();
-    let cancelled = false;
-
-    async function searchType(type, queries) {
-      const batches = await Promise.all(
-        queries.map(async (q) => {
-          try {
-            const res = await axios.get("/api/v1/audio-guide/search", {
-              params: { type, lang, q, limit: 24 },
-              signal: controller.signal,
-              timeout: 12000,
-            });
-            return Array.isArray(res?.data?.data) ? res.data.data : [];
-          } catch {
-            return [];
-          }
-        })
-      );
-      return batches.reduce(
-        (acc, batch) => mergeAudioGuideItemsById(acc, batch),
-        []
-      );
-    }
-
-    async function run() {
-      if (!soundLayerEnabled || !odiiSearchQueries.length) {
-        setAudioItems([]);
-        setAudioLoading(false);
-        return;
-      }
-      try {
-        setAudioLoading(true);
-        const queries = odiiSearchQueries;
-
-        let merged = await searchType("theme", queries);
-        if (cancelled) return;
-        if (!filterPlayableAudioGuides(merged).length) {
-          merged = await searchType("story", queries);
-        }
-        if (!cancelled) setAudioItems(merged);
-      } catch {
-        if (!cancelled) setAudioItems([]);
-      } finally {
-        if (!cancelled) setAudioLoading(false);
-      }
-    }
-    run();
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [soundLayerEnabled, odiiSearchQueries, lang, odiiLangRev]);
+    const slice = items.slice(0, visibleCount);
+    prefetchGalleryOdiiBatch(slice, effectiveSoundKeyword, lang, {
+      photoIndexOffset: 0,
+      concurrency: 4,
+      signal: controller.signal,
+      onUpdate: bumpOdiiMatch,
+    });
+    return () => controller.abort();
+  }, [
+    soundLayerEnabled,
+    loading,
+    items,
+    visibleCount,
+    effectiveSoundKeyword,
+    lang,
+    odiiLangRev,
+    bumpOdiiMatch,
+  ]);
 
   useEffect(() => () => stopGalleryAudio(), [stopGalleryAudio]);
+
+  const prepareAudioElement = useCallback(
+    (track, regionKey) => {
+      stopGalleryAudio();
+      setPlayingCue({
+        kind: "ready",
+        regionKey,
+        track,
+      });
+
+      try {
+        const audio = new Audio(track.audioUrl);
+        audio.preload = "auto";
+
+        const bumpUi = () => setGalleryAudioUiRev((n) => n + 1);
+        audio.addEventListener("play", bumpUi);
+        audio.addEventListener("pause", bumpUi);
+
+        audio.addEventListener("ended", () => {
+          if (galleryAudioRef.current === audio) {
+            bumpUi();
+            if (galleryMediaSessionDetachRef.current) {
+              try {
+                galleryMediaSessionDetachRef.current();
+              } catch {
+                /* noop */
+              }
+              galleryMediaSessionDetachRef.current = null;
+            }
+            galleryAudioRef.current = null;
+            setPlayingCue((prev) =>
+              prev?.kind === "ready" ? { ...prev, playbackEnded: true } : prev
+            );
+          }
+        });
+        audio.addEventListener("error", () => {
+          if (galleryAudioRef.current === audio) {
+            bumpUi();
+            if (galleryMediaSessionDetachRef.current) {
+              try {
+                galleryMediaSessionDetachRef.current();
+              } catch {
+                /* noop */
+              }
+              galleryMediaSessionDetachRef.current = null;
+            }
+            galleryAudioRef.current = null;
+            setPlayingCue({
+              kind: "error",
+              regionKey,
+            });
+          }
+        });
+        galleryAudioRef.current = audio;
+        galleryMediaSessionDetachRef.current = attachAudioMediaSession(audio, {
+          title: track.audioTitle || track.title,
+          artworkUrl: track.imageUrl,
+        });
+        bumpUi();
+      } catch {
+        setPlayingCue({
+          kind: "error",
+          regionKey,
+        });
+      }
+    },
+    [stopGalleryAudio]
+  );
 
   useEffect(() => {
     if (!soundLayerEnabled) {
       stopGalleryAudio();
       setPlayingCue(null);
-      return;
+      setLightboxAudioLoading(false);
+      return undefined;
     }
-    if (selectedIndex === null) {
+    if (selectedIndex === null || !selectedGalleryItem) {
       stopGalleryAudio();
       setPlayingCue(null);
-      return;
+      setLightboxAudioLoading(false);
+      return undefined;
     }
-    if (!odiiSearchQueries.length) {
+
+    let cancelled = false;
+
+    const applyMatch = (match) => {
+      if (cancelled || !match) return;
+      if (match.status === "ready" && match.track) {
+        prepareAudioElement(match.track, match.matchKeyword);
+        return;
+      }
       stopGalleryAudio();
-      setPlayingCue({ kind: "noQueries" });
-      return;
+      if (match.status === "noQueries") {
+        setPlayingCue({ kind: "noQueries" });
+      } else if (match.status === "error") {
+        setPlayingCue({ kind: "error", regionKey: match.matchKeyword });
+      } else {
+        setPlayingCue({ kind: "empty", regionKey: match.matchKeyword });
+      }
+    };
+
+    const cached = getGalleryOdiiMatch(
+      lang,
+      selectedGalleryItem,
+      effectiveSoundKeyword
+    );
+    if (cached && cached.status !== "pending") {
+      setLightboxAudioLoading(false);
+      applyMatch(cached);
+      return undefined;
     }
-    if (audioLoading) {
-      stopGalleryAudio();
-      setPlayingCue(null);
-      return;
-    }
-    const playable = sortAudioGuidesStable(filterPlayableAudioGuides(audioItems));
+
+    setLightboxAudioLoading(true);
+    setPlayingCue(null);
     stopGalleryAudio();
 
-    if (!playable.length) {
-      setPlayingCue({
-        kind: "empty",
-        regionKey: matchKeywordForOdii,
-      });
-      return;
-    }
-
-    const track = pickBestOdiiForGalleryPhoto(
+    ensureGalleryOdiiMatch(
+      lang,
       selectedGalleryItem,
-      playable,
-      matchKeywordForOdii,
-      selectedIndex
-    );
-
-    setPlayingCue({
-      kind: "ready",
-      regionKey: matchKeywordForOdii,
-      track,
+      effectiveSoundKeyword,
+      selectedIndex,
+      { onUpdate: bumpOdiiMatch }
+    ).then((match) => {
+      if (cancelled) return;
+      setLightboxAudioLoading(false);
+      applyMatch(match);
     });
 
-    try {
-      const audio = new Audio(track.audioUrl);
-      audio.preload = "auto";
-
-      const bumpUi = () => setGalleryAudioUiRev((n) => n + 1);
-      audio.addEventListener("play", bumpUi);
-      audio.addEventListener("pause", bumpUi);
-
-      audio.addEventListener("ended", () => {
-        if (galleryAudioRef.current === audio) {
-          bumpUi();
-          if (galleryMediaSessionDetachRef.current) {
-            try {
-              galleryMediaSessionDetachRef.current();
-            } catch {
-              /* noop */
-            }
-            galleryMediaSessionDetachRef.current = null;
-          }
-          galleryAudioRef.current = null;
-          setPlayingCue((prev) =>
-            prev?.kind === "ready"
-              ? { ...prev, playbackEnded: true }
-              : prev
-          );
-        }
-      });
-      audio.addEventListener("error", () => {
-        if (galleryAudioRef.current === audio) {
-          bumpUi();
-          if (galleryMediaSessionDetachRef.current) {
-            try {
-              galleryMediaSessionDetachRef.current();
-            } catch {
-              /* noop */
-            }
-            galleryMediaSessionDetachRef.current = null;
-          }
-          galleryAudioRef.current = null;
-          setPlayingCue({
-            kind: "error",
-            regionKey: matchKeywordForOdii,
-          });
-        }
-      });
-      galleryAudioRef.current = audio;
-      galleryMediaSessionDetachRef.current = attachAudioMediaSession(audio, {
-        title: track.audioTitle || track.title,
-        artworkUrl: track.imageUrl,
-      });
-      bumpUi();
-    } catch {
-      setPlayingCue({
-        kind: "error",
-        regionKey: matchKeywordForOdii,
-      });
-    }
+    return () => {
+      cancelled = true;
+    };
   }, [
     soundLayerEnabled,
     selectedIndex,
-    odiiSearchQueries,
-    matchKeywordForOdii,
-    audioLoading,
-    audioItems,
     selectedGalleryItem,
+    effectiveSoundKeyword,
+    lang,
+    odiiMatchRev,
+    prepareAudioElement,
     stopGalleryAudio,
+    bumpOdiiMatch,
   ]);
 
   const toggleGalleryPlayback = useCallback(() => {
@@ -447,17 +446,35 @@ export default function TourGallerySection({
   // 페이지 이동이 아니라 라이트박스 닫기로 동작하도록 history 항목을 관리.
   useBackButtonClose(selectedIndex !== null, handleClose);
 
-  const handlePrev = useCallback(
-    () => setSelectedIndex((p) => (p > 0 ? p - 1 : p)),
-    []
+  const prefetchOdiiForIndex = useCallback(
+    (idx) => {
+      if (!soundLayerEnabled || idx == null || idx < 0 || !items[idx]) return;
+      ensureGalleryOdiiMatch(lang, items[idx], effectiveSoundKeyword, idx, {
+        onUpdate: bumpOdiiMatch,
+      });
+    },
+    [soundLayerEnabled, items, lang, effectiveSoundKeyword, bumpOdiiMatch]
   );
-  const handleNext = useCallback(
-    () =>
-      setSelectedIndex((p) =>
-        p !== null && p < items.length - 1 ? p + 1 : p
-      ),
-    [items.length]
-  );
+
+  const handlePrev = useCallback(() => {
+    setSelectedIndex((p) => {
+      if (p == null || p <= 0) return p;
+      const next = p - 1;
+      prefetchOdiiForIndex(next);
+      prefetchOdiiForIndex(next - 1);
+      return next;
+    });
+  }, [prefetchOdiiForIndex]);
+
+  const handleNext = useCallback(() => {
+    setSelectedIndex((p) => {
+      if (p == null || p >= items.length - 1) return p;
+      const next = p + 1;
+      prefetchOdiiForIndex(next);
+      prefetchOdiiForIndex(next + 1);
+      return next;
+    });
+  }, [items.length, prefetchOdiiForIndex]);
 
   useEffect(() => {
     if (selectedIndex === null) return undefined;
@@ -501,11 +518,7 @@ export default function TourGallerySection({
         {soundLayerEnabled && (
           <p className="tg-sound-hint">
             <Headphones size={14} aria-hidden className="tg-sound-hint-ic" />
-            <span>
-              {effectiveSoundKeyword
-                ? t("photoGalleryPage.gallerySoundHint")
-                : t("photoGalleryPage.gallerySoundHintPerPhoto")}
-            </span>
+            <span>{t("photoGalleryPage.gallerySoundHintPrefetch")}</span>
           </p>
         )}
       </div>
@@ -527,7 +540,12 @@ export default function TourGallerySection({
                 </div>
               </div>
             ))
-          : items.slice(0, visibleCount).map((item, index) => (
+          : items.slice(0, visibleCount).map((item, index) => {
+              void odiiMatchRev;
+              const odiiMatch = soundLayerEnabled
+                ? getGalleryOdiiMatch(lang, item, effectiveSoundKeyword)
+                : null;
+              return (
               <button
                 type="button"
                 key={`${item.galContentId || index}`}
@@ -544,6 +562,25 @@ export default function TourGallerySection({
                       referrerPolicy="no-referrer"
                     />
                   )}
+                  {soundLayerEnabled && odiiMatch?.status === "ready" && (
+                    <span
+                      className="tg-audio-pill tg-audio-pill--yes"
+                      title={t("photoGalleryPage.galleryAudioBadgeYes")}
+                      aria-hidden
+                    >
+                      <Headphones size={14} />
+                    </span>
+                  )}
+                  {soundLayerEnabled &&
+                    (odiiMatch?.status === "none" || odiiMatch?.status === "noQueries") && (
+                      <span
+                        className="tg-audio-pill tg-audio-pill--no"
+                        title={t("photoGalleryPage.galleryAudioBadgeNo")}
+                        aria-hidden
+                      >
+                        <Headphones size={14} />
+                      </span>
+                    )}
                   {weatherRegionCode && (
                     <span
                       className="tg-weather"
@@ -570,7 +607,8 @@ export default function TourGallerySection({
                   )}
                 </div>
               </button>
-            ))}
+              );
+            })}
       </div>
 
       {infinite && !loading && visibleCount < items.length && !isRail && (
@@ -617,7 +655,7 @@ export default function TourGallerySection({
             onPrev={handlePrev}
             onNext={handleNext}
             soundLayerEnabled={soundLayerEnabled}
-            audioLoading={audioLoading}
+            audioLoading={lightboxAudioLoading}
             playingCue={playingCue}
             matchKeywordForOdii={matchKeywordForOdii}
             galleryAudioRef={galleryAudioRef}
@@ -771,10 +809,10 @@ function Lightbox({
           </>
         )}
         {!audioLoading && playingCue?.kind === "noQueries" && (
-          <div className="tg-lb-audio-muted">{t("photoGalleryPage.audioCueNoQueries")}</div>
+          <div className="tg-lb-audio-muted">{t("photoGalleryPage.audioCuePrefetchNone")}</div>
         )}
         {!audioLoading && playingCue?.kind === "empty" && (
-          <div className="tg-lb-audio-muted">{t("photoGalleryPage.audioCueEmpty")}</div>
+          <div className="tg-lb-audio-muted">{t("photoGalleryPage.audioCuePrefetchNone")}</div>
         )}
         {!audioLoading && playingCue?.kind === "error" && (
           <div className="tg-lb-audio-muted">{t("photoGalleryPage.audioCueError")}</div>
@@ -970,6 +1008,28 @@ const cssBlock = `
   right: 8px;
   z-index: 3;
   pointer-events: auto;
+}
+.tg-audio-pill {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  pointer-events: none;
+}
+.tg-audio-pill--yes {
+  background: rgba(16, 185, 129, 0.92);
+  color: #042f1e;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
+}
+.tg-audio-pill--no {
+  background: rgba(0, 0, 0, 0.5);
+  color: rgba(255, 255, 255, 0.45);
 }
 .tg-body {
   padding: 10px 12px 12px;
