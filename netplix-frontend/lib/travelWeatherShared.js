@@ -60,6 +60,10 @@ export async function getGeoForWeatherCapped(maxMs = 9000) {
 /**
  * 네트워크·타임아웃 등으로 본문을 못 받아도 네비 위젯을 {@code phase:'ready'} 로 두기 위한 최소 페이로드.
  * {@code configured:false} → 기존 idle 아이콘·캡션 분기로 이어져 클릭(패널)·지역 탭은 그대로 사용 가능.
+ *
+ * 백엔드가 응답하지 못한 경우(Heroku 30s 라우터 H12, 네트워크 단절, axios 자체 타임아웃 등)
+ * 메시지를 비워두면 패널이 "이 구역은 기상청 API에서 예보 본문을 받지 못했습니다…" 라는 KMA 활용승인 안내처럼 보여서
+ * 사용자에게 책임이 전가되는 듯한 인상을 준다. 게이트웨이 지연이 원인일 가능성을 명시하는 안내로 폴백한다.
  */
 export function createNavWeatherFallbackData(message) {
   const o = {
@@ -67,13 +71,22 @@ export function createNavWeatherFallbackData(message) {
     navLoadFailed: true,
   };
   const m = message != null ? String(message).trim() : '';
-  if (m) o.message = m;
+  o.message = m
+    ? m
+    : '날씨 데이터를 받지 못했습니다. 모바일에서는 첫 호출이 게이트웨이(Heroku) 시간 제한에 걸릴 수 있어요. 잠시 후 위젯을 다시 누르거나, 패널의 다른 지역 탭을 한 번 눌러 보세요.';
   return o;
 }
 
 function extractApiErrorMessage(err) {
   const d = err?.response?.data;
   if (d && typeof d.message === 'string' && d.message.trim()) return d.message.trim();
+  if (err?.code === 'ECONNABORTED') {
+    return '응답이 지연되어 자동으로 끊었습니다. 잠시 후 위젯을 다시 눌러 주세요(모바일 첫 호출은 게이트웨이 시간 제한에 더 잘 걸립니다).';
+  }
+  const st = err?.response?.status;
+  if (st === 502 || st === 503 || st === 504) {
+    return `서버 게이트웨이가 일시적으로 응답하지 못했습니다(HTTP ${st}). 잠시 후 위젯을 다시 눌러 주세요.`;
+  }
   return '';
 }
 

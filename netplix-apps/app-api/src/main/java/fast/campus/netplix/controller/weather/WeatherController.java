@@ -18,12 +18,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.annotation.PreDestroy;
+
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 기상청 단기예보(API허브) 프록시 — 클라이언트에 authKey 노출 방지.
@@ -38,13 +44,39 @@ public class WeatherController {
     /** 동일 지역 연속 탭·재시도 시 Heroku 부하·지연 완화 (얕은 복사본 저장) */
     private static final long SHORT_REG_CACHE_TTL_MS = 90_000L;
 
+    /**
+     * KMA API허브가 일시적으로 30~40s 지연되어 Heroku H12(라우터 30s)에 걸리거나 본문을 못 받는 경우에 대비해,
+     * 직전에 성공한 응답을 stale 로 더 길게 보관한다. fresh 가 만료되면 stale 을 즉시 반환(stale-while-revalidate)하고
+     * 백그라운드에서 새 응답을 받아 다음 호출에 신선화한다. iPhone WebView 처럼 첫 호출이 차가운 경우의 사용자 체감 실패를 줄이는 목적.
+     */
+    private static final long SHORT_REG_STALE_TTL_MS = 30L * 60_000L;
+
     private static final int SHORT_REG_CACHE_MAX = 256;
 
     private final ConcurrentHashMap<String, ShortRegCacheEntry> shortRegCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ShortRegCacheEntry> shortRegStaleCache = new ConcurrentHashMap<>();
+    private final Set<String> shortRegInFlight = ConcurrentHashMap.newKeySet();
+
+    /** 백그라운드 stale refresh 전용 스레드풀 — 요청 스레드 풀(Tomcat) 점유를 피한다. */
+    private final ExecutorService shortRegRefreshExecutor = Executors.newFixedThreadPool(2, r -> {
+        Thread t = new Thread(r, "kma-short-reg-refresh");
+        t.setDaemon(true);
+        return t;
+    });
 
     private final KmaShortRegHttpClient kmaShortRegHttpClient;
     private final KmaFcstZoneInfoHttpClient kmaFcstZoneInfoHttpClient;
     private final ObjectMapper objectMapper;
+
+    @PreDestroy
+    void shutdownExecutor() {
+        shortRegRefreshExecutor.shutdownNow();
+        try {
+            shortRegRefreshExecutor.awaitTermination(2, TimeUnit.SECONDS);
+        } catch (InterruptedException ignored) {
+            Thread.currentThread().interrupt();
+        }
+    }
 
     @Value("${kma.auth.default-reg}")
     private String defaultReg;
@@ -147,10 +179,32 @@ public class WeatherController {
             return cacheAndOk(cacheKey, out);
         }
 
-        final String regForKma = effectiveReg;
-        final String tmfcForKma = tmfc;
+        // Stale-while-revalidate: fresh 가 만료됐어도 직전 성공 응답을 보관 중이면 즉시 반환하고
+        // 같은 키의 중복 백그라운드 호출은 막은 채(in-flight) 비동기로 KMA 재요청한다.
+        ShortRegCacheEntry stale = shortRegStaleCache.get(cacheKey);
+        if (stale != null && stale.expiresAtMs() > System.currentTimeMillis()) {
+            triggerBackgroundRefresh(cacheKey, effectiveReg, tmfc);
+            Map<String, Object> staleCopy = new HashMap<>(stale.payload());
+            staleCopy.put("staleFromCache", true);
+            return NetplixApiResponse.ok(staleCopy);
+        }
+
+        Map<String, Object> fetched = fetchAndBuildShortRegPayload(effectiveReg, tmfc);
+        for (Map.Entry<String, Object> e : fetched.entrySet()) {
+            out.putIfAbsent(e.getKey(), e.getValue());
+        }
+        return cacheAndOk(cacheKey, out);
+    }
+
+    /**
+     * 실제 KMA 허브 호출 + 응답 파싱 — fresh 캐시 미스 또는 백그라운드 갱신에서 공통으로 사용.
+     * 반환 Map 에는 {@code configured / message / payload / afsDs / series / upstream* / shortRegDiagnostic} 등이 들어간다.
+     * 호출자는 자체 응답(예: reg/regFromGeo/regLabel) 과 병합 후 캐시에 넣는다.
+     */
+    private Map<String, Object> fetchAndBuildShortRegPayload(String effectiveReg, String tmfc) {
+        Map<String, Object> out = new HashMap<>();
         long wall0 = System.nanoTime();
-        KmaShortRegFetchResult shortRegFetch = kmaShortRegHttpClient.fetchWithDiagnostics(regForKma, tmfcForKma);
+        KmaShortRegFetchResult shortRegFetch = kmaShortRegHttpClient.fetchWithDiagnostics(effectiveReg, tmfc);
         long wallMs = (System.nanoTime() - wall0) / 1_000_000L;
         log.info("KMA weather_short_reg reg={} wallMs={}", effectiveReg, wallMs);
 
@@ -192,7 +246,7 @@ public class WeatherController {
                 userMessage = shortRegFailureUserMessage(shortRegFetch);
             }
             out.put("message", userMessage);
-            return cacheAndOk(cacheKey, out);
+            return out;
         }
         out.put("configured", true);
         try {
@@ -238,8 +292,34 @@ public class WeatherController {
             log.debug("KMA 응답 JSON 아님: {}", e.getMessage());
             out.put("payloadRaw", raw.length() > 8000 ? raw.substring(0, 8000) : raw);
         }
+        return out;
+    }
 
-        return cacheAndOk(cacheKey, out);
+    /**
+     * stale 데이터를 즉시 반환한 직후 호출 — 같은 키의 백그라운드 갱신이 이미 진행 중이면 무시(single-flight).
+     * 결과는 fresh + stale 양쪽 캐시에 반영된다. 응답이 KMA 실패(configured:false) 인 경우 stale 갱신은 건너뛴다.
+     */
+    private void triggerBackgroundRefresh(String cacheKey, String effectiveReg, String tmfc) {
+        if (!shortRegInFlight.add(cacheKey)) {
+            return;
+        }
+        try {
+            shortRegRefreshExecutor.execute(() -> {
+                try {
+                    Map<String, Object> refreshed = fetchAndBuildShortRegPayload(effectiveReg, tmfc);
+                    Map<String, Object> withReg = new HashMap<>(refreshed);
+                    withReg.putIfAbsent("reg", effectiveReg);
+                    putShortRegCache(cacheKey, withReg);
+                } catch (Exception e) {
+                    log.warn("KMA short_reg 백그라운드 갱신 실패 reg={} err={}", effectiveReg, e.toString());
+                } finally {
+                    shortRegInFlight.remove(cacheKey);
+                }
+            });
+        } catch (Exception e) {
+            shortRegInFlight.remove(cacheKey);
+            log.warn("KMA short_reg 백그라운드 갱신 큐 등록 실패 reg={}: {}", effectiveReg, e.toString());
+        }
     }
 
     private record ShortRegCacheEntry(long expiresAtMs, Map<String, Object> payload) {}
@@ -263,6 +343,16 @@ public class WeatherController {
             shortRegCache.clear();
         }
         shortRegCache.put(key, new ShortRegCacheEntry(now + SHORT_REG_CACHE_TTL_MS, new HashMap<>(out)));
+
+        // stale 캐시는 KMA 응답이 사용 가능한 경우(configured!=false)에 한해서만 갱신해
+        // 실패 메시지가 stale 로 박혀 지속되는 상황을 피한다.
+        if (!Boolean.FALSE.equals(out.get("configured"))) {
+            shortRegStaleCache.entrySet().removeIf(e -> e.getValue().expiresAtMs() < now);
+            if (shortRegStaleCache.size() >= SHORT_REG_CACHE_MAX) {
+                shortRegStaleCache.clear();
+            }
+            shortRegStaleCache.put(key, new ShortRegCacheEntry(now + SHORT_REG_STALE_TTL_MS, new HashMap<>(out)));
+        }
     }
 
     private NetplixApiResponse<Map<String, Object>> cacheAndOk(String cacheKey, Map<String, Object> out) {

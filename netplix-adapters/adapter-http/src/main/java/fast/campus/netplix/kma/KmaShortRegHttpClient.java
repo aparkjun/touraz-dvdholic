@@ -25,7 +25,14 @@ import java.util.List;
 public class KmaShortRegHttpClient {
 
     /** 자동 tmfc 후보가 많으면 끝까지 시도 시 Heroku 30초 한도에 걸린다 — 최신 N회만 시도 (HH00+HH10·정각 중복 확장 반영) */
-    private static final int MAX_AUTO_TMFC_CANDIDATES = 14;
+    private static final int MAX_AUTO_TMFC_CANDIDATES = 5;
+
+    /**
+     * 체인 전체(여러 tmfc · disp · stn 조합) 벽시계 예산.
+     * Heroku 라우터의 30s 한도(H12)에 걸리면 응답이 HTML 503 페이지로 바뀌어
+     * 프론트에서 JSON 진단조차 못 받게 된다. 25s 안에 무조건 어떤 결과든 반환한다.
+     */
+    private static final long CHAIN_BUDGET_MS = 25_000L;
 
     @Value("${kma.api.fct-afs-ds:}")
     private String fctAfsDsUrl;
@@ -42,11 +49,19 @@ public class KmaShortRegHttpClient {
     @Value("${kma.auth.default-afs-stn:109}")
     private int defaultAfsStn;
 
+    /**
+     * 개별 허브 호출 read timeout. KMA API허브가 30~40초씩 지연되는 경우가 있어
+     * 한 호출당 9s 로 잘라 다른 tmfc 후보로 빠르게 폴백하도록 한다. (이전 18s 는 단일 호출만으로도 Heroku 한도 초과)
+     */
     private RestClient restClient() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofSeconds(6));
-        factory.setReadTimeout(Duration.ofSeconds(18));
+        factory.setConnectTimeout(Duration.ofSeconds(5));
+        factory.setReadTimeout(Duration.ofSeconds(9));
         return RestClient.builder().requestFactory(factory).build();
+    }
+
+    private static boolean overBudget(long startNanos) {
+        return (System.nanoTime() - startNanos) / 1_000_000L >= CHAIN_BUDGET_MS;
     }
 
     /** Heroku 등에서 복사 시 붙는 앞뒤 공백·개행 제거 (허브는 불일치 시 전부 실패로 보임). */
@@ -98,6 +113,7 @@ public class KmaShortRegHttpClient {
             log.warn("KMA_API_KEY 미설정 — 단기예보 프록시 비활성");
             return new KmaShortRegFetchResult(null, null, null, "api_key_not_configured", 0, 0);
         }
+        final long chainStart = System.nanoTime();
         String r = (reg != null && !reg.isBlank()) ? reg : defaultReg;
         boolean autoTmfc =
                 tmfcOverride == null || tmfcOverride.isBlank() || "0".equals(tmfcOverride.trim());
@@ -147,7 +163,7 @@ public class KmaShortRegHttpClient {
                 lastPreview = KmaHubJson.previewSnippet(disp1Once.body());
             }
             // 최신 tmfc 1개만이 아닌, 두 번째 후보로 disp=1 재시도(발표 시각 불일치 완화)
-            if (tries.size() > 1) {
+            if (!overBudget(chainStart) && tries.size() > 1) {
                 OnceFetch disp1b = afsDsHttp(r, stn0, tries.get(1), 1);
                 attempts++;
                 if (disp1b.body() != null && KmaHubJson.isHubSuccessEnvelope(disp1b.body())) {
@@ -168,7 +184,16 @@ public class KmaShortRegHttpClient {
             }
         }
         for (String tmfc : tries) {
-            AfsBundle afsB = useAfs ? fetchAfsDsTextStrategiesOnly(r, tmfc) : null;
+            if (overBudget(chainStart)) {
+                log.warn(
+                        "KMA short_reg 체인 예산({}ms) 초과 — 잔여 후보 건너뜀 reg={} attempts={} elapsedMs={}",
+                        CHAIN_BUDGET_MS,
+                        r,
+                        attempts,
+                        (System.nanoTime() - chainStart) / 1_000_000L);
+                break;
+            }
+            AfsBundle afsB = useAfs ? fetchAfsDsTextStrategiesOnly(r, tmfc, chainStart) : null;
             OnceFetch afs = afsB != null ? afsB.fetch() : null;
             if (useAfs) {
                 attempts += afsB != null ? afsB.rounds() : 0;
@@ -192,6 +217,9 @@ public class KmaShortRegHttpClient {
                 }
             }
 
+            if (overBudget(chainStart)) {
+                break;
+            }
             OnceFetch shrtJ = fetchOnceDetailed(r, tmfc, true);
             attempts++;
             if (!shrtJ.catalogLike()
@@ -214,6 +242,9 @@ public class KmaShortRegHttpClient {
                 }
             }
 
+            if (overBudget(chainStart)) {
+                break;
+            }
             OnceFetch shrtP = fetchOnceDetailed(r, tmfc, false);
             attempts++;
             if (!shrtP.catalogLike()
@@ -299,17 +330,17 @@ public class KmaShortRegHttpClient {
      * 단기 개황(fct_afs_ds) 텍스트 경로만: {@code disp=0} 본 창 → 동일 관서 발표시각 -3h 재시도.
      * {@code disp=1}(JSON)은 {@link #fetchWithDiagnostics}에서 최신 tmfc 1회만 호출한다.
      */
-    private AfsBundle fetchAfsDsTextStrategiesOnly(String reg, String tmfc12) {
+    private AfsBundle fetchAfsDsTextStrategiesOnly(String reg, String tmfc12, long chainStart) {
         if (fctAfsDsUrl == null || fctAfsDsUrl.isBlank()) {
             return new AfsBundle(null, 0);
         }
         int primaryStn = KmaRegToAfsDsStn.stnForReg(reg, defaultAfsStn);
-        AfsBundle out = fetchAfsDsTextStrategiesForStn(reg, tmfc12, primaryStn);
+        AfsBundle out = fetchAfsDsTextStrategiesForStn(reg, tmfc12, primaryStn, chainStart);
         if (afsBundleHasUsableBody(out)) {
             return out;
         }
-        if (primaryStn != defaultAfsStn) {
-            AfsBundle alt = fetchAfsDsTextStrategiesForStn(reg, tmfc12, defaultAfsStn);
+        if (!overBudget(chainStart) && primaryStn != defaultAfsStn) {
+            AfsBundle alt = fetchAfsDsTextStrategiesForStn(reg, tmfc12, defaultAfsStn, chainStart);
             int rounds = out.rounds() + alt.rounds();
             OnceFetch merged = pickRicherAfsFetch(out.fetch(), alt.fetch());
             return new AfsBundle(merged, rounds);
@@ -317,7 +348,7 @@ public class KmaShortRegHttpClient {
         return out;
     }
 
-    private AfsBundle fetchAfsDsTextStrategiesForStn(String reg, String tmfc12, int stn) {
+    private AfsBundle fetchAfsDsTextStrategiesForStn(String reg, String tmfc12, int stn, long chainStart) {
         int rounds = 0;
         OnceFetch last = null;
         String tPrimary = KmaShortRegIssuanceTime.normalizeTmfc(tmfc12);
@@ -335,6 +366,9 @@ public class KmaShortRegHttpClient {
             textTmfcTries.add(tMinus6);
         }
         for (String t12 : textTmfcTries) {
+            if (overBudget(chainStart)) {
+                break;
+            }
             OnceFetch z = afsDsHttp(reg, stn, t12, 0);
             rounds++;
             last = z;
