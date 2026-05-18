@@ -32,6 +32,7 @@ const TRAVEL_SHORTCUTS = [
   { href: '/crowd-radar', shortcutKey: 'radar', Icon: Radar, jewel: 'dts-jewel-8' },
   { href: '/related-spots?discover=trending', shortcutKey: 'related', Icon: Compass, jewel: 'dts-jewel-9' },
   { href: '/safe-tourism', shortcutKey: 'safeTourism', Icon: ShieldCheck, jewel: 'dts-jewel-11' },
+  { href: '/korea-corners', shortcutKey: 'koreaCorners', Icon: MapPinned, jewel: 'dts-jewel-12' },
 ];
 
 /**
@@ -96,11 +97,6 @@ export default function DashboardTravelShortcuts() {
             </Link>
           ))}
         </nav>
-
-        <Link href="/korea-corners" className="dts-korea-corners-cta">
-          <MapPinned size={20} strokeWidth={2.25} aria-hidden className="dts-jewel-icon" />
-          <span>{t('trendingRegions.koreaCornersCta', '대한민국 구석구석!')}</span>
-        </Link>
       </div>
 
       <style jsx global>{`
@@ -152,7 +148,7 @@ export default function DashboardTravelShortcuts() {
           display: flex;
           flex-direction: row;
           align-items: center;
-          justify-content: flex-start;
+          justify-content: center;
           gap: 8px;
           min-width: 0;
           padding: 9px 11px;
@@ -192,8 +188,8 @@ export default function DashboardTravelShortcuts() {
           font-size: 10px;
           font-weight: 700;
           line-height: 1.2;
-          text-align: left;
-          flex: 1;
+          text-align: center;
+          flex: 0 1 auto;
           min-width: 0;
           display: -webkit-box;
           -webkit-line-clamp: 2;
@@ -295,35 +291,12 @@ export default function DashboardTravelShortcuts() {
             0 6px 18px rgba(0, 0, 0, 0.35),
             0 0 22px rgba(45, 212, 191, 0.45);
         }
-        .dts-korea-corners-cta {
-          position: relative;
-          z-index: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          margin-top: 12px;
-          width: 100%;
-          padding: 12px 16px;
-          border-radius: 14px;
-          text-decoration: none;
-          font-size: 14px;
-          font-weight: 800;
-          letter-spacing: -0.02em;
-          color: #fff7ed;
-          border: 1px solid rgba(253, 186, 116, 0.55);
+        .dts-jewel-12 {
           background: linear-gradient(135deg, #ea580c 0%, #f59e0b 45%, #84cc16 100%);
           box-shadow:
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
-            0 8px 22px rgba(234, 88, 12, 0.35);
-          transition: transform 0.2s ease, filter 0.2s ease;
-        }
-        .dts-korea-corners-cta:hover {
-          transform: translateY(-2px);
-          filter: saturate(1.08) brightness(1.05);
-        }
-        .dts-korea-corners-cta:active {
-          transform: translateY(0);
+            0 6px 18px rgba(0, 0, 0, 0.35),
+            0 0 22px rgba(234, 88, 12, 0.4);
         }
       `}</style>
     </section>
