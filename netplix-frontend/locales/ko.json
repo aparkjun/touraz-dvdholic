@@ -341,12 +341,14 @@
     "empty": "아직 보여줄 사진이 없어요",
     "emptyForKeyword": "‘{{keyword}}’ 관련 사진을 찾지 못했어요",
     "emptyHint": "다른 키워드로 다시 시도해 보시거나, 잠시 후 다시 방문해 주세요.",
-    "pageSubtitleSound": "지역을 고른 뒤 사진을 열면, 같은 키워드로 찾은 관광공사 오디오 가이드(Odii) 해설이 함께 재생돼요. 영화 배경처럼 현장 이야기를 귀로 이어 보세요.",
+    "pageSubtitleSound": "사진을 열면 제목·촬영지로 관광공사 오디오 가이드(Odii) 해설을 찾아 재생해요. 지역 칩을 고르면 더 넓은 후보에서 골라요.",
     "layerGroupAria": "보기 모드",
     "layerPhotosOnly": "사진만",
     "layerPhotosPlusSound": "사진 + 소리",
     "layerSoundNeedRegion": "오디오와 연결하려면 지역 칩을 선택하거나 검색어를 입력해 주세요.",
+    "layerSoundPerPhoto": "전국 목록에서도 괜찮아요. 사진을 열면 제목·촬영지로 Odii 해설을 자동으로 찾습니다.",
     "gallerySoundHint": "사진을 열면 검색어에 포함된 지역명 기준으로 Odii 후보 중 해설 한 편이 재생됩니다.",
+    "gallerySoundHintPerPhoto": "사진을 열면 제목·촬영지·키워드로 Odii 해설 후보를 찾아 가장 가까운 한 편을 재생합니다.",
     "audioCueHead": "Odii · 현지 해설",
     "audioCuePrimary": "『{{title}}』 — 검색 지역을 바탕으로 고른 관광 오디오 해설이에요.",
     "audioCueSecondary": "재생 중: {{audioTitle}}",
@@ -358,7 +360,8 @@
     "openAudioGuide": "오디오 가이드 더보기",
     "audioCueEmpty": "이 지역에서 즉시 재생 가능한 오디오를 찾지 못했어요.",
     "audioCueError": "오디오를 재생하지 못했어요.",
-    "audioCueNeedRegion": "전국 최신 목록에서는 지역 검색어가 없어 오디오를 묶지 못해요. 지역 칩을 눌러 주세요."
+    "audioCueNeedRegion": "전국 최신 목록에서는 지역 검색어가 없어 오디오를 묶지 못해요. 지역 칩을 눌러 주세요.",
+    "audioCueNoQueries": "이 사진에서 오디오 검색에 쓸 제목·촬영지 정보가 부족해요. 다른 사진을 열거나 지역 칩을 선택해 보세요."
   },
   "koreaCornersPage": {
     "title": "대한민국 구석구석!",

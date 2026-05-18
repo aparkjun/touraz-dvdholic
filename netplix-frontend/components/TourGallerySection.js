@@ -17,7 +17,8 @@ import {
   filterPlayableAudioGuides,
   sortAudioGuidesStable,
   pickBestOdiiForGalleryPhoto,
-  buildOdiiSearchFallbackQueries,
+  inferOdiiQueriesFromGalleryItem,
+  resolveGallerySoundMatchKeyword,
   mergeAudioGuideItemsById,
 } from "@/lib/photoGalleryRegionalAudio";
 import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
@@ -90,6 +91,28 @@ export default function TourGallerySection({
     return String(raw || "").trim();
   }, [soundSearchKeyword, keyword]);
 
+  const selectedGalleryItem = useMemo(() => {
+    if (selectedIndex == null || !items[selectedIndex]) return null;
+    return items[selectedIndex];
+  }, [selectedIndex, items]);
+
+  const odiiSearchQueries = useMemo(() => {
+    if (!soundLayerEnabled) return [];
+    return inferOdiiQueriesFromGalleryItem(
+      selectedGalleryItem,
+      effectiveSoundKeyword
+    );
+  }, [soundLayerEnabled, selectedGalleryItem, effectiveSoundKeyword]);
+
+  const matchKeywordForOdii = useMemo(
+    () =>
+      resolveGallerySoundMatchKeyword(
+        selectedGalleryItem,
+        effectiveSoundKeyword
+      ),
+    [selectedGalleryItem, effectiveSoundKeyword]
+  );
+
   const [audioItems, setAudioItems] = useState([]);
   const [audioLoading, setAudioLoading] = useState(false);
   const galleryAudioRef = useRef(null);
@@ -125,14 +148,14 @@ export default function TourGallerySection({
   useEffect(() => {
     let cancelled = false;
     async function run() {
-      if (!soundLayerEnabled || !effectiveSoundKeyword) {
+      if (!soundLayerEnabled || !odiiSearchQueries.length) {
         setAudioItems([]);
         setAudioLoading(false);
         return;
       }
       try {
         setAudioLoading(true);
-        const queries = buildOdiiSearchFallbackQueries(effectiveSoundKeyword);
+        const queries = odiiSearchQueries;
         let merged = [];
 
         const fetchType = async (type) => {
@@ -172,7 +195,7 @@ export default function TourGallerySection({
     return () => {
       cancelled = true;
     };
-  }, [soundLayerEnabled, effectiveSoundKeyword, lang, odiiLangRev]);
+  }, [soundLayerEnabled, odiiSearchQueries, lang, odiiLangRev]);
 
   useEffect(() => () => stopGalleryAudio(), [stopGalleryAudio]);
 
@@ -187,9 +210,9 @@ export default function TourGallerySection({
       setPlayingCue(null);
       return;
     }
-    if (!effectiveSoundKeyword) {
+    if (!odiiSearchQueries.length) {
       stopGalleryAudio();
-      setPlayingCue({ kind: "noRegion" });
+      setPlayingCue({ kind: "noQueries" });
       return;
     }
     if (audioLoading) {
@@ -203,25 +226,21 @@ export default function TourGallerySection({
     if (!playable.length) {
       setPlayingCue({
         kind: "empty",
-        regionKey: effectiveSoundKeyword,
+        regionKey: matchKeywordForOdii,
       });
       return;
     }
 
-    const galleryItem =
-      selectedIndex != null && items[selectedIndex]
-        ? items[selectedIndex]
-        : null;
     const track = pickBestOdiiForGalleryPhoto(
-      galleryItem,
+      selectedGalleryItem,
       playable,
-      effectiveSoundKeyword,
+      matchKeywordForOdii,
       selectedIndex
     );
 
     setPlayingCue({
       kind: "playing",
-      regionKey: effectiveSoundKeyword,
+      regionKey: matchKeywordForOdii,
       track,
     });
 
@@ -266,7 +285,7 @@ export default function TourGallerySection({
           galleryAudioRef.current = null;
           setPlayingCue({
             kind: "error",
-            regionKey: effectiveSoundKeyword,
+            regionKey: matchKeywordForOdii,
           });
         }
       });
@@ -289,23 +308,24 @@ export default function TourGallerySection({
           galleryAudioRef.current = null;
           setPlayingCue({
             kind: "error",
-            regionKey: effectiveSoundKeyword,
+            regionKey: matchKeywordForOdii,
           });
         }
       });
     } catch {
       setPlayingCue({
         kind: "error",
-        regionKey: effectiveSoundKeyword,
+        regionKey: matchKeywordForOdii,
       });
     }
   }, [
     soundLayerEnabled,
     selectedIndex,
-    effectiveSoundKeyword,
+    odiiSearchQueries,
+    matchKeywordForOdii,
     audioLoading,
     audioItems,
-    items,
+    selectedGalleryItem,
     stopGalleryAudio,
   ]);
 
@@ -484,10 +504,14 @@ export default function TourGallerySection({
           )}
         </h2>
         {subtitle && <p className="tg-sub">{subtitle}</p>}
-        {soundLayerEnabled && effectiveSoundKeyword && (
+        {soundLayerEnabled && (
           <p className="tg-sound-hint">
             <Headphones size={14} aria-hidden className="tg-sound-hint-ic" />
-            <span>{t("photoGalleryPage.gallerySoundHint")}</span>
+            <span>
+              {effectiveSoundKeyword
+                ? t("photoGalleryPage.gallerySoundHint")
+                : t("photoGalleryPage.gallerySoundHintPerPhoto")}
+            </span>
           </p>
         )}
       </div>
@@ -600,7 +624,7 @@ export default function TourGallerySection({
             onNext={handleNext}
             soundLayerEnabled={soundLayerEnabled}
             playingCue={playingCue}
-            effectiveSoundKeyword={effectiveSoundKeyword}
+            matchKeywordForOdii={matchKeywordForOdii}
             galleryAudioRef={galleryAudioRef}
             galleryAudioUiRev={galleryAudioUiRev}
             onToggleGalleryAudio={toggleGalleryPlayback}
@@ -639,7 +663,7 @@ function Lightbox({
   onNext,
   soundLayerEnabled,
   playingCue,
-  effectiveSoundKeyword,
+  matchKeywordForOdii,
   galleryAudioRef,
   galleryAudioUiRev,
   onToggleGalleryAudio,
@@ -664,14 +688,14 @@ function Lightbox({
   }, [imageSrc, item?.imageUrl, item?.thumbnailUrl]);
 
   const audioGuideHref =
-    effectiveSoundKeyword && effectiveSoundKeyword.trim()
-      ? `/audio-guide?q=${encodeURIComponent(effectiveSoundKeyword.trim())}`
+    matchKeywordForOdii && matchKeywordForOdii.trim()
+      ? `/audio-guide?q=${encodeURIComponent(matchKeywordForOdii.trim())}`
       : "/audio-guide";
 
   const cueBlock =
     soundLayerEnabled && playingCue ? (
       <div className="tg-lb-audio" data-audio-ui={galleryAudioUiRev}>
-        {playingCue.kind === "playing" && playingCue.track && effectiveSoundKeyword && (
+        {playingCue.kind === "playing" && playingCue.track && (
           <>
             <div className="tg-lb-audio-badge">
               <Headphones size={14} aria-hidden />
@@ -742,8 +766,8 @@ function Lightbox({
             </Link>
           </>
         )}
-        {playingCue.kind === "noRegion" && (
-          <div className="tg-lb-audio-muted">{t("photoGalleryPage.audioCueNeedRegion")}</div>
+        {playingCue.kind === "noQueries" && (
+          <div className="tg-lb-audio-muted">{t("photoGalleryPage.audioCueNoQueries")}</div>
         )}
         {playingCue.kind === "empty" && (
           <div className="tg-lb-audio-muted">{t("photoGalleryPage.audioCueEmpty")}</div>

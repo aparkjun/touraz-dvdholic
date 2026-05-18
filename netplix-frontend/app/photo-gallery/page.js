@@ -137,7 +137,7 @@ function PhotoGalleryInner() {
 
           {layerMode === "sound" && !keyword.trim() && (
             <p className="pgp-layer-banner" role="status">
-              {t("photoGalleryPage.layerSoundNeedRegion")}
+              {t("photoGalleryPage.layerSoundPerPhoto")}
             </p>
           )}
 

@@ -58,10 +58,52 @@ function normalizeMatchText(s) {
     .toLowerCase();
 }
 
-function galleryMatchCorpus(item) {
+export function galleryMatchCorpus(item) {
   return [item?.title, item?.photoLocation, item?.searchKeyword]
     .filter(Boolean)
     .join(" ");
+}
+
+/**
+ * Odii 검색에 쓸 쿼리 목록.
+ * - 페이지에 지역/검색어가 있으면 그걸 우선.
+ * - 전국 최신(키워드 없음)이면 열린 사진의 촬영지·제목·키워드에서 추론.
+ */
+export function inferOdiiQueriesFromGalleryItem(galleryItem, pageRegionKeyword = "") {
+  const pageKw = String(pageRegionKeyword || "").trim();
+  if (pageKw) {
+    return buildOdiiSearchFallbackQueries(pageKw);
+  }
+  if (!galleryItem) return [];
+
+  const out = [];
+  const pushQueries = (s) => {
+    for (const q of buildOdiiSearchFallbackQueries(s)) {
+      if (q && !out.includes(q)) out.push(q);
+    }
+  };
+
+  const loc = String(galleryItem?.photoLocation || "").trim();
+  const title = String(galleryItem?.title || "").trim();
+  const searchKw = String(galleryItem?.searchKeyword || "").trim();
+
+  if (loc) pushQueries(loc);
+  if (title) pushQueries(title);
+  if (searchKw && searchKw !== title) pushQueries(searchKw);
+
+  const corpus = galleryMatchCorpus(galleryItem).trim();
+  if (corpus) pushQueries(corpus);
+
+  return out;
+}
+
+/** 유사도·표시용 대표 검색어(페이지 키워드 없을 때 사진 메타에서 추론). */
+export function resolveGallerySoundMatchKeyword(galleryItem, pageRegionKeyword = "") {
+  const pageKw = String(pageRegionKeyword || "").trim();
+  if (pageKw) return pageKw;
+  const queries = inferOdiiQueriesFromGalleryItem(galleryItem, "");
+  if (queries.length) return queries[0];
+  return String(galleryItem?.photoLocation || galleryItem?.title || "").trim();
 }
 
 function odiiMatchCorpus(o) {
