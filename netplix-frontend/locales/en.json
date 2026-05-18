@@ -355,6 +355,8 @@
     "audioPausedLabel": "Paused: {{audioTitle}}",
     "audioRegionalDisclaimer": "The photo’s subject may still differ from this narration’s place. We widen Odii search using region tokens, then rank Odii items by overlap between photo title/location/keywords and Odii title/address/category (no RAG needed).",
     "pauseAudio": "Pause",
+    "playAudio": "Play",
+    "audioTapToPlay": "Tap Play below to listen to the matched Odii narration.",
     "resumeAudio": "Resume",
     "audioEnded": "This clip finished. Open another photo for another pick from the same regional pool.",
     "openAudioGuide": "Browse audio guides",

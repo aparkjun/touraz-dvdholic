@@ -239,7 +239,7 @@ export default function TourGallerySection({
     );
 
     setPlayingCue({
-      kind: "playing",
+      kind: "ready",
       regionKey: matchKeywordForOdii,
       track,
     });
@@ -265,7 +265,7 @@ export default function TourGallerySection({
           }
           galleryAudioRef.current = null;
           setPlayingCue((prev) =>
-            prev?.kind === "playing"
+            prev?.kind === "ready"
               ? { ...prev, playbackEnded: true }
               : prev
           );
@@ -294,24 +294,7 @@ export default function TourGallerySection({
         title: track.audioTitle || track.title,
         artworkUrl: track.imageUrl,
       });
-      audio.play().catch(() => {
-        if (galleryAudioRef.current === audio) {
-          bumpUi();
-          if (galleryMediaSessionDetachRef.current) {
-            try {
-              galleryMediaSessionDetachRef.current();
-            } catch {
-              /* noop */
-            }
-            galleryMediaSessionDetachRef.current = null;
-          }
-          galleryAudioRef.current = null;
-          setPlayingCue({
-            kind: "error",
-            regionKey: matchKeywordForOdii,
-          });
-        }
-      });
+      bumpUi();
     } catch {
       setPlayingCue({
         kind: "error",
@@ -332,8 +315,17 @@ export default function TourGallerySection({
   const toggleGalleryPlayback = useCallback(() => {
     const a = galleryAudioRef.current;
     if (!a) return;
-    if (a.paused) void a.play().catch(() => {});
-    else a.pause();
+    if (a.paused) {
+      void a.play().catch(() => {
+        setPlayingCue((prev) =>
+          prev?.track
+            ? { kind: "error", regionKey: prev.regionKey }
+            : prev
+        );
+      });
+    } else {
+      a.pause();
+    }
   }, []);
   useEffect(() => {
     let cancelled = false;
@@ -695,7 +687,7 @@ function Lightbox({
   const cueBlock =
     soundLayerEnabled && playingCue ? (
       <div className="tg-lb-audio" data-audio-ui={galleryAudioUiRev}>
-        {playingCue.kind === "playing" && playingCue.track && (
+        {playingCue.kind === "ready" && playingCue.track && (
           <>
             <div className="tg-lb-audio-badge">
               <Headphones size={14} aria-hidden />
@@ -716,46 +708,49 @@ function Lightbox({
             ) : (
               <>
                 <div className="tg-lb-audio-secondary">
-                  {galleryAudioRef.current?.paused
-                    ? t("photoGalleryPage.audioPausedLabel", {
+                  {galleryAudioRef.current && !galleryAudioRef.current.paused
+                    ? t("photoGalleryPage.audioCueSecondary", {
                         audioTitle:
                           playingCue.track.audioTitle ||
                           playingCue.track.title ||
                           "",
                       })
-                    : t("photoGalleryPage.audioCueSecondary", {
-                        audioTitle:
-                          playingCue.track.audioTitle ||
-                          playingCue.track.title ||
-                          "",
-                      })}
+                    : galleryAudioRef.current?.paused &&
+                        galleryAudioRef.current.currentTime > 0
+                      ? t("photoGalleryPage.audioPausedLabel", {
+                          audioTitle:
+                            playingCue.track.audioTitle ||
+                            playingCue.track.title ||
+                            "",
+                        })
+                      : t("photoGalleryPage.audioTapToPlay")}
                 </div>
-                {galleryAudioRef.current ? (
-                  <div className="tg-lb-audio-controls">
-                    <button
-                      type="button"
-                      className="tg-lb-audio-playbtn"
-                      onClick={onToggleGalleryAudio}
-                      aria-pressed={!galleryAudioRef.current.paused}
-                      aria-label={
-                        galleryAudioRef.current.paused
-                          ? t("photoGalleryPage.resumeAudio")
-                          : t("photoGalleryPage.pauseAudio")
-                      }
-                    >
-                      {galleryAudioRef.current.paused ? (
-                        <Play size={18} aria-hidden />
-                      ) : (
-                        <Pause size={18} aria-hidden />
-                      )}
-                      <span>
-                        {galleryAudioRef.current.paused
-                          ? t("photoGalleryPage.resumeAudio")
-                          : t("photoGalleryPage.pauseAudio")}
-                      </span>
-                    </button>
-                  </div>
-                ) : null}
+                <div className="tg-lb-audio-controls">
+                  <button
+                    type="button"
+                    className="tg-lb-audio-playbtn"
+                    onClick={onToggleGalleryAudio}
+                    aria-pressed={Boolean(
+                      galleryAudioRef.current && !galleryAudioRef.current.paused
+                    )}
+                    aria-label={
+                      galleryAudioRef.current && !galleryAudioRef.current.paused
+                        ? t("photoGalleryPage.pauseAudio")
+                        : t("photoGalleryPage.playAudio")
+                    }
+                  >
+                    {galleryAudioRef.current && !galleryAudioRef.current.paused ? (
+                      <Pause size={18} aria-hidden />
+                    ) : (
+                      <Play size={18} aria-hidden />
+                    )}
+                    <span>
+                      {galleryAudioRef.current && !galleryAudioRef.current.paused
+                        ? t("photoGalleryPage.pauseAudio")
+                        : t("photoGalleryPage.playAudio")}
+                    </span>
+                  </button>
+                </div>
               </>
             )}
             <p className="tg-lb-audio-disclaimer">
