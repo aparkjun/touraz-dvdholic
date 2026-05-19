@@ -251,7 +251,11 @@ public class WeatherController {
         out.put("configured", true);
         try {
             JsonNode tree = objectMapper.readTree(raw);
-            out.put("payload", tree);
+            // raw KMA 트리(payload)는 응답에서 제외한다.
+            // - 프론트의 시계열은 서버 추출 series + afsDs 로 모두 그릴 수 있다.
+            // - iOS Capacitor(WKWebView) + CapacitorHttp 경유 시 응답 본문이 크면 네이티브
+            //   HTTP 계층에서 처리 지연·부분 수신·파싱 실패가 보고된 사례가 있어, 응답 크기
+            //   자체를 줄여 모바일 WebView 안정성을 우선한다.
             JsonNode afsNode = tree.get("afsDs");
             if (afsNode != null && !afsNode.isNull() && afsNode.isObject()) {
                 @SuppressWarnings("unchecked")
@@ -290,7 +294,8 @@ public class WeatherController {
             }
         } catch (Exception e) {
             log.debug("KMA 응답 JSON 아님: {}", e.getMessage());
-            out.put("payloadRaw", raw.length() > 8000 ? raw.substring(0, 8000) : raw);
+            // 비-JSON 응답인 경우에만 소형 미리보기로 진단 정보 제공.
+            out.put("payloadRawPreview", raw.length() > 1200 ? raw.substring(0, 1200) + "…" : raw);
         }
         return out;
     }

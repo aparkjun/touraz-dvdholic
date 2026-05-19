@@ -87,7 +87,25 @@ function extractApiErrorMessage(err) {
   if (st === 502 || st === 503 || st === 504) {
     return `서버 게이트웨이가 일시적으로 응답하지 못했습니다(HTTP ${st}). 잠시 후 위젯을 다시 눌러 주세요.`;
   }
-  return '';
+  // iOS WebView / CapacitorHttp 등 모바일 전용 실패는 default 메시지로 묻혀
+  // 원인 추적이 어려웠다. 가능한 실제 단서(code, message, HTTP status, body type)를
+  // 사용자에게 노출해 패널에서 바로 확인 가능하게 한다.
+  const parts = [];
+  if (err?.code) parts.push(`code=${err.code}`);
+  if (st != null) parts.push(`status=${st}`);
+  if (err?.message) parts.push(err.message);
+  else if (typeof err === 'string' && err) parts.push(err);
+  if (d != null && typeof d !== 'string') {
+    try {
+      const keys = Object.keys(d);
+      if (keys.length) parts.push(`bodyKeys=${keys.slice(0, 6).join(',')}`);
+    } catch {}
+  } else if (typeof d === 'string' && d) {
+    const snip = d.length > 120 ? `${d.slice(0, 120)}…` : d;
+    parts.push(`bodyText=${snip}`);
+  }
+  if (!parts.length) return '';
+  return `날씨 호출 실패 [${parts.join(' · ')}]`;
 }
 
 /**
@@ -756,6 +774,27 @@ export function useTravelWeatherShortReg() {
         }
       } catch (err) {
         if (!alive) return;
+        // iOS WebView 에서 실제 무엇이 잘못됐는지 추적할 수 있도록 raw 에러를
+        // window 에 dump. (Safari Web Inspector 의 콘솔에서 window.__lastWeatherError 로 확인)
+        try {
+          if (typeof window !== 'undefined') {
+            window.__lastWeatherError = {
+              at: new Date().toISOString(),
+              code: err?.code,
+              status: err?.response?.status,
+              message: err?.message,
+              dataType: typeof err?.response?.data,
+              dataPreview:
+                typeof err?.response?.data === 'string'
+                  ? err.response.data.slice(0, 400)
+                  : err?.response?.data || null,
+              configUrl: err?.config?.url,
+              configBaseURL: err?.config?.baseURL,
+            };
+          }
+          // eslint-disable-next-line no-console
+          console.error('[weather] short-reg request failed', err);
+        } catch {}
         settleReady(createNavWeatherFallbackData(extractApiErrorMessage(err)));
       }
     })();
