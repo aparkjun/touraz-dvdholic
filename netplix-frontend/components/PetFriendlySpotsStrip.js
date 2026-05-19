@@ -93,7 +93,12 @@ const THEME_PALETTE = {
   },
 };
 
-export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '', theme = 'dark' }) {
+export default function PetFriendlySpotsStrip({
+  areaCode,
+  regionLabel = '',
+  theme = 'dark',
+  embedded = false,
+}) {
   const { i18n } = useTranslation();
   const isEn = i18n.language && i18n.language.startsWith('en');
   const palette = THEME_PALETTE[theme === 'light' ? 'light' : 'dark'];
@@ -147,7 +152,8 @@ export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '', them
   const activeList = buckets?.[activeBucket] || [];
 
   return (
-    <section style={{ marginTop: 16, marginBottom: 8 }}>
+    <section style={{ marginTop: embedded ? 0 : 16, marginBottom: embedded ? 0 : 8 }}>
+      {!embedded && (
       <div
         style={{
           display: 'flex',
@@ -165,6 +171,7 @@ export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '', them
           한국관광공사 반려동물 동반여행 정보
         </span>
       </div>
+      )}
 
       {!loading && totalCount > 0 && (
         <div

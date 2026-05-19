@@ -190,6 +190,8 @@ export default function NearbyCineTripStrip({
       {selectedItem && (
         <FilmTripMovieModal
           item={selectedItem}
+          areaCode={areaCode}
+          regionLabel={regionLabel}
           theme={theme}
           onClose={() => setSelectedItem(null)}
         />
