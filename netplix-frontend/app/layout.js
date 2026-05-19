@@ -9,6 +9,11 @@ import FloatingBackButton from "@/components/FloatingBackButton";
 export const metadata = {
   title: "Holic Store",
   description: "HOLIC DVD Store - 인기 DVD 스토어",
+  icons: {
+    icon: [{ url: "/snake-icon2.gif", type: "image/gif" }],
+    shortcut: "/snake-icon2.gif",
+    apple: "/snake-icon2.gif",
+  },
 };
 
 export const viewport = {

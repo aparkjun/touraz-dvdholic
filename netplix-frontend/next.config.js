@@ -11,6 +11,7 @@ const nextConfig = {
         ? 'http://localhost:3001'
         : 'http://localhost:8080');
     return [
+      { source: '/favicon.ico', destination: '/snake-icon2.gif' },
       { source: '/api/:path*', destination: `${apiBase}/api/:path*` },
       { source: '/oauth2/:path*', destination: `${apiBase}/oauth2/:path*` },
       { source: '/login/oauth2/code/:path*', destination: `${apiBase}/login/oauth2/code/:path*` },
