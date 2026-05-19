@@ -67,21 +67,7 @@ const googleSearchUrl = (movieName, regionName) => {
   return `https://www.google.com/search?q=${encodeURIComponent(keyword)}`;
 };
 
-/**
- * CineTrip 스텁(매핑만 있고 TMDB/DB 카탈로그에 없음)은 /dashboard/images 가 비어
- * "영화 정보를 찾을 수 없습니다"만 보인다. 카탈로그에 실제 행이 있을 때만 상세 CTA 노출.
- */
-function hasCatalogMovieSummary(movie) {
-  if (!movie?.movieName) return false;
-  if (typeof movie.overview === 'string' && movie.overview.trim()) return true;
-  if (typeof movie.genre === 'string' && movie.genre.trim()) return true;
-  if (typeof movie.tagline === 'string' && movie.tagline.trim()) return true;
-  if (movie.voteAverage != null && Number.isFinite(Number(movie.voteAverage))) return true;
-  if (typeof movie.movieNameEn === 'string' && movie.movieNameEn.trim()) return true;
-  if (typeof movie.releasedAt === 'string' && movie.releasedAt.trim()) return true;
-  if (typeof movie.backdropPath === 'string' && movie.backdropPath.trim()) return true;
-  return false;
-}
+import { hasCatalogMovieSummary } from '@/lib/movieCatalog';
 
 export default function TravelCourseModal({
   movie,

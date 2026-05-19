@@ -727,6 +727,7 @@
     "empty": "No film curations are linked to this region yet.",
     "defaultTitle": "Films set in {{region}}",
     "viewInCineTrip": "View in CineTrip",
+    "openCineTripCourse": "{{title}} · View CineTrip travel course",
     "untitled": "Untitled",
     "naverSearchSuffix": "movie"
   },
@@ -1353,6 +1354,8 @@
     "noOverviewDvd": "No description for this DVD 🤐",
     "loadingDetail": "Loading movie info...",
     "movieNotFound": "Movie info not found.",
+    "movieNotFoundCineTripHint": "This title may only exist in CineTrip·Film×Trip regional curation. Check filming spots and pet-friendly places in the travel course.",
+    "openCineTrip": "View CineTrip travel course",
     "noImage": "No image",
     "highRating": "High Rating",
     "recent": "New",

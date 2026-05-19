@@ -727,6 +727,7 @@
     "empty": "아직 이 지역과 연결된 영화 큐레이션이 없어요.",
     "defaultTitle": "{{region}} 배경으로 한 영화들",
     "viewInCineTrip": "CineTrip 에서 보기",
+    "openCineTripCourse": "{{title}} · CineTrip 여행 코스 보기",
     "untitled": "제목 미상",
     "naverSearchSuffix": "영화"
   },
@@ -1353,6 +1354,8 @@
     "noOverviewDvd": "이 DVD, 말이 없네요 🤐",
     "loadingDetail": "영화 정보를 불러오는 중...",
     "movieNotFound": "영화 정보를 찾을 수 없습니다.",
+    "movieNotFoundCineTripHint": "이 작품은 CineTrip·Film×Trip 지역 큐레이션에만 등록되어 있을 수 있어요. 여행 코스에서 촬영지·반려 스팟을 확인해 보세요.",
+    "openCineTrip": "CineTrip 여행 코스 보기",
     "noImage": "이미지 없음",
     "highRating": "높은 평점",
     "recent": "최신",

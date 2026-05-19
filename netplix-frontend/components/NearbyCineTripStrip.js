@@ -7,6 +7,7 @@ import { Film, Sparkles, ArrowRight, MapPin } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import axios from '@/lib/axiosConfig';
 import { sigunToAreaCode, areaCodeToLabel } from '@/lib/regionMap';
+import { hasCatalogMovieSummary } from '@/lib/movieCatalog';
 
 /**
  * 두루누비 트레킹 코스 카드에서 펼쳐지는
@@ -176,14 +177,19 @@ export default function NearbyCineTripStrip({
           : error
             ? <div style={{ color: emptyTextColor, fontSize: 13 }}>{error}</div>
             : items.map((it, i) => (
-                <MoviePosterCard key={`${it?.movie?.movieName || 'item'}-${i}`} item={it} index={i} />
+                <MoviePosterCard
+                  key={`${it?.movie?.movieName || 'item'}-${i}`}
+                  item={it}
+                  index={i}
+                  areaCode={areaCode}
+                />
               ))}
       </div>
     </div>
   );
 }
 
-function MoviePosterCard({ item, index }) {
+function MoviePosterCard({ item, index, areaCode }) {
   const { t } = useTranslation();
   const movie = item?.movie || {};
   const mapping = (item?.mappings || [])[0];
@@ -199,13 +205,20 @@ function MoviePosterCard({ item, index }) {
     return null;
   }
 
-  const internalUrl = `/dashboard/images?movieName=${encodeURIComponent(name)}&contentType=${encodeURIComponent(ct)}`;
+  const inCatalog = hasCatalogMovieSummary(movie);
+  const regionForLink = mapping?.areaCode || areaCode;
+  const internalUrl = inCatalog
+    ? `/dashboard/images?movieName=${encodeURIComponent(name)}&contentType=${encodeURIComponent(ct)}`
+    : `/cine-trip?movie=${encodeURIComponent(name)}${regionForLink ? `&area=${regionForLink}` : ''}`;
+  const linkTitle = inCatalog
+    ? name
+    : t('nearbyCineTrip.openCineTripCourse', '{{title}} · CineTrip 여행 코스 보기', { title: name });
 
   return (
     <Link
       href={internalUrl}
       prefetch={false}
-      title={name}
+      title={linkTitle}
       style={{
         flex: '0 0 auto',
         width: 130,

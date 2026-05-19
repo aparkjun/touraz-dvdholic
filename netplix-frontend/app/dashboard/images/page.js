@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, Suspense } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
@@ -404,8 +405,32 @@ function MovieImagesContent() {
         }}
       >
         <AmbientBackdrop {...TRAVEL_BACKDROP} />
-        <div style={{ textAlign: "center", paddingTop: "40px" }}>
-          <p>{t("movieImages.movieNotFound")}</p>
+        <div style={{ textAlign: "center", paddingTop: "40px", maxWidth: 420, margin: "0 auto" }}>
+          <p style={{ marginBottom: 12 }}>{t("movieImages.movieNotFound")}</p>
+          {movieNameParam && (
+            <>
+              <p style={{ fontSize: 14, lineHeight: 1.6, marginBottom: 16 }}>
+                {t("movieImages.movieNotFoundCineTripHint")}
+              </p>
+              <Link
+                href={`/cine-trip?movie=${encodeURIComponent(movieNameParam)}`}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "10px 18px",
+                  borderRadius: 10,
+                  background: "var(--ds-primary)",
+                  color: "#fff",
+                  fontWeight: 700,
+                  fontSize: 14,
+                  textDecoration: "none",
+                }}
+              >
+                {t("movieImages.openCineTrip")}
+              </Link>
+            </>
+          )}
         </div>
       </div>
     );
