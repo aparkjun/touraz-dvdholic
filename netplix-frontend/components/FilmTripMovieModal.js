@@ -223,7 +223,7 @@ export default function FilmTripMovieModal({ item, theme = 'dark', onClose }) {
           >
             <Sparkles size={12} />
             {t('filmTripModal.badge', 'Film×Trip')}
-          </motion.div>
+          </div>
 
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
             <img
@@ -277,7 +277,7 @@ export default function FilmTripMovieModal({ item, theme = 'dark', onClose }) {
           </div>
 
           {regionChips.length > 0 && (
-            <motion.div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
               {regionChips.map((m) => {
                 const typeKey = MAPPING_TYPE_KEY[m.mappingType];
                 const typeLabel = typeKey
@@ -309,10 +309,10 @@ export default function FilmTripMovieModal({ item, theme = 'dark', onClose }) {
                   </span>
                 );
               })}
-            </motion.div>
+            </div>
           )}
 
-          <motion.div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: 16 }}>
             {detailLoading ? (
               <p style={{ fontSize: 13, color: muted, margin: 0 }}>
                 {t('filmTripModal.loading', '작품 정보를 불러오는 중…')}
@@ -340,10 +340,10 @@ export default function FilmTripMovieModal({ item, theme = 'dark', onClose }) {
                 )}
               </p>
             )}
-          </motion.div>
+          </div>
         </motion.div>
 
-        <motion.div
+        <div
           style={{
             padding: '12px 20px 18px',
             borderTop: `1px solid ${border}`,
@@ -386,7 +386,7 @@ export default function FilmTripMovieModal({ item, theme = 'dark', onClose }) {
               )}
             </p>
           )}
-        </motion.div>
+        </div>
       </motion.div>
     </motion.div>
   );
