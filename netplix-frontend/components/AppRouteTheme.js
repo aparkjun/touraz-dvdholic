@@ -66,7 +66,7 @@ export default function AppRouteTheme({ children }) {
       if (dashTravel) meta.setAttribute("content", "#dce8f0");
       else if (sector === "pet-travel") meta.setAttribute("content", "#cfe8f5");
       else if (sector) meta.setAttribute("content", "#0f172a");
-      else meta.setAttribute("content", "#141414");
+      else meta.setAttribute("content", "#32363a");
     }
   }, [pathname]);
 

@@ -28,7 +28,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="ko" suppressHydrationWarning data-scroll-behavior="smooth">
       <head>
-        <meta name="theme-color" content="#141414" />
+        <meta name="theme-color" content="#32363a" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="HOLIC" />
