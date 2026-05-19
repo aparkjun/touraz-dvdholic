@@ -74,10 +74,7 @@ export const MAX_ODII_GALLERY_SEARCH_QUERIES = 5;
 
 export function inferOdiiQueriesFromGalleryItem(galleryItem, pageRegionKeyword = "") {
   const pageKw = String(pageRegionKeyword || "").trim();
-  if (pageKw) {
-    return buildOdiiSearchFallbackQueries(pageKw).slice(0, MAX_ODII_GALLERY_SEARCH_QUERIES);
-  }
-  if (!galleryItem) return [];
+  if (!galleryItem && !pageKw) return [];
 
   const out = [];
   const add = (q) => {
@@ -91,13 +88,19 @@ export function inferOdiiQueriesFromGalleryItem(galleryItem, pageRegionKeyword =
   const title = String(galleryItem?.title || "").trim();
   const searchKw = String(galleryItem?.searchKeyword || "").trim();
 
-  // 시설명·제목이 가장 정확 — 대가야국악당 등
+  // 시설명·제목 우선 — 지역 칩만 있어도 「대구경북디자인센터」 등으로 먼저 검색
   add(title);
+  for (const q of buildOdiiSearchFallbackQueries(title)) {
+    if (q !== title) add(q);
+  }
   for (const q of buildOdiiSearchFallbackQueries(loc)) {
     if (q !== loc) add(q);
   }
   if (loc) add(loc);
   if (searchKw && searchKw !== title) add(searchKw);
+  for (const q of buildOdiiSearchFallbackQueries(pageKw)) {
+    add(q);
+  }
 
   return out;
 }
@@ -167,7 +170,32 @@ export function scoreGalleryOdiiPair(galleryItem, odiiItem, regionKeyword = "") 
     }
   }
 
+  const titleOnlyToks = tokenizeForMatch(galleryItem?.title || "").filter(
+    (t) => !regionToks.has(t) && t.length >= 3
+  );
+  if (titleOnlyToks.length > 0) {
+    const overlap = titleOnlyToks.filter((t) => oAll.includes(t)).length;
+    if (overlap === 0) score -= 420;
+    else score += overlap * 48;
+  }
+
   return score;
+}
+
+/** 제목·촬영지에 구체적 시설명이 있으면 지역만 맞는 해설은 제외 */
+function galleryHasSpecificPlaceName(galleryItem) {
+  const title = normalizeMatchText(galleryItem?.title || "");
+  return title.length >= 5;
+}
+
+function titleTokensOverlapGallery(galleryItem, odiiItem, regionKeyword = "") {
+  const regionToks = new Set(tokenizeForMatch(regionKeyword));
+  const titleOnlyToks = tokenizeForMatch(galleryItem?.title || "").filter(
+    (t) => !regionToks.has(t) && t.length >= 3
+  );
+  if (!titleOnlyToks.length) return true;
+  const oAll = normalizeMatchText(odiiMatchCorpus(odiiItem));
+  return titleOnlyToks.some((t) => oAll.includes(t));
 }
 
 /**
@@ -198,7 +226,18 @@ export function pickBestOdiiForGalleryPhoto(
     }
   }
 
+  const specificPlace = galleryHasSpecificPlaceName(galleryItem);
+
+  if (specificPlace && !titleTokensOverlapGallery(galleryItem, best, rk)) {
+    return null;
+  }
+
+  if (bestScore < 48 && specificPlace) {
+    return null;
+  }
+
   if (bestScore <= 0) {
+    if (specificPlace) return null;
     const corpus = galleryMatchCorpus(galleryItem || {});
     const fbKey = `${rk}|${corpus}`;
     const idx = pickRegionalAudioTrackIndex(stable, fbKey, photoIndex);
