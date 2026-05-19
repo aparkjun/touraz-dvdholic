@@ -7,7 +7,7 @@ import { Film, Sparkles, ArrowRight, MapPin } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import axios from '@/lib/axiosConfig';
 import { sigunToAreaCode, areaCodeToLabel } from '@/lib/regionMap';
-import { hasCatalogMovieSummary } from '@/lib/movieCatalog';
+import FilmTripMovieModal from '@/components/FilmTripMovieModal';
 
 /**
  * 두루누비 트레킹 코스 카드에서 펼쳐지는
@@ -63,6 +63,7 @@ export default function NearbyCineTripStrip({
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedItem, setSelectedItem] = useState(null);
 
   useEffect(() => {
     if (!areaCode) {
@@ -181,15 +182,23 @@ export default function NearbyCineTripStrip({
                   key={`${it?.movie?.movieName || 'item'}-${i}`}
                   item={it}
                   index={i}
-                  areaCode={areaCode}
+                  onSelect={setSelectedItem}
                 />
               ))}
       </div>
+
+      {selectedItem && (
+        <FilmTripMovieModal
+          item={selectedItem}
+          theme={theme}
+          onClose={() => setSelectedItem(null)}
+        />
+      )}
     </div>
   );
 }
 
-function MoviePosterCard({ item, index, areaCode }) {
+function MoviePosterCard({ item, index, onSelect }) {
   const { t } = useTranslation();
   const movie = item?.movie || {};
   const mapping = (item?.mappings || [])[0];
@@ -199,31 +208,25 @@ function MoviePosterCard({ item, index, areaCode }) {
     : '';
 
   const name = movie.movieName;
-  const ct = movie.contentType || 'movie';
 
   if (!name) {
     return null;
   }
 
-  const inCatalog = hasCatalogMovieSummary(movie);
-  const regionForLink = mapping?.areaCode || areaCode;
-  const internalUrl = inCatalog
-    ? `/dashboard/images?movieName=${encodeURIComponent(name)}&contentType=${encodeURIComponent(ct)}`
-    : `/cine-trip?movie=${encodeURIComponent(name)}${regionForLink ? `&area=${regionForLink}` : ''}`;
-  const linkTitle = inCatalog
-    ? name
-    : t('nearbyCineTrip.openCineTripCourse', '{{title}} · CineTrip 여행 코스 보기', { title: name });
-
   return (
-    <Link
-      href={internalUrl}
-      prefetch={false}
-      title={linkTitle}
+    <button
+      type="button"
+      onClick={() => onSelect?.(item)}
+      title={t('filmTripModal.openPreview', '{{title}} · 작품 정보 보기', { title: name })}
       style={{
         flex: '0 0 auto',
         width: 130,
-        textDecoration: 'none',
+        padding: 0,
+        border: 'none',
+        background: 'transparent',
+        textAlign: 'left',
         color: 'inherit',
+        cursor: 'pointer',
       }}
     >
       <motion.div
@@ -238,10 +241,8 @@ function MoviePosterCard({ item, index, areaCode }) {
           overflow: 'hidden',
           border: '1px solid rgba(255,255,255,0.08)',
           background: '#0f0f0f',
-          cursor: 'pointer',
           display: 'flex',
           flexDirection: 'column',
-          textAlign: 'left',
         }}
       >
       <div style={{ position: 'relative', width: '100%', aspectRatio: '2 / 3', overflow: 'hidden' }}>
@@ -317,6 +318,6 @@ function MoviePosterCard({ item, index, areaCode }) {
         )}
       </div>
       </motion.div>
-    </Link>
+    </button>
   );
 }

@@ -719,6 +719,15 @@
     "ariaDryPop": "Precipitation chance {{n}}%.",
     "ariaDryNeutral": "No notable precipitation in the forecast."
   },
+  "filmTripModal": {
+    "badge": "Film×Trip",
+    "openPreview": "{{title}} · View title info",
+    "release": "Release",
+    "loading": "Loading title info…",
+    "noOverview": "This title is linked to regional travel curation here. Plot and full metadata are available only when registered in the catalog.",
+    "viewDetail": "View details",
+    "catalogOnlyHint": "The full movie page opens only for titles in the app catalog."
+  },
   "nearbyCineTrip": {
     "mappingShot": "Filming site",
     "mappingBackground": "Backdrop",
