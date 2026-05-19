@@ -10,9 +10,9 @@ export const metadata = {
   title: "Holic Store",
   description: "HOLIC DVD Store - 인기 DVD 스토어",
   icons: {
-    icon: [{ url: "/snake-icon2.gif", type: "image/gif" }],
-    shortcut: "/snake-icon2.gif",
-    apple: "/snake-icon2.gif",
+    icon: [{ url: "/favicon-snake.png", type: "image/png", sizes: "32x32" }],
+    shortcut: "/favicon-snake.png",
+    apple: "/apple-icon.png",
   },
 };
 
