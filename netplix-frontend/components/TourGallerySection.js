@@ -19,6 +19,7 @@ import {
   ensureGalleryOdiiMatch,
   prefetchGalleryOdiiBatch,
   invalidateGalleryOdiiCache,
+  galleryOdiiItemKey,
 } from "@/lib/galleryOdiiMatch";
 import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
 
@@ -95,6 +96,12 @@ export default function TourGallerySection({
     return items[selectedIndex];
   }, [selectedIndex, items]);
 
+  /** 갤러리 목록이 백그라운드로 늘어나도 동일 사진이면 오디오 effect 재실행 방지 */
+  const selectedItemKey = useMemo(() => {
+    if (!selectedGalleryItem) return null;
+    return galleryOdiiItemKey(selectedGalleryItem);
+  }, [selectedGalleryItem]);
+
   const matchKeywordForOdii = useMemo(
     () =>
       resolveGallerySoundMatchKeyword(
@@ -111,6 +118,8 @@ export default function TourGallerySection({
   const [lightboxAudioLoading, setLightboxAudioLoading] = useState(false);
   const galleryAudioRef = useRef(null);
   const galleryMediaSessionDetachRef = useRef(null);
+  /** 재매칭 캐시 갱신 시 동일 트랙이면 prepare/stop 생략 (재생 끊김 방지) */
+  const loadedGalleryAudioRef = useRef({ itemKey: null, audioUrl: null });
   const [playingCue, setPlayingCue] = useState(null);
   /** 오디오 play/pause 시 라이트박스 컨트롤 리렌더 */
   const [galleryAudioUiRev, setGalleryAudioUiRev] = useState(0);
@@ -137,6 +146,15 @@ export default function TourGallerySection({
       }
       galleryAudioRef.current = null;
     }
+    loadedGalleryAudioRef.current = { itemKey: null, audioUrl: null };
+  }, []);
+
+  const isSameLoadedGalleryTrack = useCallback((itemKey, track) => {
+    if (!itemKey || !track?.audioUrl) return false;
+    const a = galleryAudioRef.current;
+    if (!a) return false;
+    const loaded = loadedGalleryAudioRef.current;
+    return loaded.itemKey === itemKey && loaded.audioUrl === track.audioUrl;
   }, []);
 
   useEffect(() => {
@@ -172,12 +190,21 @@ export default function TourGallerySection({
   useEffect(() => () => stopGalleryAudio(), [stopGalleryAudio]);
 
   const prepareAudioElement = useCallback(
-    (track, regionKey) => {
+    (track, regionKey, itemKey) => {
+      if (isSameLoadedGalleryTrack(itemKey, track)) {
+        setGalleryAudioUiRev((n) => n + 1);
+        return;
+      }
       stopGalleryAudio();
+      loadedGalleryAudioRef.current = {
+        itemKey: itemKey ?? null,
+        audioUrl: track?.audioUrl ?? null,
+      };
       setPlayingCue({
         kind: "ready",
         regionKey,
         track,
+        playbackEnded: false,
       });
 
       try {
@@ -236,7 +263,7 @@ export default function TourGallerySection({
         });
       }
     },
-    [stopGalleryAudio]
+    [stopGalleryAudio, isSameLoadedGalleryTrack]
   );
 
   useEffect(() => {
@@ -246,7 +273,11 @@ export default function TourGallerySection({
       setLightboxAudioLoading(false);
       return undefined;
     }
-    if (selectedIndex === null || !selectedGalleryItem) {
+    const item =
+      selectedIndex != null && items[selectedIndex]
+        ? items[selectedIndex]
+        : null;
+    if (selectedIndex === null || !selectedItemKey || !item) {
       stopGalleryAudio();
       setPlayingCue(null);
       setLightboxAudioLoading(false);
@@ -254,13 +285,15 @@ export default function TourGallerySection({
     }
 
     let cancelled = false;
+    const itemKey = selectedItemKey;
 
     const applyMatch = (match) => {
       if (cancelled || !match) return;
       if (match.status === "ready" && match.track) {
-        prepareAudioElement(match.track, match.matchKeyword);
+        prepareAudioElement(match.track, match.matchKeyword, itemKey);
         return;
       }
+      loadedGalleryAudioRef.current = { itemKey: null, audioUrl: null };
       stopGalleryAudio();
       if (match.status === "noQueries") {
         setPlayingCue({ kind: "noQueries" });
@@ -271,27 +304,43 @@ export default function TourGallerySection({
       }
     };
 
-    const cached = getGalleryOdiiMatch(
-      lang,
-      selectedGalleryItem,
-      effectiveSoundKeyword
-    );
+    const syncFromCache = () => {
+      if (cancelled) return;
+      const fresh = getGalleryOdiiMatch(lang, item, effectiveSoundKeyword);
+      if (!fresh || fresh.status === "pending") return;
+      setLightboxAudioLoading(false);
+      applyMatch(fresh);
+    };
+
+    const cached = getGalleryOdiiMatch(lang, item, effectiveSoundKeyword);
     if (cached && cached.status !== "pending") {
       setLightboxAudioLoading(false);
       applyMatch(cached);
-      return undefined;
+      return () => {
+        cancelled = true;
+      };
     }
 
     setLightboxAudioLoading(true);
-    setPlayingCue(null);
-    stopGalleryAudio();
+    const alreadyPreparedForItem =
+      loadedGalleryAudioRef.current.itemKey === itemKey &&
+      galleryAudioRef.current;
+    if (!alreadyPreparedForItem) {
+      setPlayingCue(null);
+      stopGalleryAudio();
+    }
 
     ensureGalleryOdiiMatch(
       lang,
-      selectedGalleryItem,
+      item,
       effectiveSoundKeyword,
       selectedIndex,
-      { onUpdate: bumpOdiiMatch }
+      {
+        onUpdate: () => {
+          bumpOdiiMatch();
+          syncFromCache();
+        },
+      }
     ).then((match) => {
       if (cancelled) return;
       setLightboxAudioLoading(false);
@@ -301,13 +350,13 @@ export default function TourGallerySection({
     return () => {
       cancelled = true;
     };
+    // items는 의도적으로 제외 — 백그라운드 heal 시 동일 사진 재생이 끊기지 않도록
   }, [
     soundLayerEnabled,
     selectedIndex,
-    selectedGalleryItem,
+    selectedItemKey,
     effectiveSoundKeyword,
     lang,
-    odiiMatchRev,
     prepareAudioElement,
     stopGalleryAudio,
     bumpOdiiMatch,
