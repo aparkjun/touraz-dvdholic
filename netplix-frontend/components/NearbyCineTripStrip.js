@@ -7,7 +7,6 @@ import { Film, Sparkles, ArrowRight, MapPin } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import axios from '@/lib/axiosConfig';
 import { sigunToAreaCode, areaCodeToLabel } from '@/lib/regionMap';
-import FilmTripMovieModal from '@/components/FilmTripMovieModal';
 
 /**
  * 두루누비 트레킹 코스 카드에서 펼쳐지는
@@ -63,8 +62,6 @@ export default function NearbyCineTripStrip({
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedItem, setSelectedItem] = useState(null);
-
   useEffect(() => {
     if (!areaCode) {
       setItems([]);
@@ -182,25 +179,15 @@ export default function NearbyCineTripStrip({
                   key={`${it?.movie?.movieName || 'item'}-${i}`}
                   item={it}
                   index={i}
-                  onSelect={setSelectedItem}
                 />
               ))}
       </div>
 
-      {selectedItem && (
-        <FilmTripMovieModal
-          item={selectedItem}
-          areaCode={areaCode}
-          regionLabel={regionLabel}
-          theme={theme}
-          onClose={() => setSelectedItem(null)}
-        />
-      )}
     </div>
   );
 }
 
-function MoviePosterCard({ item, index, onSelect }) {
+function MoviePosterCard({ item, index }) {
   const { t } = useTranslation();
   const movie = item?.movie || {};
   const mapping = (item?.mappings || [])[0];
@@ -216,26 +203,18 @@ function MoviePosterCard({ item, index, onSelect }) {
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => onSelect?.(item)}
-      title={t('filmTripModal.openPreview', '{{title}} · 작품 정보 보기', { title: name })}
+    <div
       style={{
         flex: '0 0 auto',
         width: 130,
-        padding: 0,
-        border: 'none',
-        background: 'transparent',
         textAlign: 'left',
         color: 'inherit',
-        cursor: 'pointer',
       }}
     >
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.3) }}
-        whileHover={{ scale: 1.04, y: -3 }}
         style={{
           width: '100%',
           padding: 0,
@@ -320,6 +299,6 @@ function MoviePosterCard({ item, index, onSelect }) {
         )}
       </div>
       </motion.div>
-    </button>
+    </div>
   );
 }
