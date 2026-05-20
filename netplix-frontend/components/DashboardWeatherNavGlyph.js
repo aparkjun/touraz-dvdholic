@@ -11,6 +11,7 @@ import {
   formatTimelineAria,
   buildDashboardNavCaption,
   buildDashboardRegionLine,
+  buildWeatherGlyphPickFromPayload,
   skyStateLabel,
   resolveSeriesForWeatherTimeline,
 } from '@/lib/travelWeatherShared';
@@ -231,6 +232,16 @@ export default function DashboardWeatherNavGlyph() {
       !(Array.isArray(d.vsrtHourly) && d.vsrtHourly.length > 0) &&
       hasAfsText
     ) {
+      const afsPick = buildWeatherGlyphPickFromPayload(d, { t, maxSlots: 8 });
+      if (afsPick?.Icon && afsPick.stateLabel) {
+        return {
+          kind: 'rain',
+          Icon: afsPick.Icon,
+          iconProps: afsPick.iconProps,
+          stateLabel: afsPick.stateLabel,
+          ariaLabel: afsSumm.length > 160 ? `${afsSumm.slice(0, 160)}…` : afsSumm,
+        };
+      }
       return {
         kind: 'vague',
         Icon: CloudSun,

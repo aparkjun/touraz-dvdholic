@@ -23,7 +23,7 @@ function cacheKeyForQuery(q) {
   if (!q?.reg && q?.lat == null) return '';
   const lat = q.lat != null ? Number(q.lat).toFixed(3) : '';
   const lng = q.lng != null ? Number(q.lng).toFixed(3) : '';
-  return `w:${q.reg || ''}:${lat}:${lng}`;
+  return `w2:${q.reg || ''}:${lat}:${lng}`;
 }
 
 function readCachedPick(query) {

@@ -286,10 +286,77 @@ export function pickDisplayWeatherSlot(timeline, now = new Date()) {
   return (upcoming.length ? upcoming : slots)[0];
 }
 
+/** 단기 개황(afsDs) 전체 문장 — series·vsrt 가 없을 때 아이콘 보강용 */
+export function collectAfsDsPlainText(afsDs) {
+  if (!afsDs || typeof afsDs !== 'object') return '';
+  const chunks = [];
+  const sum = String(afsDs.summary ?? '').trim();
+  if (sum && sum !== '#') chunks.push(sum);
+  if (Array.isArray(afsDs.sections)) {
+    for (const sec of afsDs.sections) {
+      const tx = String(sec?.text ?? '').trim();
+      if (tx && tx !== '#' && !tx.includes('#7777END')) chunks.push(tx);
+    }
+  }
+  return chunks.join('\n');
+}
+
+/**
+ * 기상청 단기 개황 한글 문장에서 강수 여부 추정.
+ * Heroku 등에서 series/vsrtHourly 없이 afsDs 만 내려올 때 비·눈 아이콘에 사용.
+ */
+export function inferPrecipFromAfsDs(afsDs) {
+  const text = collectAfsDsPlainText(afsDs);
+  if (!text) return null;
+
+  const hasMm = /\d+\s*~\s*\d+\s*mm|\d+\s*mm|mm\s*\(/i.test(text);
+  const hasShower = /소나기/.test(text);
+  const hasThunder = /천둥|뇌우|우박/.test(text);
+  const hasSnowFlurry = /눈날림/.test(text);
+  const hasSnow =
+    /(?:^|[^가-힣])눈(?:[^가-힣]|$)|진눈깨비|눈보라/.test(text) && !/눈구름/.test(text);
+  const hasRainWord =
+    /호우|폭우|강우|빗방울|강수|우산/.test(text) ||
+    /(?:^|[^가-힣])비(?:[^가-힣]|$)|비가|비를|비는|비\s|비,|비로|비와|이비|폭우/.test(text) ||
+    hasMm;
+  const hasRainSnowMix = /비\s*또는\s*눈|눈\s*또는\s*비/.test(text);
+
+  if (!hasRainWord && !hasSnow && !hasShower && !hasThunder) return null;
+
+  let pty = '1';
+  if (hasShower || hasThunder) pty = '4';
+  else if (hasRainSnowMix) pty = '2';
+  else if (hasSnowFlurry) pty = '7';
+  else if (hasSnow && !hasRainWord) pty = '3';
+
+  return {
+    wet: true,
+    pty,
+    sky: '4',
+    pop: hasMm ? 80 : 60,
+  };
+}
+
+function glyphPickFromPrecipHint(hint, t) {
+  const row = {
+    sky: hint.sky ?? '4',
+    pty: hint.pty,
+    pop: hint.pop ?? 60,
+    wet: true,
+  };
+  const { Icon, iconProps } = iconForMergedRow(row);
+  const stateLabel =
+    typeof t === 'function' ? skyStateLabel(row.sky, row.pty, true, t) : null;
+  return { Icon, tmp: null, stateLabel, iconProps };
+}
+
 export function buildWeatherGlyphPickFromPayload(weatherData, opts = {}) {
   if (weatherData == null || typeof weatherData !== 'object') {
     return { Icon: null, tmp: null, stateLabel: null };
   }
+  const t = opts.t;
+  const afsHint = inferPrecipFromAfsDs(weatherData.afsDs);
+
   const series = resolveSeriesForWeatherTimeline(weatherData);
   const tl = buildTravelWeatherTimeline(series, {
     maxSlots: opts.maxSlots ?? 8,
@@ -297,13 +364,22 @@ export function buildWeatherGlyphPickFromPayload(weatherData, opts = {}) {
     skipVsrt: false,
   });
   const s = pickDisplayWeatherSlot(tl);
-  if (!s?.Icon) {
-    return { Icon: null, tmp: null, stateLabel: null };
+
+  if (s?.Icon) {
+    const slotWet = s.wet || isWetPty(s.pty);
+    if (!slotWet && afsHint?.wet) {
+      return glyphPickFromPrecipHint(afsHint, t);
+    }
+    const stateLabel =
+      typeof t === 'function' ? skyStateLabel(s.sky, s.pty, s.wet, t) : null;
+    return { Icon: s.Icon, tmp: s.tmp ?? null, stateLabel, iconProps: s.iconProps };
   }
-  const t = opts.t;
-  const stateLabel =
-    typeof t === 'function' ? skyStateLabel(s.sky, s.pty, s.wet, t) : null;
-  return { Icon: s.Icon, tmp: s.tmp ?? null, stateLabel, iconProps: s.iconProps };
+
+  if (afsHint?.wet) {
+    return glyphPickFromPrecipHint(afsHint, t);
+  }
+
+  return { Icon: null, tmp: null, stateLabel: null };
 }
 
 function nowYyyymmddHour(d = new Date()) {
@@ -707,6 +783,7 @@ export function buildDailyWeatherOutlook(weatherData, opts = {}) {
   const dayCount = opts.dayCount ?? 7;
   const now = opts.now ?? new Date();
   const nowParts = nowYyyymmddHour(now);
+  const afsHint = inferPrecipFromAfsDs(weatherData.afsDs);
 
   const series = resolveSeriesForWeatherTimeline(weatherData);
   const merged = mergeSeriesBySlot(series);
@@ -740,11 +817,26 @@ export function buildDailyWeatherOutlook(weatherData, opts = {}) {
 
   const dates = Array.from(byDate.keys()).sort().slice(0, dayCount);
 
-  return dates
+  const outlook = dates
     .map((date) => {
       const slots = byDate.get(date).sort((a, b) => a.hour - b.hour);
-      const pick = pickRepresentativeSlotForDay(slots);
+      let pick = pickRepresentativeSlotForDay(slots);
       if (!pick?.Icon) return null;
+
+      const dryToday =
+        date === nowParts.yyyymmdd &&
+        afsHint?.wet &&
+        !(pick.wet || isWetPty(pick.pty));
+      if (dryToday) {
+        const fromAfs = glyphPickFromPrecipHint(afsHint, t);
+        pick = {
+          ...pick,
+          Icon: fromAfs.Icon,
+          iconProps: fromAfs.iconProps,
+          wet: true,
+          pty: afsHint.pty,
+        };
+      }
 
       const tmps = slots.map((s) => s.tmp).filter((x) => x != null && Number.isFinite(x));
       const stateLabel =
@@ -764,11 +856,35 @@ export function buildDailyWeatherOutlook(weatherData, opts = {}) {
         tmp: pick.tmp,
         minTmp,
         maxTmp,
-        maxPop: slots.reduce((m, s) => Math.max(m, s.pop ?? 0), 0),
-        wetDay: slots.some((s) => s.wet || isWetPty(s.pty)),
+        maxPop: Math.max(
+          slots.reduce((m, s) => Math.max(m, s.pop ?? 0), 0),
+          dryToday ? afsHint.pop ?? 0 : 0
+        ),
+        wetDay: slots.some((s) => s.wet || isWetPty(s.pty)) || dryToday,
       };
     })
     .filter(Boolean);
+
+  if (outlook.length === 0 && afsHint?.wet) {
+    const fromAfs = glyphPickFromPrecipHint(afsHint, t);
+    return [
+      {
+        date: nowParts.yyyymmdd,
+        dayLabel:
+          typeof t === 'function' ? dayLabel(nowParts.yyyymmdd, t) : '오늘',
+        Icon: fromAfs.Icon,
+        iconProps: fromAfs.iconProps,
+        stateLabel: fromAfs.stateLabel,
+        tmp: null,
+        minTmp: null,
+        maxTmp: null,
+        maxPop: afsHint.pop ?? 60,
+        wetDay: true,
+      },
+    ];
+  }
+
+  return outlook;
 }
 
 function flattenFirstForecastLike(node, depth = 0) {

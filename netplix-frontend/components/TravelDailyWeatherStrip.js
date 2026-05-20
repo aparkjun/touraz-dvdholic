@@ -167,7 +167,7 @@ export default function TravelDailyWeatherStrip({
       setError(true);
       return;
     }
-    const key = `daily:${query.reg}:${query.lat ?? ''}:${query.lng ?? ''}`;
+    const key = `daily2:${query.reg}:${query.lat ?? ''}:${query.lng ?? ''}`;
     const cached = cache.get(key);
     if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
       setPayload(cached.data);
