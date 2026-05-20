@@ -29,7 +29,7 @@ import ConcentrationHeatmap30 from '@/components/ConcentrationHeatmap30';
 import EngTourSpotsStrip from '@/components/EngTourSpotsStrip';
 import TravelCourseModal from '@/components/TravelCourseModal';
 import CineTripCinematicHero from '@/components/CineTripCinematicHero';
-import RegionWeatherGlyph from '@/components/RegionWeatherGlyph';
+import RegionWeatherGlyph, { prefetchRegionWeatherGlyphs } from '@/components/RegionWeatherGlyph';
 import useDragScrollAll from '@/lib/useDragScroll';
 
 const REGION_FILTERS = [
@@ -862,6 +862,12 @@ function CineTripPageInner() {
   const loadMoreSentinelRef = useRef(null);
   useDragScrollAll(pageRef);
 
+  // 광역 칩 날씨 아이콘 — 진입 시 배치 API로 한 번에 예열(개별 16회 요청 방지).
+  useEffect(() => {
+    const codes = REGION_FILTERS.map((r) => r.areaCode).filter((c) => c != null);
+    prefetchRegionWeatherGlyphs(codes, t);
+  }, [t]);
+
   // 필터/스포트라이트가 바뀌어 items 가 새로 들어오면 visibleCount 리셋.
   useEffect(() => {
     setVisibleCount(CARDS_INITIAL_BATCH);
@@ -1082,6 +1088,7 @@ function CineTripPageInner() {
                     regionCode={region.areaCode}
                     size={18}
                     variant={active ? 'default' : 'onLight'}
+                    eager
                   />
                 )}
               </motion.button>

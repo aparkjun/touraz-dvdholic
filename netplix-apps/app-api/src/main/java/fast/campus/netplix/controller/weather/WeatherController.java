@@ -149,8 +149,41 @@ public class WeatherController {
             @RequestParam(name = "reg", required = false) String reg,
             @RequestParam(name = "tmfc", required = false) String tmfc,
             @RequestParam(name = "lat", required = false) Double lat,
-            @RequestParam(name = "lng", required = false) Double lng) {
+            @RequestParam(name = "lng", required = false) Double lng,
+            @RequestParam(name = "glyphOnly", defaultValue = "false") boolean glyphOnly) {
+        return NetplixApiResponse.ok(resolveShortRegPayload(reg, tmfc, lat, lng, glyphOnly));
+    }
 
+    /**
+     * 광역 칩 등 — 여러 reg 를 한 번에 (서버 캐시 hit 시 KMA 왕복 1회로 체감 속도 개선).
+     * {@code regs}: 콤마 구분 예보구역 코드 (예: 11B10101,11H20201).
+     */
+    @GetMapping("/short-reg/batch")
+    public NetplixApiResponse<Map<String, Object>> shortRegBatch(
+            @RequestParam(name = "regs") String regsCsv,
+            @RequestParam(name = "glyphOnly", defaultValue = "true") boolean glyphOnly) {
+        Map<String, Map<String, Object>> byReg = new LinkedHashMap<>();
+        if (regsCsv != null && !regsCsv.isBlank()) {
+            int n = 0;
+            for (String part : regsCsv.split(",")) {
+                if (n >= 24) {
+                    break;
+                }
+                String r = part.trim();
+                if (r.isEmpty()) {
+                    continue;
+                }
+                n++;
+                byReg.put(r, resolveShortRegPayload(r, null, null, null, glyphOnly));
+            }
+        }
+        Map<String, Object> out = new HashMap<>();
+        out.put("byReg", byReg);
+        return NetplixApiResponse.ok(out);
+    }
+
+    private Map<String, Object> resolveShortRegPayload(
+            String reg, String tmfc, Double lat, Double lng, boolean glyphOnly) {
         String effectiveReg = (reg != null && !reg.isBlank()) ? reg.trim() : null;
         Map<String, Object> out = new HashMap<>();
 
@@ -170,10 +203,14 @@ public class WeatherController {
 
         out.put("reg", effectiveReg);
 
-        String cacheKey = shortRegCacheKey(effectiveReg, lat, lng, tmfc);
+        Double[] coords = resolveLatLngForCache(effectiveReg, lat, lng);
+        Double useLat = coords[0];
+        Double useLng = coords[1];
+
+        String cacheKey = shortRegCacheKey(effectiveReg, useLat, useLng, tmfc);
         ShortRegCacheEntry cached = shortRegCache.get(cacheKey);
         if (cached != null && cached.expiresAtMs() > System.currentTimeMillis()) {
-            return NetplixApiResponse.ok(new HashMap<>(cached.payload()));
+            return new HashMap<>(cached.payload());
         }
 
         if (!kmaShortRegHttpClient.isApiKeyConfigured()) {
@@ -182,24 +219,35 @@ public class WeatherController {
             out.put(
                     "message",
                     "단기 예보는 기상청 API허브(apihub.kma.go.kr) 인증키가 필요합니다. Heroku Config Vars에 KMA_API_KEY(또는 KMA_AUTH_API_KEY)로 허브에서 발급한 키를 넣고 dyno를 재시작하세요. 공공데이터포털(data.go.kr) 키만으로는 동작하지 않을 수 있습니다.");
-            return cacheAndOk(cacheKey, out);
+            putShortRegCache(cacheKey, out);
+            return out;
         }
 
-        // Stale-while-revalidate: fresh 가 만료됐어도 직전 성공 응답을 보관 중이면 즉시 반환하고
-        // 같은 키의 중복 백그라운드 호출은 막은 채(in-flight) 비동기로 KMA 재요청한다.
         ShortRegCacheEntry stale = shortRegStaleCache.get(cacheKey);
         if (stale != null && stale.expiresAtMs() > System.currentTimeMillis()) {
             triggerBackgroundRefresh(cacheKey, effectiveReg, tmfc);
             Map<String, Object> staleCopy = new HashMap<>(stale.payload());
             staleCopy.put("staleFromCache", true);
-            return NetplixApiResponse.ok(staleCopy);
+            return staleCopy;
         }
 
-        Map<String, Object> fetched = fetchAndBuildShortRegPayload(effectiveReg, tmfc, lat, lng);
+        Map<String, Object> fetched = fetchAndBuildShortRegPayload(effectiveReg, tmfc, useLat, useLng, glyphOnly);
         for (Map.Entry<String, Object> e : fetched.entrySet()) {
             out.putIfAbsent(e.getKey(), e.getValue());
         }
-        return cacheAndOk(cacheKey, out);
+        putShortRegCache(cacheKey, out);
+        return out;
+    }
+
+    private static Double[] resolveLatLngForCache(String effectiveReg, Double lat, Double lng) {
+        if (lat != null && lng != null) {
+            return new Double[] {lat, lng};
+        }
+        var centroid = KmaRegCentroid.byReg(effectiveReg);
+        if (centroid.isPresent()) {
+            return new Double[] {centroid.get().lat(), centroid.get().lng()};
+        }
+        return new Double[] {lat, lng};
     }
 
     /**
@@ -208,7 +256,7 @@ public class WeatherController {
      * 호출자는 자체 응답(예: reg/regFromGeo/regLabel) 과 병합 후 캐시에 넣는다.
      */
     private Map<String, Object> fetchAndBuildShortRegPayload(
-            String effectiveReg, String tmfc, Double lat, Double lng) {
+            String effectiveReg, String tmfc, Double lat, Double lng, boolean glyphOnly) {
         Map<String, Object> out = new HashMap<>();
         long wall0 = System.nanoTime();
         KmaShortRegFetchResult shortRegFetch = kmaShortRegHttpClient.fetchWithDiagnostics(effectiveReg, tmfc);
@@ -304,7 +352,7 @@ public class WeatherController {
             // 비-JSON 응답인 경우에만 소형 미리보기로 진단 정보 제공.
             out.put("payloadRawPreview", raw.length() > 1200 ? raw.substring(0, 1200) + "…" : raw);
         }
-        if (Boolean.TRUE.equals(out.get("configured"))) {
+        if (Boolean.TRUE.equals(out.get("configured")) && !glyphOnly) {
             attachVsrtHourly(out, effectiveReg, lat, lng);
         }
         return out;
@@ -357,7 +405,7 @@ public class WeatherController {
         try {
             shortRegRefreshExecutor.execute(() -> {
                 try {
-                    Map<String, Object> refreshed = fetchAndBuildShortRegPayload(effectiveReg, tmfc, null, null);
+                    Map<String, Object> refreshed = fetchAndBuildShortRegPayload(effectiveReg, tmfc, null, null, false);
                     Map<String, Object> withReg = new HashMap<>(refreshed);
                     withReg.putIfAbsent("reg", effectiveReg);
                     putShortRegCache(cacheKey, withReg);

@@ -16,14 +16,16 @@ import { getWeatherQueryForShortcutCode, getWeatherQueryFromAreaNames } from '@/
 import { useTranslation } from 'react-i18next';
 
 const CACHE_TTL_MS = 6 * 60 * 1000;
+const GLYPH_FETCH_TIMEOUT_MS = 12_000;
 const cache = new Map();
 const inflight = new Map();
 
 function cacheKeyForQuery(q) {
-  if (!q?.reg && q?.lat == null) return '';
+  if (!q) return '';
+  if (q.reg) return `w3:${q.reg}`;
   const lat = q.lat != null ? Number(q.lat).toFixed(3) : '';
   const lng = q.lng != null ? Number(q.lng).toFixed(3) : '';
-  return `w2:${q.reg || ''}:${lat}:${lng}`;
+  return `w3:geo:${lat}:${lng}`;
 }
 
 function readCachedPick(query) {
@@ -36,29 +38,100 @@ function readCachedPick(query) {
   return null;
 }
 
-async function fetchShortRegOnce(params) {
-  const sets = [];
-  if (params.reg && params.lat != null && params.lng != null) {
-    sets.push({ reg: params.reg, lat: params.lat, lng: params.lng });
+function storePick(query, pick) {
+  const key = cacheKeyForQuery(query);
+  if (!key) return;
+  cache.set(key, { ts: Date.now(), pick: pick ?? FALLBACK_PICK });
+}
+
+/** 칩 아이콘용 — 1회 요청, 초단기 격자(vsrt) 생략, 짧은 타임아웃 */
+async function fetchShortRegForGlyph(params) {
+  const p =
+    params.reg && params.lat != null && params.lng != null
+      ? { reg: params.reg, lat: params.lat, lng: params.lng, glyphOnly: true }
+      : params.reg
+        ? { reg: params.reg, glyphOnly: true }
+        : null;
+  if (!p) return null;
+  const res = await axios.get('/api/v1/weather/short-reg', { params: p, timeout: GLYPH_FETCH_TIMEOUT_MS });
+  const body = res?.data;
+  if (body && body.success === false) return null;
+  const d = body?.data;
+  return d != null && typeof d === 'object' ? d : null;
+}
+
+function ensurePickLoaded(query, t) {
+  const key = cacheKeyForQuery(query);
+  if (!key) return Promise.resolve(FALLBACK_PICK);
+  const cached = readCachedPick(query);
+  if (cached) return Promise.resolve(cached);
+
+  let promise = inflight.get(key);
+  if (!promise) {
+    promise = fetchShortRegForGlyph(query)
+      .then((d) => {
+        const nextPick = derivePickFromPayload(d, t);
+        storePick(query, nextPick);
+        return nextPick;
+      })
+      .catch(() => {
+        storePick(query, FALLBACK_PICK);
+        return FALLBACK_PICK;
+      })
+      .finally(() => {
+        inflight.delete(key);
+      });
+    inflight.set(key, promise);
   }
-  if (params.reg) sets.push({ reg: params.reg });
-  if (params.lat != null && params.lng != null) {
-    sets.push({ lat: params.lat, lng: params.lng });
+  return promise;
+}
+
+/**
+ * CineTrip 등 — 페이지 진입 시 모든 광역 날씨를 한꺼번에 예열(배치 API + 병렬).
+ */
+export function prefetchRegionWeatherGlyphs(regionCodes, t) {
+  if (!Array.isArray(regionCodes) || !regionCodes.length) return Promise.resolve();
+
+  const seen = new Set();
+  const queries = [];
+  for (const code of regionCodes) {
+    const q = getWeatherQueryForShortcutCode(code);
+    const key = cacheKeyForQuery(q);
+    if (!q?.reg || !key || seen.has(key) || readCachedPick(q)) continue;
+    seen.add(key);
+    queries.push(q);
   }
-  let lastErr;
-  for (const p of sets) {
+  if (!queries.length) return Promise.resolve();
+
+  const regs = [...new Set(queries.map((q) => q.reg).filter(Boolean))];
+
+  const warmFromBatch = async () => {
+    if (regs.length < 2) return;
     try {
-      const res = await axios.get('/api/v1/weather/short-reg', { params: p, timeout: 28000 });
-      const body = res?.data;
-      if (body && body.success === false) continue;
-      const d = body?.data;
-      if (d != null && typeof d === 'object') return d;
-    } catch (e) {
-      lastErr = e;
+      const res = await axios.get('/api/v1/weather/short-reg/batch', {
+        params: { regs: regs.join(','), glyphOnly: true },
+        timeout: 18_000,
+      });
+      const byReg = res?.data?.data?.byReg;
+      if (!byReg || typeof byReg !== 'object') return;
+      for (const q of queries) {
+        const d = byReg[q.reg];
+        if (d) storePick(q, derivePickFromPayload(d, t));
+      }
+    } catch {
+      /* 개별 요청으로 이어짐 */
     }
-  }
-  if (lastErr) throw lastErr;
-  return null;
+  };
+
+  const fillMissing = async () => {
+    const missing = queries.filter((q) => !readCachedPick(q));
+    const BATCH = 5;
+    for (let i = 0; i < missing.length; i += BATCH) {
+      await Promise.all(missing.slice(i, i + BATCH).map((q) => ensurePickLoaded(q, t)));
+    }
+  };
+
+  return warmFromBatch().then(fillMissing);
 }
 
 /** 기상 앱 스타일: 원·배경 없이 라인 아이콘만 */
@@ -115,8 +188,6 @@ export default function RegionWeatherGlyph({
 }) {
   const { t } = useTranslation();
   const wrapRef = useRef(null);
-  const [visible, setVisible] = useState(eager);
-  const [pick, setPick] = useState(null);
 
   const query = useMemo(() => {
     if (reg && lat != null && lng != null) return { reg, lat, lng };
@@ -131,6 +202,9 @@ export default function RegionWeatherGlyph({
     }
     return null;
   }, [regionCode, areaName, signguName, reg, lat, lng]);
+
+  const [visible, setVisible] = useState(eager);
+  const [pick, setPick] = useState(() => (query ? readCachedPick(query) : null));
 
   useEffect(() => {
     if (eager) {
@@ -155,18 +229,11 @@ export default function RegionWeatherGlyph({
       return undefined;
     }
     const cached = readCachedPick(query);
-    if (cached) {
-      setPick(cached);
-    } else if (!visible) {
-      setPick(null);
-    }
-  }, [query, visible]);
+    if (cached) setPick(cached);
+  }, [query]);
 
   useEffect(() => {
     if (!visible || !query) return undefined;
-    const key = cacheKeyForQuery(query);
-    if (!key) return undefined;
-
     const cached = readCachedPick(query);
     if (cached) {
       setPick(cached);
@@ -174,30 +241,9 @@ export default function RegionWeatherGlyph({
     }
 
     let alive = true;
-
-    let promise = inflight.get(key);
-    if (!promise) {
-      promise = fetchShortRegOnce(query)
-        .then((d) => {
-          const nextPick = derivePickFromPayload(d, t);
-          cache.set(key, { ts: Date.now(), pick: nextPick });
-          return nextPick;
-        })
-        .catch(() => FALLBACK_PICK)
-        .finally(() => {
-          inflight.delete(key);
-        });
-      inflight.set(key, promise);
-    }
-
-    promise
-      .then((nextPick) => {
-        if (!alive) return;
-        setPick(nextPick ?? FALLBACK_PICK);
-      })
-      .catch(() => {
-        if (alive) setPick(FALLBACK_PICK);
-      });
+    ensurePickLoaded(query, t).then((nextPick) => {
+      if (alive) setPick(nextPick ?? FALLBACK_PICK);
+    });
 
     return () => {
       alive = false;
@@ -235,11 +281,20 @@ export default function RegionWeatherGlyph({
         verticalAlign: 'middle',
         lineHeight: 0,
         flexShrink: 0,
+        width: size,
+        height: size,
       }}
     >
       {WIcon && glyphProps ? (
         <WIcon size={size} {...glyphProps} aria-hidden />
-      ) : null}
+      ) : (
+        <Cloud
+          size={size}
+          {...simpleGlyphProps(Cloud, onLight)}
+          aria-hidden
+          style={{ opacity: 0.35 }}
+        />
+      )}
     </span>
   );
 }

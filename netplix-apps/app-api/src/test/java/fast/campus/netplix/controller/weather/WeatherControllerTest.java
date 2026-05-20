@@ -141,6 +141,41 @@ class WeatherControllerTest {
     }
 
     @Test
+    void shortReg_glyphOnly_skipsVsrtHourly() throws Exception {
+        String body = """
+                {"result":{"status":0},"response":{"body":{"items":[{"TMP":18,"POP":30,"SKY":"1","PTY":"0","fcstTime":"1200","fcstDate":"20240509"}]}}}
+                """;
+        when(kmaShortRegHttpClient.fetchWithDiagnostics(eq("11B10101"), any()))
+                .thenReturn(new KmaShortRegFetchResult(body, null, null, null, 1, 0));
+
+        mockMvc.perform(get("/api/v1/weather/short-reg").param("glyphOnly", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.series.length()").value(1))
+                .andExpect(jsonPath("$.data.vsrtHourly").doesNotExist());
+    }
+
+    @Test
+    void shortRegBatch_returnsByReg_forMultipleRegs() throws Exception {
+        String body = """
+                {"result":{"status":0},"response":{"body":{"items":[{"TMP":20,"POP":10,"SKY":"1","PTY":"0","fcstTime":"0900","fcstDate":"20240509"}]}}}
+                """;
+        when(kmaShortRegHttpClient.fetchWithDiagnostics(eq("11B10101"), any()))
+                .thenReturn(new KmaShortRegFetchResult(body, null, null, null, 1, 0));
+        when(kmaShortRegHttpClient.fetchWithDiagnostics(eq("11H20201"), any()))
+                .thenReturn(new KmaShortRegFetchResult(body, null, null, null, 1, 0));
+
+        mockMvc.perform(
+                        get("/api/v1/weather/short-reg/batch")
+                                .param("regs", "11B10101,11H20201")
+                                .param("glyphOnly", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.byReg['11B10101'].reg").value("11B10101"))
+                .andExpect(jsonPath("$.data.byReg['11H20201'].reg").value("11H20201"))
+                .andExpect(jsonPath("$.data.byReg['11B10101'].vsrtHourly").doesNotExist());
+    }
+
+    @Test
     void shortReg_usesNearestReg_whenLatLngProvided() throws Exception {
         when(kmaShortRegHttpClient.fetchWithDiagnostics(eq("11H20201"), any()))
                 .thenReturn(
