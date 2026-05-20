@@ -178,6 +178,8 @@ export function mergeSeriesBySlot(rawSeries) {
     }
     if (tmp != null) next.tmp = tmp;
     if (skyRaw != null && skyRaw !== '') next.sky = String(skyRaw);
+    const pcpRaw = raw.PCP ?? raw.pcp;
+    if (pcpRaw != null && String(pcpRaw).trim() !== '') next.pcpAmt = String(pcpRaw).trim();
     map.set(key, next);
   }
   return Array.from(map.values()).sort((a, b) => {
@@ -195,7 +197,17 @@ function normalizeRowFromMerged(row) {
     pty: row.pty != null ? String(row.pty) : '0',
     sky: row.sky != null ? String(row.sky) : undefined,
     tmp: row.tmp ?? null,
+    pcpAmt: row.pcpAmt ?? null,
   };
+}
+
+function rowHasMeasuredPrecip(row) {
+  if (!row) return false;
+  const raw = row.pcpAmt ?? row.PCP ?? row.pcp;
+  if (raw == null || raw === '') return false;
+  const s = String(raw).trim();
+  if (!s || s === '0' || s === '강수없음') return false;
+  return true;
 }
 
 /** 기상청 단기 SKY·PTY 코드 → 짧은 하늘·강수 상태 문구 (네비·스트립용) */
@@ -245,9 +257,53 @@ function isWetPty(pty) {
 
 function isRainyRow(row) {
   if (!row) return false;
-  if (row.pop != null && row.pop >= 45) return true;
   if (isWetPty(row.pty)) return true;
+  if (rowHasMeasuredPrecip(row)) return true;
+  if (row.pop != null && row.pop >= 30) return true;
   return false;
+}
+
+/** 강수 슬롯 우선 — 칩·네비 아이콘에 “첫 슬롯만 구름” 현상 방지 */
+export function pickDisplayWeatherSlot(timeline, now = new Date()) {
+  const slots = timeline?.slots;
+  if (!Array.isArray(slots) || !slots.length) return null;
+  const nowParts = nowYyyymmddHour(now);
+
+  const isWetSlot = (s) => s.wet || isWetPty(s.pty);
+
+  const wetToday = slots.filter((s) => s.date === nowParts.yyyymmdd && isWetSlot(s));
+  if (wetToday.length) return wetToday[0];
+
+  const wetAny = slots.find(isWetSlot);
+  if (wetAny) return wetAny;
+
+  const upcoming = slots.filter((s) => {
+    if (s.date > nowParts.yyyymmdd) return true;
+    if (s.date < nowParts.yyyymmdd) return false;
+    const h = hourFromTime(s.time);
+    return h != null && h >= nowParts.hour;
+  });
+  return (upcoming.length ? upcoming : slots)[0];
+}
+
+export function buildWeatherGlyphPickFromPayload(weatherData, opts = {}) {
+  if (weatherData == null || typeof weatherData !== 'object') {
+    return { Icon: null, tmp: null, stateLabel: null };
+  }
+  const series = resolveSeriesForWeatherTimeline(weatherData);
+  const tl = buildTravelWeatherTimeline(series, {
+    maxSlots: opts.maxSlots ?? 8,
+    vsrtHourly: weatherData?.vsrtHourly,
+    skipVsrt: false,
+  });
+  const s = pickDisplayWeatherSlot(tl);
+  if (!s?.Icon) {
+    return { Icon: null, tmp: null, stateLabel: null };
+  }
+  const t = opts.t;
+  const stateLabel =
+    typeof t === 'function' ? skyStateLabel(s.sky, s.pty, s.wet, t) : null;
+  return { Icon: s.Icon, tmp: s.tmp ?? null, stateLabel, iconProps: s.iconProps };
 }
 
 function nowYyyymmddHour(d = new Date()) {
@@ -364,7 +420,9 @@ export function extractForecastRowsFromPayload(payload, depth = 0, acc = null) {
       o.SKY != null ||
       o.sky != null ||
       o.PTY != null ||
-      o.pty != null;
+      o.pty != null ||
+      o.PCP != null ||
+      o.pcp != null;
     if (dateStr.length === 8 && timeStr.length === 4 && hasMetric) {
       out.push({ ...o, fcstDate: dateStr, fcstTime: timeStr });
     }
@@ -408,9 +466,17 @@ export function buildTravelWeatherTimeline(series, opts = {}) {
         date,
         time,
         pop: extra.pop ?? null,
-        pty: raw.PTY != null ? String(raw.PTY) : extra.pty != null ? String(extra.pty) : '0',
-        tmp: toNum(raw.TMP ?? raw.tmp ?? raw.T1H) ?? extra.tmp ?? null,
+        pty:
+          raw.PTY != null
+            ? String(raw.PTY)
+            : raw.pty != null
+              ? String(raw.pty)
+              : extra.pty != null
+                ? String(extra.pty)
+                : '0',
+        tmp: toNum(raw.TMP ?? raw.tmp ?? raw.T1H ?? raw.t1h) ?? extra.tmp ?? null,
         sky: extra.sky,
+        pcpAmt: extra.pcpAmt ?? null,
       };
       const { Icon, iconProps } = iconForMergedRow(row);
       slots.push({
@@ -496,7 +562,7 @@ export function buildDashboardNavCaption(presentation, timeline, t, weatherApiDa
   const { regionLine, regionHint } = buildDashboardRegionLine(weatherApiData, t);
   const slots = timeline?.slots;
   if (Array.isArray(slots) && slots.length > 0) {
-    const s = slots[0];
+    const s = pickDisplayWeatherSlot(timeline) || slots[0];
     const day = dayLabel(s.date, t);
     const y = parseInt(s.date.slice(0, 4), 10);
     const mo = parseInt(s.date.slice(4, 6), 10) - 1;
@@ -578,6 +644,131 @@ export function dayLabel(yyyymmdd, t) {
   if (diff === 1) return t('travelWeather.dayTomorrow', '내일');
   if (diff === 2) return t('travelWeather.dayAfter', '모레');
   return `${mo + 1}/${d}`;
+}
+
+function mergedRowToSlot(row) {
+  const h = hourFromTime(row.time);
+  if (h == null) return null;
+  const wet = isRainyRow(row);
+  const { Icon, iconProps } = iconForMergedRow(row);
+  return {
+    date: row.date,
+    time: row.time,
+    hour: h,
+    tmp: row.tmp ?? null,
+    pop: row.pop ?? null,
+    wet,
+    pty: String(row.pty ?? '0'),
+    sky: row.sky,
+    Icon,
+    iconProps,
+  };
+}
+
+function pickRepresentativeSlotForDay(slots) {
+  if (!Array.isArray(slots) || !slots.length) return null;
+  const wetSlots = slots.filter((s) => s.wet || isWetPty(s.pty));
+  if (wetSlots.length) {
+    return [...wetSlots].sort((a, b) => (b.pop ?? 0) - (a.pop ?? 0))[0];
+  }
+  let best = slots[0];
+  for (const s of slots) {
+    if (Math.abs(s.hour - 15) < Math.abs(best.hour - 15)) best = s;
+  }
+  return best;
+}
+
+/** 다크·라이트 UI용 Lucide stroke (일별 스트립·칩 공통) */
+export function weatherGlyphStrokeProps(Icon, theme = 'dark') {
+  const strokeWidth = 1.85;
+  const onLight = theme === 'light';
+  if (onLight) {
+    if (Icon === Sun) return { stroke: '#b45309', strokeWidth };
+    if (Icon === CloudSun) return { stroke: '#78716c', strokeWidth };
+    if (Icon === CloudRain || Icon === CloudDrizzle) return { stroke: '#0369a1', strokeWidth };
+    if (Icon === CloudSnow) return { stroke: '#475569', strokeWidth };
+    if (Icon === CloudLightning) return { stroke: '#a16207', strokeWidth };
+    return { stroke: '#64748b', strokeWidth };
+  }
+  if (Icon === Sun) return { stroke: '#fde047', strokeWidth };
+  if (Icon === CloudSun) return { stroke: '#fefce8', strokeWidth };
+  if (Icon === CloudRain || Icon === CloudDrizzle) return { stroke: '#e0f2fe', strokeWidth };
+  if (Icon === CloudSnow) return { stroke: '#f8fafc', strokeWidth };
+  if (Icon === CloudLightning) return { stroke: '#fef9c3', strokeWidth };
+  return { stroke: '#f8fafc', strokeWidth };
+}
+
+/** 단기·초단기 시계열 → 날짜별 대표 아이콘·상태 (오늘·내일·…) */
+export function buildDailyWeatherOutlook(weatherData, opts = {}) {
+  if (weatherData == null || typeof weatherData !== 'object') return [];
+  if (weatherData.configured === false) return [];
+
+  const t = opts.t;
+  const dayCount = opts.dayCount ?? 7;
+  const now = opts.now ?? new Date();
+  const nowParts = nowYyyymmddHour(now);
+
+  const series = resolveSeriesForWeatherTimeline(weatherData);
+  const merged = mergeSeriesBySlot(series);
+  const byDate = new Map();
+
+  for (const row of merged) {
+    if (row.date < nowParts.yyyymmdd) continue;
+    const slot = mergedRowToSlot(row);
+    if (!slot) continue;
+    if (!byDate.has(slot.date)) byDate.set(slot.date, []);
+    byDate.get(slot.date).push(slot);
+  }
+
+  const vsrtTl = buildTravelWeatherTimeline(series, {
+    maxSlots: 48,
+    vsrtHourly: weatherData?.vsrtHourly,
+    skipVsrt: false,
+    now,
+  });
+  for (const s of vsrtTl.slots || []) {
+    if (s.date < nowParts.yyyymmdd) continue;
+    if (!byDate.has(s.date)) byDate.set(s.date, []);
+    const list = byDate.get(s.date);
+    const idx = list.findIndex((x) => x.hour === s.hour);
+    if (idx >= 0) {
+      list[idx] = { ...list[idx], ...s, Icon: s.Icon, iconProps: s.iconProps };
+    } else {
+      list.push(s);
+    }
+  }
+
+  const dates = Array.from(byDate.keys()).sort().slice(0, dayCount);
+
+  return dates
+    .map((date) => {
+      const slots = byDate.get(date).sort((a, b) => a.hour - b.hour);
+      const pick = pickRepresentativeSlotForDay(slots);
+      if (!pick?.Icon) return null;
+
+      const tmps = slots.map((s) => s.tmp).filter((x) => x != null && Number.isFinite(x));
+      const stateLabel =
+        typeof t === 'function' ? skyStateLabel(pick.sky, pick.pty, pick.wet, t) : '';
+      const minTmp = tmps.length ? Math.min(...tmps) : pick.tmp;
+      const maxTmp = tmps.length ? Math.max(...tmps) : pick.tmp;
+
+      return {
+        date,
+        dayLabel:
+          typeof t === 'function'
+            ? dayLabel(date, t)
+            : `${date.slice(4, 6)}/${date.slice(6, 8)}`,
+        Icon: pick.Icon,
+        iconProps: pick.iconProps,
+        stateLabel,
+        tmp: pick.tmp,
+        minTmp,
+        maxTmp,
+        maxPop: slots.reduce((m, s) => Math.max(m, s.pop ?? 0), 0),
+        wetDay: slots.some((s) => s.wet || isWetPty(s.pty)),
+      };
+    })
+    .filter(Boolean);
 }
 
 function flattenFirstForecastLike(node, depth = 0) {

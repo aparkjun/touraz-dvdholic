@@ -30,6 +30,7 @@ import EngTourSpotsStrip from '@/components/EngTourSpotsStrip';
 import TravelCourseModal from '@/components/TravelCourseModal';
 import CineTripCinematicHero from '@/components/CineTripCinematicHero';
 import RegionWeatherGlyph from '@/components/RegionWeatherGlyph';
+import TravelDailyWeatherStrip from '@/components/TravelDailyWeatherStrip';
 import useDragScrollAll from '@/lib/useDragScroll';
 
 const REGION_FILTERS = [
@@ -1088,6 +1089,19 @@ function CineTripPageInner() {
             );
           })}
         </div>
+
+        <TravelDailyWeatherStrip
+          regionCode={selectedAreaCode ?? '1'}
+          regionLabel={
+            selectedAreaCode
+              ? t(
+                  `regionShortcuts.${selectedAreaCode}`,
+                  REGION_FILTERS.find((r) => r.areaCode === selectedAreaCode)?.label || ''
+                )
+              : t('regionShortcuts.1', '서울')
+          }
+          nationalView={selectedAreaCode == null}
+        />
       </div>
 
       <div style={{ maxWidth: 1400, margin: '0 auto', padding: '24px 20px 40px' }}>

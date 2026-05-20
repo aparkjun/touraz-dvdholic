@@ -52,6 +52,11 @@ public class KmaVsrtGrdHttpClient {
         return dfsOdamGrdUrl != null && !dfsOdamGrdUrl.isBlank();
     }
 
+    /** 허브 키·격자 API URL 이 있으면 초단기(vsrt) 조회 가능 */
+    public boolean isConfigured() {
+        return !hubAuthKey().isEmpty() && !effectiveBaseUrl(false).isBlank();
+    }
+
     /**
      * 이번 호출에 쓰는 베이스 URL이 odam(실황)이면 tmef·nx·ny 를 쿼리에 넣지 않는다.
      *

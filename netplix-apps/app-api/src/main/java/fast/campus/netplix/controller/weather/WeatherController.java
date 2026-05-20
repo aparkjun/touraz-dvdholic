@@ -7,9 +7,13 @@ import fast.campus.netplix.kma.KmaFcstZoneInfoHttpClient;
 import fast.campus.netplix.kma.KmaFcstZoneInfoXmlParser;
 import fast.campus.netplix.kma.KmaForecastSeriesExtractor;
 import fast.campus.netplix.kma.KmaHubJson;
+import fast.campus.netplix.kma.KmaLambertGridConverter;
 import fast.campus.netplix.kma.KmaNearestReg;
+import fast.campus.netplix.kma.KmaRegCentroid;
 import fast.campus.netplix.kma.KmaShortRegFetchResult;
 import fast.campus.netplix.kma.KmaShortRegHttpClient;
+import fast.campus.netplix.kma.KmaVsrtGrdHourlyService;
+import fast.campus.netplix.kma.KmaVsrtGrdHttpClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -66,6 +70,8 @@ public class WeatherController {
 
     private final KmaShortRegHttpClient kmaShortRegHttpClient;
     private final KmaFcstZoneInfoHttpClient kmaFcstZoneInfoHttpClient;
+    private final KmaVsrtGrdHourlyService kmaVsrtGrdHourlyService;
+    private final KmaVsrtGrdHttpClient kmaVsrtGrdHttpClient;
     private final ObjectMapper objectMapper;
 
     @PreDestroy
@@ -189,7 +195,7 @@ public class WeatherController {
             return NetplixApiResponse.ok(staleCopy);
         }
 
-        Map<String, Object> fetched = fetchAndBuildShortRegPayload(effectiveReg, tmfc);
+        Map<String, Object> fetched = fetchAndBuildShortRegPayload(effectiveReg, tmfc, lat, lng);
         for (Map.Entry<String, Object> e : fetched.entrySet()) {
             out.putIfAbsent(e.getKey(), e.getValue());
         }
@@ -201,7 +207,8 @@ public class WeatherController {
      * 반환 Map 에는 {@code configured / message / payload / afsDs / series / upstream* / shortRegDiagnostic} 등이 들어간다.
      * 호출자는 자체 응답(예: reg/regFromGeo/regLabel) 과 병합 후 캐시에 넣는다.
      */
-    private Map<String, Object> fetchAndBuildShortRegPayload(String effectiveReg, String tmfc) {
+    private Map<String, Object> fetchAndBuildShortRegPayload(
+            String effectiveReg, String tmfc, Double lat, Double lng) {
         Map<String, Object> out = new HashMap<>();
         long wall0 = System.nanoTime();
         KmaShortRegFetchResult shortRegFetch = kmaShortRegHttpClient.fetchWithDiagnostics(effectiveReg, tmfc);
@@ -297,7 +304,46 @@ public class WeatherController {
             // 비-JSON 응답인 경우에만 소형 미리보기로 진단 정보 제공.
             out.put("payloadRawPreview", raw.length() > 1200 ? raw.substring(0, 1200) + "…" : raw);
         }
+        if (Boolean.TRUE.equals(out.get("configured"))) {
+            attachVsrtHourly(out, effectiveReg, lat, lng);
+        }
         return out;
+    }
+
+    /**
+     * 초단기 격자(PTY·기온) — 단기(3시간)보다 “지금 비”에 가깝다. 프론트 {@code vsrtHourly} 로 아이콘·강수 판별.
+     */
+    private void attachVsrtHourly(Map<String, Object> out, String effectiveReg, Double lat, Double lng) {
+        if (!kmaVsrtGrdHttpClient.isConfigured()) {
+            return;
+        }
+        double useLat;
+        double useLng;
+        if (lat != null && lng != null && Double.isFinite(lat) && Double.isFinite(lng)) {
+            useLat = lat;
+            useLng = lng;
+        } else {
+            var centroid = KmaRegCentroid.byReg(effectiveReg);
+            if (centroid.isEmpty()) {
+                return;
+            }
+            useLat = centroid.get().lat();
+            useLng = centroid.get().lng();
+        }
+        try {
+            int[] grid = KmaLambertGridConverter.toGrid(useLat, useLng);
+            Map<String, Object> gridMeta = new LinkedHashMap<>();
+            gridMeta.put("nx", grid[0]);
+            gridMeta.put("ny", grid[1]);
+            out.put("vsrtGrid", gridMeta);
+            List<Map<String, Object>> vsrt =
+                    kmaVsrtGrdHourlyService.fetchHourlyForGrid(grid[0], grid[1], 8);
+            if (!vsrt.isEmpty()) {
+                out.put("vsrtHourly", vsrt);
+            }
+        } catch (Exception e) {
+            log.debug("vsrtHourly attach skipped reg={}: {}", effectiveReg, e.toString());
+        }
     }
 
     /**
@@ -311,7 +357,7 @@ public class WeatherController {
         try {
             shortRegRefreshExecutor.execute(() -> {
                 try {
-                    Map<String, Object> refreshed = fetchAndBuildShortRegPayload(effectiveReg, tmfc);
+                    Map<String, Object> refreshed = fetchAndBuildShortRegPayload(effectiveReg, tmfc, null, null);
                     Map<String, Object> withReg = new HashMap<>(refreshed);
                     withReg.putIfAbsent("reg", effectiveReg);
                     putShortRegCache(cacheKey, withReg);

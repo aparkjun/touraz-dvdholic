@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import fast.campus.netplix.kma.KmaFcstZoneInfoHttpClient;
 import fast.campus.netplix.kma.KmaShortRegFetchResult;
 import fast.campus.netplix.kma.KmaShortRegHttpClient;
+import fast.campus.netplix.kma.KmaVsrtGrdHourlyService;
+import fast.campus.netplix.kma.KmaVsrtGrdHttpClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -37,12 +39,25 @@ class WeatherControllerTest {
     @Mock
     private KmaFcstZoneInfoHttpClient kmaFcstZoneInfoHttpClient;
 
+    @Mock
+    private KmaVsrtGrdHourlyService kmaVsrtGrdHourlyService;
+
+    @Mock
+    private KmaVsrtGrdHttpClient kmaVsrtGrdHttpClient;
+
     @BeforeEach
     void setUp() {
         ObjectMapper objectMapper = new ObjectMapper();
         lenient().when(kmaShortRegHttpClient.isApiKeyConfigured()).thenReturn(true);
         lenient().when(kmaFcstZoneInfoHttpClient.isConfigured()).thenReturn(false);
-        weatherController = new WeatherController(kmaShortRegHttpClient, kmaFcstZoneInfoHttpClient, objectMapper);
+        lenient().when(kmaVsrtGrdHttpClient.isConfigured()).thenReturn(false);
+        weatherController =
+                new WeatherController(
+                        kmaShortRegHttpClient,
+                        kmaFcstZoneInfoHttpClient,
+                        kmaVsrtGrdHourlyService,
+                        kmaVsrtGrdHttpClient,
+                        objectMapper);
         ReflectionTestUtils.setField(weatherController, "defaultReg", "11B10101");
         mockMvc = MockMvcBuilders.standaloneSetup(weatherController)
                 .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))

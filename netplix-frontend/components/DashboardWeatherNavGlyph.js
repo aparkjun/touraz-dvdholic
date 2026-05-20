@@ -70,7 +70,17 @@ function ForecastSection({ title, hint, slots, t }) {
                 <span style={{ fontSize: 10, color: '#94a3b8' }}>—</span>
               )}
               {s.pop != null ? (
-                <span style={{ fontSize: 9, fontWeight: 650, color: '#0369a1', fontVariantNumeric: 'tabular-nums' }}>
+                <span
+                  style={{
+                    fontSize: 9,
+                    fontWeight: 650,
+                    color: s.wet ? '#0369a1' : '#64748b',
+                    fontVariantNumeric: 'tabular-nums',
+                    textAlign: 'center',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {s.wet ? `${stateShort} · ` : ''}
                   {t('travelWeather.panelPopShort', 'POP {{n}}%', { n: s.pop })}
                 </span>
               ) : (

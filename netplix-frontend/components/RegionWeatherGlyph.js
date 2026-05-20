@@ -11,11 +11,11 @@ import {
   Sun,
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
-import { buildTravelWeatherTimeline, resolveSeriesForWeatherTimeline } from '@/lib/travelWeatherShared';
+import { buildWeatherGlyphPickFromPayload } from '@/lib/travelWeatherShared';
 import { getWeatherQueryForShortcutCode, getWeatherQueryFromAreaNames } from '@/lib/regionCodeToWeatherPreset';
 import { useTranslation } from 'react-i18next';
 
-const CACHE_TTL_MS = 12 * 60 * 1000;
+const CACHE_TTL_MS = 6 * 60 * 1000;
 const cache = new Map();
 const inflight = new Map();
 
@@ -82,17 +82,16 @@ function simpleGlyphProps(Icon, onLight) {
 
 const FALLBACK_PICK = { Icon: Cloud, tmp: null };
 
-function derivePickFromPayload(d) {
+function derivePickFromPayload(d, t) {
   if (d == null || typeof d !== 'object') return FALLBACK_PICK;
-  const series = resolveSeriesForWeatherTimeline(d);
-  const tl = buildTravelWeatherTimeline(series, {
-    maxSlots: 6,
-    vsrtHourly: d?.vsrtHourly,
-    skipVsrt: false,
-  });
-  const s = tl.slots?.[0];
-  if (s?.Icon) {
-    return { Icon: s.Icon, tmp: s.tmp ?? null };
+  const built = buildWeatherGlyphPickFromPayload(d, { maxSlots: 8, t });
+  if (built?.Icon) {
+    return {
+      Icon: built.Icon,
+      tmp: built.tmp ?? null,
+      stateLabel: built.stateLabel ?? null,
+      iconProps: built.iconProps,
+    };
   }
   return FALLBACK_PICK;
 }
@@ -180,7 +179,7 @@ export default function RegionWeatherGlyph({
     if (!promise) {
       promise = fetchShortRegOnce(query)
         .then((d) => {
-          const nextPick = derivePickFromPayload(d);
+          const nextPick = derivePickFromPayload(d, t);
           cache.set(key, { ts: Date.now(), pick: nextPick });
           return nextPick;
         })
@@ -203,19 +202,27 @@ export default function RegionWeatherGlyph({
     return () => {
       alive = false;
     };
-  }, [visible, query]);
+  }, [visible, query, t]);
 
   if (!query) return null;
 
   const title =
     titleProp ||
-    (pick?.tmp != null
-      ? t('travelWeather.widgetGlyphTitle', '{{tmp}}° · 오늘 날씨', { tmp: pick.tmp })
-      : t('travelWeather.navWeather', '날씨'));
+    (pick?.stateLabel && pick?.tmp != null
+      ? `${pick.stateLabel} · ${pick.tmp}°`
+      : pick?.stateLabel
+        ? pick.stateLabel
+        : pick?.tmp != null
+          ? t('travelWeather.widgetGlyphTitle', '{{tmp}}° · 오늘 날씨', { tmp: pick.tmp })
+          : t('travelWeather.navWeather', '날씨'));
 
   const onLight = variant === 'onLight';
   const WIcon = pick?.Icon;
-  const glyphProps = WIcon ? simpleGlyphProps(WIcon, onLight) : null;
+  const glyphProps = WIcon
+    ? pick.iconProps
+      ? { ...simpleGlyphProps(WIcon, onLight), ...pick.iconProps }
+      : simpleGlyphProps(WIcon, onLight)
+    : null;
 
   return (
     <span
