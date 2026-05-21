@@ -352,16 +352,18 @@ public class WeatherController {
             // 비-JSON 응답인 경우에만 소형 미리보기로 진단 정보 제공.
             out.put("payloadRawPreview", raw.length() > 1200 ? raw.substring(0, 1200) + "…" : raw);
         }
-        if (Boolean.TRUE.equals(out.get("configured")) && !glyphOnly) {
-            attachVsrtHourly(out, effectiveReg, lat, lng);
+        if (Boolean.TRUE.equals(out.get("configured"))) {
+            attachVsrtHourly(out, effectiveReg, lat, lng, glyphOnly);
         }
         return out;
     }
 
     /**
      * 초단기 격자(PTY·기온) — 단기(3시간)보다 “지금 비”에 가깝다. 프론트 {@code vsrtHourly} 로 아이콘·강수 판별.
+     * {@code glyphOnly} 이면 시간 슬롯 수만 줄여 배치·칩 응답 속도를 유지한다.
      */
-    private void attachVsrtHourly(Map<String, Object> out, String effectiveReg, Double lat, Double lng) {
+    private void attachVsrtHourly(
+            Map<String, Object> out, String effectiveReg, Double lat, Double lng, boolean glyphOnly) {
         if (!kmaVsrtGrdHttpClient.isConfigured()) {
             return;
         }
@@ -384,10 +386,13 @@ public class WeatherController {
             gridMeta.put("nx", grid[0]);
             gridMeta.put("ny", grid[1]);
             out.put("vsrtGrid", gridMeta);
+            int vsrtHours = glyphOnly ? 6 : 8;
             List<Map<String, Object>> vsrt =
-                    kmaVsrtGrdHourlyService.fetchHourlyForGrid(grid[0], grid[1], 8);
+                    kmaVsrtGrdHourlyService.fetchHourlyForGrid(grid[0], grid[1], vsrtHours);
             if (!vsrt.isEmpty()) {
                 out.put("vsrtHourly", vsrt);
+            } else if (kmaVsrtGrdHttpClient.isConfigured()) {
+                out.put("vsrtHourlyEmpty", true);
             }
         } catch (Exception e) {
             log.debug("vsrtHourly attach skipped reg={}: {}", effectiveReg, e.toString());

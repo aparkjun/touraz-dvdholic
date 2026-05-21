@@ -658,6 +658,8 @@
     "navHourOnly": "{{h}}시",
     "navSourceVsrt": "초단기(1h)",
     "navSourceShort": "단기",
+    "rehShort": "습도 {{reh}}%",
+    "wsdShort": "풍속 {{wsd}}m/s",
     "dayToday": "오늘",
     "dayTomorrow": "내일",
     "dayAfter": "모레",

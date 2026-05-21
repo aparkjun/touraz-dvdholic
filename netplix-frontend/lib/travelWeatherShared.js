@@ -4,12 +4,34 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   Cloud,
   CloudDrizzle,
+  CloudFog,
+  CloudHail,
   CloudLightning,
   CloudRain,
   CloudSnow,
   CloudSun,
   Sun,
 } from 'lucide-react';
+
+/** 기상청 단기 SKY (하늘상태) */
+export const KMA_SKY = {
+  '1': 'clear',
+  '2': 'partlyCloudy',
+  '3': 'mostlyCloudy',
+  '4': 'overcast',
+};
+
+/** 기상청 PTY (강수형태) — 0=없음 */
+export const KMA_PTY = {
+  '0': 'none',
+  '1': 'rain',
+  '2': 'rainSnow',
+  '3': 'snow',
+  '4': 'shower',
+  '5': 'drizzle',
+  '6': 'drizzleSnow',
+  '7': 'snowFlurry',
+};
 import axios from '@/lib/axiosConfig';
 
 /** 빠른 1회 시도 (다른 화면·테스트용) */
@@ -180,6 +202,16 @@ export function mergeSeriesBySlot(rawSeries) {
     if (skyRaw != null && skyRaw !== '') next.sky = String(skyRaw);
     const pcpRaw = raw.PCP ?? raw.pcp;
     if (pcpRaw != null && String(pcpRaw).trim() !== '') next.pcpAmt = String(pcpRaw).trim();
+    const reh = toNum(raw.REH ?? raw.reh);
+    if (reh != null) next.reh = reh;
+    const wsd = toNum(raw.WSD ?? raw.wsd);
+    if (wsd != null) next.wsd = wsd;
+    const sno = raw.SNO ?? raw.sno;
+    if (sno != null && String(sno).trim() !== '') next.snoAmt = String(sno).trim();
+    const tmn = toNum(raw.TMN ?? raw.tmn);
+    if (tmn != null) next.tmn = tmn;
+    const tmx = toNum(raw.TMX ?? raw.tmx);
+    if (tmx != null) next.tmx = tmx;
     map.set(key, next);
   }
   return Array.from(map.values()).sort((a, b) => {
@@ -188,7 +220,8 @@ export function mergeSeriesBySlot(rawSeries) {
   });
 }
 
-function normalizeRowFromMerged(row) {
+/** 단기·초단기 API 행 → 통합 슬롯 (SKY·PTY·POP·PCP·REH·WSD 등) */
+export function normalizeMergedWeatherRow(row) {
   if (!row || !row.date || !row.time) return null;
   return {
     date: row.date,
@@ -198,7 +231,55 @@ function normalizeRowFromMerged(row) {
     sky: row.sky != null ? String(row.sky) : undefined,
     tmp: row.tmp ?? null,
     pcpAmt: row.pcpAmt ?? null,
+    reh: row.reh ?? null,
+    wsd: row.wsd ?? null,
+    snoAmt: row.snoAmt ?? null,
+    tmn: row.tmn ?? null,
+    tmx: row.tmx ?? null,
   };
+}
+
+/** 초단기 시각에 맞는 단기(3h) 슬롯 — SKY·POP 보강 (±3시간 이내) */
+function findNearestShortRegRow(mergedShort, date, hour) {
+  if (!Array.isArray(mergedShort) || !mergedShort.length) return null;
+  let best = null;
+  let bestDist = Infinity;
+  for (const r of mergedShort) {
+    if (r.date !== date) continue;
+    const h = hourFromTime(r.time);
+    if (h == null) continue;
+    const d = Math.abs(h - hour);
+    if (d < bestDist) {
+      bestDist = d;
+      best = r;
+    }
+  }
+  return bestDist <= 3 ? best : null;
+}
+
+function mergeVsrtWithShortReg(vsrtRaw, mergedShort, date, time, hour) {
+  const exact = mergedShort.find((r) => r.date === date && r.time === time);
+  const near = exact || findNearestShortRegRow(mergedShort, date, hour);
+  const ptyVsrt =
+    vsrtRaw.PTY != null
+      ? String(vsrtRaw.PTY)
+      : vsrtRaw.pty != null
+        ? String(vsrtRaw.pty)
+        : null;
+  return normalizeMergedWeatherRow({
+    date,
+    time,
+    pty: ptyVsrt != null && ptyVsrt !== '' ? ptyVsrt : near?.pty ?? '0',
+    tmp: toNum(vsrtRaw.TMP ?? vsrtRaw.tmp ?? vsrtRaw.T1H ?? vsrtRaw.t1h) ?? near?.tmp ?? null,
+    sky: near?.sky,
+    pop: near?.pop ?? null,
+    pcpAmt: near?.pcpAmt ?? null,
+    reh: near?.reh ?? null,
+    wsd: near?.wsd ?? null,
+    snoAmt: near?.snoAmt ?? null,
+    tmn: near?.tmn ?? null,
+    tmx: near?.tmx ?? null,
+  });
 }
 
 function rowHasMeasuredPrecip(row) {
@@ -259,11 +340,38 @@ function isRainyRow(row) {
   if (!row) return false;
   if (isWetPty(row.pty)) return true;
   if (rowHasMeasuredPrecip(row)) return true;
-  if (row.pop != null && row.pop >= 30) return true;
   return false;
 }
 
-/** 강수 슬롯 우선 — 칩·네비 아이콘에 “첫 슬롯만 구름” 현상 방지 */
+/**
+ * 칩·현재 시각 아이콘: 지금(또는 직전 발표 시각) 슬롯. 오늘 저녁 비 예보로 낮 맑음을 덮지 않음.
+ */
+export function pickGlyphWeatherSlot(timeline, now = new Date()) {
+  const slots = timeline?.slots;
+  if (!Array.isArray(slots) || !slots.length) return null;
+  const nowParts = nowKstYyyymmddHour(now);
+
+  const today = slots.filter((s) => s.date === nowParts.yyyymmdd);
+  if (today.length) {
+    let atOrBefore = null;
+    for (const s of today) {
+      if (s.hour <= nowParts.hour) atOrBefore = s;
+    }
+    if (atOrBefore) return atOrBefore;
+    const next = today.find((s) => s.hour >= nowParts.hour);
+    return next ?? today[0];
+  }
+
+  const upcoming = slots.filter((s) => {
+    if (s.date > nowParts.yyyymmdd) return true;
+    if (s.date < nowParts.yyyymmdd) return false;
+    const h = hourFromTime(s.time);
+    return h != null && h >= nowParts.hour;
+  });
+  return (upcoming.length ? upcoming : slots)[0];
+}
+
+/** 강수 슬롯 우선 — 네비 등 “오늘 비 소식” 강조용 (칩 아이콘에는 {@link pickGlyphWeatherSlot} 사용) */
 export function pickDisplayWeatherSlot(timeline, now = new Date()) {
   const slots = timeline?.slots;
   if (!Array.isArray(slots) || !slots.length) return null;
@@ -301,14 +409,7 @@ export function collectAfsDsPlainText(afsDs) {
   return chunks.join('\n');
 }
 
-/**
- * 기상청 단기 개황 한글 문장에서 강수 여부 추정.
- * Heroku 등에서 series/vsrtHourly 없이 afsDs 만 내려올 때 비·눈 아이콘에 사용.
- */
-export function inferPrecipFromAfsDs(afsDs) {
-  const text = collectAfsDsPlainText(afsDs);
-  if (!text) return null;
-
+function afsDsStrongPrecipSignals(text) {
   const hasMm = /\d+\s*~\s*\d+\s*mm|\d+\s*mm|mm\s*\(/i.test(text);
   const hasShower = /소나기/.test(text);
   const hasThunder = /천둥|뇌우|우박/.test(text);
@@ -316,24 +417,79 @@ export function inferPrecipFromAfsDs(afsDs) {
   const hasSnow =
     /(?:^|[^가-힣])눈(?:[^가-힣]|$)|진눈깨비|눈보라/.test(text) && !/눈구름/.test(text);
   const hasRainWord =
-    /호우|폭우|강우|빗방울|강수|우산/.test(text) ||
-    /(?:^|[^가-힣])비(?:[^가-힣]|$)|비가|비를|비는|비\s|비,|비로|비와|이비|폭우/.test(text) ||
+    /호우|폭우|강우|빗방울|강한\s*비|비가\s*오|비를\s*내|비\s*내리|우산/.test(text) ||
+    /(?:^|[^가-힣])비(?:[^가-힣]|$)|비가|비를|비는|비\s|비,|비로|비와/.test(text) ||
     hasMm;
   const hasRainSnowMix = /비\s*또는\s*눈|눈\s*또는\s*비/.test(text);
+  return {
+    hasMm,
+    hasShower,
+    hasThunder,
+    hasSnowFlurry,
+    hasSnow,
+    hasRainWord,
+    hasRainSnowMix,
+    any: hasRainWord || hasSnow || hasShower || hasThunder,
+  };
+}
 
-  if (!hasRainWord && !hasSnow && !hasShower && !hasThunder) return null;
+/** afsDs 문장 중 “지금·오늘 낮/오후”에 해당하는 줄만 (저녁·내일 강수 언급으로 낮 맑음을 덮지 않음) */
+function afsDsTextNearNow(afsDs, now = new Date()) {
+  const text = collectAfsDsPlainText(afsDs);
+  if (!text) return '';
+  const hour = nowKstYyyymmddHour(now).hour;
+  const chunks = text
+    .split(/[\n。]+/)
+    .map((s) => s.trim())
+    .filter((s) => s && s !== '#' && !s.includes('#7777END'));
+  if (!chunks.length) return text;
+
+  const near = chunks.filter((line) => {
+    if (/내일|모레|글피|이번\s*주\s*말|주말\s*이후|다음\s*주/.test(line)) return false;
+    if (hour >= 12 && hour < 18) {
+      if (/밤|야간|새벽|오늘\s*밤|저녁\s*늦게/.test(line) && !/오후|낮|오늘\s*오후|지금|현재/.test(line)) {
+        return false;
+      }
+    }
+    if (hour >= 6 && hour < 12) {
+      if (/오후|밤|야간|저녁/.test(line) && !/오전|아침|낮|지금|현재|오늘/.test(line)) return false;
+    }
+    return (
+      /오늘|현재|지금|금일|당일|오전|오후|낮|아침|이\s*시간|초단기/.test(line) ||
+      chunks.length <= 2
+    );
+  });
+
+  return (near.length ? near : [chunks[0]]).join('\n');
+}
+
+/**
+ * 기상청 단기 개황 한글 문장에서 강수 여부 추정.
+ * series/vsrtHourly 없을 때만 보조. 멀리 있는 “비” 언급·저녁 예보로 낮 맑음을 덮지 않도록 보수적으로 판별.
+ */
+export function inferPrecipFromAfsDs(afsDs, now = new Date()) {
+  const scope = afsDsTextNearNow(afsDs, now);
+  if (!scope) return null;
+
+  if (/강수\s*없|비\s*없|맑(?:음|게|다)|화창|쾌청|개(?:임|다)|해\s*비침|강수\s*확률\s*낮/i.test(scope)) {
+    const sig = afsDsStrongPrecipSignals(scope);
+    if (!sig.hasMm && !sig.hasShower && !sig.hasThunder) return null;
+  }
+
+  const sig = afsDsStrongPrecipSignals(scope);
+  if (!sig.any) return null;
 
   let pty = '1';
-  if (hasShower || hasThunder) pty = '4';
-  else if (hasRainSnowMix) pty = '2';
-  else if (hasSnowFlurry) pty = '7';
-  else if (hasSnow && !hasRainWord) pty = '3';
+  if (sig.hasShower || sig.hasThunder) pty = '4';
+  else if (sig.hasRainSnowMix) pty = '2';
+  else if (sig.hasSnowFlurry) pty = '7';
+  else if (sig.hasSnow && !sig.hasRainWord) pty = '3';
 
   return {
     wet: true,
     pty,
     sky: '4',
-    pop: hasMm ? 80 : 60,
+    pop: sig.hasMm ? 80 : 55,
   };
 }
 
@@ -355,26 +511,39 @@ export function buildWeatherGlyphPickFromPayload(weatherData, opts = {}) {
     return { Icon: null, tmp: null, stateLabel: null };
   }
   const t = opts.t;
-  const afsHint = inferPrecipFromAfsDs(weatherData.afsDs);
+  const now = opts.now ?? new Date();
 
   const series = resolveSeriesForWeatherTimeline(weatherData);
   const tl = buildTravelWeatherTimeline(series, {
     maxSlots: opts.maxSlots ?? 8,
     vsrtHourly: weatherData?.vsrtHourly,
     skipVsrt: false,
+    now,
   });
-  const s = pickDisplayWeatherSlot(tl);
+  const s = pickGlyphWeatherSlot(tl, now);
 
   if (s?.Icon) {
-    const slotWet = s.wet || isWetPty(s.pty);
-    if (!slotWet && afsHint?.wet) {
-      return glyphPickFromPrecipHint(afsHint, t);
-    }
     const stateLabel =
       typeof t === 'function' ? skyStateLabel(s.sky, s.pty, s.wet, t) : null;
-    return { Icon: s.Icon, tmp: s.tmp ?? null, stateLabel, iconProps: s.iconProps };
+    return {
+      Icon: s.Icon,
+      tmp: s.tmp ?? null,
+      stateLabel,
+      iconProps: s.iconProps,
+      sky: s.sky,
+      pty: s.pty,
+      pop: s.pop ?? null,
+      pcpAmt: s.pcpAmt ?? null,
+      reh: s.reh ?? null,
+      wsd: s.wsd ?? null,
+      snoAmt: s.snoAmt ?? null,
+      source: tl.source,
+      fcstDate: s.date,
+      fcstTime: s.time,
+    };
   }
 
+  const afsHint = inferPrecipFromAfsDs(weatherData.afsDs, now);
   if (afsHint?.wet) {
     return glyphPickFromPrecipHint(afsHint, t);
   }
@@ -389,85 +558,121 @@ function nowYyyymmddHour(d = new Date()) {
   return { yyyymmdd: `${y}${m}${day}`, hour: d.getHours() };
 }
 
-function iconForMergedRow(row) {
-  if (isRainyRow(row)) {
-    const ps = String(row.pty ?? '0');
-    // PTY만으로 강수가 없어도 POP 등으로 wet 인 경우 → 일반 비 가능 아이콘
-    if (!isWetPty(ps)) {
-      return {
-        Icon: CloudRain,
-        iconProps: { strokeWidth: 1.55, color: '#06b6d4' },
-      };
-    }
-    if (ps === '3' || ps === '7') {
-      return {
-        Icon: CloudSnow,
-        iconProps: { strokeWidth: 1.6, color: '#e0f2fe' },
-      };
-    }
-    if (ps === '2' || ps === '6') {
-      return {
-        Icon: CloudSnow,
-        iconProps: { strokeWidth: 1.6, color: '#7dd3fc' },
-      };
-    }
-    if (ps === '4') {
-      return {
-        Icon: CloudLightning,
-        iconProps: { strokeWidth: 1.5, color: '#fbbf24' },
-      };
-    }
-    if (ps === '5') {
-      return {
-        Icon: CloudDrizzle,
-        iconProps: { strokeWidth: 1.5, color: '#22d3ee' },
-      };
-    }
-    if (ps === '1') {
-      return {
-        Icon: CloudRain,
-        iconProps: { strokeWidth: 1.55, color: '#0ea5e9' },
-      };
-    }
-    return {
-      Icon: CloudRain,
-      iconProps: { strokeWidth: 1.55, color: '#38bdf8' },
-    };
-  }
-  const sk = String(row.sky ?? '');
-  if (sk === '1') {
-    return {
-      Icon: Sun,
-      iconProps: { strokeWidth: 1.55, color: '#fbbf24' },
-    };
-  }
-  if (sk === '2') {
-    return {
-      Icon: CloudSun,
-      iconProps: { strokeWidth: 1.5, color: '#fde047' },
-    };
-  }
-  if (sk === '3') {
-    return {
-      Icon: CloudSun,
-      iconProps: { strokeWidth: 1.5, color: '#fcd34d' },
-    };
-  }
-  if (sk === '4') {
-    return {
-      Icon: Cloud,
-      iconProps: { strokeWidth: 1.55, color: '#94a3b8' },
-    };
-  }
-  if (sk !== '') {
-    return {
-      Icon: Cloud,
-      iconProps: { strokeWidth: 1.5, color: '#a8b9cf' },
-    };
-  }
+/** 기상청 예보 시각(KST)과 맞추기 위한 “지금” 시각 */
+export function nowKstYyyymmddHour(d = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Seoul',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    hour12: false,
+  }).formatToParts(d);
+  const get = (t) => parts.find((p) => p.type === t)?.value ?? '';
   return {
-    Icon: Cloud,
-    iconProps: { strokeWidth: 1.5, color: '#94a3b8' },
+    yyyymmdd: `${get('year')}${get('month')}${get('day')}`,
+    hour: parseInt(get('hour'), 10),
+  };
+}
+
+/** 캐시·정각 갱신용 KST 시각 버킷 (예: 2026052116) */
+export function kstHourBucket(d = new Date()) {
+  const { yyyymmdd, hour } = nowKstYyyymmddHour(d);
+  return `${yyyymmdd}${String(hour).padStart(2, '0')}`;
+}
+
+/**
+ * 기상청 SKY·PTY·강수량 → Lucide 아이콘 (API 코드 그대로 반영).
+ * @returns {{ Icon: import('react').ComponentType, iconProps: { strokeWidth: number, color: string } }}
+ */
+export function weatherIconForMergedRow(row) {
+  const ps = String(row?.pty ?? '0');
+  const sk = row?.sky != null ? String(row.sky) : '';
+
+  if (isRainyRow(row) && isWetPty(ps)) {
+    switch (ps) {
+      case '1':
+        return { Icon: CloudRain, iconProps: { strokeWidth: 1.55, color: '#0ea5e9' } };
+      case '2':
+        return { Icon: CloudHail, iconProps: { strokeWidth: 1.55, color: '#7dd3fc' } };
+      case '3':
+        return { Icon: CloudSnow, iconProps: { strokeWidth: 1.6, color: '#e0f2fe' } };
+      case '4':
+        return { Icon: CloudLightning, iconProps: { strokeWidth: 1.5, color: '#fbbf24' } };
+      case '5':
+        return { Icon: CloudDrizzle, iconProps: { strokeWidth: 1.5, color: '#22d3ee' } };
+      case '6':
+        return { Icon: CloudHail, iconProps: { strokeWidth: 1.5, color: '#a5f3fc' } };
+      case '7':
+        return { Icon: CloudSnow, iconProps: { strokeWidth: 1.45, color: '#f1f5f9' } };
+      default:
+        return { Icon: CloudRain, iconProps: { strokeWidth: 1.55, color: '#38bdf8' } };
+    }
+  }
+
+  if (isRainyRow(row)) {
+    return { Icon: CloudRain, iconProps: { strokeWidth: 1.55, color: '#06b6d4' } };
+  }
+
+  switch (sk) {
+    case '1':
+      return { Icon: Sun, iconProps: { strokeWidth: 1.55, color: '#fbbf24' } };
+    case '2':
+      return { Icon: CloudSun, iconProps: { strokeWidth: 1.5, color: '#fde047' } };
+    case '3':
+      return { Icon: Cloud, iconProps: { strokeWidth: 1.55, color: '#cbd5e1' } };
+    case '4':
+      return { Icon: CloudFog, iconProps: { strokeWidth: 1.5, color: '#94a3b8' } };
+    default:
+      break;
+  }
+
+  return { Icon: CloudSun, iconProps: { strokeWidth: 1.5, color: '#e2e8f0' } };
+}
+
+function iconForMergedRow(row) {
+  return weatherIconForMergedRow(row);
+}
+
+/** 칩·툴팁 — API 슬롯 필드를 한 줄 요약 */
+export function buildWeatherGlyphTooltip(pick, t) {
+  if (!pick) return '';
+  const parts = [];
+  if (pick.stateLabel) parts.push(pick.stateLabel);
+  if (pick.tmp != null) parts.push(`${pick.tmp}°C`);
+  if (pick.pop != null) parts.push(`POP ${pick.pop}%`);
+  if (pick.pcpAmt) parts.push(`PCP ${pick.pcpAmt}`);
+  if (pick.snoAmt) parts.push(`SNO ${pick.snoAmt}`);
+  if (pick.reh != null) parts.push(t('travelWeather.rehShort', '습도 {{reh}}%', { reh: pick.reh }));
+  if (pick.wsd != null) parts.push(t('travelWeather.wsdShort', '풍속 {{wsd}}m/s', { wsd: pick.wsd }));
+  if (pick.sky != null && pick.sky !== '') {
+    parts.push(`SKY ${pick.sky}`);
+  }
+  if (pick.pty != null && pick.pty !== '0') {
+    parts.push(`PTY ${pick.pty}`);
+  }
+  if (pick.source === 'vsrt') {
+    parts.push(t('travelWeather.navSourceVsrt', '초단기(1h)'));
+  } else if (pick.source === 'shortReg') {
+    parts.push(t('travelWeather.navSourceShort', '단기'));
+  }
+  return parts.join(' · ');
+}
+
+function mergedRowToWeatherSlot(row, source) {
+  const norm = normalizeMergedWeatherRow(row);
+  if (!norm) return null;
+  const h = hourFromTime(norm.time);
+  if (h == null) return null;
+  const wet = isRainyRow(norm);
+  const { Icon, iconProps } = weatherIconForMergedRow(norm);
+  return {
+    ...norm,
+    hour: h,
+    wet,
+    Icon,
+    iconProps,
+    source,
   };
 }
 
@@ -528,7 +733,6 @@ export function buildTravelWeatherTimeline(series, opts = {}) {
   const skipVsrt = opts.skipVsrt === true;
   if (!skipVsrt && Array.isArray(vsrt) && vsrt.length > 0) {
     const mergedShort = mergeSeriesBySlot(Array.isArray(series) ? series : []);
-    const byKey = new Map(mergedShort.map((r) => [`${r.date}|${r.time}`, r]));
     const slots = [];
     for (const raw of vsrt.slice(0, maxSlots)) {
       const date = String(raw.fcstDate ?? '').replace(/\D/g, '');
@@ -537,36 +741,10 @@ export function buildTravelWeatherTimeline(series, opts = {}) {
       if (date.length !== 8 || time.length !== 4) continue;
       const h = hourFromTime(time);
       if (h == null) continue;
-      const extra = byKey.get(`${date}|${time}`) || {};
-      const row = {
-        date,
-        time,
-        pop: extra.pop ?? null,
-        pty:
-          raw.PTY != null
-            ? String(raw.PTY)
-            : raw.pty != null
-              ? String(raw.pty)
-              : extra.pty != null
-                ? String(extra.pty)
-                : '0',
-        tmp: toNum(raw.TMP ?? raw.tmp ?? raw.T1H ?? raw.t1h) ?? extra.tmp ?? null,
-        sky: extra.sky,
-        pcpAmt: extra.pcpAmt ?? null,
-      };
-      const { Icon, iconProps } = iconForMergedRow(row);
-      slots.push({
-        date,
-        time,
-        hour: h,
-        tmp: row.tmp != null ? row.tmp : null,
-        pop: row.pop != null ? row.pop : null,
-        wet: isRainyRow(row),
-        sky: row.sky != null ? String(row.sky) : undefined,
-        pty: row.pty != null ? String(row.pty) : '0',
-        Icon,
-        iconProps,
-      });
+      const row = mergeVsrtWithShortReg(raw, mergedShort, date, time, h);
+      if (!row) continue;
+      const slot = mergedRowToWeatherSlot(row, 'vsrt');
+      if (slot) slots.push(slot);
     }
     if (slots.length) return { slots, source: 'vsrt' };
   }
@@ -587,21 +765,8 @@ export function buildTravelWeatherTimeline(series, opts = {}) {
   const slice = upcoming.slice(0, maxSlots);
   const slots = [];
   for (const row of slice) {
-    const h = hourFromTime(row.time);
-    if (h == null) continue;
-    const { Icon, iconProps } = iconForMergedRow(row);
-    slots.push({
-      date: row.date,
-      time: row.time,
-      hour: h,
-      tmp: row.tmp != null ? row.tmp : null,
-      pop: row.pop != null ? row.pop : null,
-      wet: isRainyRow(row),
-      sky: row.sky != null ? String(row.sky) : undefined,
-      pty: row.pty != null ? String(row.pty) : '0',
-      Icon,
-      iconProps,
-    });
+    const slot = mergedRowToWeatherSlot(row, 'shortReg');
+    if (slot) slots.push(slot);
   }
   return { slots, source: slots.length ? 'shortReg' : undefined };
 }
@@ -723,22 +888,7 @@ export function dayLabel(yyyymmdd, t) {
 }
 
 function mergedRowToSlot(row) {
-  const h = hourFromTime(row.time);
-  if (h == null) return null;
-  const wet = isRainyRow(row);
-  const { Icon, iconProps } = iconForMergedRow(row);
-  return {
-    date: row.date,
-    time: row.time,
-    hour: h,
-    tmp: row.tmp ?? null,
-    pop: row.pop ?? null,
-    wet,
-    pty: String(row.pty ?? '0'),
-    sky: row.sky,
-    Icon,
-    iconProps,
-  };
+  return mergedRowToWeatherSlot(row, 'shortReg');
 }
 
 function pickRepresentativeSlotForDay(slots) {
@@ -761,15 +911,17 @@ export function weatherGlyphStrokeProps(Icon, theme = 'dark') {
   if (onLight) {
     if (Icon === Sun) return { stroke: '#b45309', strokeWidth };
     if (Icon === CloudSun) return { stroke: '#78716c', strokeWidth };
+    if (Icon === CloudFog || Icon === Cloud) return { stroke: '#64748b', strokeWidth };
     if (Icon === CloudRain || Icon === CloudDrizzle) return { stroke: '#0369a1', strokeWidth };
-    if (Icon === CloudSnow) return { stroke: '#475569', strokeWidth };
+    if (Icon === CloudSnow || Icon === CloudHail) return { stroke: '#475569', strokeWidth };
     if (Icon === CloudLightning) return { stroke: '#a16207', strokeWidth };
     return { stroke: '#64748b', strokeWidth };
   }
   if (Icon === Sun) return { stroke: '#fde047', strokeWidth };
   if (Icon === CloudSun) return { stroke: '#fefce8', strokeWidth };
+  if (Icon === CloudFog || Icon === Cloud) return { stroke: '#cbd5e1', strokeWidth };
   if (Icon === CloudRain || Icon === CloudDrizzle) return { stroke: '#e0f2fe', strokeWidth };
-  if (Icon === CloudSnow) return { stroke: '#f8fafc', strokeWidth };
+  if (Icon === CloudSnow || Icon === CloudHail) return { stroke: '#f8fafc', strokeWidth };
   if (Icon === CloudLightning) return { stroke: '#fef9c3', strokeWidth };
   return { stroke: '#f8fafc', strokeWidth };
 }

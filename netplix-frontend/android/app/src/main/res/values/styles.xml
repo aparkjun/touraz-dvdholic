@@ -9,7 +9,7 @@
         <item name="colorAccent">@color/colorAccent</item>
     </style>
 
-    <!-- Edge-to-edge: statusBarColor/navigationBarColor 는 Android 15 에서 지원 중단 — MainActivity 에서 insets 처리 -->
+    <!-- Edge-to-edge: statusBarColor/navigationBarColor 는 Android 15 에서 지원 중단 — MainActivity insets + 웹 safe-area -->
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>

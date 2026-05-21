@@ -1,5 +1,11 @@
 'use client';
 
+/**
+ * CineTrip 지역 칩 날씨 아이콘 정의:
+ * - 지역마다 아이콘 1개 = 해당 지역 격자 기준 KST **현재 시각(1시간 구간) 초단기예보(vsrtHourly)** 의 맑음/비/눈·기온
+ * - 정각이 바뀌면(예: 16시→17시) 다음 조회·갱신 시 그 시간대 예보 아이콘으로 바뀜 (시간대별 스트립 UI 아님)
+ */
+
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Cloud,
@@ -11,7 +17,12 @@ import {
   Sun,
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
-import { buildWeatherGlyphPickFromPayload } from '@/lib/travelWeatherShared';
+import {
+  buildWeatherGlyphPickFromPayload,
+  buildWeatherGlyphTooltip,
+  kstHourBucket,
+  weatherGlyphStrokeProps,
+} from '@/lib/travelWeatherShared';
 import { getWeatherQueryForShortcutCode, getWeatherQueryFromAreaNames } from '@/lib/regionCodeToWeatherPreset';
 import { useTranslation } from 'react-i18next';
 
@@ -21,11 +32,12 @@ const cache = new Map();
 const inflight = new Map();
 
 function cacheKeyForQuery(q) {
+  const hour = kstHourBucket();
   if (!q) return '';
-  if (q.reg) return `w3:${q.reg}`;
+  if (q.reg) return `w6:${q.reg}:${hour}`;
   const lat = q.lat != null ? Number(q.lat).toFixed(3) : '';
   const lng = q.lng != null ? Number(q.lng).toFixed(3) : '';
-  return `w3:geo:${lat}:${lng}`;
+  return `w6:geo:${lat}:${lng}:${hour}`;
 }
 
 function readCachedPick(query) {
@@ -44,13 +56,13 @@ function storePick(query, pick) {
   cache.set(key, { ts: Date.now(), pick: pick ?? FALLBACK_PICK });
 }
 
-/** 칩 아이콘용 — 1회 요청, 초단기 격자(vsrt) 생략, 짧은 타임아웃 */
+/** 칩 아이콘용 — 단기 series + 초단기 vsrt 전체 필드(SKY·PTY·POP·PCP·REH·WSD) */
 async function fetchShortRegForGlyph(params) {
   const p =
     params.reg && params.lat != null && params.lng != null
-      ? { reg: params.reg, lat: params.lat, lng: params.lng, glyphOnly: true }
+      ? { reg: params.reg, lat: params.lat, lng: params.lng }
       : params.reg
-        ? { reg: params.reg, glyphOnly: true }
+        ? { reg: params.reg }
         : null;
   if (!p) return null;
   const res = await axios.get('/api/v1/weather/short-reg', { params: p, timeout: GLYPH_FETCH_TIMEOUT_MS });
@@ -110,7 +122,7 @@ export function prefetchRegionWeatherGlyphs(regionCodes, t) {
     try {
       const res = await axios.get('/api/v1/weather/short-reg/batch', {
         params: { regs: regs.join(','), glyphOnly: true },
-        timeout: 18_000,
+        timeout: 22_000,
       });
       const byReg = res?.data?.data?.byReg;
       if (!byReg || typeof byReg !== 'object') return;
@@ -134,37 +146,14 @@ export function prefetchRegionWeatherGlyphs(regionCodes, t) {
   return warmFromBatch().then(fillMissing);
 }
 
-/** 기상 앱 스타일: 원·배경 없이 라인 아이콘만 */
-function simpleGlyphProps(Icon, onLight) {
-  const strokeWidth = 1.85;
-  if (onLight) {
-    if (Icon === Sun) return { stroke: '#b45309', strokeWidth };
-    if (Icon === CloudSun) return { stroke: '#78716c', strokeWidth };
-    if (Icon === CloudRain || Icon === CloudDrizzle) return { stroke: '#0369a1', strokeWidth };
-    if (Icon === CloudSnow) return { stroke: '#475569', strokeWidth };
-    if (Icon === CloudLightning) return { stroke: '#a16207', strokeWidth };
-    return { stroke: '#64748b', strokeWidth };
-  }
-  if (Icon === Sun) return { stroke: '#fde047', strokeWidth };
-  if (Icon === CloudSun) return { stroke: '#fefce8', strokeWidth };
-  if (Icon === CloudRain || Icon === CloudDrizzle) return { stroke: '#e0f2fe', strokeWidth };
-  if (Icon === CloudSnow) return { stroke: '#f8fafc', strokeWidth };
-  if (Icon === CloudLightning) return { stroke: '#fef9c3', strokeWidth };
-  return { stroke: '#f8fafc', strokeWidth };
-}
 
 const FALLBACK_PICK = { Icon: Cloud, tmp: null };
 
 function derivePickFromPayload(d, t) {
   if (d == null || typeof d !== 'object') return FALLBACK_PICK;
-  const built = buildWeatherGlyphPickFromPayload(d, { maxSlots: 8, t });
+  const built = buildWeatherGlyphPickFromPayload(d, { maxSlots: 12, t });
   if (built?.Icon) {
-    return {
-      Icon: built.Icon,
-      tmp: built.tmp ?? null,
-      stateLabel: built.stateLabel ?? null,
-      iconProps: built.iconProps,
-    };
+    return built;
   }
   return FALLBACK_PICK;
 }
@@ -205,6 +194,18 @@ export default function RegionWeatherGlyph({
 
   const [visible, setVisible] = useState(eager);
   const [pick, setPick] = useState(() => (query ? readCachedPick(query) : null));
+  const [hourBucket, setHourBucket] = useState(() => kstHourBucket());
+
+  /** KST 정각이 바뀌면 캐시 키가 달라지므로 아이콘을 다시 받음 */
+  useEffect(() => {
+    const tick = () => {
+      const next = kstHourBucket();
+      setHourBucket((prev) => (prev !== next ? next : prev));
+    };
+    tick();
+    const id = setInterval(tick, 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (eager) {
@@ -248,26 +249,16 @@ export default function RegionWeatherGlyph({
     return () => {
       alive = false;
     };
-  }, [visible, query, t]);
+  }, [visible, query, t, hourBucket]);
 
   if (!query) return null;
 
-  const title =
-    titleProp ||
-    (pick?.stateLabel && pick?.tmp != null
-      ? `${pick.stateLabel} · ${pick.tmp}°`
-      : pick?.stateLabel
-        ? pick.stateLabel
-        : pick?.tmp != null
-          ? t('travelWeather.widgetGlyphTitle', '{{tmp}}° · 오늘 날씨', { tmp: pick.tmp })
-          : t('travelWeather.navWeather', '날씨'));
+  const title = titleProp || buildWeatherGlyphTooltip(pick, t) || t('travelWeather.navWeather', '날씨');
 
   const onLight = variant === 'onLight';
   const WIcon = pick?.Icon;
   const glyphProps = WIcon
-    ? pick.iconProps
-      ? { ...simpleGlyphProps(WIcon, onLight), ...pick.iconProps }
-      : simpleGlyphProps(WIcon, onLight)
+    ? { ...weatherGlyphStrokeProps(WIcon, onLight ? 'light' : 'dark'), ...pick.iconProps }
     : null;
 
   return (
@@ -290,7 +281,7 @@ export default function RegionWeatherGlyph({
       ) : (
         <Cloud
           size={size}
-          {...simpleGlyphProps(Cloud, onLight)}
+          {...weatherGlyphStrokeProps(Cloud, onLight ? 'light' : 'dark')}
           aria-hidden
           style={{ opacity: 0.35 }}
         />

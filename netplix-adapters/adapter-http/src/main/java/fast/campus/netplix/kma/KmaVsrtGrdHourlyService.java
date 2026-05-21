@@ -100,7 +100,7 @@ public class KmaVsrtGrdHourlyService {
         }
 
         List<CompletableFuture<Map<String, Object>>> hourFutures = new ArrayList<>();
-        for (int h = 1; h <= cap; h++) {
+        for (int h = 0; h < cap; h++) {
             final int hourAhead = h;
             hourFutures.add(
                     CompletableFuture.supplyAsync(
@@ -182,7 +182,7 @@ public class KmaVsrtGrdHourlyService {
             return List.of();
         }
         List<Map<String, Object>> rows = new ArrayList<>();
-        for (int h = 1; h <= cap; h++) {
+        for (int h = 0; h < cap; h++) {
             ZonedDateTime ft = nowKst.plusHours(h).truncatedTo(ChronoUnit.HOURS);
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("fcstDate", ft.format(FCST_DATE));
@@ -199,8 +199,8 @@ public class KmaVsrtGrdHourlyService {
     /** 최근 후보 tmfc 중 실제 응답이 성공하고 격자값이 유효한 첫 시각 */
     private Optional<String> resolveWorkingTmfc(int nx, int ny, boolean odamFallback) {
         ZonedDateTime now = ZonedDateTime.now(KST);
-        ZonedDateTime ft1 = now.plusHours(1).truncatedTo(ChronoUnit.HOURS);
-        String tmefProbe = client.isOdamEffective(odamFallback) ? "" : ft1.format(TMEF);
+        ZonedDateTime ft0 = now.truncatedTo(ChronoUnit.HOURS);
+        String tmefProbe = client.isOdamEffective(odamFallback) ? "" : ft0.format(TMEF);
 
         List<String> tmfcCandidates = new ArrayList<>();
         for (int back = 0; back < TMFC_BACK_MAX; back++) {

@@ -658,6 +658,8 @@
     "navHourOnly": "{{h}}h",
     "navSourceVsrt": "Nowcast (1h)",
     "navSourceShort": "Short-term",
+    "rehShort": "Humidity {{reh}}%",
+    "wsdShort": "Wind {{wsd}} m/s",
     "dayToday": "Today",
     "dayTomorrow": "Tomorrow",
     "dayAfter": "Day after",

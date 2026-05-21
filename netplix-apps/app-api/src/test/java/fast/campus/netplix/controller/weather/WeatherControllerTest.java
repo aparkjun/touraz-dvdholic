@@ -141,7 +141,7 @@ class WeatherControllerTest {
     }
 
     @Test
-    void shortReg_glyphOnly_skipsVsrtHourly() throws Exception {
+    void shortReg_glyphOnly_returnsSeries_whenVsrtNotConfigured() throws Exception {
         String body = """
                 {"result":{"status":0},"response":{"body":{"items":[{"TMP":18,"POP":30,"SKY":"1","PTY":"0","fcstTime":"1200","fcstDate":"20240509"}]}}}
                 """;
