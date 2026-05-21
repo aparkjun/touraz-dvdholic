@@ -21,7 +21,7 @@ import {
   buildWeatherGlyphPickFromPayload,
   buildWeatherGlyphTooltip,
   kstHourBucket,
-  stateLabelFromWeatherIcon,
+  resolveGlyphStateLabel,
   weatherGlyphStrokeProps,
 } from '@/lib/travelWeatherShared';
 import { getWeatherQueryForShortcutCode, getWeatherQueryFromAreaNames } from '@/lib/regionCodeToWeatherPreset';
@@ -35,10 +35,10 @@ const inflight = new Map();
 function cacheKeyForQuery(q) {
   const hour = kstHourBucket();
   if (!q) return '';
-  if (q.reg) return `w7:${q.reg}:${hour}`;
+  if (q.reg) return `w9:${q.reg}:${hour}`;
   const lat = q.lat != null ? Number(q.lat).toFixed(3) : '';
   const lng = q.lng != null ? Number(q.lng).toFixed(3) : '';
-  return `w7:geo:${lat}:${lng}:${hour}`;
+  return `w9:geo:${lat}:${lng}:${hour}`;
 }
 
 function readCachedPick(query) {
@@ -257,7 +257,7 @@ export default function RegionWeatherGlyph({
   const title =
     titleProp ||
     buildWeatherGlyphTooltip(pick, t) ||
-    (pick?.Icon ? stateLabelFromWeatherIcon(pick.Icon, pick, t) : '') ||
+    resolveGlyphStateLabel(pick, t) ||
     t('travelWeather.navWeather', '날씨');
 
   const onLight = variant === 'onLight';

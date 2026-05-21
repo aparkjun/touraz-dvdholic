@@ -32,6 +32,307 @@ export const KMA_PTY = {
   '6': 'drizzleSnow',
   '7': 'snowFlurry',
 };
+
+/** 기상청 공식 코드명 (API SKY·PTY 값 — 하늘은 4종, 강수형태는 8종) */
+export const KMA_SKY_KO = {
+  '1': '맑음',
+  '2': '구름조금',
+  '3': '구름많음',
+  '4': '흐림',
+};
+
+export const KMA_PTY_KO = {
+  '0': '없음',
+  '1': '비',
+  '2': '비/눈',
+  '3': '눈',
+  '4': '소나기',
+  '5': '빗방울',
+  '6': '빗방울/눈날림',
+  '7': '눈날림',
+};
+
+/** 기상청 API 필드 → 화면용 한글 이름 */
+export const KMA_FIELD_LABEL_KO = {
+  fcstDate: '예보일',
+  fcstTime: '예보시각',
+  TMP: '기온',
+  T1H: '기온',
+  TM: '기온',
+  TMN: '최저기온',
+  TMX: '최고기온',
+  POP: '강수확률',
+  PTY: '강수형태',
+  SKY: '하늘상태',
+  PCP: '강수량',
+  SNO: '적설',
+  REH: '습도',
+  WSD: '풍속',
+  VEC: '풍향',
+  VVV: '남북풍속',
+  UUU: '동서풍속',
+  WAV: '파고',
+  Rn: '강수',
+  hr3: '3시간 강수',
+};
+
+function kmaFieldLabel(key, t) {
+  const k = String(key).trim();
+  const fallback = KMA_FIELD_LABEL_KO[k] ?? k;
+  return typeof t === 'function' ? t(`travelWeather.kmaField.${k}`, fallback) : fallback;
+}
+
+/** 툴팁·표시 순서 — 기상청 short-reg / vsrt 응답 필드 */
+export const KMA_API_FIELD_ORDER = [
+  'fcstDate',
+  'fcstTime',
+  'TMP',
+  'T1H',
+  'TM',
+  'TMN',
+  'TMX',
+  'POP',
+  'PTY',
+  'SKY',
+  'PCP',
+  'SNO',
+  'REH',
+  'WSD',
+  'VEC',
+  'VVV',
+  'UUU',
+  'WAV',
+  'Rn',
+  'hr3',
+];
+
+function mergeKmaFieldMaps(...maps) {
+  const out = {};
+  for (const m of maps) {
+    if (!m || typeof m !== 'object') continue;
+    for (const [k, v] of Object.entries(m)) {
+      if (v == null || String(v).trim() === '') continue;
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+/** API 행 객체에서 기상청 예보 필드만 추출 (키·값 그대로) */
+export function extractKmaFieldsFromRaw(raw) {
+  if (!raw || typeof raw !== 'object') return {};
+  const out = {};
+  for (const k of KMA_API_FIELD_ORDER) {
+    const v = raw[k] ?? raw[k.toLowerCase()] ?? raw[k.toUpperCase()];
+    if (v == null || String(v).trim() === '') continue;
+    out[k] = typeof v === 'number' ? v : String(v).trim();
+  }
+  for (const [k, v] of Object.entries(raw)) {
+    if (out[k] != null || k === 'date' || k === 'time') continue;
+    if (!/^[A-Za-z][A-Za-z0-9]{0,3}$/.test(k)) continue;
+    if (v == null || String(v).trim() === '') continue;
+    out[k] = typeof v === 'number' ? v : String(v).trim();
+  }
+  return out;
+}
+
+export function kmaSkyName(sky, t) {
+  const sk = sky != null ? String(sky) : '';
+  if (!sk) return '';
+  const ko = KMA_SKY_KO[sk];
+  if (!ko) return sk;
+  return typeof t === 'function'
+    ? t(`travelWeather.kmaSky.${sk}`, ko)
+    : ko;
+}
+
+export function kmaPtyName(pty, t) {
+  const ps = pty != null ? String(pty) : '0';
+  const ko = KMA_PTY_KO[ps];
+  if (!ko) return ps;
+  return typeof t === 'function'
+    ? t(`travelWeather.kmaPty.${ps}`, ko)
+    : ko;
+}
+
+/** API 필드 1줄 — 한글만 (예: 구름많음 · 강수확률 30% · 기온 24°C) */
+export function kmaFieldDisplayLine(key, value, t) {
+  const k = String(key).trim();
+  const v = value == null ? '' : String(value).trim();
+  if (!k || !v) return '';
+
+  if (k === 'SKY') {
+    const name = kmaSkyName(v, t);
+    return name || `${kmaFieldLabel('SKY', t)} ${v}`;
+  }
+  if (k === 'PTY') {
+    if (v === '0') {
+      return typeof t === 'function'
+        ? t('travelWeather.kmaPtyNone', '강수 없음')
+        : '강수 없음';
+    }
+    const name = kmaPtyName(v, t);
+    return name || `${kmaFieldLabel('PTY', t)} ${v}`;
+  }
+  if (k === 'POP') {
+    const n = v.replace(/%/g, '');
+    return typeof t === 'function'
+      ? t('travelWeather.kmaPopLine', '강수확률 {{n}}%', { n })
+      : `강수확률 ${n}%`;
+  }
+  if (k === 'TMP' || k === 'T1H' || k === 'TM') {
+    return typeof t === 'function'
+      ? t('travelWeather.kmaTempLine', '기온 {{n}}°C', { n: v })
+      : `기온 ${v}°C`;
+  }
+  if (k === 'TMN') {
+    return typeof t === 'function'
+      ? t('travelWeather.kmaTmnLine', '최저기온 {{n}}°C', { n: v })
+      : `최저기온 ${v}°C`;
+  }
+  if (k === 'TMX') {
+    return typeof t === 'function'
+      ? t('travelWeather.kmaTmxLine', '최고기온 {{n}}°C', { n: v })
+      : `최고기온 ${v}°C`;
+  }
+  if (k === 'REH') {
+    const n = v.replace(/%/g, '');
+    return typeof t === 'function'
+      ? t('travelWeather.rehShort', '습도 {{reh}}%', { reh: n })
+      : `습도 ${n}%`;
+  }
+  if (k === 'WSD') {
+    return typeof t === 'function'
+      ? t('travelWeather.wsdShort', '풍속 {{wsd}}m/s', { wsd: v })
+      : `풍속 ${v}m/s`;
+  }
+  if (k === 'PCP') {
+    if (v === '0' || /^강수\s*없/i.test(v)) {
+      return typeof t === 'function'
+        ? t('travelWeather.kmaPcpNone', '강수량 없음')
+        : '강수량 없음';
+    }
+    return typeof t === 'function'
+      ? t('travelWeather.kmaPcpLine', '강수량 {{amt}}', { amt: v })
+      : `강수량 ${v}`;
+  }
+  if (k === 'SNO') {
+    if (v === '0' || /^적설\s*없/i.test(v)) {
+      return typeof t === 'function'
+        ? t('travelWeather.kmaSnoNone', '적설 없음')
+        : '적설 없음';
+    }
+    return typeof t === 'function'
+      ? t('travelWeather.kmaSnoLine', '적설 {{amt}}', { amt: v })
+      : `적설 ${v}`;
+  }
+  if (k === 'fcstDate' && v.length === 8) {
+    const d = `${v.slice(0, 4)}.${v.slice(4, 6)}.${v.slice(6, 8)}`;
+    return typeof t === 'function'
+      ? t('travelWeather.kmaFcstDateLine', '예보일 {{d}}', { d })
+      : `예보일 ${d}`;
+  }
+  if (k === 'fcstTime' && v.length >= 4) {
+    const h = v.slice(0, 2);
+    return typeof t === 'function'
+      ? t('travelWeather.kmaFcstTimeLine', '예보시각 {{h}}시', { h })
+      : `예보시각 ${h}시`;
+  }
+  const label = kmaFieldLabel(k, t);
+  return `${label} ${v}`;
+}
+
+export function buildApiLinesFromKmaFields(kmaFields, t) {
+  if (!kmaFields || typeof kmaFields !== 'object') return [];
+  const lines = [];
+  const seen = new Set();
+  for (const key of KMA_API_FIELD_ORDER) {
+    if (kmaFields[key] == null) continue;
+    if (key === 'PTY' && String(kmaFields[key]) === '0') continue;
+    const line = kmaFieldDisplayLine(key, kmaFields[key], t);
+    if (line && !seen.has(line)) {
+      seen.add(line);
+      lines.push(line);
+    }
+  }
+  for (const key of Object.keys(kmaFields).sort()) {
+    if (KMA_API_FIELD_ORDER.includes(key)) continue;
+    const line = kmaFieldDisplayLine(key, kmaFields[key], t);
+    if (line && !seen.has(line)) {
+      seen.add(line);
+      lines.push(line);
+    }
+  }
+  return lines;
+}
+
+export function kmaPrimaryLabelFromFields(kmaFields, t) {
+  if (!kmaFields) return '';
+  const pty = kmaFields.PTY ?? kmaFields.pty;
+  if (pty != null && String(pty) !== '' && String(pty) !== '0') {
+    return kmaPtyName(pty, t);
+  }
+  const sky = kmaFields.SKY ?? kmaFields.sky;
+  if (sky != null && String(sky) !== '') {
+    return kmaSkyName(sky, t);
+  }
+  return '';
+}
+
+function summarizeAfsDs(afsDs, maxLen = 160) {
+  const plain = collectAfsDsPlainText(afsDs);
+  if (!plain) return '';
+  const one = plain.replace(/\s+/g, ' ').trim();
+  return one.length > maxLen ? `${one.slice(0, maxLen)}…` : one;
+}
+
+function attachGlyphPickMeta(weatherData, slot, t) {
+  const kmaFields = mergeKmaFieldMaps(
+    extractKmaFieldsFromRaw({
+      fcstDate: slot.date,
+      fcstTime: slot.time,
+      TMP: slot.tmp,
+      POP: slot.pop,
+      PTY: slot.pty,
+      SKY: slot.sky,
+      PCP: slot.pcpAmt,
+      REH: slot.reh,
+      WSD: slot.wsd,
+      SNO: slot.snoAmt,
+      TMN: slot.tmn,
+      TMX: slot.tmx,
+    }),
+    slot.kmaFields
+  );
+  const apiLines = buildApiLinesFromKmaFields(kmaFields, t);
+  const primaryLabel =
+    kmaPrimaryLabelFromFields(kmaFields, t) ||
+    (typeof t === 'function' ? skyStateLabel(slot.sky, slot.pty, slot.wet, t) : '');
+
+  return {
+    Icon: slot.Icon,
+    tmp: slot.tmp ?? null,
+    iconProps: slot.iconProps,
+    sky: slot.sky,
+    pty: slot.pty,
+    wet: slot.wet,
+    pop: slot.pop ?? null,
+    pcpAmt: slot.pcpAmt ?? null,
+    reh: slot.reh ?? null,
+    wsd: slot.wsd ?? null,
+    snoAmt: slot.snoAmt ?? null,
+    source: slot.source,
+    fcstDate: slot.date,
+    fcstTime: slot.time,
+    kmaFields,
+    apiLines,
+    primaryLabel,
+    stateLabel: primaryLabel,
+    reg: weatherData?.reg ?? null,
+    regLabel: weatherData?.regLabel ?? null,
+    afsSummary: weatherData?.afsDs ? summarizeAfsDs(weatherData.afsDs) : '',
+  };
+}
 import axios from '@/lib/axiosConfig';
 
 /** 빠른 1회 시도 (다른 화면·테스트용) */
@@ -212,6 +513,7 @@ export function mergeSeriesBySlot(rawSeries) {
     if (tmn != null) next.tmn = tmn;
     const tmx = toNum(raw.TMX ?? raw.tmx);
     if (tmx != null) next.tmx = tmx;
+    next.kmaFields = mergeKmaFieldMaps(prev.kmaFields, extractKmaFieldsFromRaw(raw));
     map.set(key, next);
   }
   return Array.from(map.values()).sort((a, b) => {
@@ -236,6 +538,7 @@ export function normalizeMergedWeatherRow(row) {
     snoAmt: row.snoAmt ?? null,
     tmn: row.tmn ?? null,
     tmx: row.tmx ?? null,
+    kmaFields: row.kmaFields && typeof row.kmaFields === 'object' ? row.kmaFields : {},
   };
 }
 
@@ -266,7 +569,7 @@ function mergeVsrtWithShortReg(vsrtRaw, mergedShort, date, time, hour) {
       : vsrtRaw.pty != null
         ? String(vsrtRaw.pty)
         : null;
-  return normalizeMergedWeatherRow({
+  const row = {
     date,
     time,
     pty: ptyVsrt != null && ptyVsrt !== '' ? ptyVsrt : near?.pty ?? '0',
@@ -279,7 +582,13 @@ function mergeVsrtWithShortReg(vsrtRaw, mergedShort, date, time, hour) {
     snoAmt: near?.snoAmt ?? null,
     tmn: near?.tmn ?? null,
     tmx: near?.tmx ?? null,
-  });
+    kmaFields: mergeKmaFieldMaps(
+      near?.kmaFields,
+      extractKmaFieldsFromRaw(vsrtRaw),
+      extractKmaFieldsFromRaw({ fcstDate: date, fcstTime: time, ...vsrtRaw })
+    ),
+  };
+  return normalizeMergedWeatherRow(row);
 }
 
 function rowHasMeasuredPrecip(row) {
@@ -291,30 +600,24 @@ function rowHasMeasuredPrecip(row) {
   return true;
 }
 
-/** 기상청 단기 SKY·PTY 코드 → 짧은 하늘·강수 상태 문구 (네비·스트립용) */
+/** 기상청 SKY·PTY → 한글 상태 (맑음 · 비 · 소나기 등) */
 export function skyStateLabel(sky, pty, wet, t) {
   const ps = pty != null ? String(pty) : '0';
   if (wet || isWetPty(ps)) {
-    if (ps === '1') return t('travelWeather.ptyRain', '비');
-    if (ps === '2') return t('travelWeather.ptyRainSnow', '비 또는 눈');
-    if (ps === '3') return t('travelWeather.ptySnow', '눈');
-    if (ps === '4') return t('travelWeather.ptyShower', '소나기');
-    // 초단기·일부 격자: 빗방울 / 빗방울·눈날림 / 눈날림 (기상청 PTY 코드)
-    if (ps === '5') return t('travelWeather.ptyDrizzle', '빗방울');
-    if (ps === '6') return t('travelWeather.ptyDrizzleSnow', '빗방울·눈날림');
-    if (ps === '7') return t('travelWeather.ptySnowFlurry', '눈날림');
+    if (isWetPty(ps)) {
+      const name = kmaPtyName(ps, t);
+      if (name) return name;
+    }
     if (wet && !isWetPty(ps)) {
       return t('travelWeather.statePrecipLikely', '강수 가능');
     }
     return t('travelWeather.statePrecip', '강수');
   }
   const sk = sky != null ? String(sky) : '';
-  if (sk === '1') return t('travelWeather.skyClear', '맑음');
-  // 일부 응답에서 SKY=2(구름 조금) 등이 섞일 때 대비
-  if (sk === '2') return t('travelWeather.skyPartlyCloud', '구름 조금');
-  if (sk === '3') return t('travelWeather.skyMostlyCloud', '구름 많음');
-  if (sk === '4') return t('travelWeather.skyOvercast', '흐림');
-  if (sk !== '') return t('travelWeather.skyOther', '하늘 코드 {{code}}', { code: sk });
+  if (sk !== '') {
+    const name = kmaSkyName(sk, t);
+    if (name) return name;
+  }
   return t('travelWeather.skyUnknown', '하늘 상태 미제공');
 }
 
@@ -523,55 +826,47 @@ export function buildWeatherGlyphPickFromPayload(weatherData, opts = {}) {
   const s = pickGlyphWeatherSlot(tl, now);
 
   if (s?.Icon) {
-    const base = {
-      Icon: s.Icon,
-      tmp: s.tmp ?? null,
-      iconProps: s.iconProps,
-      sky: s.sky,
-      pty: s.pty,
-      wet: s.wet,
-      pop: s.pop ?? null,
-      pcpAmt: s.pcpAmt ?? null,
-      reh: s.reh ?? null,
-      wsd: s.wsd ?? null,
-      snoAmt: s.snoAmt ?? null,
-      source: tl.source,
-      fcstDate: s.date,
-      fcstTime: s.time,
-      stateLabel:
-        typeof t === 'function' ? skyStateLabel(s.sky, s.pty, s.wet, t) : null,
-    };
-    return {
-      ...base,
-      stateLabel: resolveGlyphStateLabel(base, t) || base.stateLabel,
-    };
+    return attachGlyphPickMeta(weatherData, { ...s, source: tl.source }, t);
   }
 
   const afsHint = inferPrecipFromAfsDs(weatherData.afsDs, now);
   if (afsHint?.wet) {
+    const { yyyymmdd, hour } = nowKstYyyymmddHour(now);
+    const slot = mergedRowToWeatherSlot(
+      normalizeMergedWeatherRow({
+        date: yyyymmdd,
+        time: `${String(hour).padStart(2, '0')}00`,
+        sky: afsHint.sky ?? '4',
+        pty: afsHint.pty ?? '1',
+        pop: afsHint.pop ?? null,
+        kmaFields: extractKmaFieldsFromRaw({
+          fcstDate: yyyymmdd,
+          fcstTime: `${String(hour).padStart(2, '0')}00`,
+          PTY: afsHint.pty ?? '1',
+          SKY: afsHint.sky,
+          POP: afsHint.pop,
+        }),
+      }),
+      'afsDs'
+    );
+    if (slot) return attachGlyphPickMeta(weatherData, slot, t);
     return glyphPickFromPrecipHint(afsHint, t);
   }
 
   const skyCode = inferSkyCodeFromAfsDs(weatherData.afsDs, now);
-  if (skyCode && typeof t === 'function') {
-    const row = normalizeMergedWeatherRow({
-      date: nowKstYyyymmddHour(now).yyyymmdd,
-      time: `${String(nowKstYyyymmddHour(now).hour).padStart(2, '0')}00`,
-      sky: skyCode,
-      pty: '0',
-    });
-    const { Icon, iconProps } = weatherIconForMergedRow(row);
-    const base = {
-      Icon,
-      tmp: null,
-      iconProps,
-      sky: skyCode,
-      pty: '0',
-      wet: false,
-      source: 'afsDs',
-      stateLabel: skyStateLabel(skyCode, '0', false, t),
-    };
-    return base;
+  if (skyCode) {
+    const { yyyymmdd, hour } = nowKstYyyymmddHour(now);
+    const slot = mergedRowToWeatherSlot(
+      normalizeMergedWeatherRow({
+        date: yyyymmdd,
+        time: `${String(hour).padStart(2, '0')}00`,
+        sky: skyCode,
+        pty: '0',
+        kmaFields: { fcstDate: yyyymmdd, fcstTime: `${String(hour).padStart(2, '0')}00`, SKY: skyCode, PTY: '0' },
+      }),
+      'afsDs'
+    );
+    if (slot) return attachGlyphPickMeta(weatherData, slot, t);
   }
 
   return { Icon: null, tmp: null, stateLabel: null };
@@ -693,6 +988,7 @@ function inferSkyCodeFromAfsDs(afsDs, now = new Date()) {
 /** 칩 툴팁 첫 줄 — stateLabel 없으면 SKY·PTY·아이콘에서 복원 */
 export function resolveGlyphStateLabel(pick, t) {
   if (!pick || typeof t !== 'function') return '';
+  if (pick.primaryLabel) return pick.primaryLabel;
   const unknown = t('travelWeather.skyUnknown', '하늘 상태 미제공');
   if (pick.stateLabel && pick.stateLabel !== unknown) return pick.stateLabel;
   if (pick.sky != null && pick.sky !== '') {
@@ -702,28 +998,36 @@ export function resolveGlyphStateLabel(pick, t) {
   return '';
 }
 
-/** 칩·툴팁 — API 슬롯 필드를 한 줄 요약 */
+/** 칩·툴팁 — API 응답 필드·개황(afsDs)을 가능한 한 모두 표시 */
 export function buildWeatherGlyphTooltip(pick, t) {
   if (!pick) return '';
   const parts = [];
-  const label = resolveGlyphStateLabel(pick, t);
-  if (label) parts.push(label);
-  if (pick.tmp != null) parts.push(`${pick.tmp}°C`);
-  if (pick.pop != null) parts.push(`POP ${pick.pop}%`);
-  if (pick.pcpAmt) parts.push(`PCP ${pick.pcpAmt}`);
-  if (pick.snoAmt) parts.push(`SNO ${pick.snoAmt}`);
-  if (pick.reh != null) parts.push(t('travelWeather.rehShort', '습도 {{reh}}%', { reh: pick.reh }));
-  if (pick.wsd != null) parts.push(t('travelWeather.wsdShort', '풍속 {{wsd}}m/s', { wsd: pick.wsd }));
-  if (pick.sky != null && pick.sky !== '') {
-    parts.push(`SKY ${pick.sky}`);
+  if (pick.regLabel) parts.push(pick.regLabel);
+  else if (pick.reg) parts.push(`reg ${pick.reg}`);
+
+  if (Array.isArray(pick.apiLines) && pick.apiLines.length) {
+    parts.push(...pick.apiLines);
+  } else {
+    const label = resolveGlyphStateLabel(pick, t);
+    if (label) parts.push(label);
+    if (pick.tmp != null) parts.push(kmaFieldDisplayLine('TMP', pick.tmp, t));
+    if (pick.pop != null) parts.push(kmaFieldDisplayLine('POP', pick.pop, t));
+    if (pick.pcpAmt) parts.push(kmaFieldDisplayLine('PCP', pick.pcpAmt, t));
+    if (pick.snoAmt) parts.push(kmaFieldDisplayLine('SNO', pick.snoAmt, t));
+    if (pick.reh != null) parts.push(kmaFieldDisplayLine('REH', pick.reh, t));
+    if (pick.wsd != null) parts.push(kmaFieldDisplayLine('WSD', pick.wsd, t));
+    if (pick.sky != null && pick.sky !== '') parts.push(kmaFieldDisplayLine('SKY', pick.sky, t));
+    if (pick.pty != null) parts.push(kmaFieldDisplayLine('PTY', pick.pty, t));
   }
-  if (pick.pty != null && pick.pty !== '0') {
-    parts.push(`PTY ${pick.pty}`);
-  }
+
+  if (pick.afsSummary) parts.push(pick.afsSummary);
+
   if (pick.source === 'vsrt') {
     parts.push(t('travelWeather.navSourceVsrt', '초단기(1h)'));
   } else if (pick.source === 'shortReg') {
     parts.push(t('travelWeather.navSourceShort', '단기'));
+  } else if (pick.source === 'afsDs') {
+    parts.push(t('travelWeather.navSourceAfs', '단기 개황'));
   }
   return parts.join(' · ');
 }
