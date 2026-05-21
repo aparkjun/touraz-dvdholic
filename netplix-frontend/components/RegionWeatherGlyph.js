@@ -21,6 +21,7 @@ import {
   buildWeatherGlyphPickFromPayload,
   buildWeatherGlyphTooltip,
   kstHourBucket,
+  stateLabelFromWeatherIcon,
   weatherGlyphStrokeProps,
 } from '@/lib/travelWeatherShared';
 import { getWeatherQueryForShortcutCode, getWeatherQueryFromAreaNames } from '@/lib/regionCodeToWeatherPreset';
@@ -34,10 +35,10 @@ const inflight = new Map();
 function cacheKeyForQuery(q) {
   const hour = kstHourBucket();
   if (!q) return '';
-  if (q.reg) return `w6:${q.reg}:${hour}`;
+  if (q.reg) return `w7:${q.reg}:${hour}`;
   const lat = q.lat != null ? Number(q.lat).toFixed(3) : '';
   const lng = q.lng != null ? Number(q.lng).toFixed(3) : '';
-  return `w6:geo:${lat}:${lng}:${hour}`;
+  return `w7:geo:${lat}:${lng}:${hour}`;
 }
 
 function readCachedPick(query) {
@@ -147,7 +148,7 @@ export function prefetchRegionWeatherGlyphs(regionCodes, t) {
 }
 
 
-const FALLBACK_PICK = { Icon: Cloud, tmp: null };
+const FALLBACK_PICK = { Icon: Cloud, tmp: null, stateLabel: null };
 
 function derivePickFromPayload(d, t) {
   if (d == null || typeof d !== 'object') return FALLBACK_PICK;
@@ -253,7 +254,11 @@ export default function RegionWeatherGlyph({
 
   if (!query) return null;
 
-  const title = titleProp || buildWeatherGlyphTooltip(pick, t) || t('travelWeather.navWeather', '날씨');
+  const title =
+    titleProp ||
+    buildWeatherGlyphTooltip(pick, t) ||
+    (pick?.Icon ? stateLabelFromWeatherIcon(pick.Icon, pick, t) : '') ||
+    t('travelWeather.navWeather', '날씨');
 
   const onLight = variant === 'onLight';
   const WIcon = pick?.Icon;

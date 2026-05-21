@@ -523,15 +523,13 @@ export function buildWeatherGlyphPickFromPayload(weatherData, opts = {}) {
   const s = pickGlyphWeatherSlot(tl, now);
 
   if (s?.Icon) {
-    const stateLabel =
-      typeof t === 'function' ? skyStateLabel(s.sky, s.pty, s.wet, t) : null;
-    return {
+    const base = {
       Icon: s.Icon,
       tmp: s.tmp ?? null,
-      stateLabel,
       iconProps: s.iconProps,
       sky: s.sky,
       pty: s.pty,
+      wet: s.wet,
       pop: s.pop ?? null,
       pcpAmt: s.pcpAmt ?? null,
       reh: s.reh ?? null,
@@ -540,12 +538,40 @@ export function buildWeatherGlyphPickFromPayload(weatherData, opts = {}) {
       source: tl.source,
       fcstDate: s.date,
       fcstTime: s.time,
+      stateLabel:
+        typeof t === 'function' ? skyStateLabel(s.sky, s.pty, s.wet, t) : null,
+    };
+    return {
+      ...base,
+      stateLabel: resolveGlyphStateLabel(base, t) || base.stateLabel,
     };
   }
 
   const afsHint = inferPrecipFromAfsDs(weatherData.afsDs, now);
   if (afsHint?.wet) {
     return glyphPickFromPrecipHint(afsHint, t);
+  }
+
+  const skyCode = inferSkyCodeFromAfsDs(weatherData.afsDs, now);
+  if (skyCode && typeof t === 'function') {
+    const row = normalizeMergedWeatherRow({
+      date: nowKstYyyymmddHour(now).yyyymmdd,
+      time: `${String(nowKstYyyymmddHour(now).hour).padStart(2, '0')}00`,
+      sky: skyCode,
+      pty: '0',
+    });
+    const { Icon, iconProps } = weatherIconForMergedRow(row);
+    const base = {
+      Icon,
+      tmp: null,
+      iconProps,
+      sky: skyCode,
+      pty: '0',
+      wet: false,
+      source: 'afsDs',
+      stateLabel: skyStateLabel(skyCode, '0', false, t),
+    };
+    return base;
   }
 
   return { Icon: null, tmp: null, stateLabel: null };
@@ -634,11 +660,54 @@ function iconForMergedRow(row) {
   return weatherIconForMergedRow(row);
 }
 
+/** SKY 없이 초단기만 올 때 — 아이콘 모양으로 하늘 상태 문구 보강 */
+export function stateLabelFromWeatherIcon(Icon, pick, t) {
+  if (!Icon || typeof t !== 'function') return '';
+  const ps = String(pick?.pty ?? '0');
+  if (pick?.wet || isWetPty(ps)) {
+    return skyStateLabel(pick?.sky, pick?.pty, pick?.wet, t);
+  }
+  if (Icon === Sun) return t('travelWeather.skyClear', '맑음');
+  if (Icon === CloudSun) return t('travelWeather.skyPartlyCloud', '구름 조금');
+  if (Icon === CloudFog) return t('travelWeather.skyOvercast', '흐림');
+  if (Icon === Cloud) return t('travelWeather.skyMostlyCloud', '구름 많음');
+  if (Icon === CloudRain) return t('travelWeather.ptyRain', '비');
+  if (Icon === CloudDrizzle) return t('travelWeather.ptyDrizzle', '빗방울');
+  if (Icon === CloudSnow || Icon === CloudHail) return t('travelWeather.ptySnow', '눈');
+  if (Icon === CloudLightning) return t('travelWeather.ptyShower', '소나기');
+  return t('travelWeather.skyPartlyCloud', '구름 조금');
+}
+
+/** afsDs 문장에서 맑음·구름·흐림 코드 추정 (series/vsrt 없을 때) */
+function inferSkyCodeFromAfsDs(afsDs, now = new Date()) {
+  const scope = afsDsTextNearNow(afsDs, now);
+  if (!scope) return null;
+  if (/강수|비가|비\s|눈|소나기|호우/.test(scope) && !/강수\s*없|비\s*없/.test(scope)) return null;
+  if (/맑|화창|쾌청/.test(scope) && !/흐림|구름\s*많/.test(scope)) return '1';
+  if (/흐림/.test(scope)) return '4';
+  if (/구름\s*많|대체로\s*흐/.test(scope)) return '3';
+  if (/구름/.test(scope)) return '2';
+  return null;
+}
+
+/** 칩 툴팁 첫 줄 — stateLabel 없으면 SKY·PTY·아이콘에서 복원 */
+export function resolveGlyphStateLabel(pick, t) {
+  if (!pick || typeof t !== 'function') return '';
+  const unknown = t('travelWeather.skyUnknown', '하늘 상태 미제공');
+  if (pick.stateLabel && pick.stateLabel !== unknown) return pick.stateLabel;
+  if (pick.sky != null && pick.sky !== '') {
+    return skyStateLabel(pick.sky, pick.pty, pick.wet, t);
+  }
+  if (pick.Icon) return stateLabelFromWeatherIcon(pick.Icon, pick, t);
+  return '';
+}
+
 /** 칩·툴팁 — API 슬롯 필드를 한 줄 요약 */
 export function buildWeatherGlyphTooltip(pick, t) {
   if (!pick) return '';
   const parts = [];
-  if (pick.stateLabel) parts.push(pick.stateLabel);
+  const label = resolveGlyphStateLabel(pick, t);
+  if (label) parts.push(label);
   if (pick.tmp != null) parts.push(`${pick.tmp}°C`);
   if (pick.pop != null) parts.push(`POP ${pick.pop}%`);
   if (pick.pcpAmt) parts.push(`PCP ${pick.pcpAmt}`);
