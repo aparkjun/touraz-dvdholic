@@ -3,7 +3,7 @@ import '@/lib/i18n';
 import { detectAndApplyLanguage } from '@/lib/i18n';
 import { useEffect } from 'react';
 import { clearOAuthRedirectPending } from '@/lib/oauthPending';
-import { OAUTH_BROWSER_CANCELLED } from '@/lib/oauthNativeBrowser';
+import { OAUTH_BROWSER_CANCELLED, resetNativeOAuthSession } from '@/lib/oauthNativeBrowser';
 
 export default function Providers({ children }) {
   useEffect(() => {
@@ -84,8 +84,7 @@ export default function Providers({ children }) {
           try {
             const urlObj = new URL(event.url);
             if (urlObj.protocol === 'dvdholic:' && urlObj.hostname === 'oauth-cancelled') {
-              clearOAuthRedirectPending();
-              window.dispatchEvent(new CustomEvent(OAUTH_BROWSER_CANCELLED));
+              resetNativeOAuthSession();
               try { await Browser.close(); } catch (_) {}
               return;
             }
@@ -142,8 +141,7 @@ export default function Providers({ children }) {
             clearOAuthRedirectPending();
             return;
           }
-          clearOAuthRedirectPending();
-          window.dispatchEvent(new CustomEvent(OAUTH_BROWSER_CANCELLED));
+          resetNativeOAuthSession();
         };
         const h3 = await Browser.addListener('browserFinished', handleBrowserFinished);
         if (cancelled) {

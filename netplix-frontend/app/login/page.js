@@ -30,7 +30,7 @@ import {
 import {
   OAUTH_BROWSER_CANCELLED,
   openNativeOAuthBrowser,
-  releaseOAuthIfNotLoggedIn,
+  resetNativeOAuthSession,
 } from "@/lib/oauthNativeBrowser";
 
 /** 로그인 성공 후 현재 사이트(Next)의 마이페이지로 이동. getApiBaseUrl()은 API 호스트일 수 있어 그걸로 /mypage를 열면 백엔드 500이 난다. */
@@ -48,7 +48,6 @@ function LoginContent() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [isOAuthBusy, setIsOAuthBusy] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
 
@@ -62,12 +61,10 @@ function LoginContent() {
     }
     // OAuth 창에서 로그인 없이 돌아온 경우 — 오버레이·pending 플래그 해제
     if (isOAuthRedirectPending()) {
-      clearOAuthRedirectPending();
-      setIsOAuthBusy(false);
+      resetNativeOAuthSession();
     }
     if (typeof window !== "undefined" && searchParams.get("error")) {
-      clearOAuthRedirectPending();
-      setIsOAuthBusy(false);
+      resetNativeOAuthSession();
       const url = new URL(window.location.href);
       url.searchParams.delete("error");
       window.history.replaceState({}, "", url.pathname + (url.search || ""));
@@ -75,22 +72,21 @@ function LoginContent() {
     ensureCapacitorLoaded();
   }, []);
 
-  /** 인앱 브라우저 모달(X) 닫기 — 버튼 잠금 해제 */
+  /** 인앱 브라우저 모달(X) 닫기 — OAuth 세션·버튼 상태 복구 */
   useEffect(() => {
-    const onOAuthCancelled = () => setIsOAuthBusy(false);
+    const onOAuthCancelled = () => resetNativeOAuthSession();
     window.addEventListener(OAUTH_BROWSER_CANCELLED, onOAuthCancelled);
     return () => window.removeEventListener(OAUTH_BROWSER_CANCELLED, onOAuthCancelled);
   }, []);
 
-  /** bfcache·OAuth 취소 후 복귀 시 버튼 잠금 해제 */
+  /** bfcache·OAuth 취소 후 복귀 */
   useEffect(() => {
     const releaseOAuthLoading = () => {
       if (localStorage.getItem("token")) {
         clearOAuthRedirectPending();
         return;
       }
-      releaseOAuthIfNotLoggedIn();
-      setIsOAuthBusy(false);
+      resetNativeOAuthSession();
     };
 
     const onPageShow = (event) => {
@@ -100,16 +96,44 @@ function LoginContent() {
     };
 
     const onVisibility = () => {
-      if (document.visibilityState === "visible" && isOAuthRedirectPending()) {
+      if (document.visibilityState === "visible") {
         releaseOAuthLoading();
       }
     };
 
+    const onFocus = () => releaseOAuthLoading();
+
     window.addEventListener("pageshow", onPageShow);
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onFocus);
     return () => {
       window.removeEventListener("pageshow", onPageShow);
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, []);
+
+  /** Capacitor 앱 포그라운드 복귀 시 OAuth 잠금 해제 */
+  useEffect(() => {
+    let handle = null;
+    let cancelled = false;
+    (async () => {
+      try {
+        await ensureCapacitorLoaded();
+        if (cancelled || !Capacitor?.isNativePlatform?.()) return;
+        const { App } = await import("@capacitor/app");
+        handle = await App.addListener("appStateChange", ({ isActive }) => {
+          if (isActive && !localStorage.getItem("token")) {
+            resetNativeOAuthSession();
+          }
+        });
+      } catch (_) {}
+    })();
+    return () => {
+      cancelled = true;
+      try {
+        handle?.remove();
+      } catch (_) {}
     };
   }, []);
 
@@ -164,8 +188,6 @@ function LoginContent() {
   const getApiBase = getApiBaseUrl;
 
   const startOAuth = async (provider) => {
-    if (isOAuthBusy) return;
-    setIsOAuthBusy(true);
     const oauthUrl = `${getApiBase()}/oauth2/authorization/${provider}`;
 
     try {
@@ -179,10 +201,8 @@ function LoginContent() {
         await openNativeOAuthBrowser(oauthUrl);
       } catch (e) {
         console.error('Native OAuth browser failed:', e);
-        releaseOAuthIfNotLoggedIn();
+        resetNativeOAuthSession();
         window.location.href = oauthUrl;
-      } finally {
-        setIsOAuthBusy(false);
       }
       return;
     }
@@ -195,7 +215,7 @@ function LoginContent() {
   const handleKakaoLogin = () => startOAuth('kakao');
   const handleAppleLogin = () => startOAuth('apple');
 
-  const isDisabled = isLoggingIn || isOAuthBusy;
+  const isDisabled = isLoggingIn;
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden flex items-center justify-center p-4"

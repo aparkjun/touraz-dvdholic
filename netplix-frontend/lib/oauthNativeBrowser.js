@@ -24,6 +24,15 @@ export function releaseOAuthIfNotLoggedIn() {
 
 let nativeOAuthOpening = false;
 
+export function resetNativeOAuthSession() {
+  nativeOAuthOpening = false;
+  releaseOAuthIfNotLoggedIn();
+}
+
+export function isNativeOAuthSessionActive() {
+  return nativeOAuthOpening;
+}
+
 /**
  * iOS SFSafari / Android Custom Tabs 로 OAuth.
  * browserFinished 가 iOS에서 누락될 수 있어 appStateChange·resume 폴백 포함.
@@ -88,11 +97,17 @@ export async function openNativeOAuthBrowser(oauthUrl) {
   document.cookie = 'X-App-Platform=native;path=/;max-age=300;SameSite=None;Secure';
 
   try {
-    await Browser.open({
+    Browser.open({
       url: oauthUrl,
       presentationStyle: 'popover',
       toolbarColor: '#000000',
+    }).catch(() => {
+      release();
     });
+    // 모달 표시 직후 잠금 해제 — X 닫기 후 버튼·로그인 재시도 가능
+    window.setTimeout(() => {
+      nativeOAuthOpening = false;
+    }, 0);
   } catch (e) {
     release();
     throw e;
