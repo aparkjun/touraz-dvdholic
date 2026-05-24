@@ -631,7 +631,7 @@ function MovieImagesContent() {
             <PhotoGalleryStrip
               keyword={movieName}
               limit={10}
-              title={`"${movieName}" 관련 관광 수상작`}
+              title={t('photoStrip.movieTitle', { movie: movieName })}
             />
           </div>
         )}

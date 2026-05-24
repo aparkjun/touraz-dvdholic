@@ -772,7 +772,35 @@
     "ariaRainMaybePop": "Precipitation chance {{n}}%.",
     "ariaRainMaybe": "Precipitation possible. Check official hourly data.",
     "ariaDryPop": "Precipitation chance {{n}}%.",
-    "ariaDryNeutral": "No notable precipitation in the forecast."
+    "ariaDryNeutral": "No notable precipitation in the forecast.",
+    "ariaLoadDegraded": "Couldn't load weather. Open the panel to pick a region or try again.",
+    "stateAFsBrief": "Short-term summary",
+    "widgetRetryTitle": "Reload weather",
+    "widgetRetry": "Retry",
+    "panelAfsTitle": "Short-term outlook (bulletin text)",
+    "gatewaySlowMessage": "The response may have timed out or hit a gateway limit (e.g. Heroku 30s). Tap the region again in a moment.",
+    "navLoadFailedDefault": "Couldn't receive weather data. On mobile the first request may hit the gateway time limit. Tap the widget again or try another region tab in the panel.",
+    "navLoadTimeout": "The request timed out. Tap the widget again in a moment (first mobile requests are more likely to hit gateway limits).",
+    "navLoadGateway": "The server gateway is temporarily unavailable (HTTP {{status}}). Tap the widget again in a moment.",
+    "navLoadFailedDetail": "Weather request failed [{{detail}}]",
+    "ariaTimelinePrecipVague": "Possible rain or snow"
+  },
+  "travelCourse": {
+    "badge": "Trip inspired by this film",
+    "movieDetail": "Film details",
+    "stopPrefix": "Stop {{n}}",
+    "emptyStops": "No linked regions for this film yet. Try another title.",
+    "evidenceTitle": "Why this film and region connect",
+    "photoAwardTitle": "{{region}} tourism photo contest winners",
+    "tourDemandTitle": "Korea tourism demand index",
+    "searchVolumeTitle": "Recent search volume",
+    "searchKeywordTravel": "travel",
+    "searchKeywordFilming": "filming location",
+    "link": {
+      "kakao": "Kakao Map",
+      "naver": "Search Naver",
+      "google": "Search Google"
+    }
   },
   "filmTripModal": {
     "badge": "Film×Trip",

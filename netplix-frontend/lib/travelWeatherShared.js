@@ -334,6 +334,7 @@ function attachGlyphPickMeta(weatherData, slot, t) {
   };
 }
 import axios from '@/lib/axiosConfig';
+import i18n from '@/lib/i18n';
 
 /** 빠른 1회 시도 (다른 화면·테스트용) */
 export function getGeoOnce() {
@@ -394,9 +395,7 @@ export function createNavWeatherFallbackData(message) {
     navLoadFailed: true,
   };
   const m = message != null ? String(message).trim() : '';
-  o.message = m
-    ? m
-    : '날씨 데이터를 받지 못했습니다. 모바일에서는 첫 호출이 게이트웨이(Heroku) 시간 제한에 걸릴 수 있어요. 잠시 후 위젯을 다시 누르거나, 패널의 다른 지역 탭을 한 번 눌러 보세요.';
+  o.message = m ? m : i18n.t('travelWeather.navLoadFailedDefault');
   return o;
 }
 
@@ -404,15 +403,12 @@ function extractApiErrorMessage(err) {
   const d = err?.response?.data;
   if (d && typeof d.message === 'string' && d.message.trim()) return d.message.trim();
   if (err?.code === 'ECONNABORTED') {
-    return '응답이 지연되어 자동으로 끊었습니다. 잠시 후 위젯을 다시 눌러 주세요(모바일 첫 호출은 게이트웨이 시간 제한에 더 잘 걸립니다).';
+    return i18n.t('travelWeather.navLoadTimeout');
   }
   const st = err?.response?.status;
   if (st === 502 || st === 503 || st === 504) {
-    return `서버 게이트웨이가 일시적으로 응답하지 못했습니다(HTTP ${st}). 잠시 후 위젯을 다시 눌러 주세요.`;
+    return i18n.t('travelWeather.navLoadGateway', { status: st });
   }
-  // iOS WebView / CapacitorHttp 등 모바일 전용 실패는 default 메시지로 묻혀
-  // 원인 추적이 어려웠다. 가능한 실제 단서(code, message, HTTP status, body type)를
-  // 사용자에게 노출해 패널에서 바로 확인 가능하게 한다.
   const parts = [];
   if (err?.code) parts.push(`code=${err.code}`);
   if (st != null) parts.push(`status=${st}`);
@@ -428,7 +424,7 @@ function extractApiErrorMessage(err) {
     parts.push(`bodyText=${snip}`);
   }
   if (!parts.length) return '';
-  return `날씨 호출 실패 [${parts.join(' · ')}]`;
+  return i18n.t('travelWeather.navLoadFailedDetail', { detail: parts.join(' · ') });
 }
 
 /**
@@ -1230,15 +1226,18 @@ export function buildDashboardNavCaption(presentation, timeline, t, weatherApiDa
 /** 스크린리더용 — 시각·기온·하늘·강수 상태 요약 */
 export function formatTimelineAria(slots, t) {
   if (!slots || !slots.length) return '';
+  const tr = typeof t === 'function' ? t : (key, fallback) => i18n.t(key, fallback);
   return slots
     .slice(0, 8)
     .map((s) => {
-      let p = `${s.hour}시`;
-      if (s.tmp != null) p += ` ${s.tmp}도`;
+      let p = `${s.hour}${tr('travelWeather.hourSuffix', '시')}`;
+      if (s.tmp != null) {
+        p += ` ${s.tmp}${tr('travelWeather.degreeSymbol', '°')}`;
+      }
       if (typeof t === 'function') {
         p += ` ${skyStateLabel(s.sky, s.pty, s.wet, t)}`;
       } else if (s.wet) {
-        p += ' 비 또는 눈 가능';
+        p += ` ${tr('travelWeather.ariaTimelinePrecipVague', '비 또는 눈 가능')}`;
       }
       return p;
     })

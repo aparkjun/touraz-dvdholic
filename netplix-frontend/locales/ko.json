@@ -772,7 +772,35 @@
     "ariaRainMaybePop": "강수 확률 {{n}}퍼센트입니다.",
     "ariaRainMaybe": "강수 가능성이 있습니다. 시간대는 기상청 발표를 확인해 주세요.",
     "ariaDryPop": "강수 확률 {{n}}퍼센트입니다.",
-    "ariaDryNeutral": "특별한 강수 예보는 없습니다."
+    "ariaDryNeutral": "특별한 강수 예보는 없습니다.",
+    "ariaLoadDegraded": "날씨를 불러오지 못했습니다. 패널에서 지역을 선택하거나 다시 시도할 수 있습니다.",
+    "stateAFsBrief": "단기 개황",
+    "widgetRetryTitle": "날씨 다시 불러오기",
+    "widgetRetry": "다시",
+    "panelAfsTitle": "단기 개황 (발표문)",
+    "gatewaySlowMessage": "응답이 지연되거나 중간 게이트웨이 시간 제한(Heroku 30초 등)에 걸렸을 수 있습니다. 잠시 후 다시 탭을 눌러 주세요.",
+    "navLoadFailedDefault": "날씨 데이터를 받지 못했습니다. 모바일에서는 첫 호출이 게이트웨이(Heroku) 시간 제한에 걸릴 수 있어요. 잠시 후 위젯을 다시 누르거나, 패널의 다른 지역 탭을 한 번 눌러 보세요.",
+    "navLoadTimeout": "응답이 지연되어 자동으로 끊었습니다. 잠시 후 위젯을 다시 눌러 주세요(모바일 첫 호출은 게이트웨이 시간 제한에 더 잘 걸립니다).",
+    "navLoadGateway": "서버 게이트웨이가 일시적으로 응답하지 못했습니다(HTTP {{status}}). 잠시 후 위젯을 다시 눌러 주세요.",
+    "navLoadFailedDetail": "날씨 호출 실패 [{{detail}}]",
+    "ariaTimelinePrecipVague": "비 또는 눈 가능"
+  },
+  "travelCourse": {
+    "badge": "이 영화로 떠나는 여행",
+    "movieDetail": "영화 상세로",
+    "stopPrefix": "Stop {{n}}",
+    "emptyStops": "아직 연결된 지역 정보가 없어요. 다른 작품을 골라보세요.",
+    "evidenceTitle": "이 영화와 이 지역의 연결고리",
+    "photoAwardTitle": "{{region}} 관광공모전 수상작",
+    "tourDemandTitle": "한국관광공사 관광수요지수",
+    "searchVolumeTitle": "최근 검색량",
+    "searchKeywordTravel": "여행",
+    "searchKeywordFilming": "촬영지",
+    "link": {
+      "kakao": "카카오맵",
+      "naver": "네이버 검색",
+      "google": "Google 검색"
+    }
   },
   "filmTripModal": {
     "badge": "Film×Trip",

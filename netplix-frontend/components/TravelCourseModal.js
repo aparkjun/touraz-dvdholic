@@ -36,12 +36,6 @@ const MAPPING_TYPE_COLORS = {
   THEME: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
 };
 
-const MAPPING_TYPE_LABEL = {
-  SHOT: '촬영지',
-  BACKGROUND: '배경',
-  THEME: '테마',
-};
-
 const NO_POSTER_PLACEHOLDER = '/no-poster-placeholder.png';
 
 const posterSrc = (posterPath) => {
@@ -55,14 +49,14 @@ const kakaoMapUrl = (regionName) => {
   return `https://map.kakao.com/?q=${encodeURIComponent(regionName)}`;
 };
 
-const naverSearchUrl = (movieName, regionName) => {
-  const keyword = [movieName, regionName, '여행'].filter(Boolean).join(' ');
+const naverSearchUrl = (movieName, regionName, travelKeyword) => {
+  const keyword = [movieName, regionName, travelKeyword].filter(Boolean).join(' ');
   if (!keyword) return null;
   return `https://search.naver.com/search.naver?query=${encodeURIComponent(keyword)}`;
 };
 
-const googleSearchUrl = (movieName, regionName) => {
-  const keyword = [movieName, regionName, '촬영지'].filter(Boolean).join(' ');
+const googleSearchUrl = (movieName, regionName, filmingKeyword) => {
+  const keyword = [movieName, regionName, filmingKeyword].filter(Boolean).join(' ');
   if (!keyword) return null;
   return `https://www.google.com/search?q=${encodeURIComponent(keyword)}`;
 };
@@ -119,6 +113,9 @@ export default function TravelCourseModal({
     );
   };
   const showMovieDetailCta = hasCatalogMovieSummary(movie);
+  const mappingLabel = (type) => t(`cineTripPage.mapping.${type}`, type);
+  const travelSearchKeyword = t('travelCourse.searchKeywordTravel');
+  const filmingSearchKeyword = t('travelCourse.searchKeywordFilming');
 
   if (!mounted || typeof document === 'undefined') return null;
 
@@ -279,7 +276,7 @@ export default function TravelCourseModal({
         <button
           type="button"
           onClick={onClose}
-          aria-label="닫기"
+          aria-label={t('common.close')}
           className="tc-modal-close"
         >
           <X size={20} />
@@ -316,10 +313,10 @@ export default function TravelCourseModal({
                 marginBottom: 10,
               }}
             >
-              <Sparkles size={12} /> 이 영화로 떠나는 여행
+              <Sparkles size={12} /> {t('travelCourse.badge')}
             </div>
             <h2 className="tc-modal-title">
-              {movie.movieName || '제목 미상'}
+              {movie.movieName || t('cineTripPage.untitled')}
             </h2>
             {(movie.tagline || movie.genre) && (
               <p style={{ color: '#a0a0a0', fontSize: 13, margin: '0 0 14px' }}>
@@ -344,7 +341,7 @@ export default function TravelCourseModal({
                   }}
                 >
                   <MapPin size={12} />
-                  Stop {idx + 1} · {m.regionName || m.areaCode}
+                  {t('travelCourse.stopPrefix', { n: idx + 1 })} · {m.regionName || m.areaCode}
                   <span
                     style={{
                       padding: '2px 6px',
@@ -353,7 +350,7 @@ export default function TravelCourseModal({
                       fontSize: 10,
                     }}
                   >
-                    {MAPPING_TYPE_LABEL[m.mappingType] || m.mappingType}
+                    {mappingLabel(m.mappingType)}
                   </span>
                 </span>
               ))}
@@ -375,7 +372,7 @@ export default function TravelCourseModal({
                   fontWeight: 700,
                 }}
               >
-                <TrendingUp size={12} style={{ color: '#c4b5fd' }} /> 트렌딩{' '}
+                <TrendingUp size={12} style={{ color: '#c4b5fd' }} /> {t('trendingRegions.heading')}{' '}
                 <b style={{ color: '#fff', fontSize: 13 }}>{score.toFixed(1)}</b>
               </span>
               {showMovieDetailCta && (
@@ -403,7 +400,7 @@ export default function TravelCourseModal({
                       '0 8px 22px rgba(168,85,247,0.25), inset 0 1px 0 rgba(255,255,255,0.08)',
                   }}
                 >
-                  영화 상세로 <ArrowRight size={14} />
+                  {t('travelCourse.movieDetail')} <ArrowRight size={14} />
                 </motion.button>
               )}
             </div>
@@ -413,15 +410,15 @@ export default function TravelCourseModal({
         <div className="tc-modal-body">
           {stops.length === 0 ? (
             <div style={{ color: '#888', fontSize: 14, textAlign: 'center', padding: '40px 0' }}>
-              아직 연결된 지역 정보가 없어요. 다른 작품을 골라보세요.
+              {t('travelCourse.emptyStops')}
             </div>
           ) : (
             stops.map((m, idx) => {
               const idxRow = indexByArea.get(m.areaCode);
               const regionName = m.regionName || m.areaCode;
               const kakao = kakaoMapUrl(regionName);
-              const naver = naverSearchUrl(movie.movieName, regionName);
-              const google = googleSearchUrl(movie.movieName, regionName);
+              const naver = naverSearchUrl(movie.movieName, regionName, travelSearchKeyword);
+              const google = googleSearchUrl(movie.movieName, regionName, filmingSearchKeyword);
               return (
                 <section
                   key={m.areaCode}
@@ -481,7 +478,7 @@ export default function TravelCourseModal({
                         fontWeight: 700,
                       }}
                     >
-                      {MAPPING_TYPE_LABEL[m.mappingType] || m.mappingType}
+                      {mappingLabel(m.mappingType)}
                     </span>
                     {idxRow && (
                       <div
@@ -506,10 +503,10 @@ export default function TravelCourseModal({
                             fontWeight: 600,
                             color: '#e9d5ff',
                           }}
-                          title="한국관광공사 관광수요지수"
+                          title={t('travelCourse.tourDemandTitle')}
                         >
                           <TrendingUp size={12} style={{ color: '#c4b5fd' }} />
-                          관광수요{' '}
+                          {t('cineTripPage.tourDemandLabel')}{' '}
                           <b style={{ color: '#fff', fontSize: 12 }}>
                             {(idxRow.tourDemandIdx ?? 0).toFixed(1)}
                           </b>
@@ -528,10 +525,10 @@ export default function TravelCourseModal({
                             fontWeight: 600,
                             color: '#bae6fd',
                           }}
-                          title="최근 검색량"
+                          title={t('travelCourse.searchVolumeTitle')}
                         >
                           <Search size={12} style={{ color: '#7dd3fc' }} />
-                          검색{' '}
+                          {t('cineTripPage.searchLabel')}{' '}
                           <b style={{ color: '#fff', fontSize: 12 }}>
                             {idxRow.searchVolume ?? 0}
                           </b>
@@ -595,7 +592,7 @@ export default function TravelCourseModal({
                           marginBottom: 6,
                         }}
                       >
-                        <Sparkles size={12} /> 이 영화와 이 지역의 연결고리
+                        <Sparkles size={12} /> {t('travelCourse.evidenceTitle')}
                       </div>
                       <p
                         style={{
@@ -618,7 +615,7 @@ export default function TravelCourseModal({
                   <PhotoGalleryStrip
                     areaCode={m.areaCode}
                     limit={0}
-                    title={`${regionName} 관광공모전 수상작`}
+                    title={t('travelCourse.photoAwardTitle', { region: regionName })}
                   />
 
                   <TourGallerySection
