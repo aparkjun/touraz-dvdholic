@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from '@/lib/axiosConfig';
 import OAuthLoadingOverlay from '@/components/ui/OAuthLoadingOverlay';
+import { clearOAuthRedirectPending } from '@/lib/oauthPending';
 
 function redirectTo(path) {
     if (typeof window === 'undefined') return;
@@ -45,6 +46,7 @@ function KakaoAuthRedirect() {
 
         if (error) {
             console.error('OAuth 오류:', error, errorDescription);
+            clearOAuthRedirectPending();
             redirectTo('/login?error=oauth');
             return;
         }
@@ -58,11 +60,13 @@ function KakaoAuthRedirect() {
             return;
         }
         if (consumed) {
+            clearOAuthRedirectPending();
             redirectTo('/login');
             return;
         }
 
         if (!code) {
+            clearOAuthRedirectPending();
             redirectTo('/login');
             return;
         }
@@ -71,6 +75,7 @@ function KakaoAuthRedirect() {
         const timeoutId = setTimeout(() => {
             setTimeoutReached(true);
             const t = (typeof localStorage !== 'undefined') && localStorage.getItem('token');
+            if (!t) clearOAuthRedirectPending();
             redirectTo(t ? '/mypage' : '/login?error=timeout');
         }, 15000);
 
@@ -80,6 +85,7 @@ function KakaoAuthRedirect() {
                 const data = response.data?.data;
                 markCodeConsumed(code);
                 if (data?.accessToken) {
+                    clearOAuthRedirectPending();
                     localStorage.setItem('token', data.accessToken);
                     if (data.refreshToken) {
                         localStorage.setItem('refresh_token', data.refreshToken);
@@ -88,6 +94,7 @@ function KakaoAuthRedirect() {
                     clearTimeout(timeoutId);
                     redirectTo('/mypage');
                 } else {
+                    clearOAuthRedirectPending();
                     clearTimeout(timeoutId);
                     redirectTo('/login');
                 }
@@ -95,6 +102,7 @@ function KakaoAuthRedirect() {
             .catch((err) => {
                 console.error('카카오 로그인 실패:', err);
                 markCodeConsumed(code);
+                clearOAuthRedirectPending();
                 clearTimeout(timeoutId);
                 const t = (typeof localStorage !== 'undefined') && localStorage.getItem('token');
                 redirectTo(t ? '/mypage' : '/login?error=callback');

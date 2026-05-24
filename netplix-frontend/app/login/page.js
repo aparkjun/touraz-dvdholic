@@ -23,6 +23,11 @@ if (typeof window !== "undefined") {
   ensureCapacitorLoaded();
 }
 import OAuthLoadingOverlay from "@/components/ui/OAuthLoadingOverlay";
+import {
+  clearOAuthRedirectPending,
+  isOAuthRedirectPending,
+  markOAuthRedirectPending,
+} from "@/lib/oauthPending";
 
 /** 로그인 성공 후 현재 사이트(Next)의 마이페이지로 이동. getApiBaseUrl()은 API 호스트일 수 있어 그걸로 /mypage를 열면 백엔드 500이 난다. */
 function redirectAfterLogin() {
@@ -35,23 +40,6 @@ function LoginContent() {
   const { t } = useTranslation();
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      window.dispatchEvent(new CustomEvent('token-stored'));
-      redirectAfterLogin();
-      return;
-    }
-    if (typeof window !== "undefined" && searchParams.get("error")) {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("error");
-      window.history.replaceState({}, "", url.pathname + (url.search || ""));
-    }
-    // iOS/Android 네이티브 앱에서 Capacitor 모듈을 미리 로드해 두어,
-    // 사용자가 바로 카카오/애플 버튼을 눌렀을 때 첫 시도부터 SFSafari/Custom Tabs로 열리도록 보장.
-    ensureCapacitorLoaded();
-  }, []);
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -59,6 +47,60 @@ function LoginContent() {
   const [isKakaoRedirecting, setIsKakaoRedirecting] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      clearOAuthRedirectPending();
+      window.dispatchEvent(new CustomEvent('token-stored'));
+      redirectAfterLogin();
+      return;
+    }
+    // OAuth 창에서 로그인 없이 돌아온 경우 — 오버레이·pending 플래그 해제
+    if (isOAuthRedirectPending()) {
+      clearOAuthRedirectPending();
+      setIsKakaoRedirecting(false);
+    }
+    if (typeof window !== "undefined" && searchParams.get("error")) {
+      clearOAuthRedirectPending();
+      setIsKakaoRedirecting(false);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("error");
+      window.history.replaceState({}, "", url.pathname + (url.search || ""));
+    }
+    ensureCapacitorLoaded();
+  }, []);
+
+  /** bfcache 복원·OAuth 취소 후 뒤로가기 시 "로그인 처리 중" 무한 표시 방지 */
+  useEffect(() => {
+    const releaseOAuthLoading = () => {
+      if (localStorage.getItem("token")) {
+        clearOAuthRedirectPending();
+        return;
+      }
+      clearOAuthRedirectPending();
+      setIsKakaoRedirecting(false);
+    };
+
+    const onPageShow = (event) => {
+      if (event.persisted || isOAuthRedirectPending()) {
+        releaseOAuthLoading();
+      }
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible" && isOAuthRedirectPending()) {
+        releaseOAuthLoading();
+      }
+    };
+
+    window.addEventListener("pageshow", onPageShow);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -113,11 +155,9 @@ function LoginContent() {
   const startOAuth = async (provider) => {
     if (isKakaoRedirecting) return;
     setIsKakaoRedirecting(true);
+    markOAuthRedirectPending();
     const oauthUrl = `${getApiBase()}/oauth2/authorization/${provider}`;
 
-    // 네이티브 플러그인이 아직 동적 import 중일 수 있으므로 반드시 대기.
-    // 첫 탭에서 바로 SFSafariViewController / Chrome Custom Tabs로 열리게 하여
-    // WKWebView가 OAuth URL을 직접 처리하면서 발생하는 쿠키/리다이렉트 실패를 방지.
     try {
       await ensureCapacitorLoaded();
     } catch (_) {}
@@ -132,8 +172,17 @@ function LoginContent() {
           presentationStyle: 'popover',
           toolbarColor: '#000000'
         });
+        const handle = await Browser.addListener('browserFinished', () => {
+          handle.remove();
+          if (!localStorage.getItem('token')) {
+            clearOAuthRedirectPending();
+            setIsKakaoRedirecting(false);
+          }
+        });
       } catch (e) {
         console.error('Browser.open failed:', e);
+        clearOAuthRedirectPending();
+        setIsKakaoRedirecting(false);
         window.location.href = oauthUrl;
       }
     } else {
