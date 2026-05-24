@@ -83,7 +83,20 @@ public class SecurityConfig {
                 .successHandler(oauth2LoginSuccessHandler)
                 .failureHandler((request, response, exception) -> {
                     log.error("OAuth2 로그인 실패: {}", exception.getMessage(), exception);
-                    response.sendRedirect("/login?error=true");
+                    boolean isNative = false;
+                    if (request.getCookies() != null) {
+                        for (jakarta.servlet.http.Cookie c : request.getCookies()) {
+                            if ("X-App-Platform".equals(c.getName()) && "native".equals(c.getValue())) {
+                                isNative = true;
+                                break;
+                            }
+                        }
+                    }
+                    if (isNative) {
+                        response.sendRedirect("dvdholic://oauth-cancelled");
+                    } else {
+                        response.sendRedirect("/login?error=true");
+                    }
                 })
                 .userInfoEndpoint(ui -> ui.oidcUserService(appleOidcUserService))
         );

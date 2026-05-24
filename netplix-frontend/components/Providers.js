@@ -3,6 +3,7 @@ import '@/lib/i18n';
 import { detectAndApplyLanguage } from '@/lib/i18n';
 import { useEffect } from 'react';
 import { clearOAuthRedirectPending } from '@/lib/oauthPending';
+import { OAUTH_BROWSER_CANCELLED } from '@/lib/oauthNativeBrowser';
 
 export default function Providers({ children }) {
   useEffect(() => {
@@ -82,6 +83,12 @@ export default function Providers({ children }) {
         const handleAppUrlOpen = async (event) => {
           try {
             const urlObj = new URL(event.url);
+            if (urlObj.protocol === 'dvdholic:' && urlObj.hostname === 'oauth-cancelled') {
+              clearOAuthRedirectPending();
+              window.dispatchEvent(new CustomEvent(OAUTH_BROWSER_CANCELLED));
+              try { await Browser.close(); } catch (_) {}
+              return;
+            }
             const token = urlObj.searchParams.get('token');
             const refreshToken = urlObj.searchParams.get('refresh_token');
             if (token) {
@@ -129,6 +136,21 @@ export default function Providers({ children }) {
           return;
         }
         handles.push(h2);
+
+        const handleBrowserFinished = () => {
+          if (localStorage.getItem('token')) {
+            clearOAuthRedirectPending();
+            return;
+          }
+          clearOAuthRedirectPending();
+          window.dispatchEvent(new CustomEvent(OAUTH_BROWSER_CANCELLED));
+        };
+        const h3 = await Browser.addListener('browserFinished', handleBrowserFinished);
+        if (cancelled) {
+          try { h3.remove(); } catch (_) {}
+          return;
+        }
+        handles.push(h3);
       } catch (_) {}
     })();
 

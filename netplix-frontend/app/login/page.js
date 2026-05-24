@@ -22,7 +22,6 @@ function ensureCapacitorLoaded() {
 if (typeof window !== "undefined") {
   ensureCapacitorLoaded();
 }
-import OAuthLoadingOverlay from "@/components/ui/OAuthLoadingOverlay";
 import {
   clearOAuthRedirectPending,
   isOAuthRedirectPending,
@@ -50,7 +49,6 @@ function LoginContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isOAuthBusy, setIsOAuthBusy] = useState(false);
-  const [showOAuthOverlay, setShowOAuthOverlay] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
 
@@ -66,12 +64,10 @@ function LoginContent() {
     if (isOAuthRedirectPending()) {
       clearOAuthRedirectPending();
       setIsOAuthBusy(false);
-      setShowOAuthOverlay(false);
     }
     if (typeof window !== "undefined" && searchParams.get("error")) {
       clearOAuthRedirectPending();
       setIsOAuthBusy(false);
-      setShowOAuthOverlay(false);
       const url = new URL(window.location.href);
       url.searchParams.delete("error");
       window.history.replaceState({}, "", url.pathname + (url.search || ""));
@@ -79,17 +75,14 @@ function LoginContent() {
     ensureCapacitorLoaded();
   }, []);
 
-  /** 네이티브 인앱 브라우저(X 닫기) 취소 — 전역 이벤트로 상태 해제 */
+  /** 인앱 브라우저 모달(X) 닫기 — 버튼 잠금 해제 */
   useEffect(() => {
-    const onOAuthCancelled = () => {
-      setIsOAuthBusy(false);
-      setShowOAuthOverlay(false);
-    };
+    const onOAuthCancelled = () => setIsOAuthBusy(false);
     window.addEventListener(OAUTH_BROWSER_CANCELLED, onOAuthCancelled);
     return () => window.removeEventListener(OAUTH_BROWSER_CANCELLED, onOAuthCancelled);
   }, []);
 
-  /** bfcache 복원·OAuth 취소 후 뒤로가기 시 "로그인 처리 중" 무한 표시 방지 */
+  /** bfcache·OAuth 취소 후 복귀 시 버튼 잠금 해제 */
   useEffect(() => {
     const releaseOAuthLoading = () => {
       if (localStorage.getItem("token")) {
@@ -98,7 +91,6 @@ function LoginContent() {
       }
       releaseOAuthIfNotLoggedIn();
       setIsOAuthBusy(false);
-      setShowOAuthOverlay(false);
     };
 
     const onPageShow = (event) => {
@@ -196,7 +188,6 @@ function LoginContent() {
     }
 
     markOAuthRedirectPending();
-    setShowOAuthOverlay(true);
     document.cookie = "X-App-Platform=;path=/;max-age=0";
     window.location.href = oauthUrl;
   };
@@ -209,8 +200,6 @@ function LoginContent() {
   return (
     <div className="min-h-screen w-full relative overflow-hidden flex items-center justify-center p-4"
       style={{ background: '#09090b' }}>
-      
-      {showOAuthOverlay && <OAuthLoadingOverlay />}
 
       {/* Animated Gradient Background */}
       <div className="absolute inset-0 overflow-hidden">
