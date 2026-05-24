@@ -28,6 +28,11 @@ import {
   isOAuthRedirectPending,
   markOAuthRedirectPending,
 } from "@/lib/oauthPending";
+import {
+  OAUTH_BROWSER_CANCELLED,
+  openNativeOAuthBrowser,
+  releaseOAuthIfNotLoggedIn,
+} from "@/lib/oauthNativeBrowser";
 
 /** 로그인 성공 후 현재 사이트(Next)의 마이페이지로 이동. getApiBaseUrl()은 API 호스트일 수 있어 그걸로 /mypage를 열면 백엔드 500이 난다. */
 function redirectAfterLogin() {
@@ -44,7 +49,8 @@ function LoginContent() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [isKakaoRedirecting, setIsKakaoRedirecting] = useState(false);
+  const [isOAuthBusy, setIsOAuthBusy] = useState(false);
+  const [showOAuthOverlay, setShowOAuthOverlay] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
 
@@ -59,16 +65,28 @@ function LoginContent() {
     // OAuth 창에서 로그인 없이 돌아온 경우 — 오버레이·pending 플래그 해제
     if (isOAuthRedirectPending()) {
       clearOAuthRedirectPending();
-      setIsKakaoRedirecting(false);
+      setIsOAuthBusy(false);
+      setShowOAuthOverlay(false);
     }
     if (typeof window !== "undefined" && searchParams.get("error")) {
       clearOAuthRedirectPending();
-      setIsKakaoRedirecting(false);
+      setIsOAuthBusy(false);
+      setShowOAuthOverlay(false);
       const url = new URL(window.location.href);
       url.searchParams.delete("error");
       window.history.replaceState({}, "", url.pathname + (url.search || ""));
     }
     ensureCapacitorLoaded();
+  }, []);
+
+  /** 네이티브 인앱 브라우저(X 닫기) 취소 — 전역 이벤트로 상태 해제 */
+  useEffect(() => {
+    const onOAuthCancelled = () => {
+      setIsOAuthBusy(false);
+      setShowOAuthOverlay(false);
+    };
+    window.addEventListener(OAUTH_BROWSER_CANCELLED, onOAuthCancelled);
+    return () => window.removeEventListener(OAUTH_BROWSER_CANCELLED, onOAuthCancelled);
   }, []);
 
   /** bfcache 복원·OAuth 취소 후 뒤로가기 시 "로그인 처리 중" 무한 표시 방지 */
@@ -78,8 +96,9 @@ function LoginContent() {
         clearOAuthRedirectPending();
         return;
       }
-      clearOAuthRedirectPending();
-      setIsKakaoRedirecting(false);
+      releaseOAuthIfNotLoggedIn();
+      setIsOAuthBusy(false);
+      setShowOAuthOverlay(false);
     };
 
     const onPageShow = (event) => {
@@ -153,9 +172,8 @@ function LoginContent() {
   const getApiBase = getApiBaseUrl;
 
   const startOAuth = async (provider) => {
-    if (isKakaoRedirecting) return;
-    setIsKakaoRedirecting(true);
-    markOAuthRedirectPending();
+    if (isOAuthBusy) return;
+    setIsOAuthBusy(true);
     const oauthUrl = `${getApiBase()}/oauth2/authorization/${provider}`;
 
     try {
@@ -165,42 +183,34 @@ function LoginContent() {
     const isNative = !!(Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
 
     if (isNative && Browser && typeof Browser.open === 'function') {
-      document.cookie = "X-App-Platform=native;path=/;max-age=300;SameSite=None;Secure";
       try {
-        await Browser.open({
-          url: oauthUrl,
-          presentationStyle: 'popover',
-          toolbarColor: '#000000'
-        });
-        const handle = await Browser.addListener('browserFinished', () => {
-          handle.remove();
-          if (!localStorage.getItem('token')) {
-            clearOAuthRedirectPending();
-            setIsKakaoRedirecting(false);
-          }
-        });
+        await openNativeOAuthBrowser(oauthUrl);
       } catch (e) {
-        console.error('Browser.open failed:', e);
-        clearOAuthRedirectPending();
-        setIsKakaoRedirecting(false);
+        console.error('Native OAuth browser failed:', e);
+        releaseOAuthIfNotLoggedIn();
         window.location.href = oauthUrl;
+      } finally {
+        setIsOAuthBusy(false);
       }
-    } else {
-      document.cookie = "X-App-Platform=;path=/;max-age=0";
-      window.location.href = oauthUrl;
+      return;
     }
+
+    markOAuthRedirectPending();
+    setShowOAuthOverlay(true);
+    document.cookie = "X-App-Platform=;path=/;max-age=0";
+    window.location.href = oauthUrl;
   };
 
   const handleKakaoLogin = () => startOAuth('kakao');
   const handleAppleLogin = () => startOAuth('apple');
 
-  const isDisabled = isLoggingIn || isKakaoRedirecting;
+  const isDisabled = isLoggingIn || isOAuthBusy;
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden flex items-center justify-center p-4"
       style={{ background: '#09090b' }}>
       
-      {isKakaoRedirecting && <OAuthLoadingOverlay />}
+      {showOAuthOverlay && <OAuthLoadingOverlay />}
 
       {/* Animated Gradient Background */}
       <div className="absolute inset-0 overflow-hidden">

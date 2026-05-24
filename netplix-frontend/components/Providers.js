@@ -2,6 +2,7 @@
 import '@/lib/i18n';
 import { detectAndApplyLanguage } from '@/lib/i18n';
 import { useEffect } from 'react';
+import { clearOAuthRedirectPending } from '@/lib/oauthPending';
 
 export default function Providers({ children }) {
   useEffect(() => {
@@ -84,6 +85,7 @@ export default function Providers({ children }) {
             const token = urlObj.searchParams.get('token');
             const refreshToken = urlObj.searchParams.get('refresh_token');
             if (token) {
+              clearOAuthRedirectPending();
               localStorage.setItem('token', token);
               if (refreshToken) localStorage.setItem('refresh_token', refreshToken);
               sessionStorage.setItem('oauth_callback_ts', Date.now().toString());
