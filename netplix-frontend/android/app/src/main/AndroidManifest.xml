@@ -4,10 +4,14 @@
 
     <uses-sdk tools:overrideLibrary="org.apache.cordova" />
 
-    <!-- Play Console '광고 ID 사용' 선언과 일치시키기 위해 필수 (API 33+, AdMob) -->
+    <!-- Play Console '광고 ID 사용' 선언과 일치 (AdMob). merge로 의존성 manifest의 remove 방지 -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Play 정책: 광고 ID 사용 선언 시 최종 매니페스트에 이 권한이 있어야 함 (AdMob / targetSdk 33+) -->
-    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+    <uses-permission
+        android:name="com.google.android.gms.permission.AD_ID"
+        tools:node="merge" />
+    <uses-permission
+        android:name="android.permission.ACCESS_ADSERVICES_AD_ID"
+        tools:node="merge" />
 
     <application
         android:allowBackup="true"
