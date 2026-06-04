@@ -1287,3 +1287,31 @@ body.app-theme-travel-cinema .app-nav-logout:hover {
   50% { box-shadow: 0 4px 30px rgba(255, 78, 80, 0.55), 0 0 60px rgba(249, 212, 35, 0.3); }
 }
 @keyframes ownerShine { to { transform: rotate(360deg); } }
+
+/* =========================================================================
+ * Android WebView(크로미움) 깜빡임 방지
+ * - iOS(WebKit)는 backdrop-filter / 대형 blur 합성을 안정적으로 처리하지만,
+ *   Android WebView 는 스크롤·화면 전환 때 매 프레임 다시 래스터라이즈하며 깜빡인다.
+ * - Providers.js 가 네이티브 Android 에서만 <html class="is-cap-android"> 를 부여한다.
+ * - 아래 규칙은 그 클래스가 있을 때만 적용되므로 iOS/웹에는 전혀 영향이 없다.
+ * - stylesheet !important 는 인라인 backdropFilter(우선순위 없는) 보다 우선하므로
+ *   JSX 인라인 스타일의 backdrop-filter 까지 무력화된다.
+ * ========================================================================= */
+html.is-cap-android *,
+html.is-cap-android *::before,
+html.is-cap-android *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* blur 가 사라진 반투명 바는 배경이 비쳐 가독성이 떨어지므로 거의 불투명하게 */
+html.is-cap-android .app-nav {
+  background: linear-gradient(135deg, rgba(13, 19, 33, 0.98), rgba(26, 23, 64, 0.98)) !important;
+}
+
+/* 콘텐츠 뒤에서 끊임없이 도는 대형 그라데이션 레이어(재합성 비용 큼) 정지 */
+html.is-cap-android .dts-jewel-inner::before,
+html.is-cap-android .owner-rec-btn::before,
+html.is-cap-android .owner-rec-btn {
+  animation: none !important;
+}

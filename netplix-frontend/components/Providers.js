@@ -10,6 +10,20 @@ export default function Providers({ children }) {
     detectAndApplyLanguage();
   }, []);
 
+  // Android WebView(크로미움)는 backdrop-filter/대형 blur 무한 애니메이션을 스크롤·전환 시
+  // 매 프레임 다시 래스터라이즈하며 화면이 깜빡인다(iOS WebKit은 정상). 네이티브 Android 에서만
+  // 무거운 합성 효과를 끄도록 <html> 에 플래그 클래스를 부여한다.
+  useEffect(() => {
+    (async () => {
+      try {
+        const { Capacitor } = await import('@capacitor/core');
+        if (Capacitor.getPlatform?.() === 'android') {
+          document.documentElement.classList.add('is-cap-android');
+        }
+      } catch (_) {}
+    })();
+  }, []);
+
   // NOTE: 과거 initFastTap (touchend → manual click) 폴리필을 사용했으나,
   // 모던 모바일 WebView (iOS WKWebView / Android WebView)에서는 globals.css 의
   // `touch-action: manipulation` 만으로도 300ms 지연이 제거된다.

@@ -2,6 +2,12 @@
 
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
+import { Capacitor } from "@capacitor/core";
+
+// Android WebView 에서는 대형 blur 의 무한 애니메이션이 매 프레임 재래스터라이즈되며 깜빡인다.
+// 네이티브 Android 에서만 정적 렌더(애니메이션 제거)로 전환한다. iOS/웹은 기존 동작 유지.
+const IS_ANDROID_NATIVE =
+  typeof window !== "undefined" && Capacitor?.getPlatform?.() === "android";
 
 /**
  * AmbientBackdrop — 페이지 전체에 깔리는 멋스러운 블러-도형 배경 레이어.
@@ -33,6 +39,32 @@ const SHAPES = [
 ];
 
 function ElegantShape({ shape, color }) {
+  const blob = {
+    width: shape.width,
+    height: shape.height,
+    borderRadius: "999px",
+    background: `radial-gradient(closest-side, ${color}, transparent 72%)`,
+    filter: "blur(56px)",
+    opacity: 0.85,
+  };
+
+  // Android: 애니메이션 없이 최종 상태로 한 번만 그려 깜빡임 제거.
+  if (IS_ANDROID_NATIVE) {
+    return (
+      <div
+        style={{
+          position: "absolute",
+          left: shape.x,
+          top: shape.y,
+          pointerEvents: "none",
+          transform: `rotate(${shape.rotate}deg)`,
+        }}
+      >
+        <div style={blob} />
+      </div>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: -100, rotate: shape.rotate - 14 }}
@@ -54,14 +86,7 @@ function ElegantShape({ shape, color }) {
       <motion.div
         animate={{ y: [0, shape.drift, 0] }}
         transition={{ duration: shape.dur, repeat: Infinity, ease: "easeInOut" }}
-        style={{
-          width: shape.width,
-          height: shape.height,
-          borderRadius: "999px",
-          background: `radial-gradient(closest-side, ${color}, transparent 72%)`,
-          filter: "blur(56px)",
-          opacity: 0.85,
-        }}
+        style={blob}
       />
     </motion.div>
   );
@@ -95,11 +120,14 @@ export default function AmbientBackdrop({
 
   const glowColor = topGlowColor || palette[0] || "#a855f7";
 
+  // Android: fixed 음수 z-index 레이어는 스크롤 시 재합성으로 깜빡이므로 absolute 로 고정.
+  const position = IS_ANDROID_NATIVE ? "absolute" : fixed ? "fixed" : "absolute";
+
   return (
     <div
       aria-hidden
       style={{
-        position: fixed ? "fixed" : "absolute",
+        position,
         inset: 0,
         zIndex: -1,
         pointerEvents: "none",
