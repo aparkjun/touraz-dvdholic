@@ -41,13 +41,23 @@ export default function useDragScrollAll(containerRef) {
 
     const cleanups = [];
 
+    const coarsePointer =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(pointer: coarse)").matches;
+
     const bindRow = (el) => {
       if (!el || el._dragBound) return;
       el._dragBound = true;
 
-      // 성능 최적화 힌트 (GPU 합성 레이어)
-      el.style.willChange = "scroll-position";
-      el.style.transform = el.style.transform || "translateZ(0)";
+      // 성능 최적화 힌트 (GPU 합성 레이어) — 마우스 드래그(데스크톱)에서만 의미가 있다.
+      // 터치 기기에서는 아래 onDown 이 early-return 하여 드래그 엔진이 동작하지 않으므로
+      // 이 힌트는 이득이 없고, 영구 will-change/translateZ 가 strip 마다 GPU 레이어를 만들어
+      // Android WebView 에서 스크롤·리페인트 시 깜빡임을 유발한다 → 터치에서는 설정하지 않는다.
+      if (!coarsePointer) {
+        el.style.willChange = "scroll-position";
+        el.style.transform = el.style.transform || "translateZ(0)";
+      }
 
       const s = {
         isDown: false,
@@ -243,8 +253,6 @@ export default function useDragScrollAll(containerRef) {
 
       el.style.cursor = "grab";
       /* 가로 레일: 수평은 네이티브·드래그, 세로는 페이지로 전달 (pan-x 만이면 모바일에서 위 스크롤 막힘) */
-      const coarsePointer =
-        typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
       el.style.touchAction = coarsePointer ? "pan-x pan-y" : "pan-x";
 
       el.addEventListener("pointerdown", onDown);

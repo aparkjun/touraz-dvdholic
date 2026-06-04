@@ -1319,3 +1319,15 @@ html.is-cap-android *::before,
 html.is-cap-android *::after {
   animation-iteration-count: 1 !important;
 }
+
+/* 핵심: 가로 스크롤 strip(카테고리·인기지역·주인장추천·여행 바로가기 등)에 영구로 걸린
+ * will-change/translateZ/contain 이 strip 마다 GPU 레이어를 만들어, Android WebView 가
+ * 세로 스크롤·리페인트 때마다 각 레이어를 다시 래스터라이즈하며 부분부분 깜빡인다.
+ * Android 에서는 레이어 승격을 해제한다(!important 가 JS 인라인 힌트보다 우선). */
+html.is-cap-android .dashboard-scroll-row,
+html.is-cap-android .cinetrip-scroll-row,
+html.is-cap-android .js-drag-scroll {
+  will-change: auto !important;
+  transform: none !important;
+  contain: none !important;
+}
