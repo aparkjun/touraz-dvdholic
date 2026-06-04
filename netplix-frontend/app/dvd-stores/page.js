@@ -3,6 +3,7 @@ import React, { useEffect, useRef, useState, useMemo, useCallback, Suspense } fr
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
+import { getDeviceLocation } from "@/lib/geolocation";
 import { Search, MapPin, Phone, Clock, Package, ChevronLeft, ChevronRight, Store, LocateFixed, Navigation, X, Building2, Briefcase, CalendarClock, PauseCircle, Ruler, Map, List, Layers } from "lucide-react";
 import CultureMapLayer from "@/components/CultureMapLayer";
 import TourGallerySection from "@/components/TourGallerySection";
@@ -153,28 +154,23 @@ function DvdStoresContent() {
     setNearbyError(t("dvdStores.locationUnavailable"));
   }, [fetchNearby, radius, t]);
 
-  const handleNearby = () => {
+  const handleNearby = async () => {
     setNearbyLoading(true);
     setNearbyMode(true);
     setNearbyError("");
     setLocSource("");
 
-    if (!navigator.geolocation) {
+    // 네이티브에서는 @capacitor/geolocation 플러그인으로 실제 GPS 좌표를 받는다.
+    // GPS 가 실패(권한 거부/미지원/타임아웃)할 때만 IP 위치로 폴백한다. IP 위치는
+    // 통신사 게이트웨이로 잡혀 "가까운 매장" 결과가 크게 틀어지므로 최후 수단으로만 사용.
+    try {
+      const { lat, lon } = await getDeviceLocation({ timeout: 10000 });
+      setLocSource(t("dvdStores.gpsLocation"));
+      setUserPos({ lat, lon });
+      fetchNearby(lat, lon, radius);
+    } catch (_) {
       fallbackToIp();
-      return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setLocSource(t("dvdStores.gpsLocation"));
-        setUserPos({ lat: latitude, lon: longitude });
-        fetchNearby(latitude, longitude, radius);
-      },
-      () => {
-        fallbackToIp();
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
-    );
   };
 
   useEffect(() => {

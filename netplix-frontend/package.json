@@ -8,6 +8,7 @@
     "@capacitor/app": "^8.0.1",
     "@capacitor/browser": "^8.0.2",
     "@capacitor/core": "^8.2.0",
+    "@capacitor/geolocation": "^8.2.0",
     "@capacitor/ios": "^8.2.0",
     "@mui/material": "^6.1.0",
     "@radix-ui/react-label": "^2.1.8",
@@ -48,11 +49,11 @@
     "test:e2e:ui": "playwright test --ui"
   },
   "devDependencies": {
-    "sharp": "^0.34.5",
     "@capacitor/cli": "^8.2.0",
     "@playwright/test": "^1.59.1",
     "pdf-parse": "^2.4.5",
     "pdfkit": "^0.18.0",
+    "sharp": "^0.34.5",
     "typescript": "^6.0.2"
   }
 }
