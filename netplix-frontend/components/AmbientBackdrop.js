@@ -48,23 +48,6 @@ function ElegantShape({ shape, color }) {
     opacity: 0.85,
   };
 
-  // Android: 애니메이션 없이 최종 상태로 한 번만 그려 깜빡임 제거.
-  if (IS_ANDROID_NATIVE) {
-    return (
-      <div
-        style={{
-          position: "absolute",
-          left: shape.x,
-          top: shape.y,
-          pointerEvents: "none",
-          transform: `rotate(${shape.rotate}deg)`,
-        }}
-      >
-        <div style={blob} />
-      </div>
-    );
-  }
-
   return (
     <motion.div
       initial={{ opacity: 0, y: -100, rotate: shape.rotate - 14 }}
@@ -120,8 +103,11 @@ export default function AmbientBackdrop({
 
   const glowColor = topGlowColor || palette[0] || "#a855f7";
 
-  // Android: fixed 음수 z-index 레이어는 스크롤 시 재합성으로 깜빡이므로 absolute 로 고정.
-  const position = IS_ANDROID_NATIVE ? "absolute" : fixed ? "fixed" : "absolute";
+  // Android WebView 는 대형 filter:blur() 레이어(고정/음수 z-index)를 스크롤·전환마다
+  // 다시 래스터라이즈하며 깜빡인다. 순수 장식 레이어이므로 네이티브 Android 에서는 렌더 생략.
+  if (IS_ANDROID_NATIVE) return null;
+
+  const position = fixed ? "fixed" : "absolute";
 
   return (
     <div

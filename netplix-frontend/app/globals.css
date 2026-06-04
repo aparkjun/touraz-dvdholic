@@ -1309,9 +1309,13 @@ html.is-cap-android .app-nav {
   background: linear-gradient(135deg, rgba(13, 19, 33, 0.98), rgba(26, 23, 64, 0.98)) !important;
 }
 
-/* 콘텐츠 뒤에서 끊임없이 도는 대형 그라데이션 레이어(재합성 비용 큼) 정지 */
-html.is-cap-android .dts-jewel-inner::before,
-html.is-cap-android .owner-rec-btn::before,
-html.is-cap-android .owner-rec-btn {
-  animation: none !important;
+/* 핵심: 무한 반복 애니메이션을 모두 1회로 제한해 정지시킨다.
+ * 고정(sticky) NavBar 안에서 끊임없이 도는 애니메이션(gradient-shift, radar-pulse,
+ * nav-promo-shimmer/pulse, glow-pulse, ownerPulse/Shine, dts-jewel 등)이 매 프레임
+ * 합성 레이어를 다시 그려 Android WebView 에서 화면 전체가 깜빡인다.
+ * iteration-count:1 이라 등장 애니메이션(menuDropIn, overlayFadeIn 등 1회성)은 그대로 동작. */
+html.is-cap-android *,
+html.is-cap-android *::before,
+html.is-cap-android *::after {
+  animation-iteration-count: 1 !important;
 }
