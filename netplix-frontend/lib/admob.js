@@ -11,6 +11,10 @@ function getBannerAdId() {
 }
 
 let admobInitialized = false;
+// 배너는 한 번 띄우면 네이티브 오버레이로 계속 떠 있다(페이지 전환에도 유지).
+// 대시보드로 돌아올 때마다 showBanner 가 다시 호출되면 플러그인이 배너를 제거 후
+// 재생성하며 한 번 깜빡이므로, 이미 표시 중이면 재표시하지 않는다.
+let bannerShown = false;
 
 export async function initAdMob() {
   if (admobInitialized) return;
@@ -38,6 +42,8 @@ export async function initAdMob() {
 
 export async function showBanner() {
   if (!Capacitor?.isNativePlatform?.()) return;
+  if (bannerShown) return; // 이미 표시 중 — 재표시(깜빡임) 방지
+  bannerShown = true; // 동시 호출 재진입 방지를 위해 먼저 설정
 
   try {
     await initAdMob();
@@ -52,6 +58,7 @@ export async function showBanner() {
       isTesting: false,
     });
   } catch (e) {
+    bannerShown = false; // 실패 시 다음 시도 허용
     console.warn("AdMob showBanner failed:", e);
   }
 }
@@ -74,6 +81,7 @@ export async function hideBanner() {
   try {
     const { AdMob } = await import("@capacitor-community/admob");
     await AdMob.hideBanner();
+    bannerShown = false;
   } catch (e) {
     console.warn("AdMob hideBanner failed:", e);
   }
