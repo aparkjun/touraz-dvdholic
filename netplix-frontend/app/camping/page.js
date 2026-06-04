@@ -25,6 +25,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
+import { getDeviceLocation } from "@/lib/geolocation";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
 import { resolveAreaCode } from "@/lib/regionAreaCode";
@@ -368,7 +369,7 @@ function CampingInner() {
     setNearbyError(t("camping.locationUnavailable"));
   }, [fetchNearby, radiusKm, t]);
 
-  const handleNearby = useCallback(() => {
+  const handleNearby = useCallback(async () => {
     setNearbyLoading(true);
     setNearbyMode(true);
     setNearbyError("");
@@ -377,20 +378,14 @@ function CampingInner() {
     setSearchInput("");
     router.replace(`/camping?nearby=true`);
 
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
+    try {
+      const { lat, lon } = await getDeviceLocation({ timeout: 15000 });
+      setLocSource(t("camping.gpsLocation"));
+      setUserPos({ lat, lon });
+      fetchNearby(lat, lon, radiusKm);
+    } catch (_) {
       fallbackToIp();
-      return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setLocSource(t("camping.gpsLocation"));
-        setUserPos({ lat: latitude, lon: longitude });
-        fetchNearby(latitude, longitude, radiusKm);
-      },
-      () => fallbackToIp(),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
-    );
   }, [fallbackToIp, fetchNearby, radiusKm, router, t]);
 
   // URL ?nearby=true 자동 진입 (햄버거 메뉴 링크 대응)

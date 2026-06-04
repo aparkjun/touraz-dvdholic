@@ -39,6 +39,7 @@ import {
 } from "@/lib/audioGuideOdiiLang";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import { resolveAreaCode } from "@/lib/regionAreaCode";
+import { getDeviceLocation } from "@/lib/geolocation";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
@@ -313,26 +314,19 @@ function AudioGuidePageInner() {
   }, [items.length, visibleCount]);
 
   // 내 주변
-  const requestNearby = () => {
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      setNearbyStatus("error");
-      return;
-    }
+  const requestNearby = async () => {
     setNearbyStatus("locating");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        setUserCoords({ lat, lng });
-        setNearbyStatus("ready");
-        setWantNearby(true);
-        setKeyword("");
-        setKeywordInput("");
-        syncUrl({ type, nearby: true });
-      },
-      () => { setNearbyStatus("denied"); },
-      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 }
-    );
+    try {
+      const { lat, lon } = await getDeviceLocation({ timeout: 15000 });
+      setUserCoords({ lat, lng: lon });
+      setNearbyStatus("ready");
+      setWantNearby(true);
+      setKeyword("");
+      setKeywordInput("");
+      syncUrl({ type, nearby: true });
+    } catch (e) {
+      setNearbyStatus(e?.code === "PERMISSION_DENIED" ? "denied" : "error");
+    }
   };
 
   // `?nearby=true` 일 때 브라우저 위치 권한 → 좌표 확보 후 주변 Odii 목록 조회

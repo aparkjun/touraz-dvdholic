@@ -1,69 +1,87 @@
 import { Capacitor } from "@capacitor/core";
 
 /**
- * 기기의 실제 위치(GPS)를 가져온다.
+ * 기기의 실제 위치(GPS/네트워크)를 가져온다.
  *
  * - 네이티브(Capacitor Android/iOS): @capacitor/geolocation 플러그인으로 런타임 권한을
- *   요청하고 OS GPS 좌표를 반환한다. (WebView 의 navigator.geolocation 은 권한 브리지가
- *   없으면 실패하므로 네이티브에서는 플러그인을 직접 사용한다.)
+ *   요청하고 OS 위치 좌표를 반환한다.
  * - 웹: 표준 navigator.geolocation 사용.
  *
- * 성공 시 { lat, lon, source: 'gps' } 를 반환하고, 권한 거부/실패 시 throw 한다.
- * IP 기반 추정 위치는 통신사 게이트웨이(예: 대전)로 잡혀 "가까운 매장" 결과가
- * 크게 틀어지므로, 호출부에서 GPS 실패 시에만 최후의 폴백으로 사용해야 한다.
+ * 중요(실내 타임아웃 대응):
+ *   enableHighAccuracy=true 는 위성 GPS 를 기다리느라 실내에서 수십 초가 걸리거나
+ *   타임아웃 나기 쉽다. 그러면 호출부가 IP 위치(통신사 게이트웨이=대전/청주 등)로
+ *   폴백해 "가까운 매장" 결과가 엉뚱해진다. 따라서 먼저 빠른 네트워크 기반(저정확도)
+ *   위치를 시도하고(수 초, 도시/동 단위면 nearby 검색엔 충분), 실패할 때만 고정밀로
+ *   재시도한다.
+ *
+ * 성공 시 { lat, lon, accuracy, source:'gps' } 반환, 권한 거부/실패 시 throw.
  */
-export async function getDeviceLocation({ timeout = 10000, maximumAge = 60000 } = {}) {
-  if (Capacitor?.isNativePlatform?.()) {
-    const { Geolocation } = await import("@capacitor/geolocation");
+async function nativePosition(options) {
+  const { Geolocation } = await import("@capacitor/geolocation");
 
-    let perm;
-    try {
-      perm = await Geolocation.checkPermissions();
-    } catch (_) {
-      perm = null;
-    }
+  let perm;
+  try {
+    perm = await Geolocation.checkPermissions();
+  } catch (_) {
+    perm = null;
+  }
+  const granted = (p) =>
+    p && (p.location === "granted" || p.coarseLocation === "granted");
 
-    const granted = (p) =>
-      p && (p.location === "granted" || p.coarseLocation === "granted");
-
-    if (!granted(perm)) {
-      const req = await Geolocation.requestPermissions({
-        permissions: ["location", "coarseLocation"],
-      });
-      if (!granted(req)) {
-        const err = new Error("location-permission-denied");
-        err.code = "PERMISSION_DENIED";
-        throw err;
-      }
-    }
-
-    const pos = await Geolocation.getCurrentPosition({
-      enableHighAccuracy: true,
-      timeout,
-      maximumAge,
+  if (!granted(perm)) {
+    const req = await Geolocation.requestPermissions({
+      permissions: ["location", "coarseLocation"],
     });
-    return {
-      lat: pos.coords.latitude,
-      lon: pos.coords.longitude,
-      source: "gps",
-    };
+    if (!granted(req)) {
+      const err = new Error("location-permission-denied");
+      err.code = "PERMISSION_DENIED";
+      throw err;
+    }
+  }
+  return Geolocation.getCurrentPosition(options);
+}
+
+function toResult(pos) {
+  return {
+    lat: pos.coords.latitude,
+    lon: pos.coords.longitude,
+    accuracy: pos.coords.accuracy,
+    source: "gps",
+  };
+}
+
+export async function getDeviceLocation({ timeout = 15000, maximumAge = 120000 } = {}) {
+  if (Capacitor?.isNativePlatform?.()) {
+    // 1) 빠른 네트워크(저정확도) 위치 — 실내에서도 수 초 내 확보.
+    try {
+      return toResult(
+        await nativePosition({ enableHighAccuracy: false, timeout, maximumAge })
+      );
+    } catch (e) {
+      if (e?.code === "PERMISSION_DENIED") throw e;
+      // 2) 고정밀 재시도 (야외/위성 가능 시 더 정확)
+      return toResult(
+        await nativePosition({ enableHighAccuracy: true, timeout, maximumAge })
+      );
+    }
   }
 
-  // 웹 브라우저
+  // 웹 브라우저: 저정확도 먼저, 실패 시 고정밀 재시도
   return new Promise((resolve, reject) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       reject(new Error("no-geolocation"));
       return;
     }
+    const ok = (pos) => resolve(toResult(pos));
     navigator.geolocation.getCurrentPosition(
-      (pos) =>
-        resolve({
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude,
-          source: "gps",
+      ok,
+      () =>
+        navigator.geolocation.getCurrentPosition(ok, (err) => reject(err), {
+          enableHighAccuracy: true,
+          timeout,
+          maximumAge,
         }),
-      (err) => reject(err),
-      { enableHighAccuracy: true, timeout, maximumAge }
+      { enableHighAccuracy: false, timeout, maximumAge }
     );
   });
 }

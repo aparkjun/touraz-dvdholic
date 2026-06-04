@@ -30,6 +30,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from "rea
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
+import { getDeviceLocation } from "@/lib/geolocation";
 import MedicalTourismDetailModal from "@/components/MedicalTourismDetailModal";
 import MedicalTourismDailyPicks from "@/components/MedicalTourismDailyPicks";
 import { useMedicalFavorites } from "@/lib/useMedicalFavorites";
@@ -264,7 +265,7 @@ function MedicalTourismInner() {
     setNearbyError(t("medicalTourism.locationUnavailable"));
   }, [fetchNearby, radiusKm, t]);
 
-  const handleNearby = useCallback(() => {
+  const handleNearby = useCallback(async () => {
     setNearbyLoading(true);
     setNearbyMode(true);
     setNearbyError("");
@@ -273,20 +274,14 @@ function MedicalTourismInner() {
     setSearchInput("");
     router.replace(`/medical-tourism?nearby=true`);
 
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
+    try {
+      const { lat, lon } = await getDeviceLocation({ timeout: 15000 });
+      setLocSource(t("medicalTourism.gpsLocation"));
+      setUserPos({ lat, lon });
+      fetchNearby(lat, lon, radiusKm);
+    } catch (_) {
       fallbackToIp();
-      return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setLocSource(t("medicalTourism.gpsLocation"));
-        setUserPos({ lat: latitude, lon: longitude });
-        fetchNearby(latitude, longitude, radiusKm);
-      },
-      () => fallbackToIp(),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
-    );
   }, [fallbackToIp, fetchNearby, radiusKm, router, t]);
 
   useEffect(() => {

@@ -23,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import useBackButtonClose from "@/lib/useBackButtonClose";
+import { getDeviceLocation } from "@/lib/geolocation";
 import { MapServiceLinkButton } from "@/components/MapServiceLinkButton";
 import {
   getAudioGuideOdiiLang,
@@ -764,27 +765,20 @@ export default function AudioGuideDetailModal({
       setNavLocState("idle");
       return undefined;
     }
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      setUserNavPos(null);
-      setNavLocState("unsupported");
-      return undefined;
-    }
     let cancelled = false;
     setUserNavPos(null);
     setNavLocState("loading");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
+    getDeviceLocation({ timeout: 12000, maximumAge: 180000 })
+      .then(({ lat, lon }) => {
         if (cancelled) return;
-        setUserNavPos({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setUserNavPos({ lat, lng: lon });
         setNavLocState("ready");
-      },
-      () => {
+      })
+      .catch((e) => {
         if (cancelled) return;
         setUserNavPos(null);
-        setNavLocState("denied");
-      },
-      { enableHighAccuracy: false, timeout: 12_000, maximumAge: 180_000 }
-    );
+        setNavLocState(e?.code === "PERMISSION_DENIED" ? "denied" : "unsupported");
+      });
     return () => { cancelled = true; };
   }, [item?.id, item?.latitude, item?.longitude]);
 

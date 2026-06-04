@@ -330,7 +330,11 @@ function DvdStoresContent() {
               </span>
               {locSource && (
                 <span style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.35)", fontWeight: 400 }}>
-                  ({locSource})
+                  ({locSource}
+                  {userPos?.lat != null
+                    ? ` · ${userPos.lat.toFixed(3)}, ${userPos.lon.toFixed(3)}`
+                    : ""}
+                  )
                 </span>
               )}
             </div>
