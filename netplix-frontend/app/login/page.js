@@ -221,8 +221,9 @@ function LoginContent() {
     <div className="min-h-screen w-full relative overflow-hidden flex items-center justify-center p-4"
       style={{ background: '#09090b' }}>
 
-      {/* Animated Gradient Background */}
-      <div className="absolute inset-0 overflow-hidden">
+      {/* Animated Gradient Background (장식 전용 — 터치 가로채지 않도록 pointer-events 차단)
+          Android WebView 에서 blur+transform 합성 레이어가 버튼 위 터치를 가로채는 문제 방지 */}
+      <div className="absolute inset-0 overflow-hidden" style={{ pointerEvents: 'none', zIndex: 0 }}>
         <motion.div
           className="absolute rounded-full"
           style={{
