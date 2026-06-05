@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import { getApiBaseUrl } from "@/lib/apiConfig";
@@ -41,7 +41,6 @@ function redirectAfterLogin() {
 function LoginContent() {
   const router = useRouter();
   const { t } = useTranslation();
-  const searchParams = useSearchParams();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,32 +48,6 @@ function LoginContent() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
-
-  // [임시 디버그] 안드로이드 앱에서 로그인 버튼 무반응 원인 추적용.
-  // 화면 어디를 탭하든 탭 횟수와 실제로 터치를 받은 요소를 상단에 표시한다.
-  const [dbgTaps, setDbgTaps] = useState(0);
-  const [dbgTarget, setDbgTarget] = useState("-");
-  const [dbgClick, setDbgClick] = useState("-");
-  useEffect(() => {
-    const onDown = (e) => {
-      const el = e.target;
-      const tag = el?.tagName || "?";
-      const cls = (typeof el?.className === "string" ? el.className : "").slice(0, 30);
-      setDbgTaps((n) => n + 1);
-      setDbgTarget(`${tag}${cls ? "." + cls : ""}`);
-    };
-    const onErr = (ev) => setDbgClick("JSERR:" + (ev?.message || ev?.reason?.message || ev?.reason || "?"));
-    window.addEventListener("pointerdown", onDown, true);
-    document.addEventListener("touchstart", onDown, true);
-    window.addEventListener("error", onErr);
-    window.addEventListener("unhandledrejection", onErr);
-    return () => {
-      window.removeEventListener("pointerdown", onDown, true);
-      document.removeEventListener("touchstart", onDown, true);
-      window.removeEventListener("error", onErr);
-      window.removeEventListener("unhandledrejection", onErr);
-    };
-  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -88,11 +61,13 @@ function LoginContent() {
     if (isOAuthRedirectPending()) {
       resetNativeOAuthSession();
     }
-    if (typeof window !== "undefined" && searchParams.get("error")) {
-      resetNativeOAuthSession();
+    if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
-      url.searchParams.delete("error");
-      window.history.replaceState({}, "", url.pathname + (url.search || ""));
+      if (url.searchParams.get("error")) {
+        resetNativeOAuthSession();
+        url.searchParams.delete("error");
+        window.history.replaceState({}, "", url.pathname + (url.search || ""));
+      }
     }
     ensureCapacitorLoaded();
   }, []);
@@ -161,6 +136,8 @@ function LoginContent() {
       } catch (_) {}
     };
   }, []);
+
+  const handleBrowse = () => router.push('/dashboard');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -237,48 +214,14 @@ function LoginContent() {
     window.location.href = oauthUrl;
   };
 
-  const handleKakaoLogin = () => {
-    setDbgClick("kakao-click");
-    try {
-      startOAuth('kakao').catch((e) => setDbgClick("kakao-ERR:" + (e?.message || e)));
-    } catch (e) {
-      setDbgClick("kakao-THROW:" + (e?.message || e));
-    }
-  };
-  const handleAppleLogin = () => {
-    setDbgClick("apple-click");
-    try {
-      startOAuth('apple').catch((e) => setDbgClick("apple-ERR:" + (e?.message || e)));
-    } catch (e) {
-      setDbgClick("apple-THROW:" + (e?.message || e));
-    }
-  };
+  const handleKakaoLogin = () => startOAuth('kakao');
+  const handleAppleLogin = () => startOAuth('apple');
 
   const isDisabled = isLoggingIn;
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden flex items-center justify-center p-4"
       style={{ background: '#09090b' }}>
-
-      {/* [임시 디버그] 빌드 식별 + 탭 도달 여부. pointer-events:none 이라 터치를 가로채지 않는다. */}
-      <div
-        style={{
-          position: 'fixed',
-          top: 'calc(env(safe-area-inset-top, 0px) + 4px)',
-          left: 0,
-          right: 0,
-          zIndex: 99999,
-          pointerEvents: 'none',
-          textAlign: 'center',
-          fontSize: '12px',
-          fontWeight: 700,
-          color: '#fde047',
-          textShadow: '0 1px 2px #000',
-        }}
-      >
-        DBG7 · taps:{dbgTaps} · {dbgTarget}
-        <br />click:{dbgClick}
-      </div>
 
       {/* Gradient Background — 순수 CSS 정적 배경(framer-motion 미사용).
           Android WebView 호환성/성능을 위해 무한 애니메이션·blur 레이어를 쓰지 않는다.
@@ -504,7 +447,7 @@ function LoginContent() {
             <div className="mt-4">
               <button
                 type="button"
-                onClick={() => { setDbgClick("browse-click"); router.push('/dashboard'); }}
+                onClick={handleBrowse}
                 className="w-full h-12 rounded-xl font-semibold transition-all duration-300"
                 style={{
                   background: 'rgba(255, 255, 255, 0.06)',
@@ -542,9 +485,5 @@ function LoginContent() {
 }
 
 export default function Login() {
-  return (
-    <Suspense>
-      <LoginContent />
-    </Suspense>
-  );
+  return <LoginContent />;
 }
