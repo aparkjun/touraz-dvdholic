@@ -222,6 +222,25 @@ function DvdStoresContent() {
       || head;
   }, [keyword, filtered]);
 
+  /*
+   * 풍경 사진 갤러리 전용 키워드 — 시·군·구(예: "여수") 레벨로 좁혀
+   * "전남 전역"이 아니라 실제 매장 동네 사진이 나오게 한다.
+   * 주소 두 번째 이후의 시/군/구 토큰을 쓰고, 없으면(세종 등) 시·도(galleryKeyword)로 폴백.
+   * (camping/wellness/medical/audio 스트립은 광역 areaCode 변환을 위해 galleryKeyword 를 그대로 사용)
+   */
+  const galleryPhotoKeyword = useMemo(() => {
+    if (keyword && keyword.trim()) return keyword.trim();
+    const first = filtered[0];
+    const addr = first?.roadAddress || first?.jibunAddress || "";
+    if (!addr) return galleryKeyword;
+    const parts = addr.trim().split(/\s+/);
+    const cityTok = parts.find((p, i) => i > 0 && /(시|군|구)$/.test(p));
+    if (cityTok) {
+      return cityTok.replace(/시$|군$|구$/, "") || cityTok;
+    }
+    return galleryKeyword;
+  }, [keyword, filtered, galleryKeyword]);
+
   const operatingCount = nearbyMode
     ? nearbyStores.length
     : stores.filter((s) => s.statusCode === "01").length;
@@ -536,10 +555,10 @@ function DvdStoresContent() {
        * - 결과 0건이면 섹션 자체가 렌더되지 않아 UI 공백 없음.
        * - 지도 모드(viewMode === "map") 에서는 숨겨 지도 UX 를 해치지 않음.
        */}
-      {viewMode !== "map" && galleryKeyword && (
+      {viewMode !== "map" && galleryPhotoKeyword && (
         <div style={{ maxWidth: 1200, margin: "24px auto 0", padding: "0 4px" }}>
           <TourGallerySection
-            keyword={galleryKeyword}
+            keyword={galleryPhotoKeyword}
             title={t("tourGallery.dvdStoreSection")}
             subtitle={t("tourGallery.poweredBy")}
             limit={0}
