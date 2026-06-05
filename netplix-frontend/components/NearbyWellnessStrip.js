@@ -168,7 +168,7 @@ export default function NearbyWellnessStrip({
       )}
       {subtitle && <p className="nws-sub">{subtitle}</p>}
 
-      <div className="nws-scroll">
+      <div className="nws-scroll js-drag-scroll">
         {loading
           ? Array.from({ length: 3 }).map((_, i) => (
               <div key={`sk-${i}`} className="nws-card nws-sk">

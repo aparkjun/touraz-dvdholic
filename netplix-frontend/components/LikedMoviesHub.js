@@ -455,7 +455,7 @@ export default function LikedMoviesHub() {
           <p className="fav-muted">
             <Sparkles size={16} /> {t("favoritesHub.recsHint")}
           </p>
-          <div className="fav-rec-grid">
+          <div className="fav-rec-grid js-drag-scroll">
             {recs.map((m) => (
               <button
                 key={m.movieName}

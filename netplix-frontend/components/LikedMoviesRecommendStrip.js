@@ -34,7 +34,7 @@ export default function LikedMoviesRecommendStrip() {
       >
         <Sparkles size={20} /> {t("favoritesHub.dashboardRecs")}
       </h2>
-      <div style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
+      <div className="js-drag-scroll" style={{ display: "flex", gap: 12, overflowX: "auto", paddingBottom: 8 }}>
         {recs.slice(0, 10).map((m) => (
           <button
             key={m.movieName}

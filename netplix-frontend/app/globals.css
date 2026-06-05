@@ -188,6 +188,16 @@ button,
   pointer-events: auto;
 }
 
+/* 전 앱 통일: js-drag-scroll 레일은 대시보드와 동일하게 "스냅 없는" 부드러운
+ * 가로 스와이프로 동작시킨다. 일부 레일이 자체 클래스에서 scroll-snap 을 쓰더라도
+ * 드래그/관성 중 스냅 포인트로 딸깍 당겨지는 현상을 막아 느낌을 일치시킨다. */
+.js-drag-scroll {
+  scroll-snap-type: none !important;
+}
+.js-drag-scroll > * {
+  scroll-snap-align: none !important;
+}
+
 @media (min-width: 1200px) {
   .dashboard-page {
     --card-w: 180px;

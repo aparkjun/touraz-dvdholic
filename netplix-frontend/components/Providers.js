@@ -4,11 +4,16 @@ import { detectAndApplyLanguage } from '@/lib/i18n';
 import { useEffect } from 'react';
 import { clearOAuthRedirectPending } from '@/lib/oauthPending';
 import { OAUTH_BROWSER_CANCELLED, resetNativeOAuthSession } from '@/lib/oauthNativeBrowser';
+import useDragScrollAll from '@/lib/useDragScroll';
 
 export default function Providers({ children }) {
   useEffect(() => {
     detectAndApplyLanguage();
   }, []);
+
+  // 앱 전역에서 가로 스와이프 레일(.js-drag-scroll / .dashboard-scroll-row / .cinetrip-scroll-row)에
+  // 대시보드와 동일한 드래그+관성+가로휠 엔진을 통일 적용. (containerRef 미지정 → document 전체 관찰)
+  useDragScrollAll(undefined);
 
   // Android WebView(크로미움)는 backdrop-filter/대형 blur 무한 애니메이션을 스크롤·전환 시
   // 매 프레임 다시 래스터라이즈하며 화면이 깜빡인다(iOS WebKit은 정상). 네이티브 Android 에서만

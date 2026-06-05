@@ -229,7 +229,7 @@ export default function NearbyAudioGuideStrip({
       </div>
       {subtitle && <p className="nag-sub">{subtitle}</p>}
 
-      <div className="nag-scroll">
+      <div className="nag-scroll js-drag-scroll">
         {loading
           ? Array.from({ length: 3 }).map((_, i) => (
               <div key={`sk-${i}`} className="nag-card nag-sk">

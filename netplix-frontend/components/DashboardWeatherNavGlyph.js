@@ -28,6 +28,7 @@ function ForecastSection({ title, hint, slots, t }) {
         <span style={{ fontSize: 12, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em' }}>{title}</span>
       </div>
       <div
+        className="js-drag-scroll"
         style={{
           display: 'flex',
           gap: 8,

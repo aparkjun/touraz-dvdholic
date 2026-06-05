@@ -1,0 +1,32 @@
+스킬
+React
+Django
+Git
+FastAPI
+GitHub
+TypeScript
+동면
+Java
+Restful API
+MySQL
+Heroku
+JPA
+Spring Boot
+Python
+RabbitMQ
+수상/자격증/기타
+정보처리기능사
+2007.08
+자격증
+사무자동화산업기사
+2008.08
+자격증
+링크
+기술 블로그
+https://jjibba.tistory.com/
+웹 서비스 / Play Store / 배포 URL
+https://play.google.com/store/apps/details?id=com.herokuapp.dvdholic_01a66e19fbd3.twa
+Heroku Dashboard
+https://dvdholic-01a66e19fbd3.herokuapp.com/
+웹 서비스 / App Store / 배포 URL
+https://apps.apple.com/app/dvdholic/id6759291889

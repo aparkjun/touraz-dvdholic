@@ -128,7 +128,7 @@ export default function NearbyCampingStrip({
       </div>
       {subtitle && <p className="ncs-sub">{subtitle}</p>}
 
-      <div className="ncs-scroll">
+      <div className="ncs-scroll js-drag-scroll">
         {loading
           ? Array.from({ length: 3 }).map((_, i) => (
               <div key={`sk-${i}`} className="ncs-card ncs-sk">

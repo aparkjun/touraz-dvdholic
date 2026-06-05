@@ -103,7 +103,7 @@ export default function BatchNotificationPosters({ title, message, relatedId }) 
   return (
     <div style={{ paddingTop: "14px" }}>
       <div
-        className="dashboard-scroll-row"
+        className="dashboard-scroll-row js-drag-scroll"
         style={{
           display: "flex",
           gap: "10px",

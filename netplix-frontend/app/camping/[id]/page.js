@@ -502,13 +502,13 @@ function CampingDetailInner() {
                 )}
               </h2>
               {imagesLoading ? (
-                <div className="cmd-gallery cmd-gallery-skeleton">
+                <div className="cmd-gallery cmd-gallery-skeleton js-drag-scroll">
                   {Array.from({ length: 4 }).map((_, i) => (
                     <div key={`gsk-${i}`} className="cmd-gallery-item cmd-gallery-sk" />
                   ))}
                 </div>
               ) : (
-                <div className="cmd-gallery">
+                <div className="cmd-gallery js-drag-scroll">
                   {images.map((url, i) => (
                     <a
                       key={`${url}-${i}`}
@@ -796,15 +796,17 @@ const cssBlock = `
 }
 .cmd-section-count { color: #86efac; font-weight: 600; font-size: 0.86rem; }
 
+/* 대시보드와 동일한 가로 이미지 스와이프 레일 (격자 나열 → 한 줄 스와이프) */
 .cmd-gallery {
-  display: grid; gap: 10px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex; gap: 10px;
+  overflow-x: auto; overflow-y: hidden;
+  padding-bottom: 4px;
+  -webkit-overflow-scrolling: touch;
 }
-@media (min-width: 560px) { .cmd-gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (min-width: 900px) { .cmd-gallery { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .cmd-gallery-item {
   position: relative;
-  display: block; padding-top: 66%;
+  flex: 0 0 clamp(220px, 62vw, 300px);
+  display: block; padding-top: 0; height: clamp(150px, 42vw, 200px);
   background: #0e0e0e; border-radius: 10px; overflow: hidden;
   border: 1px solid rgba(255,255,255,0.05);
   transition: transform 0.18s ease, border-color 0.18s ease;
@@ -815,7 +817,7 @@ const cssBlock = `
   object-fit: cover; display: block;
 }
 .cmd-gallery-skeleton .cmd-gallery-item { animation: cmd-shine 1.4s linear infinite; background: linear-gradient(90deg, #1d1f1d 0%, #2a2d2a 50%, #1d1f1d 100%); background-size: 200% 100%; }
-.cmd-gallery-sk { padding-top: 66%; }
+.cmd-gallery-sk { padding-top: 0; }
 
 .cmd-map {
   max-width: 1100px;

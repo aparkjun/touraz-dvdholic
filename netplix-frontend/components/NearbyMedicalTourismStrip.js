@@ -106,7 +106,7 @@ export default function NearbyMedicalTourismStrip({
       </div>
       {subtitle && <p className="nmt-sub">{subtitle}</p>}
 
-      <div className="nmt-scroll">
+      <div className="nmt-scroll js-drag-scroll">
         {loading
           ? Array.from({ length: 3 }).map((_, i) => (
               <div key={`sk-${i}`} className="nmt-card nmt-sk">
