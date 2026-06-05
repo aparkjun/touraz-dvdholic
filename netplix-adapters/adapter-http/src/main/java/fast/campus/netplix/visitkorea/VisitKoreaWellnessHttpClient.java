@@ -50,6 +50,12 @@ import java.util.stream.Collectors;
 public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
 
     private static final int MAX_PAGE_SIZE = 200;
+    /**
+     * 웰니스 목록(areaBasedList/searchKeyword)은 arrange 가 A/C/D 면 대표이미지를 내려주지 않는다.
+     * O/P/Q/R 만 "대표이미지가 있는 항목"을 이미지 포함해 반환하므로 Q(수정일순+이미지)를 사용한다.
+     * (위치기반 locationBasedList 는 별도로 S = 거리순+이미지 사용.)
+     */
+    private static final String IMAGE_ARRANGE = "Q";
     private static final String ALL_KEY = "__ALL__";
     private static final int MAX_KEYWORD_CACHE = 64;
     /** 전국 웰니스관광지 ~700-900개. 넉넉히 10 페이지(= 2,000개) 가드. */
@@ -111,7 +117,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
         }
 
         if (snap == null) {
-            PageResult first = requestPage(areaUrl, Map.of("arrange", "C"), 1);
+            PageResult first = requestPage(areaUrl, Map.of("arrange", IMAGE_ARRANGE), 1);
             if (first == null) return List.of();
             List<WellnessSpot> partial = Collections.unmodifiableList(new ArrayList<>(first.items));
             boolean needMore = first.totalCount > partial.size();
@@ -131,7 +137,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
                 "mapX", String.valueOf(longitude),
                 "mapY", String.valueOf(latitude),
                 "radius", String.valueOf(Math.max(1, radiusM)),
-                "arrange", "E"  // 거리순
+                "arrange", "S"  // 거리순(대표이미지 포함 정렬)
         );
         PageResult pr = requestPage(locationUrl, params, 1, LOCATION_PAGE_ROWS);
         if (pr == null) return List.of();
@@ -156,7 +162,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
         }
 
         if (snap == null) {
-            PageResult first = requestPage(searchUrl, Map.of("keyword", keyword.trim()), 1);
+            PageResult first = requestPage(searchUrl, Map.of("keyword", keyword.trim(), "arrange", IMAGE_ARRANGE), 1);
             if (first == null) return List.of();
             List<WellnessSpot> partial = Collections.unmodifiableList(new ArrayList<>(first.items));
             boolean needMore = first.totalCount > partial.size();
@@ -186,7 +192,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
             return filterAllByAdministrative(ldong, signguCodeOrNull, limit, "kor 캐시 0건");
         }
         Map<String, String> extras = new LinkedHashMap<>();
-        extras.put("arrange", "C");
+        extras.put("arrange", IMAGE_ARRANGE);
         extras.put("lDongRegnCd", ldong);
         if (signguCodeOrNull != null && !signguCodeOrNull.isBlank()) {
             extras.put("lDongSignguCd", signguCodeOrNull.trim());
@@ -264,7 +270,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
 
     private void refreshKorArea(String ldong, String signguCodeOrNull, String cacheKey) {
         Map<String, String> extras = new LinkedHashMap<>();
-        extras.put("arrange", "C");
+        extras.put("arrange", IMAGE_ARRANGE);
         extras.put("lDongRegnCd", ldong);
         if (signguCodeOrNull != null && !signguCodeOrNull.isBlank()) {
             extras.put("lDongSignguCd", signguCodeOrNull.trim());
@@ -298,7 +304,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
     }
 
     private synchronized void refreshAll() {
-        List<WellnessSpot> sites = requestAllPages(areaUrl, Map.of("arrange", "C"), MAX_PAGES_ALL);
+        List<WellnessSpot> sites = requestAllPages(areaUrl, Map.of("arrange", IMAGE_ARRANGE), MAX_PAGES_ALL);
         if (sites == null) {
             log.warn("[WELLNESS] 전체 로드 실패 - 캐시 유지");
             return;
@@ -308,7 +314,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
     }
 
     private synchronized void refreshByKeyword(String keyword, String cacheKey) {
-        List<WellnessSpot> sites = requestAllPages(searchUrl, Map.of("keyword", keyword), MAX_PAGES_KEYWORD);
+        List<WellnessSpot> sites = requestAllPages(searchUrl, Map.of("keyword", keyword, "arrange", IMAGE_ARRANGE), MAX_PAGES_KEYWORD);
         if (sites == null) {
             log.warn("[WELLNESS] 키워드={} 로드 실패 - 캐시 저장 스킵", keyword);
             return;
