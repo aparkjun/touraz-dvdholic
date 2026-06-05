@@ -156,21 +156,48 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
 
   useEffect(() => {
     let alive = true;
+    const wantAll = !limit || limit <= 0;
+
+    const buildUrl = (lim) => {
+      const params = new URLSearchParams();
+      params.set('limit', String(lim));
+      if (keyword) params.set('q', keyword);
+      else if (areaCode) params.set('areaCode', String(areaCode));
+      return `/api/v1/cine-trip/photos?${params.toString()}`;
+    };
+
     (async () => {
       setLoading(true);
       try {
-        const params = new URLSearchParams();
-        params.set('limit', String(limit));
-        if (keyword) params.set('q', keyword);
-        else if (areaCode) params.set('areaCode', String(areaCode));
-        const res = await axios.get(`/api/v1/cine-trip/photos?${params.toString()}`);
+        // 1단계: 작은 첫 페이지(STRIP_WINDOW)만 빠르게 받아 즉시 표시.
+        //         (limit=0 전량 응답은 모바일에서 수백~수천 건 JSON 전송이 느려
+        //          그게 끝날 때까지 스켈레톤만 보이는 게 체감 지연의 원인이었다.)
+        const firstLim = wantAll ? STRIP_WINDOW : limit;
+        const res = await axios.get(buildUrl(firstLim));
         const payload = res?.data?.data ?? [];
-        if (alive) setPhotos(Array.isArray(payload) ? payload : []);
+        const firstList = Array.isArray(payload) ? payload : [];
+        if (alive) {
+          setPhotos(firstList);
+          setLoading(false);
+        }
+
+        // 2단계: 전량(limit=0)을 백그라운드로 받아 나머지를 채운다(스크롤용).
+        if (wantAll && alive) {
+          try {
+            const resAll = await axios.get(buildUrl(0));
+            const allPayload = resAll?.data?.data ?? [];
+            const allList = Array.isArray(allPayload) ? allPayload : [];
+            if (alive && allList.length > firstList.length) setPhotos(allList);
+          } catch {
+            /* 첫 페이지만으로도 동작 — 무시 */
+          }
+        }
       } catch (e) {
         console.error('[photo-gallery] fetch failed:', e?.message || e);
-        if (alive) setPhotos([]);
-      } finally {
-        if (alive) setLoading(false);
+        if (alive) {
+          setPhotos([]);
+          setLoading(false);
+        }
       }
     })();
     return () => {
