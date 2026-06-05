@@ -50,6 +50,26 @@ function LoginContent() {
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
 
+  // [임시 디버그] 안드로이드 앱에서 로그인 버튼 무반응 원인 추적용.
+  // 화면 어디를 탭하든 탭 횟수와 실제로 터치를 받은 요소를 상단에 표시한다.
+  const [dbgTaps, setDbgTaps] = useState(0);
+  const [dbgTarget, setDbgTarget] = useState("-");
+  useEffect(() => {
+    const onDown = (e) => {
+      const el = e.target;
+      const tag = el?.tagName || "?";
+      const cls = (typeof el?.className === "string" ? el.className : "").slice(0, 30);
+      setDbgTaps((n) => n + 1);
+      setDbgTarget(`${tag}${cls ? "." + cls : ""}`);
+    };
+    window.addEventListener("pointerdown", onDown, true);
+    document.addEventListener("touchstart", onDown, true);
+    return () => {
+      window.removeEventListener("pointerdown", onDown, true);
+      document.removeEventListener("touchstart", onDown, true);
+    };
+  }, []);
+
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
@@ -219,6 +239,25 @@ function LoginContent() {
   return (
     <div className="min-h-screen w-full relative overflow-hidden flex items-center justify-center p-4"
       style={{ background: '#09090b' }}>
+
+      {/* [임시 디버그] 빌드 식별 + 탭 도달 여부. pointer-events:none 이라 터치를 가로채지 않는다. */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 'calc(env(safe-area-inset-top, 0px) + 4px)',
+          left: 0,
+          right: 0,
+          zIndex: 99999,
+          pointerEvents: 'none',
+          textAlign: 'center',
+          fontSize: '12px',
+          fontWeight: 700,
+          color: '#fde047',
+          textShadow: '0 1px 2px #000',
+        }}
+      >
+        LOGIN-DBG6 · taps:{dbgTaps} · {dbgTarget}
+      </div>
 
       {/* Gradient Background — 순수 CSS 정적 배경(framer-motion 미사용).
           Android WebView 호환성/성능을 위해 무한 애니메이션·blur 레이어를 쓰지 않는다.
