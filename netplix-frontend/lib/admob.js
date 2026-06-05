@@ -5,8 +5,26 @@ const BANNER_AD_IDS = {
   ios: "ca-app-pub-8265488633224466/4375861916",
 };
 
+// 구글 공식 테스트 광고 단위(항상 채워짐) — 슬롯/연동 확인용.
+const TEST_BANNER_AD_IDS = {
+  android: "ca-app-pub-3940256099942544/6300978111",
+  ios: "ca-app-pub-3940256099942544/2934735716",
+};
+
+// true 면 하단 사각형 광고를 "테스트 광고"로 띄워 렌더링 여부를 확실히 확인한다.
+// 확인 후 false 로 되돌려 실제 광고를 송출한다.
+const FOOTER_AD_TEST = true;
+
 function getBannerAdId() {
   const platform = Capacitor?.getPlatform?.() ?? "web";
+  return BANNER_AD_IDS[platform] ?? BANNER_AD_IDS.android;
+}
+
+function getFooterRectAdId() {
+  const platform = Capacitor?.getPlatform?.() ?? "web";
+  if (FOOTER_AD_TEST) {
+    return TEST_BANNER_AD_IDS[platform] ?? TEST_BANNER_AD_IDS.android;
+  }
   return BANNER_AD_IDS[platform] ?? BANNER_AD_IDS.android;
 }
 
@@ -79,11 +97,11 @@ export async function showFooterRectangle() {
       "@capacitor-community/admob"
     );
     await AdMob.showBanner({
-      adId: getBannerAdId(),
+      adId: getFooterRectAdId(),
       adSize: BannerAdSize.MEDIUM_RECTANGLE,
       position: BannerAdPosition.BOTTOM_CENTER,
       margin: 0,
-      isTesting: false,
+      isTesting: FOOTER_AD_TEST,
     });
   } catch (e) {
     bannerShown = false;
