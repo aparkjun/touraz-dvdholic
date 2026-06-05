@@ -1020,7 +1020,11 @@ function SpotBriefSection({ brief, loading, title }) {
   const fullAddress = [brief.address, brief.addressSub].filter(Boolean).join(' ');
   const showImage = !!brief.firstImage;
   const showAlt = !showImage && !!brief.firstImage2;
-  const heroSrc = showImage ? brief.firstImage : brief.firstImage2;
+  const rawHeroSrc = showImage ? brief.firstImage : brief.firstImage2;
+  // KTO 이미지가 http 면 HTTPS 페이지에서 mixed-content 차단 → https 승격
+  const heroSrc = String(rawHeroSrc || '').startsWith('http://')
+    ? `https://${String(rawHeroSrc).slice(7)}`
+    : rawHeroSrc;
 
   return (
     <div

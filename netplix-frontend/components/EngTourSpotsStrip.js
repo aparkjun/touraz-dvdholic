@@ -34,6 +34,14 @@ const BUCKETS = [
   { key: 'accommodations', type: '32', icon: Hotel, color: '#6366f1' },
 ];
 
+/** KTO 이미지 URL 이 http 인 경우 HTTPS 페이지에서 mixed-content 차단 → https 승격 */
+function secureTourImageUrl(url) {
+  const s = String(url || '').trim();
+  if (!s) return '';
+  if (s.startsWith('http://')) return `https://${s.slice(7)}`;
+  return s;
+}
+
 export default function EngTourSpotsStrip({ areaCode, regionLabel = '' }) {
   const { t, i18n } = useTranslation();
   const isEn = i18n.language && i18n.language.startsWith('en');
@@ -199,9 +207,10 @@ export default function EngTourSpotsStrip({ areaCode, regionLabel = '' }) {
                 {poi.firstImage ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={poi.firstImage}
+                    src={secureTourImageUrl(poi.firstImage)}
                     alt={poi.title}
                     loading="lazy"
+                    referrerPolicy="no-referrer"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
@@ -316,8 +325,9 @@ export default function EngTourSpotsStrip({ areaCode, regionLabel = '' }) {
               {activePoi.firstImage && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={activePoi.firstImage}
+                  src={secureTourImageUrl(activePoi.firstImage)}
                   alt={activePoi.title}
+                  referrerPolicy="no-referrer"
                   style={{
                     width: '100%',
                     height: 200,
