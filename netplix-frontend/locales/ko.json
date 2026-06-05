@@ -823,6 +823,7 @@
     "defaultTitle": "{{region}} 배경으로 한 영화들",
     "viewInCineTrip": "CineTrip 에서 보기",
     "openCineTripCourse": "{{title}} · CineTrip 여행 코스 보기",
+    "viewDetail": "{{movie}} 자세히 보기",
     "untitled": "제목 미상",
     "naverSearchSuffix": "영화"
   },

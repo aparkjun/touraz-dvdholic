@@ -823,6 +823,7 @@
     "defaultTitle": "Films set in {{region}}",
     "viewInCineTrip": "View in CineTrip",
     "openCineTripCourse": "{{title}} · View CineTrip travel course",
+    "viewDetail": "View {{movie}} details",
     "untitled": "Untitled",
     "naverSearchSuffix": "movie"
   },

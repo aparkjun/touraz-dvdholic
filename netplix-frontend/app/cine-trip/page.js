@@ -527,6 +527,7 @@ function MovieCard({ item, index, eager = false }) {
   const openCourse = (e) => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
+    if (mappings.length === 0) return;
     setCourseOpen(true);
   };
 
@@ -587,7 +588,18 @@ function MovieCard({ item, index, eager = false }) {
           : '0 4px 12px rgba(0, 0, 0, 0.5)',
       }}
     >
-      <div style={{ position: 'relative', width: '100%', height: 280, overflow: 'hidden' }}>
+      <div
+        role={mappings.length > 0 ? 'button' : undefined}
+        aria-label={mappings.length > 0 ? t('cineTripPage.viewCourse', '여행 코스 보기') : undefined}
+        onClick={openCourse}
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: 280,
+          overflow: 'hidden',
+          cursor: mappings.length > 0 ? 'pointer' : 'default',
+        }}
+      >
         <img
           src={posterSrc(movie.posterPath)}
           alt={movie.movieName || 'movie'}

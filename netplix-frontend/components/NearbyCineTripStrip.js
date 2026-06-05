@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import React, { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Film, Sparkles, ArrowRight, MapPin } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import axios from '@/lib/axiosConfig';
 import { sigunToAreaCode, areaCodeToLabel } from '@/lib/regionMap';
+import TravelCourseModal from '@/components/TravelCourseModal';
 
 /**
  * 두루누비 트레킹 코스 카드에서 펼쳐지는
@@ -190,11 +191,21 @@ export default function NearbyCineTripStrip({
 function MoviePosterCard({ item, index }) {
   const { t } = useTranslation();
   const movie = item?.movie || {};
-  const mapping = (item?.mappings || [])[0];
+  const mappings = item?.mappings || [];
+  const regionIndices = item?.regionIndices || [];
+  const score = item?.trendingScore || 0;
+  const mapping = mappings[0];
   const mappingTypeKey = MAPPING_TYPE_KEY[mapping?.mappingType];
   const tagLabel = mappingTypeKey
     ? t(mappingTypeKey, MAPPING_TYPE_FALLBACK[mapping?.mappingType])
     : '';
+
+  const [courseOpen, setCourseOpen] = useState(false);
+  const openCourse = (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    setCourseOpen(true);
+  };
 
   const name = movie.movieName;
 
@@ -212,6 +223,13 @@ function MoviePosterCard({ item, index }) {
       }}
     >
       <motion.div
+        role="button"
+        tabIndex={0}
+        onClick={openCourse}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') openCourse(e);
+        }}
+        aria-label={t('nearbyCineTrip.viewDetail', '{{movie}} 자세히 보기', { movie: name })}
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.3) }}
@@ -224,6 +242,7 @@ function MoviePosterCard({ item, index }) {
           background: '#0f0f0f',
           display: 'flex',
           flexDirection: 'column',
+          cursor: 'pointer',
         }}
       >
       <div style={{ position: 'relative', width: '100%', aspectRatio: '2 / 3', overflow: 'hidden' }}>
@@ -299,6 +318,18 @@ function MoviePosterCard({ item, index }) {
         )}
       </div>
       </motion.div>
+
+      <AnimatePresence>
+        {courseOpen && (
+          <TravelCourseModal
+            movie={movie}
+            mappings={mappings}
+            regionIndices={regionIndices}
+            score={score}
+            onClose={() => setCourseOpen(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
