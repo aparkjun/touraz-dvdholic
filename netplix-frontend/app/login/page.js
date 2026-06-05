@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import { getApiBaseUrl } from "@/lib/apiConfig";
-import { motion } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 let Capacitor, Browser;
 let capacitorReadyPromise = null;
@@ -50,24 +49,6 @@ function LoginContent() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
-  // Android WebView(크로미움)는 무한 애니메이션 + blur 합성이 메인 스레드를 포화시켜
-  // 터치 입력까지 떨어뜨린다(버튼 무반응). 안드로이드에선 정적 배경으로 렌더.
-  const [plainBg, setPlainBg] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        await ensureCapacitorLoaded();
-        const isAndroid =
-          (Capacitor?.getPlatform?.() === "android") ||
-          (typeof document !== "undefined" &&
-            document.documentElement.classList.contains("is-cap-android"));
-        if (!cancelled && isAndroid) setPlainBg(true);
-      } catch (_) {}
-    })();
-    return () => { cancelled = true; };
-  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -239,127 +220,48 @@ function LoginContent() {
     <div className="min-h-screen w-full relative overflow-hidden flex items-center justify-center p-4"
       style={{ background: '#09090b' }}>
 
-      {/* Gradient Background (장식 전용 — 터치 가로채지 않도록 pointer-events 차단).
-          Android: 무한 애니메이션/blur 제거한 정적 배경(메인 스레드 포화→터치 드롭 방지).
-          iOS/웹: 기존 애니메이션 배경 유지. */}
-      <div className="absolute inset-0 overflow-hidden" style={{ pointerEvents: 'none', zIndex: 0 }}>
-        {plainBg ? (
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                'radial-gradient(circle at 15% 15%, rgba(236, 72, 153, 0.18) 0%, transparent 45%),' +
-                'radial-gradient(circle at 85% 85%, rgba(59, 130, 246, 0.18) 0%, transparent 45%),' +
-                'radial-gradient(circle at 45% 40%, rgba(168, 85, 247, 0.12) 0%, transparent 50%)',
-            }}
-          />
-        ) : (
-          <>
-            <motion.div
-              className="absolute rounded-full"
-              style={{
-                top: '-25%',
-                left: '-25%',
-                width: '100%',
-                height: '100%',
-                background: 'radial-gradient(circle, rgba(236, 72, 153, 0.25) 0%, transparent 70%)',
-                filter: 'blur(40px)',
-              }}
-              animate={{
-                x: [0, 100, 0],
-                y: [0, 50, 0],
-                scale: [1, 1.2, 1],
-              }}
-              transition={{
-                duration: 20,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-            />
-            <motion.div
-              className="absolute rounded-full"
-              style={{
-                bottom: '-25%',
-                right: '-25%',
-                width: '100%',
-                height: '100%',
-                background: 'radial-gradient(circle, rgba(59, 130, 246, 0.25) 0%, transparent 70%)',
-                filter: 'blur(40px)',
-              }}
-              animate={{
-                x: [0, -100, 0],
-                y: [0, -50, 0],
-                scale: [1, 1.3, 1],
-              }}
-              transition={{
-                duration: 25,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-            />
-            <motion.div
-              className="absolute rounded-full"
-              style={{
-                top: '25%',
-                left: '33%',
-                width: '24rem',
-                height: '24rem',
-                background: 'radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%)',
-                filter: 'blur(40px)',
-              }}
-              animate={{
-                x: [0, -50, 0],
-                y: [0, 100, 0],
-                scale: [1, 1.1, 1],
-              }}
-              transition={{
-                duration: 15,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              }}
-            />
-          </>
-        )}
-      </div>
+      {/* Gradient Background — 순수 CSS 정적 배경(framer-motion 미사용).
+          Android WebView 호환성/성능을 위해 무한 애니메이션·blur 레이어를 쓰지 않는다.
+          장식 전용이라 터치를 가로채지 않도록 pointer-events 차단. */}
+      <div
+        className="absolute inset-0 overflow-hidden"
+        style={{
+          pointerEvents: 'none',
+          zIndex: 0,
+          background:
+            'radial-gradient(circle at 15% 15%, rgba(236, 72, 153, 0.18) 0%, transparent 45%),' +
+            'radial-gradient(circle at 85% 85%, rgba(59, 130, 246, 0.18) 0%, transparent 45%),' +
+            'radial-gradient(circle at 45% 40%, rgba(168, 85, 247, 0.12) 0%, transparent 50%)',
+        }}
+      />
 
-      {/* Glassmorphism Card */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="relative w-full max-w-md z-10"
-      >
-        <div 
+      {/* Card */}
+      <div className="relative w-full max-w-md" style={{ zIndex: 10 }}>
+        <div
           className="relative rounded-3xl p-8 shadow-2xl"
           style={{
-            background: 'rgba(17, 19, 24, 0.8)',
-            backdropFilter: 'blur(20px)',
+            background: 'rgba(17, 19, 24, 0.92)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
           }}
         >
           {/* Gradient Border Effect */}
-          <div 
+          <div
             className="absolute inset-0 rounded-3xl pointer-events-none"
             style={{
               background: 'linear-gradient(135deg, rgba(236, 72, 153, 0.15) 0%, transparent 50%, rgba(59, 130, 246, 0.15) 100%)',
             }}
           />
-          
-          <div className="relative z-10">
+
+          <div className="relative" style={{ zIndex: 10 }}>
             {/* Header */}
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="text-center mb-8"
-            >
+            <div className="text-center mb-8">
               <div className="flex items-center justify-center gap-2 mb-3">
                 <img
                   src="https://img.icons8.com/color/48/film-reel.png"
                   alt=""
                   style={{ width: 36, height: 36 }}
                 />
-                <span 
+                <span
                   className="text-2xl font-bold"
                   style={{
                     background: 'linear-gradient(135deg, #ec4899, #8b5cf6, #3b82f6)',
@@ -373,17 +275,12 @@ function LoginContent() {
               <p style={{ color: '#a1a1aa', fontSize: '14px' }}>
                 {t("login.heroDesc")}
               </p>
-            </motion.div>
+            </div>
 
             {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-5">
               {/* Email Input */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-                className="space-y-2"
-              >
+              <div className="space-y-2">
                 <label style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', fontWeight: 500 }}>
                   {t("login.email")}
                 </label>
@@ -407,23 +304,18 @@ function LoginContent() {
                     className="w-full h-12 pl-12 pr-4 rounded-xl outline-none transition-all duration-200"
                     style={{
                       background: 'rgba(255, 255, 255, 0.05)',
-                      border: emailFocused 
-                        ? '1px solid rgba(236, 72, 153, 0.5)' 
+                      border: emailFocused
+                        ? '1px solid rgba(236, 72, 153, 0.5)'
                         : '1px solid rgba(255, 255, 255, 0.1)',
                       color: '#f5f7ff',
                       boxShadow: emailFocused ? '0 0 20px rgba(236, 72, 153, 0.15)' : 'none',
                     }}
                   />
                 </div>
-              </motion.div>
+              </div>
 
               {/* Password Input */}
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 }}
-                className="space-y-2"
-              >
+              <div className="space-y-2">
                 <label style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', fontWeight: 500 }}>
                   {t("login.password")}
                 </label>
@@ -447,8 +339,8 @@ function LoginContent() {
                     className="w-full h-12 pl-12 pr-12 rounded-xl outline-none transition-all duration-200"
                     style={{
                       background: 'rgba(255, 255, 255, 0.05)',
-                      border: passwordFocused 
-                        ? '1px solid rgba(59, 130, 246, 0.5)' 
+                      border: passwordFocused
+                        ? '1px solid rgba(59, 130, 246, 0.5)'
                         : '1px solid rgba(255, 255, 255, 0.1)',
                       color: '#f5f7ff',
                       boxShadow: passwordFocused ? '0 0 20px rgba(59, 130, 246, 0.15)' : 'none',
@@ -463,49 +355,38 @@ function LoginContent() {
                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                   </button>
                 </div>
-              </motion.div>
+              </div>
 
               {/* Login Button */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
+              <button
+                type="submit"
+                disabled={isDisabled}
+                className="w-full h-12 rounded-xl font-semibold transition-all duration-300"
+                style={{
+                  background: 'linear-gradient(135deg, #ec4899, #8b5cf6, #3b82f6)',
+                  color: '#fff',
+                  border: 'none',
+                  cursor: isDisabled ? 'not-allowed' : 'pointer',
+                  opacity: isDisabled ? 0.6 : 1,
+                  boxShadow: '0 4px 20px rgba(139, 92, 246, 0.3)',
+                }}
               >
-                <button
-                  type="submit"
-                  disabled={isDisabled}
-                  className="w-full h-12 rounded-xl font-semibold transition-all duration-300"
-                  style={{
-                    background: 'linear-gradient(135deg, #ec4899, #8b5cf6, #3b82f6)',
-                    color: '#fff',
-                    border: 'none',
-                    cursor: isDisabled ? 'not-allowed' : 'pointer',
-                    opacity: isDisabled ? 0.6 : 1,
-                    boxShadow: '0 4px 20px rgba(139, 92, 246, 0.3)',
-                  }}
-                >
-                  {isLoggingIn ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      {t("login.loggingIn")}
-                    </span>
-                  ) : (
-                    t("login.loginBtn")
-                  )}
-                </button>
-              </motion.div>
+                {isLoggingIn ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    {t("login.loggingIn")}
+                  </span>
+                ) : (
+                  t("login.loginBtn")
+                )}
+              </button>
             </form>
 
             {/* Divider */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.6 }}
-              className="relative my-6"
-            >
+            <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }} />
               </div>
@@ -514,15 +395,10 @@ function LoginContent() {
                   {t("login.or")}
                 </span>
               </div>
-            </motion.div>
+            </div>
 
             {/* Social Login Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.7 }}
-              className="grid grid-cols-2 gap-3"
-            >
+            <div className="grid grid-cols-2 gap-3">
               {/* Kakao Button */}
               <button
                 type="button"
@@ -562,47 +438,27 @@ function LoginContent() {
                 </svg>
                 Apple
               </button>
-            </motion.div>
+            </div>
 
             {/* Browse Without Login */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.75 }}
-              className="mt-4"
-            >
+            <div className="mt-4">
               <button
                 type="button"
                 onClick={() => router.push('/dashboard')}
                 className="w-full h-12 rounded-xl font-semibold transition-all duration-300"
                 style={{
-                  background: 'rgba(255, 255, 255, 0.04)',
+                  background: 'rgba(255, 255, 255, 0.06)',
                   color: 'rgba(255, 255, 255, 0.85)',
                   border: '1px solid rgba(255, 255, 255, 0.15)',
                   cursor: 'pointer',
-                  backdropFilter: 'blur(10px)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.25)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
                 }}
               >
                 {t("login.browseWithoutLogin")}
               </button>
-            </motion.div>
+            </div>
 
             {/* Sign Up Link */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.8 }}
-              className="mt-6 text-center"
-              style={{ fontSize: '14px', color: '#71717a' }}
-            >
+            <div className="mt-6 text-center" style={{ fontSize: '14px', color: '#71717a' }}>
               {t("login.noAccount")}{' '}
               <button
                 type="button"
@@ -617,10 +473,10 @@ function LoginContent() {
               >
                 {t("login.signup")}
               </button>
-            </motion.div>
+            </div>
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
