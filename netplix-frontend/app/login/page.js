@@ -50,6 +50,24 @@ function LoginContent() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+  // Android WebView(크로미움)는 무한 애니메이션 + blur 합성이 메인 스레드를 포화시켜
+  // 터치 입력까지 떨어뜨린다(버튼 무반응). 안드로이드에선 정적 배경으로 렌더.
+  const [plainBg, setPlainBg] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await ensureCapacitorLoaded();
+        const isAndroid =
+          (Capacitor?.getPlatform?.() === "android") ||
+          (typeof document !== "undefined" &&
+            document.documentElement.classList.contains("is-cap-android"));
+        if (!cancelled && isAndroid) setPlainBg(true);
+      } catch (_) {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -221,72 +239,87 @@ function LoginContent() {
     <div className="min-h-screen w-full relative overflow-hidden flex items-center justify-center p-4"
       style={{ background: '#09090b' }}>
 
-      {/* Animated Gradient Background (장식 전용 — 터치 가로채지 않도록 pointer-events 차단)
-          Android WebView 에서 blur+transform 합성 레이어가 버튼 위 터치를 가로채는 문제 방지 */}
+      {/* Gradient Background (장식 전용 — 터치 가로채지 않도록 pointer-events 차단).
+          Android: 무한 애니메이션/blur 제거한 정적 배경(메인 스레드 포화→터치 드롭 방지).
+          iOS/웹: 기존 애니메이션 배경 유지. */}
       <div className="absolute inset-0 overflow-hidden" style={{ pointerEvents: 'none', zIndex: 0 }}>
-        <motion.div
-          className="absolute rounded-full"
-          style={{
-            top: '-25%',
-            left: '-25%',
-            width: '100%',
-            height: '100%',
-            background: 'radial-gradient(circle, rgba(236, 72, 153, 0.25) 0%, transparent 70%)',
-            filter: 'blur(40px)',
-          }}
-          animate={{
-            x: [0, 100, 0],
-            y: [0, 50, 0],
-            scale: [1, 1.2, 1],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-        <motion.div
-          className="absolute rounded-full"
-          style={{
-            bottom: '-25%',
-            right: '-25%',
-            width: '100%',
-            height: '100%',
-            background: 'radial-gradient(circle, rgba(59, 130, 246, 0.25) 0%, transparent 70%)',
-            filter: 'blur(40px)',
-          }}
-          animate={{
-            x: [0, -100, 0],
-            y: [0, -50, 0],
-            scale: [1, 1.3, 1],
-          }}
-          transition={{
-            duration: 25,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-        <motion.div
-          className="absolute rounded-full"
-          style={{
-            top: '25%',
-            left: '33%',
-            width: '24rem',
-            height: '24rem',
-            background: 'radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%)',
-            filter: 'blur(40px)',
-          }}
-          animate={{
-            x: [0, -50, 0],
-            y: [0, 100, 0],
-            scale: [1, 1.1, 1],
-          }}
-          transition={{
-            duration: 15,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
+        {plainBg ? (
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(circle at 15% 15%, rgba(236, 72, 153, 0.18) 0%, transparent 45%),' +
+                'radial-gradient(circle at 85% 85%, rgba(59, 130, 246, 0.18) 0%, transparent 45%),' +
+                'radial-gradient(circle at 45% 40%, rgba(168, 85, 247, 0.12) 0%, transparent 50%)',
+            }}
+          />
+        ) : (
+          <>
+            <motion.div
+              className="absolute rounded-full"
+              style={{
+                top: '-25%',
+                left: '-25%',
+                width: '100%',
+                height: '100%',
+                background: 'radial-gradient(circle, rgba(236, 72, 153, 0.25) 0%, transparent 70%)',
+                filter: 'blur(40px)',
+              }}
+              animate={{
+                x: [0, 100, 0],
+                y: [0, 50, 0],
+                scale: [1, 1.2, 1],
+              }}
+              transition={{
+                duration: 20,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+            />
+            <motion.div
+              className="absolute rounded-full"
+              style={{
+                bottom: '-25%',
+                right: '-25%',
+                width: '100%',
+                height: '100%',
+                background: 'radial-gradient(circle, rgba(59, 130, 246, 0.25) 0%, transparent 70%)',
+                filter: 'blur(40px)',
+              }}
+              animate={{
+                x: [0, -100, 0],
+                y: [0, -50, 0],
+                scale: [1, 1.3, 1],
+              }}
+              transition={{
+                duration: 25,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+            />
+            <motion.div
+              className="absolute rounded-full"
+              style={{
+                top: '25%',
+                left: '33%',
+                width: '24rem',
+                height: '24rem',
+                background: 'radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%)',
+                filter: 'blur(40px)',
+              }}
+              animate={{
+                x: [0, -50, 0],
+                y: [0, 100, 0],
+                scale: [1, 1.1, 1],
+              }}
+              transition={{
+                duration: 15,
+                repeat: Infinity,
+                ease: 'easeInOut',
+              }}
+            />
+          </>
+        )}
       </div>
 
       {/* Glassmorphism Card */}
