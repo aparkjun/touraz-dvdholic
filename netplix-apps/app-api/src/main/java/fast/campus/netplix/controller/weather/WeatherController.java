@@ -431,11 +431,14 @@ public class WeatherController {
     private static String shortRegCacheKey(String effectiveReg, Double lat, Double lng, String tmfc) {
         String t = (tmfc != null && !tmfc.isBlank()) ? tmfc.trim() : "auto";
         if (lat != null && lng != null) {
-            return effectiveReg
-                    + "|"
-                    + String.format(Locale.US, "%.4f,%.4f", lat, lng)
-                    + "|"
-                    + t;
+            // KMA 5km 격자 셀(x,y)로 키를 묶는다. 같은 동네(미세한 GPS 흔들림 포함)는 동일 셀 → 동일
+            // 예보 → 캐시 공유 → 적중률 급상승. (%.4f 좌표로 키를 잡으면 11m마다 새 키가 생겨 캐시 미스가 났다.)
+            try {
+                int[] grid = KmaLambertGridConverter.toGrid(lat, lng);
+                return effectiveReg + "|" + grid[0] + "," + grid[1] + "|" + t;
+            } catch (Exception ignored) {
+                return effectiveReg + "|" + String.format(Locale.US, "%.2f,%.2f", lat, lng) + "|" + t;
+            }
         }
         return effectiveReg + "||" + t;
     }
