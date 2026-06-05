@@ -913,23 +913,49 @@ function CineTripPageInner() {
   useEffect(() => {
     let alive = true;
     (async () => {
+      const url =
+        selectedAreaCode == null
+          ? '/api/v1/cine-trip/curate'
+          : `/api/v1/cine-trip/region/${selectedAreaCode}`;
+      // 2단계 로딩: 먼저 첫 배치(CARDS_INITIAL_BATCH)만 빠르게 받아 즉시 렌더(스켈레톤 제거),
+      // 전체는 백그라운드로 받아 "이미 보인 카드 순서는 유지"하며 나머지만 뒤에 이어붙인다.
+      // (curate 의 limit>0 경로는 트렌딩 상위, limit=0 은 개봉일 최신순이라 그대로 교체하면
+      //  보이던 카드가 재배열되어 튀므로 병합 방식을 쓴다.)
       setLoading(true);
       try {
-        // '전체' 탭은 CSV 시드 고유 영화 전체(≈234)를 한 번에 노출.
-        // 지역 탭은 해당 지역 고유 영화 전체(최대 서울 90).
-        // limit 미지정 → 백엔드가 전체 반환
-        const url =
-          selectedAreaCode == null
-            ? '/api/v1/cine-trip/curate'
-            : `/api/v1/cine-trip/region/${selectedAreaCode}`;
-        const res = await axios.get(url);
-        const payload = res?.data?.data ?? [];
-        if (alive) setItems(Array.isArray(payload) ? payload : []);
+        const firstRes = await axios.get(url, { params: { limit: CARDS_INITIAL_BATCH } });
+        if (!alive) return;
+        const firstPayload = firstRes?.data?.data ?? [];
+        setItems(Array.isArray(firstPayload) ? firstPayload : []);
       } catch (e) {
-        console.error('[cine-trip] fetch failed:', e?.message || e);
+        console.error('[cine-trip] fetch failed (phase1):', e?.message || e);
         if (alive) setItems([]);
+        if (alive) setLoading(false);
+        return;
       } finally {
         if (alive) setLoading(false);
+      }
+
+      try {
+        const fullRes = await axios.get(url, { params: { limit: 0 } });
+        if (!alive) return;
+        const fullPayload = fullRes?.data?.data ?? [];
+        const fullArr = Array.isArray(fullPayload) ? fullPayload : [];
+        if (fullArr.length > 0) {
+          setItems((prev) => {
+            if (fullArr.length <= prev.length) return prev;
+            const seen = new Set(
+              prev.map((it) => it?.movie?.movieName).filter(Boolean)
+            );
+            const appended = fullArr.filter((it) => {
+              const name = it?.movie?.movieName;
+              return name ? !seen.has(name) : true;
+            });
+            return appended.length ? [...prev, ...appended] : prev;
+          });
+        }
+      } catch (e) {
+        /* 전체 로드 실패 시 Phase 1 결과 유지 */
       }
     })();
     return () => {
