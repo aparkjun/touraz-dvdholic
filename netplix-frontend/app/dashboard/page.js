@@ -6,7 +6,7 @@ import { Search, Sparkles } from "lucide-react";
 import axios from "@/lib/axiosConfig";
 import { getApiBaseUrl } from "@/lib/apiConfig";
 import { Capacitor } from "@capacitor/core";
-import { showBanner, getTrackingStatus } from "@/lib/admob";
+import { showFooterRectangle, hideBanner, getTrackingStatus } from "@/lib/admob";
 import { getMovieTitle, getPosterPath, getBackdropPath } from "@/lib/movieLang";
 import useDragScrollAll from "@/lib/useDragScroll";
 import TrendingRegionsWidget from "@/components/TrendingRegionsWidget";
@@ -281,7 +281,10 @@ function DashboardContent() {
 
   const [showAttModal, setShowAttModal] = useState(false);
 
-  useEffect(() => { showBanner(); }, []);
+  useEffect(() => {
+    showFooterRectangle();
+    return () => { hideBanner(); };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1958,6 +1961,11 @@ function DashboardContent() {
             </div>
           </div>
         </footer>
+
+        {/* 하단 고정 MREC(300×250) 광고가 footer 를 가리지 않도록 네이티브에서만 여백 확보 */}
+        {Capacitor?.isNativePlatform?.() && (
+          <div aria-hidden style={{ height: "calc(280px + env(safe-area-inset-bottom, 0px))" }} />
+        )}
       </div>
 
 

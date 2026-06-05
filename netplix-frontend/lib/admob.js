@@ -63,6 +63,34 @@ export async function showBanner() {
   }
 }
 
+/**
+ * 대시보드 하단 전용 — 얇은 배너 대신 300×250 중간 직사각형(MREC)을 화면 하단 중앙에 고정.
+ * WebView 특성상 콘텐츠 흐름(footer 바로 위)에 인라인으로 넣을 수 없어 하단 고정 오버레이로 띄운다.
+ * 대시보드를 벗어날 때는 호출부(useEffect cleanup)에서 hideBanner 로 내려 다른 페이지를 가리지 않게 한다.
+ */
+export async function showFooterRectangle() {
+  if (!Capacitor?.isNativePlatform?.()) return;
+  if (bannerShown) return;
+  bannerShown = true;
+
+  try {
+    await initAdMob();
+    const { AdMob, BannerAdSize, BannerAdPosition } = await import(
+      "@capacitor-community/admob"
+    );
+    await AdMob.showBanner({
+      adId: getBannerAdId(),
+      adSize: BannerAdSize.MEDIUM_RECTANGLE,
+      position: BannerAdPosition.BOTTOM_CENTER,
+      margin: 0,
+      isTesting: false,
+    });
+  } catch (e) {
+    bannerShown = false;
+    console.warn("AdMob showFooterRectangle failed:", e);
+  }
+}
+
 export async function getTrackingStatus() {
   if (!Capacitor?.isNativePlatform?.()) return "authorized";
 
