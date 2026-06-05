@@ -1598,37 +1598,30 @@ export function useTravelWeatherShortReg() {
     }
 
     (async () => {
-      try {
-        // 즉시표시 중이고 직전 위치가 있으면, 위치 재측정 대기 없이 그 좌표로 갱신한다.
-        let withGeo;
-        if (servedInstant && cached?.geo && Object.keys(cached.geo).length > 0) {
-          withGeo = cached.geo;
-        } else {
-          const pos = await getGeoForWeatherCapped(GEO_CAP_MS);
-          withGeo = pos ? { lat: pos.coords.latitude, lng: pos.coords.longitude } : {};
-        }
+      let firstShown = false;
 
-        const fetchShortReg = async (params) =>
-          axios.get('/api/v1/weather/short-reg', { params, timeout: WEATHER_REQ_MS });
+      const fetchShortReg = async (params) =>
+        axios.get('/api/v1/weather/short-reg', { params, timeout: WEATHER_REQ_MS });
 
-        let res;
+      // params 좌표로 요청하되, 좌표가 있으면 실패 시 좌표 없이 한 번 더 시도.
+      const fetchWithGeoFallback = async (params) => {
         try {
-          res = await fetchShortReg(withGeo);
+          return await fetchShortReg(params);
         } catch (e1) {
-          if (Object.keys(withGeo).length > 0) {
+          if (Object.keys(params).length > 0) {
             try {
-              res = await fetchShortReg({});
+              return await fetchShortReg({});
             } catch {
               throw e1;
             }
-          } else {
-            throw e1;
           }
+          throw e1;
         }
+      };
 
-        const body = res?.data;
-        if (!alive) return;
-
+      // 응답 반영: 성공 데이터면 표시·캐시 후 true. isFinal 일 때만(그리고 즉시표시 중이 아닐 때만) 실패 폴백.
+      const applyResult = (body, params, { isFinal }) => {
+        if (!alive) return false;
         if (body && body.success === false) {
           const msg =
             typeof body.message === 'string' && body.message.trim()
@@ -1636,18 +1629,72 @@ export function useTravelWeatherShortReg() {
               : typeof body.code === 'string' && body.code.trim()
                 ? body.code.trim()
                 : '';
-          // 즉시표시 중이면 좋은 캐시를 실패 메시지로 덮어쓰지 않는다.
-          if (!servedInstant) settleReady(createNavWeatherFallbackData(msg));
-          return;
+          if (isFinal && !servedInstant && !firstShown) settleReady(createNavWeatherFallbackData(msg));
+          return false;
         }
-
         const d = body?.data;
         if (d != null && typeof d === 'object') {
           settleReady(d);
-          writeWeatherNavCache(d, withGeo);
-        } else if (!servedInstant) {
-          settleReady(createNavWeatherFallbackData());
+          writeWeatherNavCache(d, params);
+          return true;
         }
+        if (isFinal && !servedInstant && !firstShown) settleReady(createNavWeatherFallbackData());
+        return false;
+      };
+
+      try {
+        // === (A) 즉시표시(캐시) 경로: UI 는 이미 떠 있으므로 백그라운드로 최신값만 받는다 ===
+        if (servedInstant) {
+          let withGeo;
+          if (cached?.geo && Object.keys(cached.geo).length > 0) {
+            withGeo = cached.geo; // 직전 좌표 재사용(빠름)
+          } else {
+            const pos = await getGeoForWeatherCapped(GEO_CAP_MS); // 좌표 없던 캐시면 실제 위치 확보
+            withGeo = pos?.coords ? { lat: pos.coords.latitude, lng: pos.coords.longitude } : {};
+          }
+          const res = await fetchWithGeoFallback(withGeo);
+          applyResult(res?.data, withGeo, { isFinal: true });
+          return;
+        }
+
+        // === (B) 첫 로딩(캐시 없음): 빠른 첫 표시 ===
+        // 위치를 짧게(2.5s)만 기다린다. 그 안에 확정되면 내 지역으로 바로 요청.
+        // 못 잡으면 기본 지역(좌표 없음) 날씨를 먼저 띄우고, 위치가 잡히면 내 지역으로 교체.
+        const GEO_FAST_MS = 2500;
+        const geoPromise = getGeoForWeatherCapped(GEO_CAP_MS);
+        const fast = await Promise.race([geoPromise, delay(GEO_FAST_MS).then(() => 'TIMEOUT')]);
+
+        if (fast !== 'TIMEOUT') {
+          const withGeo = fast?.coords ? { lat: fast.coords.latitude, lng: fast.coords.longitude } : {};
+          const res = await fetchWithGeoFallback(withGeo);
+          applyResult(res?.data, withGeo, { isFinal: true });
+          return;
+        }
+
+        // 위치 지연 → 기본 지역 먼저 표시(첫 페인트 가속)
+        try {
+          const res0 = await fetchShortReg({});
+          firstShown = applyResult(res0?.data, {}, { isFinal: false });
+        } catch {
+          /* 기본 지역 실패는 무시하고 아래 위치 경로/최종 폴백에서 처리 */
+        }
+
+        // 위치가 결국 잡히면 내 지역으로 교체
+        const pos = await geoPromise;
+        if (!alive) return;
+        if (pos?.coords) {
+          const withGeo = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          try {
+            const res1 = await fetchWithGeoFallback(withGeo);
+            applyResult(res1?.data, withGeo, { isFinal: !firstShown });
+          } catch (e) {
+            if (!firstShown) throw e; // 첫 표시도 못 했으면 catch 의 폴백으로
+          }
+          return;
+        }
+
+        // 위치도 없고 기본 지역도 못 받았으면 최종 폴백
+        if (!firstShown) settleReady(createNavWeatherFallbackData());
       } catch (err) {
         if (!alive) return;
         // iOS WebView 에서 실제 무엇이 잘못됐는지 추적할 수 있도록 raw 에러를
@@ -1671,8 +1718,8 @@ export function useTravelWeatherShortReg() {
           // eslint-disable-next-line no-console
           console.error('[weather] short-reg request failed', err);
         } catch {}
-        // 즉시표시 중이면 캐시를 유지하고 에러로 덮어쓰지 않는다.
-        if (!servedInstant) settleReady(createNavWeatherFallbackData(extractApiErrorMessage(err)));
+        // 즉시표시 중이거나 기본 지역을 이미 보여줬으면 에러로 덮어쓰지 않는다.
+        if (!servedInstant && !firstShown) settleReady(createNavWeatherFallbackData(extractApiErrorMessage(err)));
       }
     })();
 
