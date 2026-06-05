@@ -6,7 +6,7 @@ import { Search, Sparkles } from "lucide-react";
 import axios from "@/lib/axiosConfig";
 import { getApiBaseUrl } from "@/lib/apiConfig";
 import { Capacitor } from "@capacitor/core";
-import { showFooterRectangle, hideBanner, getTrackingStatus } from "@/lib/admob";
+import { showNavBanner, hideBanner, getTrackingStatus } from "@/lib/admob";
 import { getMovieTitle, getPosterPath, getBackdropPath } from "@/lib/movieLang";
 import useDragScrollAll from "@/lib/useDragScroll";
 import TrendingRegionsWidget from "@/components/TrendingRegionsWidget";
@@ -281,41 +281,13 @@ function DashboardContent() {
 
   const [showAttModal, setShowAttModal] = useState(false);
 
-  // 광고를 화면 하단에 "고정"으로 계속 띄우지 않고, 페이지 맨 아래(푸터 영역)에
-  // 도달했을 때만 노출하고 위로 스크롤하면 숨긴다.
-  // 주의: 광고가 뜨면 WebView 높이가 줄어 "바닥까지 거리"가 커지는데,
-  // 켜는 임계값(SHOW_NEAR)과 끄는 임계값(HIDE_FAR)을 광고 높이(~250px)보다
-  // 크게 벌려(히스테리시스) 보였다 사라지는 깜빡임/토글 루프를 차단한다.
+  // 네비게이션 바로 아래에 풀폭 적응형 배너를 고정 노출한다.
+  // 대시보드에 머무는 동안 계속 표시하고, 페이지를 벗어날 때 내린다.
+  // (콘텐츠 상단은 아래 paddingTop 으로 광고 높이만큼 띄워 가림을 방지)
   useEffect(() => {
     if (!isNative) return;
-    const SHOW_NEAR = 600; // 바닥에서 600px 이내면 광고 표시
-    const HIDE_FAR = 1300; // 바닥에서 1300px 이상 멀어지면 숨김
-    let shown = false;
-    let raf = 0;
-    const evaluate = () => {
-      raf = 0;
-      const el = document.scrollingElement || document.documentElement;
-      if (!el) return;
-      const distToBottom = el.scrollHeight - (el.scrollTop + window.innerHeight);
-      if (!shown && distToBottom <= SHOW_NEAR) {
-        shown = true;
-        showFooterRectangle();
-      } else if (shown && distToBottom >= HIDE_FAR) {
-        shown = false;
-        hideBanner();
-      }
-    };
-    const onScroll = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(evaluate);
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
-    evaluate();
+    showNavBanner();
     return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      if (raf) cancelAnimationFrame(raf);
       hideBanner();
     };
   }, [isNative]);
@@ -843,7 +815,9 @@ function DashboardContent() {
           "radial-gradient(880px 460px at 50% 100%, rgba(186, 214, 198, 0.22), transparent 60%)," +
           "linear-gradient(180deg, #eef4f9 0%, #f7f2eb 46%, #ebf1f7 100%)",
         minHeight: "100vh",
-        padding: isNative ? "20px 12px 80px" : "20px 12px 28px",
+        // 네이티브: 네비 아래 풀폭 적응형 배너(고정 오버레이)가 상단 콘텐츠를 가리지 않도록
+        // 광고 높이(적응형 ~50~90px)만큼 상단 패딩을 확보한다.
+        padding: isNative ? "104px 12px 80px" : "20px 12px 28px",
         fontFamily: detailFontFamily,
         maxWidth: "100vw",
         overflow: "hidden",
@@ -1996,10 +1970,6 @@ function DashboardContent() {
           </div>
         </footer>
 
-        {/* 하단 고정 MREC(300×250) 광고가 footer 를 가리지 않도록 네이티브에서만 여백 확보 */}
-        {Capacitor?.isNativePlatform?.() && (
-          <div aria-hidden style={{ height: "calc(280px + env(safe-area-inset-bottom, 0px))" }} />
-        )}
       </div>
 
 

@@ -84,12 +84,18 @@ export async function showBanner() {
   }
 }
 
+// 대시보드 상단 네비(.app-nav--dashboard) 콘텐츠 높이(px). 광고를 네비 바로 아래에 띄우기 위한 오프셋.
+const NAV_BAR_OFFSET = 76;
+
 /**
- * 대시보드 하단 전용 — 얇은 배너 대신 300×250 중간 직사각형(MREC)을 화면 하단 중앙에 고정.
- * WebView 특성상 콘텐츠 흐름(footer 바로 위)에 인라인으로 넣을 수 없어 하단 고정 오버레이로 띄운다.
- * 대시보드를 벗어날 때는 호출부(useEffect cleanup)에서 hideBanner 로 내려 다른 페이지를 가리지 않게 한다.
+ * 대시보드 상단 전용 — 네비게이션 바로 아래에 "풀폭 적응형 배너"를 고정한다.
+ * - ADAPTIVE_BANNER 는 화면 너비를 꽉 채워 좌우 여백이 없다(높이는 너비에 맞춰 자동).
+ * - TOP_CENTER + margin(네비 높이) 으로 네비 바로 아래에 위치.
+ * WebView 특성상 콘텐츠 흐름에 인라인으로 넣을 수 없어 상단 고정 오버레이로 띄우고,
+ * 호출부에서 콘텐츠 상단 패딩으로 가림을 방지한다.
+ * 대시보드를 벗어날 때는 호출부(useEffect cleanup)에서 hideBanner 로 내린다.
  */
-export async function showFooterRectangle() {
+export async function showNavBanner() {
   if (!Capacitor?.isNativePlatform?.()) return;
   if (bannerShown) return;
   bannerShown = true;
@@ -110,15 +116,15 @@ export async function showFooterRectangle() {
     }
     await AdMob.showBanner({
       adId: getFooterRectAdId(),
-      adSize: BannerAdSize.MEDIUM_RECTANGLE,
-      position: BannerAdPosition.BOTTOM_CENTER,
-      margin: 0,
+      adSize: BannerAdSize.ADAPTIVE_BANNER,
+      position: BannerAdPosition.TOP_CENTER,
+      margin: NAV_BAR_OFFSET,
       isTesting: FOOTER_AD_TEST,
     });
     footerRectCreated = true;
   } catch (e) {
     bannerShown = false;
-    console.warn("AdMob showFooterRectangle failed:", e);
+    console.warn("AdMob showNavBanner failed:", e);
   }
 }
 
