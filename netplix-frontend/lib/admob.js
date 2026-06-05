@@ -13,7 +13,7 @@ const TEST_BANNER_AD_IDS = {
 
 // true 면 하단 사각형 광고를 "테스트 광고"로 띄워 렌더링 여부를 확실히 확인한다.
 // 확인 후 false 로 되돌려 실제 광고를 송출한다.
-const FOOTER_AD_TEST = true;
+const FOOTER_AD_TEST = false;
 
 function getBannerAdId() {
   const platform = Capacitor?.getPlatform?.() ?? "web";
