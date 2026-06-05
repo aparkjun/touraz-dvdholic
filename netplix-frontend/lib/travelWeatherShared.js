@@ -1541,6 +1541,35 @@ export function deriveTravelWeatherPresentation(series, payload, t) {
   };
 }
 
+/** 네비 날씨 즉시표시용 localStorage 캐시 (stale-while-revalidate).
+ * 단기·초단기 예보는 분 단위로 바뀌지 않으므로, 재방문 시 직전 결과를 즉시 보여주고
+ * 백그라운드에서 갱신한다. 위치 측정·기상청 허브 연쇄호출 대기(5초+)를 체감상 제거한다. */
+const WEATHER_NAV_CACHE_KEY = 'touraz.weatherNav.v1';
+const WEATHER_NAV_CACHE_HARD_MS = 6 * 60 * 60 * 1000; // 6시간 지난 캐시는 즉시표시에 쓰지 않음
+
+function readWeatherNavCache() {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return null;
+    const raw = localStorage.getItem(WEATHER_NAV_CACHE_KEY);
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    if (!o || typeof o !== 'object' || !o.data || typeof o.ts !== 'number') return null;
+    return o;
+  } catch {
+    return null;
+  }
+}
+
+function writeWeatherNavCache(data, geo) {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    if (!data || data.configured === false) return; // 실패/미구성 응답은 캐시하지 않음
+    localStorage.setItem(WEATHER_NAV_CACHE_KEY, JSON.stringify({ ts: Date.now(), data, geo: geo || {} }));
+  } catch {
+    /* 용량 초과 등 무시 */
+  }
+}
+
 export function useTravelWeatherShortReg() {
   const [state, setState] = useState({ phase: 'loading', data: null });
   const [tick, setTick] = useState(0);
@@ -1560,10 +1589,24 @@ export function useTravelWeatherShortReg() {
       setState({ phase: 'ready', data });
     };
 
+    // 1) 캐시 즉시표시: 최초 마운트(tick===0)에서만, 6시간 이내 캐시가 있으면 바로 보여준다.
+    //    이후 아래 (2) 에서 백그라운드로 최신값을 받아 갱신한다(스피너 없이).
+    const cached = tick === 0 ? readWeatherNavCache() : null;
+    const servedInstant = !!(cached && Date.now() - cached.ts < WEATHER_NAV_CACHE_HARD_MS && cached.data);
+    if (servedInstant) {
+      settleReady(cached.data);
+    }
+
     (async () => {
       try {
-        const pos = await getGeoForWeatherCapped(GEO_CAP_MS);
-        const withGeo = pos ? { lat: pos.coords.latitude, lng: pos.coords.longitude } : {};
+        // 즉시표시 중이고 직전 위치가 있으면, 위치 재측정 대기 없이 그 좌표로 갱신한다.
+        let withGeo;
+        if (servedInstant && cached?.geo && Object.keys(cached.geo).length > 0) {
+          withGeo = cached.geo;
+        } else {
+          const pos = await getGeoForWeatherCapped(GEO_CAP_MS);
+          withGeo = pos ? { lat: pos.coords.latitude, lng: pos.coords.longitude } : {};
+        }
 
         const fetchShortReg = async (params) =>
           axios.get('/api/v1/weather/short-reg', { params, timeout: WEATHER_REQ_MS });
@@ -1593,14 +1636,16 @@ export function useTravelWeatherShortReg() {
               : typeof body.code === 'string' && body.code.trim()
                 ? body.code.trim()
                 : '';
-          settleReady(createNavWeatherFallbackData(msg));
+          // 즉시표시 중이면 좋은 캐시를 실패 메시지로 덮어쓰지 않는다.
+          if (!servedInstant) settleReady(createNavWeatherFallbackData(msg));
           return;
         }
 
         const d = body?.data;
         if (d != null && typeof d === 'object') {
           settleReady(d);
-        } else {
+          writeWeatherNavCache(d, withGeo);
+        } else if (!servedInstant) {
           settleReady(createNavWeatherFallbackData());
         }
       } catch (err) {
@@ -1626,7 +1671,8 @@ export function useTravelWeatherShortReg() {
           // eslint-disable-next-line no-console
           console.error('[weather] short-reg request failed', err);
         } catch {}
-        settleReady(createNavWeatherFallbackData(extractApiErrorMessage(err)));
+        // 즉시표시 중이면 캐시를 유지하고 에러로 덮어쓰지 않는다.
+        if (!servedInstant) settleReady(createNavWeatherFallbackData(extractApiErrorMessage(err)));
       }
     })();
 
