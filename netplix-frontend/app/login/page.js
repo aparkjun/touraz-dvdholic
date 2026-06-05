@@ -54,6 +54,7 @@ function LoginContent() {
   // 화면 어디를 탭하든 탭 횟수와 실제로 터치를 받은 요소를 상단에 표시한다.
   const [dbgTaps, setDbgTaps] = useState(0);
   const [dbgTarget, setDbgTarget] = useState("-");
+  const [dbgClick, setDbgClick] = useState("-");
   useEffect(() => {
     const onDown = (e) => {
       const el = e.target;
@@ -62,11 +63,16 @@ function LoginContent() {
       setDbgTaps((n) => n + 1);
       setDbgTarget(`${tag}${cls ? "." + cls : ""}`);
     };
+    const onErr = (ev) => setDbgClick("JSERR:" + (ev?.message || ev?.reason?.message || ev?.reason || "?"));
     window.addEventListener("pointerdown", onDown, true);
     document.addEventListener("touchstart", onDown, true);
+    window.addEventListener("error", onErr);
+    window.addEventListener("unhandledrejection", onErr);
     return () => {
       window.removeEventListener("pointerdown", onDown, true);
       document.removeEventListener("touchstart", onDown, true);
+      window.removeEventListener("error", onErr);
+      window.removeEventListener("unhandledrejection", onErr);
     };
   }, []);
 
@@ -231,8 +237,22 @@ function LoginContent() {
     window.location.href = oauthUrl;
   };
 
-  const handleKakaoLogin = () => startOAuth('kakao');
-  const handleAppleLogin = () => startOAuth('apple');
+  const handleKakaoLogin = () => {
+    setDbgClick("kakao-click");
+    try {
+      startOAuth('kakao').catch((e) => setDbgClick("kakao-ERR:" + (e?.message || e)));
+    } catch (e) {
+      setDbgClick("kakao-THROW:" + (e?.message || e));
+    }
+  };
+  const handleAppleLogin = () => {
+    setDbgClick("apple-click");
+    try {
+      startOAuth('apple').catch((e) => setDbgClick("apple-ERR:" + (e?.message || e)));
+    } catch (e) {
+      setDbgClick("apple-THROW:" + (e?.message || e));
+    }
+  };
 
   const isDisabled = isLoggingIn;
 
@@ -256,7 +276,8 @@ function LoginContent() {
           textShadow: '0 1px 2px #000',
         }}
       >
-        LOGIN-DBG6 · taps:{dbgTaps} · {dbgTarget}
+        DBG7 · taps:{dbgTaps} · {dbgTarget}
+        <br />click:{dbgClick}
       </div>
 
       {/* Gradient Background — 순수 CSS 정적 배경(framer-motion 미사용).
@@ -483,7 +504,7 @@ function LoginContent() {
             <div className="mt-4">
               <button
                 type="button"
-                onClick={() => router.push('/dashboard')}
+                onClick={() => { setDbgClick("browse-click"); router.push('/dashboard'); }}
                 className="w-full h-12 rounded-xl font-semibold transition-all duration-300"
                 style={{
                   background: 'rgba(255, 255, 255, 0.06)',
