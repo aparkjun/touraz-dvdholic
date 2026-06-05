@@ -373,7 +373,12 @@
     "dvdStoreSection": "Places to Visit Nearby",
     "poweredBy": "Source: Korea Tourism Organization PhotoGalleryService1",
     "loadMore": "Load more ({{shown}} / {{total}})",
-    "imageUnavailable": "Could not load this image. Title and location come from Korea Tourism Organization gallery metadata."
+    "imageUnavailable": "Could not load this image. Title and location come from Korea Tourism Organization gallery metadata.",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoomReset": "Actual size",
+    "findRoute": "Directions",
+    "localWeather": "Weather"
   },
   "photoGalleryPage": {
     "pageTitle": "Korea Photo Gallery",

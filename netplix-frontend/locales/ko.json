@@ -373,7 +373,12 @@
     "dvdStoreSection": "이 동네 가볼 만한 풍경",
     "poweredBy": "출처: 한국관광공사 PhotoGalleryService1",
     "loadMore": "더 보기 ({{shown}} / 총 {{total}}장)",
-    "imageUnavailable": "이미지를 불러오지 못했습니다. 제목·촬영지 정보는 한국관광공사 갤러리 메타데이터입니다."
+    "imageUnavailable": "이미지를 불러오지 못했습니다. 제목·촬영지 정보는 한국관광공사 갤러리 메타데이터입니다.",
+    "zoomIn": "확대",
+    "zoomOut": "축소",
+    "zoomReset": "원본 크기",
+    "findRoute": "길찾기",
+    "localWeather": "현재 날씨"
   },
   "photoGalleryPage": {
     "pageTitle": "관광사진 갤러리",

@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import axios from "@/src/axiosConfig";
 import { useTranslation } from "react-i18next";
 import Link from "next/link";
-import { X, ChevronLeft, ChevronRight, Headphones, Play, Pause, Camera } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, Headphones, Play, Pause, Camera, ZoomIn, ZoomOut, Maximize2, Navigation } from "lucide-react";
 import useBackButtonClose from "@/lib/useBackButtonClose";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import {
@@ -698,6 +698,9 @@ export default function TourGallerySection({
         <GalleryLightboxPortal>
           <Lightbox
             item={items[selectedIndex]}
+            index={selectedIndex}
+            total={items.length}
+            weatherRegionCode={weatherRegionCode}
             hasPrev={selectedIndex > 0}
             hasNext={selectedIndex < items.length - 1}
             onClose={handleClose}
@@ -738,6 +741,9 @@ function normalizeGalleryImageUrl(url) {
 
 function Lightbox({
   item,
+  index = 0,
+  total = 0,
+  weatherRegionCode = null,
   hasPrev,
   hasNext,
   onClose,
@@ -759,6 +765,188 @@ function Lightbox({
     setImageBroken(false);
     setImageSrc(galleryImageSrc(item));
   }, [item?.galContentId, item?.imageUrl, item?.thumbnailUrl]);
+
+  // ── 확대/축소(핀치·휠·더블탭) + 패닝 ────────────────────────────────
+  const stageRef = useRef(null);
+  const [zoom, setZoom] = useState({ scale: 1, tx: 0, ty: 0 });
+  const isZoomed = zoom.scale > 1.01;
+  const gesture = useRef({
+    pointers: new Map(),
+    mode: null, // 'pan' | 'pinch' | null
+    startDist: 0,
+    startScale: 1,
+    startTx: 0,
+    startTy: 0,
+    panStartX: 0,
+    panStartY: 0,
+    downX: 0,
+    downY: 0,
+    downTime: 0,
+    moved: false,
+    lastTapTime: 0,
+    movedSinceClose: false,
+    lastPointerType: "mouse",
+  });
+
+  const resetZoom = useCallback(() => setZoom({ scale: 1, tx: 0, ty: 0 }), []);
+
+  // 사진이 바뀌면(prev/next) 줌 초기화
+  useEffect(() => {
+    resetZoom();
+  }, [item?.galContentId, resetZoom]);
+
+  const clampPan = useCallback((scale, tx, ty) => {
+    const el = stageRef.current;
+    if (!el) return { tx, ty };
+    const r = el.getBoundingClientRect();
+    const maxX = (r.width * (scale - 1)) / 2;
+    const maxY = (r.height * (scale - 1)) / 2;
+    return {
+      tx: Math.max(-maxX, Math.min(maxX, tx)),
+      ty: Math.max(-maxY, Math.min(maxY, ty)),
+    };
+  }, []);
+
+  const applyScale = useCallback(
+    (nextScaleRaw, keepPan) => {
+      const nextScale = Math.min(4, Math.max(1, nextScaleRaw));
+      setZoom((prev) => {
+        if (nextScale <= 1.01) return { scale: 1, tx: 0, ty: 0 };
+        const base = keepPan ? { tx: prev.tx, ty: prev.ty } : { tx: prev.tx, ty: prev.ty };
+        const { tx, ty } = clampPan(nextScale, base.tx, base.ty);
+        return { scale: nextScale, tx, ty };
+      });
+    },
+    [clampPan]
+  );
+
+  const onStagePointerDown = useCallback(
+    (e) => {
+      const g = gesture.current;
+      const stage = stageRef.current;
+      try {
+        stage?.setPointerCapture?.(e.pointerId);
+      } catch {
+        /* noop */
+      }
+      g.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      g.downX = e.clientX;
+      g.downY = e.clientY;
+      g.downTime = Date.now();
+      g.moved = false;
+      g.lastPointerType = e.pointerType || "mouse";
+
+      if (g.pointers.size === 2) {
+        const pts = [...g.pointers.values()];
+        const dx = pts[0].x - pts[1].x;
+        const dy = pts[0].y - pts[1].y;
+        g.mode = "pinch";
+        g.startDist = Math.hypot(dx, dy) || 1;
+        g.startScale = zoom.scale;
+        g.startTx = zoom.tx;
+        g.startTy = zoom.ty;
+      } else if (zoom.scale > 1.01) {
+        g.mode = "pan";
+        g.panStartX = e.clientX;
+        g.panStartY = e.clientY;
+        g.startTx = zoom.tx;
+        g.startTy = zoom.ty;
+      } else {
+        g.mode = null;
+      }
+    },
+    [zoom.scale, zoom.tx, zoom.ty]
+  );
+
+  const onStagePointerMove = useCallback(
+    (e) => {
+      const g = gesture.current;
+      if (!g.pointers.has(e.pointerId)) return;
+      g.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (g.mode === "pinch" && g.pointers.size >= 2) {
+        e.preventDefault();
+        const pts = [...g.pointers.values()];
+        const dx = pts[0].x - pts[1].x;
+        const dy = pts[0].y - pts[1].y;
+        const dist = Math.hypot(dx, dy) || 1;
+        const nextScale = Math.min(4, Math.max(1, (g.startScale * dist) / g.startDist));
+        g.moved = true;
+        g.movedSinceClose = true;
+        setZoom(() => {
+          if (nextScale <= 1.01) return { scale: 1, tx: 0, ty: 0 };
+          const { tx, ty } = clampPan(nextScale, g.startTx, g.startTy);
+          return { scale: nextScale, tx, ty };
+        });
+      } else if (g.mode === "pan") {
+        e.preventDefault();
+        const ntx = g.startTx + (e.clientX - g.panStartX);
+        const nty = g.startTy + (e.clientY - g.panStartY);
+        if (Math.abs(e.clientX - g.panStartX) > 3 || Math.abs(e.clientY - g.panStartY) > 3) {
+          g.moved = true;
+          g.movedSinceClose = true;
+        }
+        setZoom((prev) => {
+          const { tx, ty } = clampPan(prev.scale, ntx, nty);
+          return { ...prev, tx, ty };
+        });
+      }
+    },
+    [clampPan]
+  );
+
+  const onStagePointerUp = useCallback(
+    (e) => {
+      const g = gesture.current;
+      g.pointers.delete(e.pointerId);
+      const wasQuickTap =
+        !g.moved && Date.now() - g.downTime < 250 && g.pointers.size === 0;
+
+      if (wasQuickTap) {
+        const now = Date.now();
+        if (now - g.lastTapTime < 320) {
+          // 더블탭 → 줌 토글
+          g.lastTapTime = 0;
+          applyScale(zoom.scale > 1.01 ? 1 : 2.5, false);
+        } else {
+          g.lastTapTime = now;
+        }
+      }
+
+      if (g.pointers.size < 2 && g.mode === "pinch") {
+        g.mode = zoom.scale > 1.01 ? "pan" : null;
+      }
+      if (g.pointers.size === 0) g.mode = null;
+    },
+    [applyScale, zoom.scale]
+  );
+
+  const onStageWheel = useCallback(
+    (e) => {
+      if (e.ctrlKey || Math.abs(e.deltaY) > 0) {
+        e.preventDefault();
+        const dir = e.deltaY < 0 ? 1 : -1;
+        applyScale(zoom.scale + dir * 0.3, true);
+      }
+    },
+    [applyScale, zoom.scale]
+  );
+
+  // 줌 상태에서 닫기 클릭 오작동 방지: 패닝 직후의 클릭은 무시
+  const guardClose = useCallback(() => {
+    const g = gesture.current;
+    if (g.movedSinceClose) {
+      g.movedSinceClose = false;
+      return;
+    }
+    onClose();
+  }, [onClose]);
+
+  const mapSearchHref = useMemo(() => {
+    const q = String(item?.photoLocation || item?.title || "").trim();
+    if (!q) return null;
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
+  }, [item?.photoLocation, item?.title]);
 
   const handleImageError = useCallback(() => {
     const raw = String(item?.imageUrl || item?.thumbnailUrl || "").trim();
@@ -869,36 +1057,135 @@ function Lightbox({
       </div>
     ) : null;
 
+  const zoomPct = Math.round(zoom.scale * 100);
+
   return (
     <div
       className="tg-lb-overlay"
       role="dialog"
       aria-modal="true"
       aria-label={item.title || t("tourGallery.lightboxLabel")}
-      onClick={onClose}
+      onClick={guardClose}
     >
       <div className="tg-lb-inner" onClick={(e) => e.stopPropagation()}>
-        {imageBroken || !imageSrc ? (
-          <div className="tg-lb-fallback" role="img" aria-label={item.title || ""}>
-            <Camera size={42} strokeWidth={1.5} aria-hidden />
-            <p>{t("tourGallery.imageUnavailable")}</p>
-          </div>
-        ) : (
-          <img
-            src={imageSrc}
-            alt={item.title || ""}
-            className="tg-lb-img"
-            referrerPolicy="no-referrer"
-            onError={handleImageError}
-          />
-        )}
+        {/* 상단바: 현재/전체 인덱스 + 위치 칩 */}
+        <div className="tg-lb-topbar">
+          {total > 0 && (
+            <span className="tg-lb-index">
+              {(index + 1).toLocaleString()} / {total.toLocaleString()}
+            </span>
+          )}
+          {item.photoLocation && (
+            <span className="tg-lb-loc-chip" title={item.photoLocation}>
+              📍 {item.photoLocation}
+            </span>
+          )}
+        </div>
+
+        <div
+          ref={stageRef}
+          className={`tg-lb-stage${isZoomed ? " is-zoomed" : ""}`}
+          onPointerDown={onStagePointerDown}
+          onPointerMove={onStagePointerMove}
+          onPointerUp={onStagePointerUp}
+          onPointerCancel={onStagePointerUp}
+          onWheel={onStageWheel}
+          onDoubleClick={(e) => {
+            // 터치는 pointerUp 의 더블탭 처리로 이미 토글되므로 중복 방지
+            if (gesture.current.lastPointerType === "touch") return;
+            e.preventDefault();
+            applyScale(zoom.scale > 1.01 ? 1 : 2.5, false);
+          }}
+        >
+          {imageBroken || !imageSrc ? (
+            <div className="tg-lb-fallback" role="img" aria-label={item.title || ""}>
+              <Camera size={42} strokeWidth={1.5} aria-hidden />
+              <p>{t("tourGallery.imageUnavailable")}</p>
+            </div>
+          ) : (
+            <img
+              src={imageSrc}
+              alt={item.title || ""}
+              className="tg-lb-img"
+              referrerPolicy="no-referrer"
+              draggable={false}
+              onError={handleImageError}
+              style={{
+                transform: `translate(${zoom.tx}px, ${zoom.ty}px) scale(${zoom.scale})`,
+              }}
+            />
+          )}
+
+          {/* 확대/축소 컨트롤 */}
+          {!imageBroken && imageSrc && (
+            <div className="tg-lb-zoomctl" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                className="tg-lb-zoombtn"
+                onClick={() => applyScale(zoom.scale - 0.5, true)}
+                disabled={zoom.scale <= 1.01}
+                aria-label={t("tourGallery.zoomOut", "축소")}
+              >
+                <ZoomOut size={18} />
+              </button>
+              <span className="tg-lb-zoompct">{zoomPct}%</span>
+              <button
+                type="button"
+                className="tg-lb-zoombtn"
+                onClick={() => applyScale(zoom.scale + 0.5, true)}
+                disabled={zoom.scale >= 4}
+                aria-label={t("tourGallery.zoomIn", "확대")}
+              >
+                <ZoomIn size={18} />
+              </button>
+              {isZoomed && (
+                <button
+                  type="button"
+                  className="tg-lb-zoombtn"
+                  onClick={resetZoom}
+                  aria-label={t("tourGallery.zoomReset", "원본")}
+                >
+                  <Maximize2 size={18} />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="tg-lb-caption">
           <div className="tg-lb-title">{item.title}</div>
           <div className="tg-lb-meta">
-            {item.photoLocation ? `📍 ${item.photoLocation}` : ""}
-            {item.photoMonth ? ` · 📅 ${formatMonth(item.photoMonth)}` : ""}
-            {item.photographer ? ` · 📷 ${item.photographer}` : ""}
+            {item.photoMonth ? `📅 ${formatMonth(item.photoMonth)}` : ""}
+            {item.photographer ? `${item.photoMonth ? " · " : ""}📷 ${item.photographer}` : ""}
           </div>
+
+          {/* 행동 버튼 + 지역 날씨 */}
+          <div className="tg-lb-actions">
+            {mapSearchHref && (
+              <a
+                className="tg-lb-action"
+                href={mapSearchHref}
+                target="_blank"
+                rel="noreferrer noopener"
+              >
+                <Navigation size={15} aria-hidden />
+                <span>{t("tourGallery.findRoute", "길찾기")}</span>
+              </a>
+            )}
+            {(weatherRegionCode || item.photoLocation) && (
+              <span className="tg-lb-action tg-lb-action--weather" aria-label={t("tourGallery.localWeather", "현재 날씨")}>
+                <RegionWeatherGlyph
+                  regionCode={weatherRegionCode}
+                  areaName={item.photoLocation}
+                  size={18}
+                  variant="default"
+                  eager
+                />
+                <span>{t("tourGallery.localWeather", "현재 날씨")}</span>
+              </span>
+            )}
+          </div>
+
           {cueBlock}
         </div>
         <button
@@ -1174,12 +1461,130 @@ const cssBlock = `
   align-items: center;
   justify-content: center;
 }
+.tg-lb-stage {
+  position: relative;
+  max-width: 92vw;
+  max-height: 80vh;
+  overflow: hidden;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.tg-lb-stage.is-zoomed { cursor: grab; }
+.tg-lb-stage.is-zoomed:active { cursor: grabbing; }
 .tg-lb-img {
   max-width: 92vw;
   max-height: 80vh;
   object-fit: contain;
   border-radius: 8px;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  transform-origin: center center;
+  -webkit-user-drag: none;
+  user-select: none;
+  touch-action: none;
+}
+.tg-lb-topbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 10px;
+  max-width: 92vw;
+}
+.tg-lb-index {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: #f5f5f5;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.tg-lb-loc-chip {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #e6e6e6;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  padding: 4px 10px;
+  border-radius: 999px;
+  max-width: 60vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tg-lb-zoomctl {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: rgba(15, 15, 15, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(2px);
+  z-index: 4;
+}
+.tg-lb-zoombtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.tg-lb-zoombtn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.22); }
+.tg-lb-zoombtn:disabled { opacity: 0.35; cursor: default; }
+.tg-lb-zoompct {
+  min-width: 40px;
+  text-align: center;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #f1f1f1;
+}
+.tg-lb-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.tg-lb-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #f1f1f1;
+  background: rgba(255, 255, 255, 0.09);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.tg-lb-action:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.tg-lb-action--weather {
+  cursor: default;
+  color: #d7e7ff;
 }
 .tg-lb-fallback {
   width: min(92vw, 720px);
