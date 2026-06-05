@@ -85,13 +85,31 @@ public class VisitKoreaWellnessResponse {
         /** 일부 목록 항목에서만 내려올 수 있음(KTO wellness item 스키마에 있으면 수집). */
         @JsonAlias({ "homePage", "hmpgAddr", "url" })
         private String homepage;
-        // 목록(areaBasedList/searchKeyword/locationBasedList)은 표준 KTO 스키마인
-        // firstimage/firstimage2 로 대표 이미지를 내려준다. detailImage 응답만 orgImage/thumbImage 사용.
-        // 두 네이밍을 모두 수용하도록 별칭 지정(미지정 시 목록 이미지가 전부 null 로 누락됨).
-        @JsonAlias({ "firstimage", "firstImage" })
+        // 목록/상세에서 대표 이미지 필드명이 버전·오퍼레이션마다 다르다
+        // (detailImage=orgImage/thumbImage, 목록=firstimage/firstimage2 또는 그 외 변형).
+        // 알려진 이름은 별칭으로 받고, 그래도 빠지면 아래 @JsonAnySetter 로 image/img 류 키를 모두 포착한다.
+        @JsonAlias({ "firstimage", "firstImage", "repImage", "imageUrl" })
         private String orgImage;
-        @JsonAlias({ "firstimage2", "firstImage2" })
+        @JsonAlias({ "firstimage2", "firstImage2", "thumbnailUrl" })
         private String thumbImage;
+
+        /** 위 선언 필드로 매핑되지 못한 이미지류 키(예: galWebImageUrl 등)를 포착하는 폴백. */
+        @com.fasterxml.jackson.annotation.JsonIgnore
+        private String anyImage;
+
+        @com.fasterxml.jackson.annotation.JsonAnySetter
+        public void captureUnknown(String key, Object value) {
+            if (value == null || anyImage != null || key == null) return;
+            String k = key.toLowerCase(java.util.Locale.ROOT);
+            if (k.contains("image") || k.contains("img")) {
+                String v = String.valueOf(value).trim();
+                if (!v.isEmpty() && (v.startsWith("http") || v.startsWith("//"))) {
+                    anyImage = v;
+                }
+            }
+        }
+
+        public String getAnyImage() { return anyImage; }
         private String mapX;          // 경도(longitude)
         private String mapY;          // 위도(latitude)
         /** 웰니스 테마 코드 (예: EX050100 뷰티스파, EX050200 한방체험). */

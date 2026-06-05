@@ -428,6 +428,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
         String addr = joinAddr(i.getBaseAddr(), i.getDetailAddr());
         String image = nullIfBlank(i.getOrgImage());
         if (image == null) image = nullIfBlank(i.getThumbImage());
+        if (image == null) image = nullIfBlank(i.getAnyImage());
         // 웰니스 API 는 테마 코드(wellnessThemaCd) 단일 분류를 사용하므로 cat3 슬롯에 매핑하여
         // 프런트 배지 표시에 재활용한다.
         return WellnessSpot.builder()
