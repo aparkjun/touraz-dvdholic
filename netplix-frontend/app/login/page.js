@@ -32,17 +32,6 @@ import {
   resetNativeOAuthSession,
 } from "@/lib/oauthNativeBrowser";
 
-/** [임시 진단] 화면에 아무것도 안 띄우고 서버 라우터 로그에만 흔적을 남기는 비콘.
- * fetch/XHR 은 CapacitorHttp 가 가로채므로, 가로채지 않는 Image 요청으로 보낸다. */
-function diag(tag) {
-  try {
-    if (typeof window === "undefined") return;
-    const plat = (typeof Capacitor !== "undefined" && Capacitor?.getPlatform?.()) || "web";
-    const img = new Image();
-    img.src = `/__diaglog?tag=${encodeURIComponent(tag)}&plat=${plat}&t=${Date.now()}`;
-  } catch (_) {}
-}
-
 /** 로그인 성공 후 현재 사이트(Next)의 마이페이지로 이동. getApiBaseUrl()은 API 호스트일 수 있어 그걸로 /mypage를 열면 백엔드 500이 난다. */
 function redirectAfterLogin() {
   if (typeof window === "undefined") return;
@@ -59,20 +48,6 @@ function LoginContent() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
-
-  useEffect(() => {
-    diag("login-mount");
-    const onErr = (ev) => diag("jserr:" + (ev?.message || ev?.reason?.message || ev?.reason || "?"));
-    const onTouch = () => diag("doc-touchstart");
-    window.addEventListener("error", onErr);
-    window.addEventListener("unhandledrejection", onErr);
-    document.addEventListener("touchstart", onTouch, true);
-    return () => {
-      window.removeEventListener("error", onErr);
-      window.removeEventListener("unhandledrejection", onErr);
-      document.removeEventListener("touchstart", onTouch, true);
-    };
-  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -162,7 +137,7 @@ function LoginContent() {
     };
   }, []);
 
-  const handleBrowse = () => { diag("browse-click"); router.push('/dashboard'); };
+  const handleBrowse = () => router.push('/dashboard');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -215,24 +190,25 @@ function LoginContent() {
   const getApiBase = getApiBaseUrl;
 
   const startOAuth = async (provider) => {
-    diag("oauth-enter:" + provider);
-    const oauthUrl = `${getApiBase()}/oauth2/authorization/${provider}`;
-    diag("oauth-url:" + oauthUrl.slice(0, 60));
+    // OAuth URL 은 반드시 절대(https://...) 여야 한다.
+    // getApiBase() 는 same-origin 최적화로 빈 문자열("")을 돌려줄 수 있는데,
+    // 그러면 oauthUrl 이 상대경로("/oauth2/...")가 되어 Android Custom Tabs(Browser.open)가
+    // "Unable to display URL" 로 실패한다(웹 location.href 와 달리 절대 URL 필요).
+    const base =
+      getApiBase() ||
+      (typeof window !== "undefined" ? window.location.origin : "");
+    const oauthUrl = `${base}/oauth2/authorization/${provider}`;
 
     try {
       await ensureCapacitorLoaded();
     } catch (_) {}
 
     const isNative = !!(Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
-    diag("oauth-native:" + isNative + "-browser:" + (!!Browser));
 
     if (isNative && Browser && typeof Browser.open === 'function') {
       try {
-        diag("oauth-call-nativebrowser");
         await openNativeOAuthBrowser(oauthUrl);
-        diag("oauth-nativebrowser-ok");
       } catch (e) {
-        diag("oauth-nativebrowser-ERR:" + (e?.message || e));
         console.error('Native OAuth browser failed:', e);
         resetNativeOAuthSession();
         window.location.href = oauthUrl;
@@ -240,14 +216,13 @@ function LoginContent() {
       return;
     }
 
-    diag("oauth-web-redirect");
     markOAuthRedirectPending();
     document.cookie = "X-App-Platform=;path=/;max-age=0";
     window.location.href = oauthUrl;
   };
 
-  const handleKakaoLogin = () => { diag("kakao-click"); startOAuth('kakao'); };
-  const handleAppleLogin = () => { diag("apple-click"); startOAuth('apple'); };
+  const handleKakaoLogin = () => startOAuth('kakao');
+  const handleAppleLogin = () => startOAuth('apple');
 
   const isDisabled = isLoggingIn;
 

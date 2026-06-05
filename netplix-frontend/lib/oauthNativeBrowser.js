@@ -6,15 +6,6 @@ import {
 
 export const OAUTH_BROWSER_CANCELLED = 'oauth-browser-cancelled';
 
-/** [임시 진단] 화면 비표시 서버 비콘 (CapacitorHttp 영향 없는 Image ping) */
-function diag(tag) {
-  try {
-    if (typeof window === 'undefined') return;
-    const img = new Image();
-    img.src = `/__diaglog?tag=${encodeURIComponent('nb-' + tag)}&t=${Date.now()}`;
-  } catch (_) {}
-}
-
 function dispatchCancelled() {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent(OAUTH_BROWSER_CANCELLED));
@@ -47,14 +38,12 @@ export function isNativeOAuthSessionActive() {
  * browserFinished 가 iOS에서 누락될 수 있어 appStateChange·resume 폴백 포함.
  */
 export async function openNativeOAuthBrowser(oauthUrl) {
-  diag('enter');
-  if (nativeOAuthOpening) { diag('already-opening-RETURN'); return; }
+  if (nativeOAuthOpening) return;
   nativeOAuthOpening = true;
   markOAuthRedirectPending();
 
   const { Browser } = await import('@capacitor/browser');
   const { App } = await import('@capacitor/app');
-  diag('plugins-loaded');
 
   let released = false;
   const handles = [];
@@ -108,13 +97,11 @@ export async function openNativeOAuthBrowser(oauthUrl) {
   document.cookie = 'X-App-Platform=native;path=/;max-age=300;SameSite=None;Secure';
 
   try {
-    diag('browser-open-call');
     Browser.open({
       url: oauthUrl,
       presentationStyle: 'popover',
       toolbarColor: '#000000',
-    }).then(() => diag('browser-open-resolved')).catch((err) => {
-      diag('browser-open-CATCH:' + (err?.message || err));
+    }).catch(() => {
       release();
     });
     // 모달 표시 직후 잠금 해제 — X 닫기 후 버튼·로그인 재시도 가능
