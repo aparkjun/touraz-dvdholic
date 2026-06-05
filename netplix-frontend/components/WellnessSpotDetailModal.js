@@ -43,6 +43,14 @@ const LDONG_REGN_LABEL = {
   '50': '제주', '51': '강원', '52': '경북',
 };
 
+// KTO 이미지 URL 이 http 인 경우 HTTPS 페이지에서 mixed-content 차단 → https 승격
+function secureTourImageUrl(url) {
+  const s = String(url || '').trim();
+  if (!s) return '';
+  if (s.startsWith('http://')) return `https://${s.slice(7)}`;
+  return s;
+}
+
 function regionLabelForSpot(spot) {
   const ac = String(spot?.areaCode ?? '').trim();
   if (!ac) return '';
@@ -119,7 +127,7 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
         <div className="ws-mod-hero">
           {spot.imageUrl ? (
             <img
-              src={spot.imageUrl}
+              src={secureTourImageUrl(spot.imageUrl)}
               alt={spot.name || ''}
               referrerPolicy="no-referrer"
               onError={(e) => {

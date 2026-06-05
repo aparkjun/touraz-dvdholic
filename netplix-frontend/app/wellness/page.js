@@ -596,6 +596,14 @@ function WellnessInner() {
   );
 }
 
+// KTO 이미지 URL 이 http 인 경우 HTTPS 페이지에서 mixed-content 로 차단 → https 로 승격
+function secureTourImageUrl(url) {
+  const s = String(url || "").trim();
+  if (!s) return "";
+  if (s.startsWith("http://")) return `https://${s.slice(7)}`;
+  return s;
+}
+
 function WellnessCard({ spot, onOpenDetail, filterWeatherCode }) {
   const { t } = useTranslation();
   const weatherRegionCode =
@@ -625,7 +633,7 @@ function WellnessCard({ spot, onOpenDetail, filterWeatherCode }) {
       <div className="wel-img">
         {spot.imageUrl ? (
           <img
-            src={spot.imageUrl}
+            src={secureTourImageUrl(spot.imageUrl)}
             alt={spot.name || ""}
             loading="lazy"
             referrerPolicy="no-referrer"
