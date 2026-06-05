@@ -271,13 +271,16 @@ function CampingInner() {
     if (shouldSkip) return undefined;
     let cancelled = false;
     (async () => {
+      const kw = keyword.trim();
+      const base = kw
+        ? `/api/v1/camping/search?q=${encodeURIComponent(kw)}`
+        : `/api/v1/camping`;
+      const sep = kw ? "&" : "?";
+      // Phase 1: 첫 화면용 소량(PAGE_SIZE)만 빠르게 받아 즉시 렌더 → 스켈레톤 제거.
       try {
         setLoading(true);
         setErrored(false);
-        const url = keyword.trim()
-          ? `/api/v1/camping/search?q=${encodeURIComponent(keyword.trim())}&limit=0`
-          : `/api/v1/camping?limit=0`;
-        const res = await axios.get(url);
+        const res = await axios.get(`${base}${sep}limit=${PAGE_SIZE}`);
         if (cancelled) return;
         const data = Array.isArray(res?.data?.data) ? res.data.data : [];
         setSites(data);
@@ -294,8 +297,27 @@ function CampingInner() {
           setErrored(true);
           setSites([]);
         }
+        return;
       } finally {
         if (!cancelled) setLoading(false);
+      }
+      // Phase 2: 전체 목록을 백그라운드로 받아 교체(스켈레톤 없이) → 더보기/무한스크롤용.
+      try {
+        const fullRes = await axios.get(`${base}${sep}limit=0`);
+        if (cancelled) return;
+        const full = Array.isArray(fullRes?.data?.data) ? fullRes.data.data : [];
+        if (full.length > 0) {
+          setSites((prev) => (full.length >= prev.length ? full : prev));
+          writeListCache({
+            keyword,
+            nearbyMode: false,
+            sites: full,
+            visibleCount: Math.min(PAGE_SIZE, full.length),
+            scrollY: 0,
+          });
+        }
+      } catch (e) {
+        // 전체 로드 실패 시 Phase 1 결과 유지(빈 화면 방지).
       }
     })();
     return () => { cancelled = true; };
