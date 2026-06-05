@@ -24,6 +24,12 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
   const [loading, setLoading] = useState(true);
   const [activePhoto, setActivePhoto] = useState(null);
 
+  // 가로 스트립 윈도잉: 처음 일부만 그리고, 끝까지 스크롤하면 더 그린다.
+  // (limit=0/대량 응답을 한 번에 DOM 에 올리면 WebView 렌더가 느려지는 것을 방지)
+  const STRIP_WINDOW = 18;
+  const railRef = useRef(null);
+  const [visibleCount, setVisibleCount] = useState(STRIP_WINDOW);
+
   // 라이트박스 이미지 줌/팬 상태. 사진이 바뀔 때마다 1배 / 가운데로 리셋.
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -172,6 +178,18 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
     };
   }, [areaCode, keyword, limit]);
 
+  // 목록이 새로 오면 윈도우 초기화
+  useEffect(() => {
+    setVisibleCount(STRIP_WINDOW);
+  }, [photos]);
+
+  const handleRailScroll = (e) => {
+    const el = e.currentTarget;
+    if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 240) {
+      setVisibleCount((c) => (c < photos.length ? Math.min(c + STRIP_WINDOW, photos.length) : c));
+    }
+  };
+
   if (!loading && photos.length === 0) {
     return null;
   }
@@ -215,7 +233,9 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
       )}
 
       <div
+        ref={railRef}
         className="js-drag-scroll"
+        onScroll={handleRailScroll}
         style={{
           display: 'flex',
           gap: 12,
@@ -238,7 +258,7 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
                 }}
               />
             ))
-          : photos.map((p, idx) => (
+          : photos.slice(0, visibleCount).map((p, idx) => (
               <motion.button
                 key={p.contentId || idx}
                 type="button"
