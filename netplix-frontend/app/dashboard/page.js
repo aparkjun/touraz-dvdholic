@@ -281,30 +281,41 @@ function DashboardContent() {
 
   const [showAttModal, setShowAttModal] = useState(false);
 
-  // 광고를 화면 하단에 "고정"으로 계속 띄우지 않고, 푸터가 보일 때만 노출한다.
-  // (네이티브 오버레이 광고는 콘텐츠 흐름에 인라인으로 넣을 수 없어, 푸터 가시성으로 흉내낸다.)
-  const footerRef = useRef(null);
+  // 광고를 화면 하단에 "고정"으로 계속 띄우지 않고, 페이지 맨 아래(푸터 영역)에
+  // 도달했을 때만 노출하고 위로 스크롤하면 숨긴다.
+  // 주의: 광고가 뜨면 WebView 높이가 줄어 "바닥까지 거리"가 커지는데,
+  // 켜는 임계값(SHOW_NEAR)과 끄는 임계값(HIDE_FAR)을 광고 높이(~250px)보다
+  // 크게 벌려(히스테리시스) 보였다 사라지는 깜빡임/토글 루프를 차단한다.
   useEffect(() => {
     if (!isNative) return;
-    const el = footerRef.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
+    const SHOW_NEAR = 600; // 바닥에서 600px 이내면 광고 표시
+    const HIDE_FAR = 1300; // 바닥에서 1300px 이상 멀어지면 숨김
     let shown = false;
-    const io = new IntersectionObserver(
-      (entries) => {
-        const visible = entries[0]?.isIntersecting;
-        if (visible && !shown) {
-          shown = true;
-          showFooterRectangle();
-        } else if (!visible && shown) {
-          shown = false;
-          hideBanner();
-        }
-      },
-      { root: null, threshold: 0 }
-    );
-    io.observe(el);
+    let raf = 0;
+    const evaluate = () => {
+      raf = 0;
+      const el = document.scrollingElement || document.documentElement;
+      if (!el) return;
+      const distToBottom = el.scrollHeight - (el.scrollTop + window.innerHeight);
+      if (!shown && distToBottom <= SHOW_NEAR) {
+        shown = true;
+        showFooterRectangle();
+      } else if (shown && distToBottom >= HIDE_FAR) {
+        shown = false;
+        hideBanner();
+      }
+    };
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(evaluate);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    evaluate();
     return () => {
-      io.disconnect();
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      if (raf) cancelAnimationFrame(raf);
       hideBanner();
     };
   }, [isNative]);
@@ -1956,7 +1967,6 @@ function DashboardContent() {
 
         {/* Footer - 비 오는 거리 배경 이미지 (화면 좌우 꽉 채움) */}
         <footer
-          ref={footerRef}
           className="dashboard-footer"
           style={{
             position: "relative",
