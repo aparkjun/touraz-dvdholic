@@ -85,7 +85,12 @@ public class VisitKoreaWellnessResponse {
         /** 일부 목록 항목에서만 내려올 수 있음(KTO wellness item 스키마에 있으면 수집). */
         @JsonAlias({ "homePage", "hmpgAddr", "url" })
         private String homepage;
+        // 목록(areaBasedList/searchKeyword/locationBasedList)은 표준 KTO 스키마인
+        // firstimage/firstimage2 로 대표 이미지를 내려준다. detailImage 응답만 orgImage/thumbImage 사용.
+        // 두 네이밍을 모두 수용하도록 별칭 지정(미지정 시 목록 이미지가 전부 null 로 누락됨).
+        @JsonAlias({ "firstimage", "firstImage" })
         private String orgImage;
+        @JsonAlias({ "firstimage2", "firstImage2" })
         private String thumbImage;
         private String mapX;          // 경도(longitude)
         private String mapY;          // 위도(latitude)
