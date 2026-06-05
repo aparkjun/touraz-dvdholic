@@ -33,6 +33,9 @@ let admobInitialized = false;
 // 대시보드로 돌아올 때마다 showBanner 가 다시 호출되면 플러그인이 배너를 제거 후
 // 재생성하며 한 번 깜빡이므로, 이미 표시 중이면 재표시하지 않는다.
 let bannerShown = false;
+// 하단 MREC 가 한 번이라도 생성됐는지 추적. hideBanner 로 숨긴 뒤 다시 보일 때는
+// showBanner(재생성) 가 아니라 resumeBanner(복구) 를 써야 안정적으로 다시 나타난다.
+let footerRectCreated = false;
 
 export async function initAdMob() {
   if (admobInitialized) return;
@@ -96,6 +99,15 @@ export async function showFooterRectangle() {
     const { AdMob, BannerAdSize, BannerAdPosition } = await import(
       "@capacitor-community/admob"
     );
+    // 이미 생성된 배너는 resume 으로 다시 표시(재생성/노필/깜빡임 방지).
+    if (footerRectCreated) {
+      try {
+        await AdMob.resumeBanner();
+        return;
+      } catch (e) {
+        footerRectCreated = false; // resume 실패 시 아래에서 새로 생성
+      }
+    }
     await AdMob.showBanner({
       adId: getFooterRectAdId(),
       adSize: BannerAdSize.MEDIUM_RECTANGLE,
@@ -103,6 +115,7 @@ export async function showFooterRectangle() {
       margin: 0,
       isTesting: FOOTER_AD_TEST,
     });
+    footerRectCreated = true;
   } catch (e) {
     bannerShown = false;
     console.warn("AdMob showFooterRectangle failed:", e);
