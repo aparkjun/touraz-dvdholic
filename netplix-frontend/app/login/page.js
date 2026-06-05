@@ -32,6 +32,17 @@ import {
   resetNativeOAuthSession,
 } from "@/lib/oauthNativeBrowser";
 
+/** [임시 진단] 화면에 아무것도 안 띄우고 서버 라우터 로그에만 흔적을 남기는 비콘.
+ * fetch/XHR 은 CapacitorHttp 가 가로채므로, 가로채지 않는 Image 요청으로 보낸다. */
+function diag(tag) {
+  try {
+    if (typeof window === "undefined") return;
+    const plat = (typeof Capacitor !== "undefined" && Capacitor?.getPlatform?.()) || "web";
+    const img = new Image();
+    img.src = `/__diaglog?tag=${encodeURIComponent(tag)}&plat=${plat}&t=${Date.now()}`;
+  } catch (_) {}
+}
+
 /** 로그인 성공 후 현재 사이트(Next)의 마이페이지로 이동. getApiBaseUrl()은 API 호스트일 수 있어 그걸로 /mypage를 열면 백엔드 500이 난다. */
 function redirectAfterLogin() {
   if (typeof window === "undefined") return;
@@ -48,6 +59,20 @@ function LoginContent() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [emailFocused, setEmailFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
+
+  useEffect(() => {
+    diag("login-mount");
+    const onErr = (ev) => diag("jserr:" + (ev?.message || ev?.reason?.message || ev?.reason || "?"));
+    const onTouch = () => diag("doc-touchstart");
+    window.addEventListener("error", onErr);
+    window.addEventListener("unhandledrejection", onErr);
+    document.addEventListener("touchstart", onTouch, true);
+    return () => {
+      window.removeEventListener("error", onErr);
+      window.removeEventListener("unhandledrejection", onErr);
+      document.removeEventListener("touchstart", onTouch, true);
+    };
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -137,7 +162,7 @@ function LoginContent() {
     };
   }, []);
 
-  const handleBrowse = () => router.push('/dashboard');
+  const handleBrowse = () => { diag("browse-click"); router.push('/dashboard'); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -214,8 +239,8 @@ function LoginContent() {
     window.location.href = oauthUrl;
   };
 
-  const handleKakaoLogin = () => startOAuth('kakao');
-  const handleAppleLogin = () => startOAuth('apple');
+  const handleKakaoLogin = () => { diag("kakao-click"); startOAuth('kakao'); };
+  const handleAppleLogin = () => { diag("apple-click"); startOAuth('apple'); };
 
   const isDisabled = isLoggingIn;
 
