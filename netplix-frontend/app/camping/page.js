@@ -940,7 +940,14 @@ const cssBlock = `
   position: relative;
   z-index: 1;
 }
-.cmp-hero-inner { max-width: 1200px; margin: 0 auto; }
+.cmp-hero-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
 .cmp-tag {
   display: inline-flex;
   align-items: center;
@@ -1027,6 +1034,7 @@ const cssBlock = `
 .cmp-chips {
   margin-top: 14px;
   display: flex; flex-wrap: wrap; gap: 8px;
+  justify-content: center;
 }
 .cmp-chip {
   background: rgba(255,255,255,0.05);
