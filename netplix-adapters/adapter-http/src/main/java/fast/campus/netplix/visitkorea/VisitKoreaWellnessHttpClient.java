@@ -24,6 +24,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -51,11 +54,17 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
 
     private static final int MAX_PAGE_SIZE = 200;
     /**
-     * 웰니스 목록(areaBasedList/searchKeyword)은 arrange 가 A/C/D 면 대표이미지를 내려주지 않는다.
-     * O/P/Q/R 만 "대표이미지가 있는 항목"을 이미지 포함해 반환하므로 Q(수정일순+이미지)를 사용한다.
-     * (위치기반 locationBasedList 는 별도로 S = 거리순+이미지 사용.)
+     * 웰니스 목록(areaBasedList/searchKeyword)은 대표이미지를 응답에 포함하지 않으며,
+     * 이미지 필수 정렬(O/P/Q/R)을 주면 0건이 반환된다(데이터셋에 목록 대표이미지 미등록).
+     * 따라서 목록은 수정일순(C)으로 받고, 사진은 detailImage 로 별도 보강한다.
      */
-    private static final String IMAGE_ARRANGE = "Q";
+    private static final String IMAGE_ARRANGE = "C";
+    /** detailImage 로 이미지를 보강할 때 동기 경로에서의 최대 보강 개수(첫 화면 분량). */
+    private static final int SYNC_ENRICH_LIMIT = 40;
+    /** 백그라운드(전체/지역/키워드 풀 적재) 경로에서의 최대 보강 개수. */
+    private static final int BG_ENRICH_LIMIT = 400;
+    /** 이미지 보강 전체 대기 한도(ms). 초과분은 다음 캐시 갱신에서 채워진다. */
+    private static final long ENRICH_TIMEOUT_MS = 12_000L;
     private static final String ALL_KEY = "__ALL__";
     private static final int MAX_KEYWORD_CACHE = 64;
     /** 전국 웰니스관광지 ~700-900개. 넉넉히 10 페이지(= 2,000개) 가드. */
@@ -78,6 +87,16 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
 
     @Value("${visitkorea.wellness.search-url:https://apis.data.go.kr/B551011/WellnessTursmService/searchKeyword}")
     private String searchUrl;
+
+    @Value("${visitkorea.wellness.detail-image-url:https://apis.data.go.kr/B551011/WellnessTursmService/detailImage}")
+    private String detailImageUrl;
+
+    /** detailImage 병렬 보강용 소형 풀(외부 KTO 호출 → I/O 바운드). */
+    private final ExecutorService enrichPool = Executors.newFixedThreadPool(12, r -> {
+        Thread t = new Thread(r, "wellness-img-enrich");
+        t.setDaemon(true);
+        return t;
+    });
 
     @Value("${visitkorea.wellness.cache-minutes:1440}")
     private long cacheMinutes;
@@ -119,7 +138,8 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
         if (snap == null) {
             PageResult first = requestPage(areaUrl, Map.of("arrange", IMAGE_ARRANGE), 1);
             if (first == null) return List.of();
-            List<WellnessSpot> partial = Collections.unmodifiableList(new ArrayList<>(first.items));
+            List<WellnessSpot> partial = Collections.unmodifiableList(
+                    new ArrayList<>(enrichImages(first.items, SYNC_ENRICH_LIMIT)));
             boolean needMore = first.totalCount > partial.size();
             cache.put(ALL_KEY, new CacheSnapshot(partial, Instant.now().toEpochMilli(), needMore));
             if (needMore) scheduleAllRefresh();
@@ -137,7 +157,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
                 "mapX", String.valueOf(longitude),
                 "mapY", String.valueOf(latitude),
                 "radius", String.valueOf(Math.max(1, radiusM)),
-                "arrange", "S"  // 거리순(대표이미지 포함 정렬)
+                "arrange", "E"  // 거리순
         );
         PageResult pr = requestPage(locationUrl, params, 1, LOCATION_PAGE_ROWS);
         if (pr == null) return List.of();
@@ -147,7 +167,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
                         a.getDistanceKm() == null ? Double.MAX_VALUE : a.getDistanceKm(),
                         b.getDistanceKm() == null ? Double.MAX_VALUE : b.getDistanceKm()))
                 .collect(Collectors.toList());
-        return take(sorted, limit);
+        return take(enrichImages(sorted, SYNC_ENRICH_LIMIT), limit);
     }
 
     @Override
@@ -164,7 +184,8 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
         if (snap == null) {
             PageResult first = requestPage(searchUrl, Map.of("keyword", keyword.trim(), "arrange", IMAGE_ARRANGE), 1);
             if (first == null) return List.of();
-            List<WellnessSpot> partial = Collections.unmodifiableList(new ArrayList<>(first.items));
+            List<WellnessSpot> partial = Collections.unmodifiableList(
+                    new ArrayList<>(enrichImages(first.items, SYNC_ENRICH_LIMIT)));
             boolean needMore = first.totalCount > partial.size();
             cache.put(key, new CacheSnapshot(partial, Instant.now().toEpochMilli(), needMore));
             if (needMore) scheduleKeywordRefresh(keyword.trim(), key);
@@ -201,7 +222,8 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
         List<WellnessSpot> partial = List.of();
         boolean needMore = false;
         if (first != null) {
-            partial = Collections.unmodifiableList(new ArrayList<>(first.items));
+            // 지역 목록은 보통 수십 건 → 첫 페이지 전체를 보강.
+            partial = Collections.unmodifiableList(new ArrayList<>(enrichImages(first.items, BG_ENRICH_LIMIT)));
             needMore = first.totalCount > partial.size();
             cache.put(cacheKey, new CacheSnapshot(partial, Instant.now().toEpochMilli(), needMore));
             if (needMore) {
@@ -251,6 +273,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
         if (!filtered.isEmpty()) {
             log.info("[WELLNESS] {} → 전국 캐시 필터 폴백 ldong={} sigungu={} → {}건",
                     reason, ldongRegn, signguOrNull, filtered.size());
+            filtered = enrichImages(filtered, BG_ENRICH_LIMIT);
         }
         return take(filtered, limit);
     }
@@ -280,6 +303,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
             log.warn("[WELLNESS] korArea 전체 페이지 로드 실패 ldong={}", ldong);
             return;
         }
+        sites = enrichImages(sites, BG_ENRICH_LIMIT);
         cache.put(cacheKey, new CacheSnapshot(sites, Instant.now().toEpochMilli(), false));
         log.info("[WELLNESS] korArea 캐시 갱신 key={} 건={}", cacheKey, sites.size());
     }
@@ -309,6 +333,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
             log.warn("[WELLNESS] 전체 로드 실패 - 캐시 유지");
             return;
         }
+        sites = enrichImages(sites, BG_ENRICH_LIMIT);
         cache.put(ALL_KEY, new CacheSnapshot(sites, Instant.now().toEpochMilli(), false));
         log.info("[WELLNESS] 전체 캐시 갱신 - {} 건", sites.size());
     }
@@ -319,6 +344,7 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
             log.warn("[WELLNESS] 키워드={} 로드 실패 - 캐시 저장 스킵", keyword);
             return;
         }
+        sites = enrichImages(sites, BG_ENRICH_LIMIT);
         if (cache.size() >= MAX_KEYWORD_CACHE) {
             cache.entrySet().stream()
                     .filter(e -> !e.getKey().equals(ALL_KEY))
@@ -476,6 +502,108 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
                 .contentTypeId(s.getContentTypeId())
                 .homepage(s.getHomepage())
                 .distanceKm(Math.round(d * 100.0) / 100.0)
+                .build();
+    }
+
+    /**
+     * 웰니스 목록 API 는 대표이미지를 주지 않으므로, 이미지가 비어 있는 스팟에 한해
+     * detailImage(상세 이미지) 를 병렬 조회해 대표 1장을 채운다. maxToEnrich 로 호출량을 제한한다.
+     */
+    private List<WellnessSpot> enrichImages(List<WellnessSpot> spots, int maxToEnrich) {
+        if (spots == null || spots.isEmpty() || detailImageUrl == null || detailImageUrl.isBlank()) {
+            return spots;
+        }
+        List<WellnessSpot> out = new ArrayList<>(spots);
+        List<Integer> targets = new ArrayList<>();
+        for (int i = 0; i < out.size() && targets.size() < maxToEnrich; i++) {
+            WellnessSpot s = out.get(i);
+            if ((s.getImageUrl() == null || s.getImageUrl().isBlank()) && s.getId() != null && !s.getId().isBlank()) {
+                targets.add(i);
+            }
+        }
+        if (targets.isEmpty()) return out;
+
+        List<CompletableFuture<Void>> futures = new ArrayList<>(targets.size());
+        for (int idx : targets) {
+            final int i = idx;
+            final WellnessSpot s = out.get(i);
+            futures.add(CompletableFuture.runAsync(() -> {
+                String img = fetchFirstDetailImage(s.getId());
+                if (img != null) out.set(i, withImage(s, img));
+            }, enrichPool));
+        }
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .get(ENRICH_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (Exception ex) {
+            log.warn("[WELLNESS] 이미지 보강 시간초과/일부 실패(다음 갱신에서 보완): {}", ex.getMessage());
+        }
+        return out;
+    }
+
+    /** detailImage 응답에서 대표 이미지 1장(orgImage>thumbImage) URL 을 반환. 실패 시 null. */
+    private String fetchFirstDetailImage(String contentId) {
+        if (contentId == null || contentId.isBlank()) return null;
+        StringBuilder sb = new StringBuilder(detailImageUrl);
+        sb.append(detailImageUrl.contains("?") ? "&" : "?");
+        sb.append("serviceKey=").append(serviceKey);
+        sb.append("&_type=json&MobileOS=ETC&MobileApp=touraz-dvdholic&langDivCd=ko");
+        sb.append("&imageYN=Y&numOfRows=5&pageNo=1");
+        sb.append("&contentId=").append(URLEncoder.encode(contentId, StandardCharsets.UTF_8));
+
+        String raw;
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.ACCEPT, "application/json");
+            raw = httpClient.requestUri(URI.create(sb.toString()), HttpMethod.GET, headers);
+        } catch (Exception ex) {
+            return null;
+        }
+        if (raw == null) return null;
+        String trimmed = raw.trim();
+        if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return null;
+
+        try {
+            String safe = trimmed
+                    .replaceAll("\"items\"\\s*:\\s*\"\\s*\"", "\"items\":null")
+                    .replaceAll("\"item\"\\s*:\\s*\"\\s*\"", "\"item\":null");
+            VisitKoreaWellnessResponse parsed = ObjectMapperUtil.toObject(safe, VisitKoreaWellnessResponse.class);
+            if (parsed == null || parsed.getResponse() == null
+                    || parsed.getResponse().getBody() == null
+                    || parsed.getResponse().getBody().getItems() == null
+                    || parsed.getResponse().getBody().getItems().getItem() == null) {
+                return null;
+            }
+            for (VisitKoreaWellnessResponse.Item it : parsed.getResponse().getBody().getItems().getItem()) {
+                String u = nullIfBlank(it.getOrgImage());
+                if (u == null) u = nullIfBlank(it.getThumbImage());
+                if (u == null) u = nullIfBlank(it.getAnyImage());
+                if (u != null) return u;
+            }
+            return null;
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private static WellnessSpot withImage(WellnessSpot s, String url) {
+        return WellnessSpot.builder()
+                .id(s.getId())
+                .name(s.getName())
+                .address(s.getAddress())
+                .zipcode(s.getZipcode())
+                .latitude(s.getLatitude())
+                .longitude(s.getLongitude())
+                .imageUrl(url)
+                .tel(s.getTel())
+                .cat1(s.getCat1())
+                .cat2(s.getCat2())
+                .cat3(s.getCat3())
+                .areaCode(s.getAreaCode())
+                .sigunguCode(s.getSigunguCode())
+                .contentTypeId(s.getContentTypeId())
+                .homepage(s.getHomepage())
+                .distanceKm(s.getDistanceKm())
                 .build();
     }
 
