@@ -215,18 +215,24 @@ function LoginContent() {
   const getApiBase = getApiBaseUrl;
 
   const startOAuth = async (provider) => {
+    diag("oauth-enter:" + provider);
     const oauthUrl = `${getApiBase()}/oauth2/authorization/${provider}`;
+    diag("oauth-url:" + oauthUrl.slice(0, 60));
 
     try {
       await ensureCapacitorLoaded();
     } catch (_) {}
 
     const isNative = !!(Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
+    diag("oauth-native:" + isNative + "-browser:" + (!!Browser));
 
     if (isNative && Browser && typeof Browser.open === 'function') {
       try {
+        diag("oauth-call-nativebrowser");
         await openNativeOAuthBrowser(oauthUrl);
+        diag("oauth-nativebrowser-ok");
       } catch (e) {
+        diag("oauth-nativebrowser-ERR:" + (e?.message || e));
         console.error('Native OAuth browser failed:', e);
         resetNativeOAuthSession();
         window.location.href = oauthUrl;
@@ -234,6 +240,7 @@ function LoginContent() {
       return;
     }
 
+    diag("oauth-web-redirect");
     markOAuthRedirectPending();
     document.cookie = "X-App-Platform=;path=/;max-age=0";
     window.location.href = oauthUrl;
