@@ -281,10 +281,33 @@ function DashboardContent() {
 
   const [showAttModal, setShowAttModal] = useState(false);
 
+  // 광고를 화면 하단에 "고정"으로 계속 띄우지 않고, 푸터가 보일 때만 노출한다.
+  // (네이티브 오버레이 광고는 콘텐츠 흐름에 인라인으로 넣을 수 없어, 푸터 가시성으로 흉내낸다.)
+  const footerRef = useRef(null);
   useEffect(() => {
-    showFooterRectangle();
-    return () => { hideBanner(); };
-  }, []);
+    if (!isNative) return;
+    const el = footerRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    let shown = false;
+    const io = new IntersectionObserver(
+      (entries) => {
+        const visible = entries[0]?.isIntersecting;
+        if (visible && !shown) {
+          shown = true;
+          showFooterRectangle();
+        } else if (!visible && shown) {
+          shown = false;
+          hideBanner();
+        }
+      },
+      { root: null, threshold: 0 }
+    );
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      hideBanner();
+    };
+  }, [isNative]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1933,6 +1956,7 @@ function DashboardContent() {
 
         {/* Footer - 비 오는 거리 배경 이미지 (화면 좌우 꽉 채움) */}
         <footer
+          ref={footerRef}
           className="dashboard-footer"
           style={{
             position: "relative",
