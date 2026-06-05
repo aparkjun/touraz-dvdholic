@@ -391,13 +391,35 @@ export default function TourGallerySection({
       try {
         setLoading(true);
         setErrored(false);
-        const params = hasKeyword ? { q: keyword, limit } : { limit };
-        const res = await axios.get(apiBase, { params });
+        const baseParams = hasKeyword ? { q: keyword } : {};
+        const wantAll = limit === 0;
+        // 2단계 로딩: 전체(limit=0) + 무한스크롤이면 우선 pageSize 만큼만 빠르게 받아
+        // 즉시 렌더(스켈레톤 제거)하고, 나머지 전체는 백그라운드로 받아 교체한다.
+        const firstLimit = wantAll && infinite ? pageSize : limit;
+        const res = await axios.get(apiBase, { params: { ...baseParams, limit: firstLimit } });
         if (cancelled) return;
         const data = res?.data?.data ?? res?.data ?? [];
         const arr = Array.isArray(data) ? data : [];
         setItems(arr);
         setVisibleCount(infinite ? Math.min(pageSize, arr.length) : arr.length);
+        setLoading(false);
+
+        // Phase 2: 전체 목록을 백그라운드로 받아 교체(스켈레톤 없이) → 무한스크롤용.
+        if (wantAll && firstLimit !== 0 && !cancelled) {
+          (async () => {
+            try {
+              const resFull = await axios.get(apiBase, { params: { ...baseParams, limit: 0 } });
+              if (cancelled) return;
+              const dFull = resFull?.data?.data ?? resFull?.data ?? [];
+              const arrFull = Array.isArray(dFull) ? dFull : [];
+              if (arrFull.length > 0) {
+                setItems((prev) => (arrFull.length > prev.length ? arrFull : prev));
+              }
+            } catch {
+              /* 전체 로드 실패 시 Phase 1 결과 유지 */
+            }
+          })();
+        }
 
         // VisitKoreaGalleryHttpClient: 키워드 캐시 미스 시 1페이지만 동기 반환 후 백그라운드로 전체 적재.
         // limit=0 이라도 첫 응답 건수가 적을 수 있어, 잠시 후 재조회해 늘어난 캐시를 반영한다.
