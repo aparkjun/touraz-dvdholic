@@ -364,8 +364,24 @@ function MedicalTourismInner() {
           <div className="mt-tag">
             <Stethoscope size={14} />
             <span>K-Medical Tourism · Global</span>
-            <span className="mt-hero-lang">
-              <Globe2 size={11} /> {(i18n?.language || "ko").toLowerCase().startsWith("en") ? "EN" : "KO"}
+            <span className="mt-hero-lang" role="group" aria-label="Language">
+              <Globe2 size={11} />
+              <button
+                type="button"
+                className={`mt-lang-opt ${activeLang === "ko" ? "mt-lang-opt-active" : ""}`}
+                onClick={() => i18n.changeLanguage("ko")}
+                aria-pressed={activeLang === "ko"}
+              >
+                KO
+              </button>
+              <button
+                type="button"
+                className={`mt-lang-opt ${activeLang === "en" ? "mt-lang-opt-active" : ""}`}
+                onClick={() => i18n.changeLanguage("en")}
+                aria-pressed={activeLang === "en"}
+              >
+                EN
+              </button>
             </span>
           </div>
           <h1 className="mt-title">{t("medicalTourism.pageTitle")}</h1>
@@ -833,12 +849,23 @@ const cssBlock = `
   padding: 6px 10px; border-radius: 999px;
 }
 .mt-hero-lang {
-  display: inline-flex; align-items: center; gap: 3px;
+  display: inline-flex; align-items: center; gap: 4px;
   font-size: 10px; font-weight: 800;
-  padding: 2px 7px; border-radius: 999px;
+  padding: 2px 5px 2px 7px; border-radius: 999px;
   background: rgba(255,255,255,0.12); color: #fff;
   border: 1px solid rgba(255,255,255,0.2);
   letter-spacing: 0.06em;
+}
+.mt-lang-opt {
+  appearance: none; border: 0; cursor: pointer;
+  font: inherit; font-size: 10px; font-weight: 800;
+  padding: 1px 6px; border-radius: 999px;
+  background: transparent; color: rgba(255,255,255,0.6);
+  letter-spacing: 0.06em; transition: background .15s, color .15s;
+}
+.mt-lang-opt:hover { color: #fff; }
+.mt-lang-opt-active {
+  background: rgba(255,255,255,0.9); color: #0f172a;
 }
 .mt-title {
   margin: 14px 0 6px;
