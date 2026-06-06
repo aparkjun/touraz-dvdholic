@@ -1367,11 +1367,15 @@
     },
     "toast": {
       "loading": "Finding audio guide…",
+      "playNow": "Play now",
       "playing": "Now playing ·",
       "noaudio": "Many items have no audio. Tap a specific card to play it directly.",
       "empty": "No results. Try another course.",
       "close": "Close",
       "clear": "Clear"
+    },
+    "preview": {
+      "later": "Later"
     }
   },
   "nearbyAudioGuide": {

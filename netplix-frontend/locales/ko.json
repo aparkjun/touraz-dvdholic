@@ -1367,11 +1367,15 @@
     },
     "toast": {
       "loading": "오디오 가이드 찾는 중…",
+      "playNow": "바로 재생",
       "playing": "재생 시작 ·",
       "noaudio": "오디오가 비어있는 항목이 많아요. 카드에서 원하는 항목을 직접 눌러주세요.",
       "empty": "결과가 없어요. 다른 코스를 시도해보세요.",
       "close": "닫기",
       "clear": "지우기"
+    },
+    "preview": {
+      "later": "나중에"
     }
   },
   "nearbyAudioGuide": {

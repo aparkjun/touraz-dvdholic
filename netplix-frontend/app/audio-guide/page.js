@@ -204,14 +204,21 @@ function AudioGuidePageInner() {
   const [detailItem, setDetailItem] = useState(null);
 
   /*
-   * 4대 코스 카드 "탭 = 즉시 재생" UX를 위한 플래그.
-   * 카드 클릭 → 필터 적용 → 새 items 로드 → useEffect 에서 첫 번째 오디오를 자동 재생.
+   * 4대 코스 카드 "탭 = 재생 준비" UX를 위한 플래그.
+   * 카드 클릭 → 필터 적용 → 새 items 로드 → useEffect 에서 첫 재생 가능 트랙을 찾아
+   * "바로 재생" 버튼이 달린 ready 토스트를 띄운다(자동 재생하지 않음).
    *
    * activatedCourse 는 UX 피드백(토스트) 문구와 결과 스크롤 타깃팅에 활용.
    */
   const [autoplayArm, setAutoplayArm] = useState(false);
   const [activatedCourse, setActivatedCourse] = useState(null); // { title, sub }
-  const [courseToast, setCourseToast] = useState(null); // { kind: 'playing'|'empty'|'noaudio'|'blocked', title }
+  const [courseToast, setCourseToast] = useState(null); // { kind: 'loading'|'playing'|'empty'|'noaudio'|'blocked', title }
+  /*
+   * 코스 카드 탭 시, 첫 재생 가능 트랙을 하단에서 슬라이드업되는 바텀시트로 미리 보여준다.
+   * 멜론/스포티파이류의 미니 프리뷰 UX — 사용자가 큰 ▶ 를 눌러야 재생이 시작된다(자동재생 X).
+   *  { title: 코스명, item: AudioGuideItem }
+   */
+  const [coursePreview, setCoursePreview] = useState(null);
   const resultsRef = useRef(null);
 
   /*
@@ -365,7 +372,7 @@ function AudioGuidePageInner() {
   };
 
   /*
-   * 4대 시그니처 코스 카드 트리거 (키워드 체인 + 직접 재생).
+   * 4대 시그니처 코스 카드 트리거 (키워드 체인 + 재생 준비 안내).
    *
    * 배경:
    *  - Odii API 의 theme 탭은 "사찰"/"궁궐" 같은 일반명사로는 0건이 나오고,
@@ -374,13 +381,15 @@ function AudioGuidePageInner() {
    *    풍부하게 매칭된다.
    *
    * 그래서 각 코스 카드는 type='story' 로 고정하고, 키워드 후보를 순차 시도한다.
-   * 첫 번째로 결과가 나오는 쿼리를 화면에 세팅하고 사용자의 클릭 제스처 컨텍스트
-   * 안에서 바로 Audio.play() 를 호출해 재생을 시작한다.
+   * 첫 번째로 결과가 나오는 쿼리를 화면에 세팅하고, 재생은 자동으로 시작하지 않는다.
+   * 대신 "바로 재생" 버튼이 달린 ready 토스트를 띄워 사용자가 직접 재생을 시작하게 한다
+   * (갑작스러운 소리 방지 + 사용자 제스처 안에서 재생되어 모바일 자동재생 차단도 회피).
    */
   const launchCourse = async ({ kind, title, keywords }) => {
     stopPlayback();
     // 이전 autoplay 경로가 실행되지 않도록 차단 (kind === 'nearby' 경로는 별도 취급)
     setAutoplayArm(false);
+    setCoursePreview(null);
     setActivatedCourse({ title });
     setCourseToast({ kind: "loading", title });
 
@@ -393,7 +402,7 @@ function AudioGuidePageInner() {
 
     if (kind === "nearby") {
       // DVD 반납길 코스: geolocation 권한 → userCoords 세팅 → load useEffect 가 발동.
-      // autoplayArm 으로 첫 트랙 자동 재생 예약.
+      // autoplayArm 으로 첫 트랙 "재생 준비"(ready 토스트) 예약 — 자동 재생하지 않음.
       setItems([]);
       setLoading(true);
       setWantNearby(false); // 일단 false → requestNearby 가 true 로 승격 (상태 변화 보장)
@@ -428,15 +437,12 @@ function AudioGuidePageInner() {
         // load useEffect 가 동일한 시그니처로 재fetch 하려는 걸 차단
         skipNextLoadRef.current = `story:${odiiLang}:${q}`;
 
-        // 첫 오디오 또는 대본 가진 트랙을 바로 재생
+        // 자동재생 대신 첫 재생 가능 트랙을 "재생 준비" 상태로 안내한다.
+        // 실제 재생은 토스트의 "바로 재생" 버튼(사용자 제스처)에서 시작 → 갑작스러운 소리 방지 + 모바일 자동재생 차단 회피.
         const firstPlayable = list.find((x) => !!x?.audioUrl);
         if (firstPlayable) {
-          try {
-            togglePlay(firstPlayable);
-            setCourseToast({ kind: "playing", title, name: firstPlayable.title });
-          } catch (_) {
-            setCourseToast({ kind: "blocked", title });
-          }
+          setCourseToast(null);
+          setCoursePreview({ title, item: firstPlayable });
         } else {
           setCourseToast({ kind: "noaudio", title, count: list.length });
         }
@@ -462,8 +468,8 @@ function AudioGuidePageInner() {
     if (loading) return;
     const firstPlayable = items.find((x) => !!x?.audioUrl);
     if (firstPlayable) {
-      togglePlay(firstPlayable);
-      setCourseToast({ kind: "playing", title: activatedCourse?.title || "", name: firstPlayable.title });
+      setCourseToast(null);
+      setCoursePreview({ title: activatedCourse?.title || "", item: firstPlayable });
     } else if (items.length > 0) {
       setCourseToast({ kind: "noaudio", title: activatedCourse?.title || "", count: items.length });
     } else {
@@ -873,7 +879,8 @@ function AudioGuidePageInner() {
       {/*
        * 코스 트리거 후 사용자 피드백 토스트.
        *   - loading : 결과 로딩 중 ("재생 준비 중…")
-       *   - playing : 첫 오디오 재생 시작 ("{트랙명} 재생 중")
+       *   - ready   : 첫 재생 가능 트랙 준비됨 → "바로 재생" 버튼 노출 (사용자가 눌러야 재생)
+       *   - playing : 사용자가 재생을 시작함 ("{트랙명} 재생 중")
        *   - noaudio : 결과는 있으나 오디오 URL 없음 ("카드에서 원하는 항목을 눌러 재생")
        *   - empty   : 결과 0건 ("다른 코스를 시도")
        */}
@@ -1095,6 +1102,24 @@ function AudioGuidePageInner() {
         </div>
       )}
 
+      {/* 코스 카드 탭 → 첫 트랙 바텀시트 미니 프리뷰 (사용자가 ▶ 를 눌러야 재생) */}
+      {coursePreview && coursePreview.item && (
+        <CoursePreviewSheet
+          preview={coursePreview}
+          onPlay={() => {
+            togglePlay(coursePreview.item);
+            const it = coursePreview.item;
+            setCoursePreview(null);
+            setCourseToast({
+              kind: "playing",
+              title: coursePreview.title,
+              name: it.audioTitle || it.title,
+            });
+          }}
+          onClose={() => setCoursePreview(null)}
+        />
+      )}
+
       {/* 카드 클릭 시 열리는 상세 모달 */}
       {detailItem && (
         <AudioGuideDetailModal
@@ -1113,6 +1138,98 @@ function AudioGuidePageInner() {
           }
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * 코스 카드 탭 시 하단에서 슬라이드업되는 미니 프리뷰 바텀시트.
+ *
+ * <p>멜론/스포티파이류 "지금 이거 들어볼래?" UX. 첫 재생 가능 트랙의 썸네일·제목·길이를 보여주고
+ * 큰 ▶ 버튼으로 재생을 시작한다(자동재생 없음 → 갑작스러운 소리 방지).
+ * 백드롭 탭 / "나중에" / 아래로 스와이프로 닫는다.
+ */
+function CoursePreviewSheet({ preview, onPlay, onClose }) {
+  const { t } = useTranslation();
+  const item = preview.item;
+  const [dragY, setDragY] = useState(0);
+  const startYRef = useRef(null);
+
+  const onTouchStart = (e) => {
+    startYRef.current = e.touches?.[0]?.clientY ?? null;
+  };
+  const onTouchMove = (e) => {
+    if (startYRef.current == null) return;
+    const dy = (e.touches?.[0]?.clientY ?? 0) - startYRef.current;
+    if (dy > 0) setDragY(dy);
+  };
+  const onTouchEnd = () => {
+    if (dragY > 90) {
+      onClose?.();
+    } else {
+      setDragY(0);
+    }
+    startYRef.current = null;
+  };
+
+  return (
+    <div className="agp-preview-backdrop" onClick={onClose} role="presentation">
+      <div
+        className="agp-preview-sheet"
+        style={dragY ? { transform: `translateY(${dragY}px)`, transition: "none" } : undefined}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={preview.title}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+      >
+        <div className="agp-preview-handle" />
+        <div className="agp-preview-tag">
+          <Sparkles size={12} /> {preview.title}
+        </div>
+        <div className="agp-preview-main">
+          {item.imageUrl ? (
+            <img
+              className="agp-preview-thumb"
+              src={item.imageUrl}
+              alt={item.title || ""}
+              referrerPolicy="no-referrer"
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+            />
+          ) : (
+            <div className="agp-preview-thumb agp-preview-thumb-fb">
+              <VoiceMicIcon active size={26} />
+            </div>
+          )}
+          <div className="agp-preview-texts">
+            <div className="agp-preview-title" title={item.audioTitle || item.title}>
+              {item.audioTitle || item.title}
+            </div>
+            <div className="agp-preview-sub" title={item.title}>{item.title}</div>
+            <div className="agp-preview-metarow">
+              {item.playTimeText && (
+                <span className="agp-preview-meta">
+                  <Clock size={12} /> {formatMiniTime(item.playTimeText)}
+                </span>
+              )}
+              {item.address && (
+                <span className="agp-preview-meta agp-preview-addr" title={item.address}>
+                  <MapPin size={12} /> {item.address}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+        <button type="button" className="agp-preview-play" onClick={onPlay}>
+          <Play size={20} />
+          {t("audioGuide.toast.playNow", "바로 재생")}
+        </button>
+        <button type="button" className="agp-preview-dismiss" onClick={onClose}>
+          {t("audioGuide.preview.later", "나중에")}
+        </button>
+      </div>
     </div>
   );
 }
@@ -1509,6 +1626,101 @@ const agpCss = `
   border-radius: 999px;
 }
 .agp-toast-close:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+/* ===== 코스 미니 프리뷰 바텀시트 (멜론/스포티파이류) ===== */
+.agp-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(6, 3, 16, 0.55);
+  backdrop-filter: blur(3px);
+  animation: agp-fade-in 0.2s ease-out;
+}
+@keyframes agp-fade-in { from { opacity: 0; } to { opacity: 1; } }
+.agp-preview-sheet {
+  width: min(560px, 100%);
+  margin: 0 12px 12px;
+  padding: 8px 18px 18px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(28, 22, 48, 0.98), rgba(16, 11, 30, 0.99));
+  border: 1px solid rgba(167, 139, 250, 0.32);
+  box-shadow: 0 -10px 60px -16px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255,255,255,0.03);
+  animation: agp-sheet-up 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.25s ease;
+  touch-action: none;
+}
+@keyframes agp-sheet-up {
+  from { transform: translateY(110%); }
+  to   { transform: translateY(0); }
+}
+.agp-preview-handle {
+  width: 40px; height: 4px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.25);
+  margin: 6px auto 12px;
+}
+.agp-preview-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: rgba(250, 204, 21, 0.12);
+  border: 1px solid rgba(250, 204, 21, 0.3);
+  color: #fde68a;
+  font-size: 0.72rem; font-weight: 800; letter-spacing: 0.02em;
+  margin-bottom: 14px;
+}
+.agp-preview-main {
+  display: flex; gap: 14px; align-items: center;
+  margin-bottom: 18px;
+}
+.agp-preview-thumb {
+  width: 68px; height: 68px; flex: 0 0 auto;
+  border-radius: 14px; object-fit: cover;
+  box-shadow: 0 0 0 1px rgba(167,139,250,0.45), 0 8px 22px -8px rgba(0,0,0,0.7);
+}
+.agp-preview-thumb-fb {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #a78bfa 0%, #f472b6 100%);
+  color: #1b0a38;
+}
+.agp-preview-texts { min-width: 0; flex: 1; }
+.agp-preview-title {
+  font-size: 1.05rem; font-weight: 800; color: #fff; line-height: 1.3;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.agp-preview-sub {
+  font-size: 0.84rem; color: #cdc0ee; margin-top: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.agp-preview-metarow { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+.agp-preview-meta {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.76rem; color: #b9a9e6;
+}
+.agp-preview-addr { max-width: 220px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.agp-preview-play {
+  width: 100%;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 15px;
+  border: none; border-radius: 16px; cursor: pointer;
+  background: linear-gradient(135deg, #a78bfa 0%, #f472b6 60%, #fbbf24 100%);
+  color: #1a0a35; font-size: 1rem; font-weight: 900; letter-spacing: -0.01em;
+  box-shadow: 0 12px 30px -10px rgba(167, 139, 250, 0.6);
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+.agp-preview-play:hover { filter: brightness(1.05); }
+.agp-preview-play:active { transform: scale(0.985); }
+.agp-preview-dismiss {
+  width: 100%;
+  margin-top: 8px;
+  padding: 11px;
+  background: none; border: none; cursor: pointer;
+  color: #9b8cc9; font-size: 0.88rem; font-weight: 700;
+}
+.agp-preview-dismiss:hover { color: #cdc0ee; }
 
 .agp-boot { min-height: 40vh; display: inline-flex; gap: 10px; align-items: center; padding: 24px; color: #bda6ff; }
 
