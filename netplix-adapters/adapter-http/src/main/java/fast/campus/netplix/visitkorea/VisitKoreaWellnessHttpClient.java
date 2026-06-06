@@ -352,8 +352,9 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
     }
 
     private VisitKoreaWellnessResponse.Item fetchDetailCommon(String contentId) {
+        // 주의: v2 계열(웰니스) detailCommon 은 구버전 YN 플래그(overviewYN/defaultYN 등)를 받지 않으며,
+        // 붙이면 파라미터 오류로 빈 응답이 온다. overview 는 기본 응답에 포함되므로 contentId 만 보낸다.
         StringBuilder sb = detailUrlBase(detailCommonUrl, contentId);
-        sb.append("&defaultYN=Y&overviewYN=Y&firstImageYN=Y&addrinfoYN=Y&mapinfoYN=Y");
         String json = requestRawJson(sb);
         if (json == null) return null;
         try {
