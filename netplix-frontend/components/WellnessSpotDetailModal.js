@@ -54,6 +54,20 @@ function secureTourImageUrl(url) {
   return s;
 }
 
+/**
+ * KTO tong 이미지의 썸네일(저해상도) 변형으로 치환.
+ * 원본 `..._image2_1.jpg`(수백 KB) → 썸네일 `..._image3_1.jpg`(수십 KB)로,
+ * 작은 갤러리 칸에 충분한 화질을 유지하면서 기기 WebView 메모리 사용을 크게 줄인다.
+ */
+function ktoThumbUrl(url) {
+  const s = secureTourImageUrl(url);
+  if (!s) return '';
+  if (s.includes('tong.visitkorea.or.kr') && s.includes('_image2_')) {
+    return s.replace('_image2_', '_image3_');
+  }
+  return s;
+}
+
 function regionLabelForSpot(spot) {
   const ac = String(spot?.areaCode ?? '').trim();
   if (!ac) return '';
@@ -130,7 +144,7 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
   const galleryImages = React.useMemo(() => {
     const arr = [];
     const push = (u) => {
-      const s = secureTourImageUrl(u);
+      const s = ktoThumbUrl(u);
       if (s && !arr.includes(s)) arr.push(s);
     };
     if (spot.imageUrl) push(spot.imageUrl);
