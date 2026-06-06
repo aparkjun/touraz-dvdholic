@@ -18,6 +18,38 @@ import useBackButtonClose from '@/lib/useBackButtonClose';
 import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
 
 /**
+ * 상세 본문(개요/이용정보/갤러리) 렌더 중 예외가 나도 앱 전체가 흰 화면/"This page couldn't load"
+ * 로 죽지 않도록 격리한다. 오류 시 메시지를 노출해 원인 진단도 가능.
+ */
+class DetailErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    // 진단용: 콘솔/네이티브 로그에 남긴다.
+    // eslint-disable-next-line no-console
+    console.error('[WellnessSpotDetailModal] render error:', error, info?.componentStack);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="ws-mod-boundary">
+          상세 정보를 표시하는 중 문제가 발생했습니다.
+          <span className="ws-mod-boundary-msg">
+            {String(this.state.error?.message || this.state.error)}
+          </span>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/**
  * 웰니스 스팟 상세 모달.
  *
  * 목록 응답(areaBasedList 등)에는 소개글·이용시간 같은 본문 필드가 없어서,
@@ -149,8 +181,7 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
     };
     if (spot.imageUrl) push(spot.imageUrl);
     (detail?.images || []).forEach(push);
-    // 기기 WebView 메모리 보호: 갤러리는 최대 8장까지만 렌더(원본 다량 로딩 시 렌더러 크래시 방지).
-    return arr.slice(0, 8);
+    return arr;
   }, [spot.imageUrl, detail]);
   // 홈페이지: 상세 응답 우선, 없으면 목록 값.
   const homepage = (detail?.homepage && String(detail.homepage).trim() !== '')
@@ -241,6 +272,7 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
         </div>
 
         <div className="ws-mod-body">
+          <DetailErrorBoundary>
           {detailLoading && (
             <div className="ws-mod-loading">
               <Loader2 size={15} className="ws-mod-spin" />
@@ -294,6 +326,7 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
               </dl>
             </section>
           )}
+          </DetailErrorBoundary>
 
           <ul className="ws-mod-info">
             {spot.address && (
@@ -527,6 +560,25 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           padding: 16px 18px 20px;
         }
 
+        .ws-mod-boundary {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-bottom: 14px;
+          padding: 12px 14px;
+          border-radius: 10px;
+          background: rgba(248, 113, 113, 0.1);
+          border: 1px solid rgba(248, 113, 113, 0.28);
+          color: #fca5a5;
+          font-size: 12.5px;
+          font-weight: 600;
+        }
+        .ws-mod-boundary-msg {
+          color: #fecaca;
+          font-weight: 400;
+          font-size: 11.5px;
+          word-break: break-word;
+        }
         .ws-mod-loading {
           display: flex;
           align-items: center;
