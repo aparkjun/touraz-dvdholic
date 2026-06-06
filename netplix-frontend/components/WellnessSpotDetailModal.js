@@ -134,6 +134,31 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
     return () => window.removeEventListener('keydown', onEsc);
   }, [spot, onClose]);
 
+  // 모달이 열려 있는 동안 뒤 배경(목록 페이지) 스크롤 잠금.
+  // position:fixed 로 모바일 WebView 의 배경 터치 스크롤까지 막고, 닫을 때 원래 위치 복원.
+  React.useEffect(() => {
+    if (!spot || typeof document === 'undefined') return undefined;
+    const body = document.body;
+    const scrollY = window.scrollY || window.pageYOffset || 0;
+    const prev = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+    };
+    body.style.overflow = 'hidden';
+    body.style.position = 'fixed';
+    body.style.top = `-${scrollY}px`;
+    body.style.width = '100%';
+    return () => {
+      body.style.overflow = prev.overflow;
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.width = prev.width;
+      window.scrollTo(0, scrollY);
+    };
+  }, [spot]);
+
   // 상세(개요·이용정보·추가 사진)는 목록 응답에 없어 detail 엔드포인트로 보강 조회.
   React.useEffect(() => {
     if (!spot?.id) {
