@@ -163,6 +163,20 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
     };
   }, [spot?.id, spot?.contentTypeId]);
 
+  // 추가 사진 갤러리(히어로 포함). 중복 제거 후 https 승격 + 썸네일 치환.
+  // ⚠ 훅은 조기 반환(if (!spot) return null) 위에 있어야 한다(React 훅 순서 규칙).
+  const galleryImages = React.useMemo(() => {
+    if (!spot) return [];
+    const arr = [];
+    const push = (u) => {
+      const s = ktoThumbUrl(u);
+      if (s && !arr.includes(s)) arr.push(s);
+    };
+    if (spot.imageUrl) push(spot.imageUrl);
+    (detail?.images || []).forEach(push);
+    return arr;
+  }, [spot, detail]);
+
   if (!spot) return null;
 
   const regionLabel = regionLabelForSpot(spot);
@@ -172,17 +186,6 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
     ? String(detail.overview).trim()
     : '';
   const facts = Array.isArray(detail?.facts) ? detail.facts.filter((f) => f && f.value) : [];
-  // 추가 사진 갤러리(히어로 포함). 중복 제거 후 https 승격.
-  const galleryImages = React.useMemo(() => {
-    const arr = [];
-    const push = (u) => {
-      const s = ktoThumbUrl(u);
-      if (s && !arr.includes(s)) arr.push(s);
-    };
-    if (spot.imageUrl) push(spot.imageUrl);
-    (detail?.images || []).forEach(push);
-    return arr;
-  }, [spot.imageUrl, detail]);
   // 홈페이지: 상세 응답 우선, 없으면 목록 값.
   const homepage = (detail?.homepage && String(detail.homepage).trim() !== '')
     ? detail.homepage
