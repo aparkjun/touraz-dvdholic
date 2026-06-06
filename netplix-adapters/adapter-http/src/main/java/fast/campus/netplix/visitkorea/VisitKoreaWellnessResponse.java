@@ -93,6 +93,9 @@ public class VisitKoreaWellnessResponse {
         @JsonAlias({ "firstimage2", "firstImage2", "thumbnailUrl" })
         private String thumbImage;
 
+        /** detailCommon 응답의 소개글. 목록 응답에는 없음. */
+        private String overview;
+
         /** 위 선언 필드로 매핑되지 못한 이미지류 키(예: galWebImageUrl 등)를 포착하는 폴백. */
         @com.fasterxml.jackson.annotation.JsonIgnore
         private String anyImage;

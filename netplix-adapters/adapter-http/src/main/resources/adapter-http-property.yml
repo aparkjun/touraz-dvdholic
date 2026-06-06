@@ -257,6 +257,7 @@ visitkorea:
     location-url: ${visitkorea.wellness.base-url}/locationBasedList
     search-url: ${visitkorea.wellness.base-url}/searchKeyword
     detail-common-url: ${visitkorea.wellness.base-url}/detailCommon
+    detail-intro-url: ${visitkorea.wellness.base-url}/detailIntro
     detail-image-url: ${visitkorea.wellness.base-url}/detailImage
     cache-minutes: 1440
   # 의료관광정보 서비스 (MdclTursmService) - 성형/한방/건강검진/재활/미용/K-의료

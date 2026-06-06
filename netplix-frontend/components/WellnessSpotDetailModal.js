@@ -10,20 +10,23 @@ import {
   Navigation,
   Sparkles,
   Tag,
+  Info,
+  Loader2,
 } from 'lucide-react';
+import axios from '@/lib/axiosConfig';
 import useBackButtonClose from '@/lib/useBackButtonClose';
 import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
 
 /**
  * 웰니스 스팟 상세 모달.
  *
- * 백엔드 /api/v1/wellness 응답에는 overview/description 같은 상세 텍스트 필드가 없다.
- * (KTO TourAPI areaBasedList/searchKeyword/locationBasedList 공통 스키마 한계)
+ * 목록 응답(areaBasedList 등)에는 소개글·이용시간 같은 본문 필드가 없어서,
+ * 모달이 열리면 GET /api/v1/wellness/detail?contentId=..&contentTypeId=.. 로
+ * detailCommon(개요·홈페이지) + detailIntro(이용시간·휴무·주차·문의 등) +
+ * detailImage(추가 사진 갤러리) 를 합쳐 받아 뿌린다.
  *
- * 그래서 이 모달은 카드가 이미 보유한 데이터(이름·주소·전화·이미지·좌표·분류코드)를
- * 정돈해서 보여주고, 카카오맵 / 전화 / VisitKorea 공식 페이지로 빠르게 이어주는 데
- * 집중한다. 추후 KTO detailCommon/Intro/Image 엔드포인트가 백엔드에 추가되면
- * 본문 영역(<section className="ws-mod-overview">)에 그 데이터를 채우면 된다.
+ * 데이터가 비어 있으면 해당 섹션은 자연 숨김 처리하고, 기본 정보(주소·전화·좌표)와
+ * 카카오맵 / 네이버 / 전화 / VisitKorea 공식 페이지 바로가기는 항상 제공한다.
  *
  * 시스템 뒤로가기 / Esc / 오버레이 클릭 모두로 닫힌다.
  */
@@ -73,6 +76,9 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
   const { t } = useTranslation();
   useBackButtonClose(!!spot, onClose);
 
+  const [detail, setDetail] = React.useState(null);
+  const [detailLoading, setDetailLoading] = React.useState(false);
+
   React.useEffect(() => {
     if (!spot) return undefined;
     const onEsc = (e) => {
@@ -82,10 +88,59 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
     return () => window.removeEventListener('keydown', onEsc);
   }, [spot, onClose]);
 
+  // 상세(개요·이용정보·추가 사진)는 목록 응답에 없어 detail 엔드포인트로 보강 조회.
+  React.useEffect(() => {
+    if (!spot?.id) {
+      setDetail(null);
+      return undefined;
+    }
+    let cancelled = false;
+    setDetail(null);
+    setDetailLoading(true);
+    const params = new URLSearchParams({ contentId: String(spot.id) });
+    if (spot.contentTypeId) params.set('contentTypeId', String(spot.contentTypeId));
+    axios
+      .get(`/api/v1/wellness/detail?${params.toString()}`, { timeout: 12000 })
+      .then((res) => {
+        if (cancelled) return;
+        const d = res?.data?.data ?? res?.data;
+        setDetail(d && typeof d === 'object' ? d : null);
+      })
+      .catch(() => {
+        if (!cancelled) setDetail(null);
+      })
+      .finally(() => {
+        if (!cancelled) setDetailLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [spot?.id, spot?.contentTypeId]);
+
   if (!spot) return null;
 
   const regionLabel = regionLabelForSpot(spot);
   const contentTypeLabel = CONTENT_TYPE_LABEL[String(spot.contentTypeId || '')] || '';
+
+  const overview = detail?.overview && String(detail.overview).trim() !== ''
+    ? String(detail.overview).trim()
+    : '';
+  const facts = Array.isArray(detail?.facts) ? detail.facts.filter((f) => f && f.value) : [];
+  // 추가 사진 갤러리(히어로 포함). 중복 제거 후 https 승격.
+  const galleryImages = React.useMemo(() => {
+    const arr = [];
+    const push = (u) => {
+      const s = secureTourImageUrl(u);
+      if (s && !arr.includes(s)) arr.push(s);
+    };
+    if (spot.imageUrl) push(spot.imageUrl);
+    (detail?.images || []).forEach(push);
+    return arr;
+  }, [spot.imageUrl, detail]);
+  // 홈페이지: 상세 응답 우선, 없으면 목록 값.
+  const homepage = (detail?.homepage && String(detail.homepage).trim() !== '')
+    ? detail.homepage
+    : (spot.homepage && String(spot.homepage).trim() !== '' ? spot.homepage : null);
 
   const kakaoMapUrl = spot.address
     ? `https://map.kakao.com/link/search/${encodeURIComponent(spot.address)}`
@@ -169,6 +224,59 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
         </div>
 
         <div className="ws-mod-body">
+          {detailLoading && (
+            <div className="ws-mod-loading">
+              <Loader2 size={15} className="ws-mod-spin" />
+              <span>상세 정보를 불러오는 중…</span>
+            </div>
+          )}
+
+          {galleryImages.length > 1 && (
+            <div className="ws-mod-gallery js-drag-scroll" aria-label="추가 사진">
+              {galleryImages.map((src, i) => (
+                <div className="ws-mod-gallery-item" key={`${src}-${i}`}>
+                  <img
+                    src={src}
+                    alt={`${spot.name || ''} ${i + 1}`}
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    draggable={false}
+                    onError={(e) => {
+                      e.currentTarget.parentElement.style.display = 'none';
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {overview && (
+            <section className="ws-mod-overview">
+              <h3 className="ws-mod-sec-title">
+                <Info size={14} />
+                소개
+              </h3>
+              <p className="ws-mod-overview-text">{overview}</p>
+            </section>
+          )}
+
+          {facts.length > 0 && (
+            <section className="ws-mod-facts">
+              <h3 className="ws-mod-sec-title">
+                <Sparkles size={14} />
+                이용 정보
+              </h3>
+              <dl className="ws-mod-facts-grid">
+                {facts.map((f, i) => (
+                  <div className="ws-mod-fact" key={`${f.label}-${i}`}>
+                    <dt>{f.label}</dt>
+                    <dd>{f.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+
           <ul className="ws-mod-info">
             {spot.address && (
               <li>
@@ -218,9 +326,9 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
                 label={t('wellness.modal.naverMap', '네이버 지도')}
               />
             )}
-            {spot.homepage && String(spot.homepage).trim() !== '' && (
+            {homepage && (
               <a
-                href={spot.homepage}
+                href={homepage}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="ws-mod-act ws-mod-act-home"
@@ -400,6 +508,112 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
         .ws-mod-body {
           padding: 16px 18px 20px;
         }
+
+        .ws-mod-loading {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 12px;
+          padding: 9px 12px;
+          border-radius: 10px;
+          background: rgba(148, 163, 184, 0.1);
+          border: 1px solid rgba(148, 163, 184, 0.18);
+          color: #94a3b8;
+          font-size: 12.5px;
+          font-weight: 600;
+        }
+        .ws-mod-spin {
+          animation: ws-mod-spin 0.9s linear infinite;
+        }
+        @keyframes ws-mod-spin {
+          to { transform: rotate(360deg); }
+        }
+
+        .ws-mod-gallery {
+          display: flex;
+          gap: 8px;
+          overflow-x: auto;
+          margin: 0 0 16px;
+          padding-bottom: 4px;
+          scrollbar-width: none;
+        }
+        .ws-mod-gallery::-webkit-scrollbar { display: none; }
+        .ws-mod-gallery-item {
+          flex: 0 0 auto;
+          width: 140px;
+          height: 96px;
+          border-radius: 12px;
+          overflow: hidden;
+          background: #0a1020;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+        }
+        .ws-mod-gallery-item img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+          -webkit-user-drag: none;
+          user-select: none;
+        }
+
+        .ws-mod-sec-title {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin: 0 0 8px;
+          font-size: 13px;
+          font-weight: 800;
+          letter-spacing: 0.01em;
+          color: #9bb8b8;
+          text-transform: none;
+        }
+        .ws-mod-overview {
+          margin-bottom: 16px;
+        }
+        .ws-mod-overview-text {
+          margin: 0;
+          font-size: 13.5px;
+          line-height: 1.6;
+          color: #cbd5e1;
+          white-space: pre-line;
+        }
+        .ws-mod-facts {
+          margin-bottom: 16px;
+        }
+        .ws-mod-facts-grid {
+          margin: 0;
+          padding: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 1px;
+          border-radius: 12px;
+          overflow: hidden;
+          border: 1px solid rgba(148, 163, 184, 0.14);
+          background: rgba(148, 163, 184, 0.14);
+        }
+        .ws-mod-fact {
+          display: grid;
+          grid-template-columns: 92px 1fr;
+          gap: 10px;
+          padding: 10px 12px;
+          background: rgba(15, 23, 42, 0.6);
+        }
+        .ws-mod-fact dt {
+          margin: 0;
+          font-size: 12px;
+          font-weight: 700;
+          color: #94a3b8;
+          letter-spacing: 0.01em;
+        }
+        .ws-mod-fact dd {
+          margin: 0;
+          font-size: 13px;
+          line-height: 1.5;
+          color: #e2e8f0;
+          white-space: pre-line;
+          word-break: break-word;
+        }
+
         .ws-mod-info {
           margin: 0 0 14px;
           padding: 0;

@@ -15,4 +15,7 @@ public interface GetWellnessSpotsUseCase {
     List<WellnessSpot> byKeyword(String keyword, int limit);
 
     List<WellnessSpot> byKorAdministrativeArea(String korAreaCode, String signguCodeOrNull, int limit);
+
+    /** 콘텐츠 상세(개요·이용정보·추가 사진) 조회. */
+    WellnessSpotDetail detail(String contentId, String contentTypeId);
 }

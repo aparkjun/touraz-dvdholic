@@ -39,6 +39,12 @@ public interface WellnessSpotPort {
      */
     List<WellnessSpot> fetchByKorAdministrativeArea(String korAreaCode, String signguCodeOrNull, int limit);
 
+    /**
+     * 콘텐츠 상세(개요·이용정보·추가 사진) 조회.
+     * detailCommon/detailIntro/detailImage 를 합쳐 반환한다. contentTypeId 는 detailIntro 필드 매핑에 사용.
+     */
+    WellnessSpotDetail fetchDetail(String contentId, String contentTypeId);
+
     /** 어댑터 호출 가능 여부 (serviceKey 설정 여부). */
     boolean isConfigured();
 }

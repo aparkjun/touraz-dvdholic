@@ -69,4 +69,17 @@ public class WellnessController {
                 .map(WellnessSpotResponse::from).toList();
         return NetplixApiResponse.ok(body);
     }
+
+    /**
+     * 콘텐츠 상세(개요·이용시간·휴무·주차·문의 등 + 추가 사진 갤러리).
+     * 목록 응답에 없는 detailCommon/detailIntro/detailImage 를 합쳐 반환한다.
+     */
+    @GetMapping("/detail")
+    public NetplixApiResponse<WellnessSpotDetailResponse> detail(
+            @RequestParam String contentId,
+            @RequestParam(required = false) String contentTypeId) {
+        WellnessSpotDetailResponse body = WellnessSpotDetailResponse.from(
+                useCase.detail(contentId, contentTypeId));
+        return NetplixApiResponse.ok(body);
+    }
 }

@@ -1,8 +1,11 @@
 package fast.campus.netplix.visitkorea;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import fast.campus.netplix.client.HttpClient;
 import fast.campus.netplix.util.ObjectMapperUtil;
 import fast.campus.netplix.wellness.WellnessSpot;
+import fast.campus.netplix.wellness.WellnessSpotDetail;
 import fast.campus.netplix.wellness.WellnessSpotPort;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -65,6 +68,72 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
     private static final int BG_ENRICH_LIMIT = 400;
     /** 이미지 보강 전체 대기 한도(ms). 초과분은 다음 캐시 갱신에서 채워진다. */
     private static final long ENRICH_TIMEOUT_MS = 12_000L;
+
+    /** 상세 응답(단일 item 이 객체로 오는 경우 포함) 파싱용 매퍼. */
+    private static final ObjectMapper DETAIL_MAPPER = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
+
+    /**
+     * detailIntro 필드 → 화면 라벨. contentTypeId(관광지/문화/레포츠/숙박/쇼핑/음식점) 별 변형 키를 모두 포함.
+     * 선언 순서대로 모달에 노출된다(LinkedHashMap).
+     */
+    private static final Map<String, String> INTRO_LABELS = new LinkedHashMap<>();
+    static {
+        // 이용/영업 시간
+        INTRO_LABELS.put("usetime", "이용시간");
+        INTRO_LABELS.put("usetimeculture", "이용시간");
+        INTRO_LABELS.put("usetimeleports", "이용시간");
+        INTRO_LABELS.put("opentime", "영업시간");
+        INTRO_LABELS.put("opentimefood", "영업시간");
+        INTRO_LABELS.put("opendate", "개장일");
+        INTRO_LABELS.put("opendateshopping", "영업시간");
+        INTRO_LABELS.put("checkintime", "입실 시간");
+        INTRO_LABELS.put("checkouttime", "퇴실 시간");
+        // 휴무
+        INTRO_LABELS.put("restdate", "휴무일");
+        INTRO_LABELS.put("restdateculture", "휴무일");
+        INTRO_LABELS.put("restdatefood", "휴무일");
+        INTRO_LABELS.put("restdateleports", "휴무일");
+        INTRO_LABELS.put("restdateshopping", "휴무일");
+        // 요금/메뉴
+        INTRO_LABELS.put("usefee", "이용요금");
+        INTRO_LABELS.put("usetimefestival", "이용요금");
+        INTRO_LABELS.put("firstmenu", "대표 메뉴");
+        INTRO_LABELS.put("treatmenu", "취급 메뉴");
+        // 체험/이용 안내
+        INTRO_LABELS.put("expguide", "체험 안내");
+        INTRO_LABELS.put("useseason", "이용 시기");
+        INTRO_LABELS.put("scaleleports", "규모");
+        INTRO_LABELS.put("accomcountleports", "수용 인원");
+        INTRO_LABELS.put("accomcountculture", "수용 인원");
+        // 주차
+        INTRO_LABELS.put("parking", "주차");
+        INTRO_LABELS.put("parkingculture", "주차");
+        INTRO_LABELS.put("parkingfood", "주차");
+        INTRO_LABELS.put("parkingleports", "주차");
+        INTRO_LABELS.put("parkinglodging", "주차");
+        INTRO_LABELS.put("parkingshopping", "주차");
+        // 편의/정책
+        INTRO_LABELS.put("chkcreditcard", "신용카드");
+        INTRO_LABELS.put("chkcreditcardculture", "신용카드");
+        INTRO_LABELS.put("chkcreditcardfood", "신용카드");
+        INTRO_LABELS.put("chkbabycarriage", "유모차 대여");
+        INTRO_LABELS.put("chkpet", "반려동물 동반");
+        INTRO_LABELS.put("chkpetculture", "반려동물 동반");
+        INTRO_LABELS.put("reservation", "예약");
+        INTRO_LABELS.put("reservationlodging", "예약");
+        INTRO_LABELS.put("reservationfood", "예약");
+        INTRO_LABELS.put("kidsfacility", "어린이 놀이방");
+        INTRO_LABELS.put("smoking", "흡연");
+        // 문의·안내
+        INTRO_LABELS.put("infocenter", "문의 · 안내");
+        INTRO_LABELS.put("infocenterculture", "문의 · 안내");
+        INTRO_LABELS.put("infocenterfood", "문의 · 안내");
+        INTRO_LABELS.put("infocenterleports", "문의 · 안내");
+        INTRO_LABELS.put("infocenterlodging", "문의 · 안내");
+        INTRO_LABELS.put("infocentershopping", "문의 · 안내");
+    }
     private static final String ALL_KEY = "__ALL__";
     private static final int MAX_KEYWORD_CACHE = 64;
     /** 전국 웰니스관광지 ~700-900개. 넉넉히 10 페이지(= 2,000개) 가드. */
@@ -90,6 +159,15 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
 
     @Value("${visitkorea.wellness.detail-image-url:https://apis.data.go.kr/B551011/WellnessTursmService/detailImage}")
     private String detailImageUrl;
+
+    @Value("${visitkorea.wellness.detail-common-url:https://apis.data.go.kr/B551011/WellnessTursmService/detailCommon}")
+    private String detailCommonUrl;
+
+    @Value("${visitkorea.wellness.detail-intro-url:https://apis.data.go.kr/B551011/WellnessTursmService/detailIntro}")
+    private String detailIntroUrl;
+
+    /** contentId 별 상세 캐시(개요·이용정보·갤러리). 24h TTL 공유. */
+    private final Map<String, DetailSnapshot> detailCache = new ConcurrentHashMap<>();
 
     /** detailImage 병렬 보강용 소형 풀(외부 KTO 호출 → I/O 바운드). */
     private final ExecutorService enrichPool = Executors.newFixedThreadPool(12, r -> {
@@ -242,6 +320,151 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
             return primary;
         }
         return filterAllByAdministrative(ldong, signguCodeOrNull, limit, first == null ? "areaBasedList 실패(null)" : "areaBasedList 0건");
+    }
+
+    @Override
+    public WellnessSpotDetail fetchDetail(String contentId, String contentTypeId) {
+        if (!isConfigured() || contentId == null || contentId.isBlank()) {
+            return WellnessSpotDetail.empty(contentId);
+        }
+        String key = contentId.trim();
+        DetailSnapshot snap = detailCache.get(key);
+        if (snap != null && (Instant.now().toEpochMilli() - snap.loadedAtEpochMs) < cacheMinutes * 60_000L) {
+            return snap.detail;
+        }
+        WellnessSpotDetail detail = loadDetail(key, contentTypeId);
+        detailCache.put(key, new DetailSnapshot(detail, Instant.now().toEpochMilli()));
+        return detail;
+    }
+
+    /** detailCommon(개요·홈페이지·전화) + detailImage(갤러리) + detailIntro(이용정보) 를 합친다. */
+    private WellnessSpotDetail loadDetail(String contentId, String contentTypeId) {
+        String overview = null, homepage = null, tel = null;
+        VisitKoreaWellnessResponse.Item common = fetchDetailCommon(contentId);
+        if (common != null) {
+            overview = cleanHtml(nullIfBlank(common.getOverview()));
+            homepage = normalizeHomepage(nullIfBlank(common.getHomepage()));
+            tel = nullIfBlank(common.getTel());
+        }
+        List<String> images = fetchAllDetailImages(contentId);
+        List<WellnessSpotDetail.Fact> facts = fetchDetailIntroFacts(contentId, contentTypeId);
+        return new WellnessSpotDetail(contentId, overview, homepage, tel, images, facts);
+    }
+
+    private VisitKoreaWellnessResponse.Item fetchDetailCommon(String contentId) {
+        StringBuilder sb = detailUrlBase(detailCommonUrl, contentId);
+        sb.append("&defaultYN=Y&overviewYN=Y&firstImageYN=Y&addrinfoYN=Y&mapinfoYN=Y");
+        String json = requestRawJson(sb);
+        if (json == null) return null;
+        try {
+            VisitKoreaWellnessResponse p = DETAIL_MAPPER.readValue(json, VisitKoreaWellnessResponse.class);
+            if (p == null || p.getResponse() == null || p.getResponse().getBody() == null
+                    || p.getResponse().getBody().getItems() == null
+                    || p.getResponse().getBody().getItems().getItem() == null
+                    || p.getResponse().getBody().getItems().getItem().isEmpty()) {
+                return null;
+            }
+            return p.getResponse().getBody().getItems().getItem().get(0);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private List<String> fetchAllDetailImages(String contentId) {
+        StringBuilder sb = detailUrlBase(detailImageUrl, contentId);
+        sb.append("&imageYN=Y");
+        String json = requestRawJson(sb);
+        if (json == null) return List.of();
+        try {
+            VisitKoreaWellnessResponse p = DETAIL_MAPPER.readValue(json, VisitKoreaWellnessResponse.class);
+            if (p == null || p.getResponse() == null || p.getResponse().getBody() == null
+                    || p.getResponse().getBody().getItems() == null
+                    || p.getResponse().getBody().getItems().getItem() == null) {
+                return List.of();
+            }
+            List<String> out = new ArrayList<>();
+            for (VisitKoreaWellnessResponse.Item it : p.getResponse().getBody().getItems().getItem()) {
+                String u = nullIfBlank(it.getOrgImage());
+                if (u == null) u = nullIfBlank(it.getThumbImage());
+                if (u == null) u = nullIfBlank(it.getAnyImage());
+                if (u != null && !out.contains(u)) out.add(u);
+            }
+            return out;
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
+    private List<WellnessSpotDetail.Fact> fetchDetailIntroFacts(String contentId, String contentTypeId) {
+        if (contentTypeId == null || contentTypeId.isBlank()) return List.of();
+        StringBuilder sb = detailUrlBase(detailIntroUrl, contentId);
+        sb.append("&contentTypeId=").append(URLEncoder.encode(contentTypeId, StandardCharsets.UTF_8));
+        String json = requestRawJson(sb);
+        if (json == null) return List.of();
+        try {
+            VisitKoreaWellnessIntroResponse p = DETAIL_MAPPER.readValue(json, VisitKoreaWellnessIntroResponse.class);
+            if (p == null || p.getResponse() == null || p.getResponse().getBody() == null
+                    || p.getResponse().getBody().getItems() == null
+                    || p.getResponse().getBody().getItems().getItem() == null
+                    || p.getResponse().getBody().getItems().getItem().isEmpty()) {
+                return List.of();
+            }
+            Map<String, Object> m = p.getResponse().getBody().getItems().getItem().get(0);
+            List<WellnessSpotDetail.Fact> facts = new ArrayList<>();
+            for (Map.Entry<String, String> label : INTRO_LABELS.entrySet()) {
+                Object raw = m.get(label.getKey());
+                String val = raw == null ? null : cleanHtml(String.valueOf(raw).trim());
+                if (val != null && !val.isEmpty() && !"0".equals(val)) {
+                    facts.add(new WellnessSpotDetail.Fact(label.getValue(), val));
+                }
+            }
+            return facts;
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
+    private StringBuilder detailUrlBase(String url, String contentId) {
+        StringBuilder sb = new StringBuilder(url);
+        sb.append(url.contains("?") ? "&" : "?");
+        sb.append("serviceKey=").append(serviceKey);
+        sb.append("&_type=json&MobileOS=ETC&MobileApp=touraz-dvdholic&langDivCd=ko");
+        sb.append("&numOfRows=30&pageNo=1");
+        sb.append("&contentId=").append(URLEncoder.encode(contentId, StandardCharsets.UTF_8));
+        return sb;
+    }
+
+    private String requestRawJson(StringBuilder sb) {
+        String raw;
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.ACCEPT, "application/json");
+            raw = httpClient.requestUri(URI.create(sb.toString()), HttpMethod.GET, headers);
+        } catch (Exception ex) {
+            return null;
+        }
+        if (raw == null) return null;
+        String t = raw.trim();
+        if (!t.startsWith("{") && !t.startsWith("[")) return null;
+        return t.replaceAll("\"items\"\\s*:\\s*\"\\s*\"", "\"items\":null")
+                .replaceAll("\"item\"\\s*:\\s*\"\\s*\"", "\"item\":null");
+    }
+
+    /** KTO 본문 값에 섞인 HTML 태그/엔티티 제거(<br> → 줄바꿈). */
+    private static String cleanHtml(String s) {
+        if (s == null) return null;
+        String r = s
+                .replaceAll("(?i)<br\\s*/?>", "\n")
+                .replaceAll("<[^>]+>", "")
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&#39;", "'")
+                .replace("&nbsp;", " ")
+                .replaceAll("[ \\t]+\\n", "\n")
+                .trim();
+        return r.isEmpty() ? null : r;
     }
 
     /** KTO 행정 필터가 0건·실패할 때 전국 캐시에서 lDongRegnCd 로 맞춘다.
@@ -669,4 +892,6 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
     }
 
     private record PageResult(List<WellnessSpot> items, int totalCount) {}
+
+    private record DetailSnapshot(WellnessSpotDetail detail, long loadedAtEpochMs) {}
 }
