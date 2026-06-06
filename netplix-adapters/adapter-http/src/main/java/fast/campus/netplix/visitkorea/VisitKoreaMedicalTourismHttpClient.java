@@ -324,16 +324,44 @@ public class VisitKoreaMedicalTourismHttpClient implements MedicalTourismSpotPor
         if (s == null) return null;
         String r = s
                 .replaceAll("(?i)<br\\s*/?>", "\n")
-                .replaceAll("<[^>]+>", "")
-                .replace("&amp;", "&")
-                .replace("&lt;", "<")
-                .replace("&gt;", ">")
-                .replace("&quot;", "\"")
-                .replace("&#39;", "'")
-                .replace("&nbsp;", " ")
+                .replaceAll("<[^>]+>", "");
+        r = decodeEntities(r)
                 .replaceAll("[ \\t]+\\n", "\n")
                 .trim();
         return r.isEmpty() ? null : r;
+    }
+
+    /** 명명/숫자 HTML 엔티티 디코딩(개요 등 본문 가독성). */
+    private static String decodeEntities(String s) {
+        String r = s
+                .replace("&middot;", "·")
+                .replace("&hellip;", "…")
+                .replace("&ndash;", "–")
+                .replace("&mdash;", "—")
+                .replace("&lsquo;", "‘").replace("&rsquo;", "’")
+                .replace("&ldquo;", "“").replace("&rdquo;", "”")
+                .replace("&nbsp;", " ")
+                .replace("&quot;", "\"")
+                .replace("&#39;", "'")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">");
+        // 숫자 엔티티(&#183; / &#xB7;)
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("&#(x?)([0-9a-fA-F]+);").matcher(r);
+        StringBuilder sb = new StringBuilder();
+        while (m.find()) {
+            try {
+                int code = m.group(1).isEmpty()
+                        ? Integer.parseInt(m.group(2))
+                        : Integer.parseInt(m.group(2), 16);
+                m.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(new String(Character.toChars(code))));
+            } catch (Exception ex) {
+                m.appendReplacement(sb, java.util.regex.Matcher.quoteReplacement(m.group(0)));
+            }
+        }
+        m.appendTail(sb);
+        // &amp; 는 다른 엔티티 복원 후 마지막에 처리(이중 디코딩 방지)
+        return sb.toString().replace("&amp;", "&");
     }
 
     /** 공공 API 홈페이지 값이 스킴 없이 도메인만 오는 경우가 많아 브라우저 안전 URL 로 보정. */
