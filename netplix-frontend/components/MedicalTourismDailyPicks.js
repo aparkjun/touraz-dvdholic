@@ -19,7 +19,36 @@
 
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Sparkles, MapPin, Phone, Stethoscope, ChevronRight } from "lucide-react";
+import {
+  Sparkles, MapPin, Phone, Stethoscope, ChevronRight,
+  Syringe, Smile, Leaf, Activity, HeartPulse, Bone,
+} from "lucide-react";
+
+/**
+ * KTO 의료관광 데이터셋에는 시설 사진이 등록돼 있지 않다(detailCommon orgImage/thumbImage 공란).
+ * 또 medClusterCd(category)도 응답에서 비어 오는 경우가 많아, 시설명 키워드로 진료분야를 추론해
+ * 분야별 테마(그라데이션+아이콘+라벨)를 입힌다. 실제 imageUrl 이 있으면 사진을 우선 사용한다.
+ */
+const CATEGORY_THEMES = {
+  plastic:  { Icon: Syringe,    grad: "linear-gradient(135deg,#fb7185 0%,#9333ea 100%)", ko: "성형·미용", en: "Plastic Surgery" },
+  beauty:   { Icon: Sparkles,   grad: "linear-gradient(135deg,#f472b6 0%,#f59e0b 100%)", ko: "피부·뷰티", en: "Skin & Beauty" },
+  dental:   { Icon: Smile,      grad: "linear-gradient(135deg,#22d3ee 0%,#3b82f6 100%)", ko: "치과",      en: "Dental" },
+  herbal:   { Icon: Leaf,       grad: "linear-gradient(135deg,#34d399 0%,#0d9488 100%)", ko: "한방",      en: "Korean Medicine" },
+  spine:    { Icon: Bone,       grad: "linear-gradient(135deg,#a78bfa 0%,#6366f1 100%)", ko: "재활·척추", en: "Spine & Rehab" },
+  women:    { Icon: HeartPulse, grad: "linear-gradient(135deg,#f9a8d4 0%,#db2777 100%)", ko: "여성의료", en: "Women's Health" },
+  general:  { Icon: Stethoscope,grad: "linear-gradient(135deg,#38bdf8 0%,#6d28d9 100%)", ko: "종합의료", en: "General Medical" },
+};
+
+function inferTheme(name) {
+  const s = (name || "").toLowerCase();
+  if (/성형|plastic|aesthetic|미용성형/.test(s)) return "plastic";
+  if (/피부|derma|뷰티|beauty|미용|skin/.test(s)) return "beauty";
+  if (/치과|dental|치아/.test(s)) return "dental";
+  if (/한의원|한방|한의|korean medicine|oriental|herbal/.test(s)) return "herbal";
+  if (/재활|rehab|척추|spine|정형|ortho|관절|joint|디스크/.test(s)) return "spine";
+  if (/여성|women|산부인과|obgyn|ob\/gyn|womens?/.test(s)) return "women";
+  return "general";
+}
 
 /**
  * 날짜를 시드로 하는 결정적 PRNG.
@@ -59,7 +88,8 @@ function pickDaily(spots) {
 }
 
 export default function MedicalTourismDailyPicks({ spots, onOpen }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = (i18n?.language || "ko").toLowerCase();
   const picks = useMemo(() => pickDaily(spots), [spots]);
 
   if (picks.length === 0) return null;
@@ -77,7 +107,11 @@ export default function MedicalTourismDailyPicks({ spots, onOpen }) {
         </span>
       </header>
       <div className="mtp-grid">
-        {picks.map((s, i) => (
+        {picks.map((s, i) => {
+          const theme = CATEGORY_THEMES[inferTheme(s.name)] || CATEGORY_THEMES.general;
+          const ThemeIcon = theme.Icon;
+          const themeLabel = lang.startsWith("en") ? theme.en : theme.ko;
+          return (
           <button
             key={s.id}
             type="button"
@@ -85,7 +119,7 @@ export default function MedicalTourismDailyPicks({ spots, onOpen }) {
             onClick={() => onOpen?.(s)}
             style={{ animationDelay: `${i * 70}ms` }}
           >
-            <div className="mtp-img">
+            <div className="mtp-img" style={s.imageUrl ? undefined : { backgroundImage: theme.grad }}>
               {s.imageUrl ? (
                 <img
                   src={s.imageUrl}
@@ -95,8 +129,9 @@ export default function MedicalTourismDailyPicks({ spots, onOpen }) {
                   onError={(e) => { e.currentTarget.style.display = "none"; }}
                 />
               ) : (
-                <div className="mtp-img-fallback">
-                  <Stethoscope size={42} />
+                <div className="mtp-img-themed">
+                  <ThemeIcon size={46} strokeWidth={1.5} />
+                  <span className="mtp-img-cat">{themeLabel}</span>
                 </div>
               )}
               <span className="mtp-rank">#{i + 1}</span>
@@ -122,7 +157,8 @@ export default function MedicalTourismDailyPicks({ spots, onOpen }) {
               </span>
             </div>
           </button>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
@@ -201,10 +237,21 @@ const cssBlock = `
   width: 100%; height: 100%;
   object-fit: cover; display: block;
 }
-.mtp-img-fallback {
+.mtp-img-themed {
   position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  color: rgba(255,255,255,0.45);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 8px;
+  color: rgba(255,255,255,0.95);
+  text-shadow: 0 1px 6px rgba(0,0,0,0.25);
+}
+.mtp-img-themed > svg { opacity: 0.92; }
+.mtp-img-cat {
+  font-size: 0.82rem; font-weight: 800; letter-spacing: 0.02em;
+  padding: 3px 11px; border-radius: 999px;
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.3);
+  backdrop-filter: blur(3px);
 }
 .mtp-grad {
   position: absolute; inset: 0;

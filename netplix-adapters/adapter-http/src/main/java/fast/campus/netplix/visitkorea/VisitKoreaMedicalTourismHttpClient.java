@@ -24,9 +24,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -55,15 +52,6 @@ public class VisitKoreaMedicalTourismHttpClient implements MedicalTourismSpotPor
     private static final int LOCATION_PAGE_ROWS = 100;
     private static final Set<String> SUPPORTED_LANGS = Set.of("ko", "en");
 
-    /**
-     * MdclTursmService 목록(areaBasedList/searchKeyword/locationBasedList)은 대표이미지를 응답에 포함하지 않는다.
-     * 또한 웰니스와 달리 detailImage 오퍼레이션이 없으므로, 이미지가 비어 있는 항목은 detailCommon
-     * (orgImage/thumbImage 포함)을 contentId 별로 병렬 조회해 대표 1장을 보강한다.
-     */
-    private static final int SYNC_ENRICH_LIMIT = 40;
-    private static final int BG_ENRICH_LIMIT = 400;
-    private static final long ENRICH_TIMEOUT_MS = 12_000L;
-
     private final HttpClient httpClient;
 
     @Value("${visitkorea.medical-tourism.api-key:}")
@@ -78,20 +66,10 @@ public class VisitKoreaMedicalTourismHttpClient implements MedicalTourismSpotPor
     @Value("${visitkorea.medical-tourism.search-url:https://apis.data.go.kr/B551011/MdclTursmService/searchKeyword}")
     private String searchUrl;
 
-    @Value("${visitkorea.medical-tourism.detail-common-url:https://apis.data.go.kr/B551011/MdclTursmService/detailCommon}")
-    private String detailCommonUrl;
-
     @Value("${visitkorea.medical-tourism.cache-minutes:1440}")
     private long cacheMinutes;
 
     private final Map<String, CacheSnapshot> cache = new ConcurrentHashMap<>();
-
-    /** detailCommon 병렬 이미지 보강용 소형 풀(외부 KTO 호출 → I/O 바운드). */
-    private final ExecutorService enrichPool = Executors.newFixedThreadPool(12, r -> {
-        Thread t = new Thread(r, "medical-img-enrich");
-        t.setDaemon(true);
-        return t;
-    });
 
     @Override
     public boolean isConfigured() {
@@ -131,8 +109,7 @@ public class VisitKoreaMedicalTourismHttpClient implements MedicalTourismSpotPor
         if (snap == null) {
             PageResult first = requestPage(areaUrl, Map.of("arrange", "C"), l, 1);
             if (first == null) return List.of();
-            List<MedicalTourismSpot> partial = Collections.unmodifiableList(
-                    new ArrayList<>(enrichImages(first.items, l, SYNC_ENRICH_LIMIT)));
+            List<MedicalTourismSpot> partial = Collections.unmodifiableList(new ArrayList<>(first.items));
             boolean needMore = first.totalCount > partial.size();
             cache.put(key, new CacheSnapshot(partial, Instant.now().toEpochMilli(), needMore));
             if (needMore) scheduleAllRefresh(l);
@@ -161,7 +138,7 @@ public class VisitKoreaMedicalTourismHttpClient implements MedicalTourismSpotPor
                         a.getDistanceKm() == null ? Double.MAX_VALUE : a.getDistanceKm(),
                         b.getDistanceKm() == null ? Double.MAX_VALUE : b.getDistanceKm()))
                 .collect(Collectors.toList());
-        return take(enrichImages(sorted, l, SYNC_ENRICH_LIMIT), limit);
+        return take(sorted, limit);
     }
 
     @Override
@@ -179,8 +156,7 @@ public class VisitKoreaMedicalTourismHttpClient implements MedicalTourismSpotPor
         if (snap == null) {
             PageResult first = requestPage(searchUrl, Map.of("keyword", keyword.trim()), l, 1);
             if (first == null) return List.of();
-            List<MedicalTourismSpot> partial = Collections.unmodifiableList(
-                    new ArrayList<>(enrichImages(first.items, l, SYNC_ENRICH_LIMIT)));
+            List<MedicalTourismSpot> partial = Collections.unmodifiableList(new ArrayList<>(first.items));
             boolean needMore = first.totalCount > partial.size();
             cache.put(cacheKey, new CacheSnapshot(partial, Instant.now().toEpochMilli(), needMore));
             if (needMore) scheduleKeywordRefresh(l, keyword.trim(), cacheKey);
@@ -216,7 +192,6 @@ public class VisitKoreaMedicalTourismHttpClient implements MedicalTourismSpotPor
             log.warn("[MEDICAL] lang={} 전체 로드 실패 - 캐시 유지", lang);
             return;
         }
-        sites = enrichImages(sites, lang, BG_ENRICH_LIMIT);
         cache.put(allKey(lang), new CacheSnapshot(sites, Instant.now().toEpochMilli(), false));
         log.info("[MEDICAL] lang={} 전체 캐시 갱신 - {} 건", lang, sites.size());
     }
@@ -227,7 +202,6 @@ public class VisitKoreaMedicalTourismHttpClient implements MedicalTourismSpotPor
             log.warn("[MEDICAL] lang={} keyword={} 로드 실패 - 캐시 저장 스킵", lang, keyword);
             return;
         }
-        sites = enrichImages(sites, lang, BG_ENRICH_LIMIT);
         if (cache.size() >= MAX_KEYWORD_CACHE) {
             cache.entrySet().stream()
                     .filter(e -> !e.getKey().startsWith(ALL_KEY_PREFIX))
@@ -386,107 +360,6 @@ public class VisitKoreaMedicalTourismHttpClient implements MedicalTourismSpotPor
                 .contentTypeId(s.getContentTypeId())
                 .language(s.getLanguage())
                 .distanceKm(Math.round(d * 100.0) / 100.0)
-                .build();
-    }
-
-    /**
-     * 의료관광 목록 API 는 대표이미지를 주지 않으며 detailImage 오퍼레이션도 없으므로,
-     * 이미지가 비어 있는 스팟에 한해 detailCommon(orgImage/thumbImage 포함)을 병렬 조회해 대표 1장을 채운다.
-     * lang(ko/en) 별로 detailCommon 을 호출하며, maxToEnrich 로 외부 호출량을 제한한다.
-     */
-    private List<MedicalTourismSpot> enrichImages(List<MedicalTourismSpot> spots, String lang, int maxToEnrich) {
-        if (spots == null || spots.isEmpty() || detailCommonUrl == null || detailCommonUrl.isBlank()) {
-            return spots;
-        }
-        List<MedicalTourismSpot> out = new ArrayList<>(spots);
-        List<Integer> targets = new ArrayList<>();
-        for (int i = 0; i < out.size() && targets.size() < maxToEnrich; i++) {
-            MedicalTourismSpot s = out.get(i);
-            if ((s.getImageUrl() == null || s.getImageUrl().isBlank()) && s.getId() != null && !s.getId().isBlank()) {
-                targets.add(i);
-            }
-        }
-        if (targets.isEmpty()) return out;
-
-        List<CompletableFuture<Void>> futures = new ArrayList<>(targets.size());
-        for (int idx : targets) {
-            final int i = idx;
-            final MedicalTourismSpot s = out.get(i);
-            futures.add(CompletableFuture.runAsync(() -> {
-                String img = fetchDetailCommonImage(s.getId(), lang);
-                if (img != null) out.set(i, withImage(s, img));
-            }, enrichPool));
-        }
-        try {
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                    .get(ENRICH_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } catch (Exception ex) {
-            log.warn("[MEDICAL] 이미지 보강 시간초과/일부 실패(다음 갱신에서 보완): {}", ex.getMessage());
-        }
-        return out;
-    }
-
-    /** detailCommon 응답에서 대표 이미지(orgImage>thumbImage) URL 1장을 반환. 실패 시 null. */
-    private String fetchDetailCommonImage(String contentId, String lang) {
-        if (contentId == null || contentId.isBlank()) return null;
-        StringBuilder sb = new StringBuilder(detailCommonUrl);
-        sb.append(detailCommonUrl.contains("?") ? "&" : "?");
-        sb.append("serviceKey=").append(serviceKey);
-        sb.append("&_type=json&MobileOS=ETC&MobileApp=touraz-dvdholic");
-        sb.append("&langDivCd=").append(lang);
-        sb.append("&numOfRows=1&pageNo=1");
-        sb.append("&contentId=").append(URLEncoder.encode(contentId, StandardCharsets.UTF_8));
-
-        String raw;
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.add(HttpHeaders.ACCEPT, "application/json");
-            raw = httpClient.requestUri(URI.create(sb.toString()), HttpMethod.GET, headers);
-        } catch (Exception ex) {
-            return null;
-        }
-        if (raw == null) return null;
-        String trimmed = raw.trim();
-        if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return null;
-
-        try {
-            String safe = trimmed
-                    .replaceAll("\"items\"\\s*:\\s*\"\\s*\"", "\"items\":null")
-                    .replaceAll("\"item\"\\s*:\\s*\"\\s*\"", "\"item\":null");
-            VisitKoreaMedicalTourismResponse parsed = ObjectMapperUtil.toObject(safe, VisitKoreaMedicalTourismResponse.class);
-            if (parsed == null || parsed.getResponse() == null
-                    || parsed.getResponse().getBody() == null
-                    || parsed.getResponse().getBody().getItems() == null
-                    || parsed.getResponse().getBody().getItems().getItem() == null) {
-                return null;
-            }
-            for (VisitKoreaMedicalTourismResponse.Item it : parsed.getResponse().getBody().getItems().getItem()) {
-                String u = nullIfBlank(it.getOrgImage());
-                if (u == null) u = nullIfBlank(it.getThumbImage());
-                if (u != null) return u;
-            }
-            return null;
-        } catch (Exception ex) {
-            return null;
-        }
-    }
-
-    private static MedicalTourismSpot withImage(MedicalTourismSpot s, String url) {
-        return MedicalTourismSpot.builder()
-                .id(s.getId())
-                .name(s.getName())
-                .address(s.getAddress())
-                .zipcode(s.getZipcode())
-                .latitude(s.getLatitude())
-                .longitude(s.getLongitude())
-                .imageUrl(url)
-                .tel(s.getTel())
-                .category(s.getCategory())
-                .areaCode(s.getAreaCode())
-                .sigunguCode(s.getSigunguCode())
-                .contentTypeId(s.getContentTypeId())
-                .language(s.getLanguage())
-                .distanceKm(s.getDistanceKm())
                 .build();
     }
 
