@@ -771,7 +771,8 @@ const cssBlock = `
 .wel-search-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(90, 88, 105, 0.35); }
 
 .wel-nearby-btn {
-  display: inline-flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: fit-content; margin-left: auto; margin-right: auto;
   background: rgba(95, 110, 100, 0.14);
   border: 1px solid rgba(120, 136, 126, 0.35);
   color: #b0bfb2;
@@ -789,7 +790,7 @@ const cssBlock = `
 
 .wel-theme-chips {
   margin-top: 16px;
-  display: flex; flex-wrap: wrap; gap: 8px;
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
 }
 .wel-theme-chip {
   background: rgba(95, 108, 98, 0.12);
@@ -813,7 +814,7 @@ const cssBlock = `
 
 .wel-chips {
   margin-top: 12px;
-  display: flex; flex-wrap: wrap; gap: 8px;
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
 }
 .wel-chip {
   background: rgba(255,255,255,0.05);
