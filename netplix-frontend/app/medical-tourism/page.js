@@ -822,7 +822,7 @@ const cssBlock = `
   border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 .mt-main { position: relative; z-index: 1; }
-.mt-hero-inner { max-width: 1200px; margin: 0 auto; }
+.mt-hero-inner { max-width: 1200px; margin: 0 auto; text-align: center; }
 .mt-tag {
   display: inline-flex; align-items: center; gap: 6px;
   font-size: 11px; font-weight: 800;
@@ -851,7 +851,7 @@ const cssBlock = `
   line-height: 1.15;
 }
 .mt-sub {
-  margin: 0 0 16px;
+  margin: 0 auto 16px;
   color: #c6c6c6; font-size: 0.95rem;
   max-width: 760px; line-height: 1.5;
 }
@@ -860,7 +860,7 @@ const cssBlock = `
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.1);
   border-radius: 999px; padding: 6px 6px 6px 16px;
-  max-width: 520px; margin-bottom: 10px;
+  max-width: 520px; margin: 0 auto 10px;
 }
 .mt-search-icon { color: #bdbdbd; }
 .mt-search-input {
@@ -878,7 +878,8 @@ const cssBlock = `
 .mt-search-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4); }
 
 .mt-nearby-btn {
-  display: inline-flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: fit-content; margin-left: auto; margin-right: auto;
   background: rgba(14, 165, 233, 0.1);
   border: 1px solid rgba(14, 165, 233, 0.28);
   color: #7dd3fc;
@@ -896,7 +897,7 @@ const cssBlock = `
 
 .mt-theme-chips {
   margin-top: 16px;
-  display: flex; flex-wrap: wrap; gap: 8px;
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
 }
 .mt-theme-chip {
   background: rgba(14,165,233,0.08);
@@ -920,7 +921,7 @@ const cssBlock = `
 
 .mt-chips {
   margin-top: 12px;
-  display: flex; flex-wrap: wrap; gap: 8px;
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
 }
 .mt-chip {
   background: rgba(255,255,255,0.05);
