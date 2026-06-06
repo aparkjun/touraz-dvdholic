@@ -135,7 +135,8 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
     };
     if (spot.imageUrl) push(spot.imageUrl);
     (detail?.images || []).forEach(push);
-    return arr;
+    // 기기 WebView 메모리 보호: 갤러리는 최대 8장까지만 렌더(원본 다량 로딩 시 렌더러 크래시 방지).
+    return arr.slice(0, 8);
   }, [spot.imageUrl, detail]);
   // 홈페이지: 상세 응답 우선, 없으면 목록 값.
   const homepage = (detail?.homepage && String(detail.homepage).trim() !== '')
@@ -184,6 +185,8 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
             <img
               src={secureTourImageUrl(spot.imageUrl)}
               alt={spot.name || ''}
+              loading="lazy"
+              decoding="async"
               referrerPolicy="no-referrer"
               onError={(e) => {
                 e.currentTarget.style.display = 'none';
@@ -239,6 +242,7 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
                     src={src}
                     alt={`${spot.name || ''} ${i + 1}`}
                     loading="lazy"
+                    decoding="async"
                     referrerPolicy="no-referrer"
                     draggable={false}
                     onError={(e) => {

@@ -383,12 +383,15 @@ public class VisitKoreaWellnessHttpClient implements WellnessSpotPort {
                     || p.getResponse().getBody().getItems().getItem() == null) {
                 return List.of();
             }
+            // 갤러리는 모달의 작은 가로 레일(썸네일)이므로, 기기 WebView 메모리 보호를 위해
+            // 원본(orgImage) 대신 썸네일(thumbImage) 을 우선 사용한다. 썸네일이 없으면 원본으로 폴백.
             List<String> out = new ArrayList<>();
             for (VisitKoreaWellnessResponse.Item it : p.getResponse().getBody().getItems().getItem()) {
-                String u = nullIfBlank(it.getOrgImage());
-                if (u == null) u = nullIfBlank(it.getThumbImage());
+                String u = nullIfBlank(it.getThumbImage());
+                if (u == null) u = nullIfBlank(it.getOrgImage());
                 if (u == null) u = nullIfBlank(it.getAnyImage());
                 if (u != null && !out.contains(u)) out.add(u);
+                if (out.size() >= 10) break; // 과도한 이미지 수 상한
             }
             return out;
         } catch (Exception ex) {
