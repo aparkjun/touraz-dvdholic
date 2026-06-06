@@ -22,6 +22,10 @@ android {
             if (!keystoreFile.exists()) {
                 keystoreFile = file("../../../signing.keystore")
             }
+            if (!keystoreFile.exists()) {
+                // 저장소 루트(touraz-dvdholic/signing.keystore) 폴백
+                keystoreFile = file("../../../../signing.keystore")
+            }
             if (keystoreFile.exists()) {
                 storeFile keystoreFile
                 storePassword "5QdjvSTcbK_3"
@@ -38,6 +42,9 @@ android {
             def keystoreFile = file("../../signing.keystore")
             if (!keystoreFile.exists()) {
                 keystoreFile = file("../../../signing.keystore")
+            }
+            if (!keystoreFile.exists()) {
+                keystoreFile = file("../../../../signing.keystore")
             }
             // 로컬/CI 에서 signing.keystore 가 없으면 디버그 키로 번들 생성(스토어 업로드 전에는 반드시 릴리스 키로 다시 빌드)
             signingConfig keystoreFile.exists() ? signingConfigs.release : signingConfigs.debug
