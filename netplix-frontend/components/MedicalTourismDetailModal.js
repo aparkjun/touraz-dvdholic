@@ -418,7 +418,7 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
                 <div className="mtd-field">
                   <div className="mtd-field-label">
                     <Languages size={13} />
-                    {t("medicalTourism.detail.languages", "지원 외국어")}
+                    {t("medicalTourism.detail.languages", "응대 가능 언어")}
                   </div>
                   <div className="mtd-dchips">
                     {detail.languages.map((s) => (
