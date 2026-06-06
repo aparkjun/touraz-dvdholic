@@ -98,6 +98,12 @@ public class VisitKoreaMedicalTourismResponse {
         @JsonAlias({"firstimage2"})
         private String thumbImage;
 
+        /** detailCommon 응답에 포함되는 기관 소개/개요. */
+        private String overview;
+
+        /** detailCommon 응답에 포함되는 홈페이지(HTML 앵커 포함 가능). */
+        private String homepage;
+
         @JsonAlias({"mapx"})
         private String mapX;
 

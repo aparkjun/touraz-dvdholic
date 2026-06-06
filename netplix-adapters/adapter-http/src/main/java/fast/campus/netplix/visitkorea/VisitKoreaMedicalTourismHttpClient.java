@@ -1,7 +1,10 @@
 package fast.campus.netplix.visitkorea;
 
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import fast.campus.netplix.client.HttpClient;
 import fast.campus.netplix.medical.MedicalTourismSpot;
+import fast.campus.netplix.medical.MedicalTourismSpotDetail;
 import fast.campus.netplix.medical.MedicalTourismSpotPort;
 import fast.campus.netplix.util.ObjectMapperUtil;
 import jakarta.annotation.PostConstruct;
@@ -17,6 +20,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -52,6 +56,11 @@ public class VisitKoreaMedicalTourismHttpClient implements MedicalTourismSpotPor
     private static final int LOCATION_PAGE_ROWS = 100;
     private static final Set<String> SUPPORTED_LANGS = Set.of("ko", "en");
 
+    /** 상세 응답(단일 item 이 배열이 아닌 객체로 오는 경우 포함) 파싱용 매퍼. */
+    private static final ObjectMapper DETAIL_MAPPER = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+            .configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
+
     private final HttpClient httpClient;
 
     @Value("${visitkorea.medical-tourism.api-key:}")
@@ -66,10 +75,19 @@ public class VisitKoreaMedicalTourismHttpClient implements MedicalTourismSpotPor
     @Value("${visitkorea.medical-tourism.search-url:https://apis.data.go.kr/B551011/MdclTursmService/searchKeyword}")
     private String searchUrl;
 
+    @Value("${visitkorea.medical-tourism.detail-common-url:https://apis.data.go.kr/B551011/MdclTursmService/detailCommon}")
+    private String detailCommonUrl;
+
+    @Value("${visitkorea.medical-tourism.detail-mdcl-url:https://apis.data.go.kr/B551011/MdclTursmService/detailMdclTursm}")
+    private String detailMdclUrl;
+
     @Value("${visitkorea.medical-tourism.cache-minutes:1440}")
     private long cacheMinutes;
 
     private final Map<String, CacheSnapshot> cache = new ConcurrentHashMap<>();
+
+    /** contentId+lang 별 상세 캐시(개요·진료과목·언어 등). 24h TTL 공유. */
+    private final Map<String, DetailSnapshot> detailCache = new ConcurrentHashMap<>();
 
     @Override
     public boolean isConfigured() {
@@ -165,6 +183,167 @@ public class VisitKoreaMedicalTourismHttpClient implements MedicalTourismSpotPor
 
         scheduleKeywordRefresh(l, keyword.trim(), cacheKey);
         return take(snap.sites, limit);
+    }
+
+    @Override
+    public MedicalTourismSpotDetail fetchDetail(String contentId, String lang) {
+        if (!isConfigured() || contentId == null || contentId.isBlank()) {
+            return MedicalTourismSpotDetail.empty(contentId);
+        }
+        String l = normalize(lang);
+        String key = l + ":" + contentId.trim();
+        DetailSnapshot snap = detailCache.get(key);
+        if (snap != null && (Instant.now().toEpochMilli() - snap.loadedAtEpochMs) < cacheMinutes * 60_000L) {
+            return snap.detail;
+        }
+        MedicalTourismSpotDetail detail = loadDetail(contentId.trim(), l);
+        detailCache.put(key, new DetailSnapshot(detail, Instant.now().toEpochMilli()));
+        return detail;
+    }
+
+    /** detailCommon(개요·홈페이지) + detailMdclTursm(의료관광 특화 정보)을 합친다. */
+    private MedicalTourismSpotDetail loadDetail(String contentId, String lang) {
+        String overview = null, homepage = null;
+        VisitKoreaMedicalTourismResponse.Item common = fetchDetailCommon(contentId, lang);
+        if (common != null) {
+            overview = cleanHtml(nullIfBlank(common.getOverview()));
+            homepage = normalizeHomepage(extractHref(nullIfBlank(common.getHomepage())));
+        }
+
+        VisitKoreaMedicalDetailResponse.Item mdcl = fetchDetailMdcl(contentId, lang);
+        if (mdcl == null) {
+            return new MedicalTourismSpotDetail(contentId, overview, homepage, null, null,
+                    List.of(), List.of(), false, null, false, null, null, null, null);
+        }
+        if (homepage == null) homepage = normalizeHomepage(extractHref(nullIfBlank(mdcl.getHmpgInfo())));
+        boolean onlineRsvt = "Y".equalsIgnoreCase(nullIfBlank(mdcl.getOnlineRsvtPsblYn()));
+        boolean coord = "Y".equalsIgnoreCase(nullIfBlank(mdcl.getCoorResidYn()));
+        return new MedicalTourismSpotDetail(
+                contentId,
+                overview,
+                homepage,
+                cleanHtml(nullIfBlank(mdcl.getInsttDevInfo())),
+                cleanHtml(nullIfBlank(mdcl.getMdclTursmDivInfo())),
+                splitList(mdcl.getMainMdlcSubjInfo()),
+                splitList(mdcl.getSvcLangInfo()),
+                onlineRsvt,
+                normalizeHomepage(extractHref(nullIfBlank(mdcl.getGdsCnselCn()))),
+                coord,
+                cleanHtml(nullIfBlank(mdcl.getSpecProcMdlcInfo())),
+                cleanHtml(nullIfBlank(mdcl.getSpecFcltyInfo())),
+                cleanHtml(nullIfBlank(mdcl.getHistrCn())),
+                cleanHtml(nullIfBlank(mdcl.getPrSnsInfo()))
+        );
+    }
+
+    private VisitKoreaMedicalTourismResponse.Item fetchDetailCommon(String contentId, String lang) {
+        String json = requestDetailJson(detailCommonUrl, contentId, lang, null);
+        if (json == null) return null;
+        try {
+            VisitKoreaMedicalTourismResponse p = DETAIL_MAPPER.readValue(json, VisitKoreaMedicalTourismResponse.class);
+            if (p == null || p.getResponse() == null || p.getResponse().getBody() == null
+                    || p.getResponse().getBody().getItems() == null
+                    || p.getResponse().getBody().getItems().getItem() == null
+                    || p.getResponse().getBody().getItems().getItem().isEmpty()) {
+                return null;
+            }
+            return p.getResponse().getBody().getItems().getItem().get(0);
+        } catch (Exception ex) {
+            log.warn("[MEDICAL] detailCommon 파싱 실패 contentId={} err={}", contentId, ex.getMessage());
+            return null;
+        }
+    }
+
+    private VisitKoreaMedicalDetailResponse.Item fetchDetailMdcl(String contentId, String lang) {
+        String json = requestDetailJson(detailMdclUrl, contentId, lang, null);
+        if (json == null) return null;
+        try {
+            VisitKoreaMedicalDetailResponse p = DETAIL_MAPPER.readValue(json, VisitKoreaMedicalDetailResponse.class);
+            if (p == null || p.getResponse() == null || p.getResponse().getBody() == null
+                    || p.getResponse().getBody().getItems() == null
+                    || p.getResponse().getBody().getItems().getItem() == null
+                    || p.getResponse().getBody().getItems().getItem().isEmpty()) {
+                return null;
+            }
+            return p.getResponse().getBody().getItems().getItem().get(0);
+        } catch (Exception ex) {
+            log.warn("[MEDICAL] detailMdclTursm 파싱 실패 contentId={} err={}", contentId, ex.getMessage());
+            return null;
+        }
+    }
+
+    private String requestDetailJson(String url, String contentId, String lang, Map<String, String> extras) {
+        StringBuilder sb = new StringBuilder(url);
+        sb.append(url.contains("?") ? "&" : "?");
+        sb.append("serviceKey=").append(serviceKey);
+        sb.append("&_type=json&MobileOS=ETC&MobileApp=touraz-dvdholic");
+        sb.append("&langDivCd=").append(lang);
+        sb.append("&numOfRows=1&pageNo=1");
+        sb.append("&contentId=").append(URLEncoder.encode(contentId, StandardCharsets.UTF_8));
+        if (extras != null) {
+            extras.forEach((k, v) -> sb.append('&').append(k).append('=')
+                    .append(URLEncoder.encode(v, StandardCharsets.UTF_8)));
+        }
+        String raw;
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.ACCEPT, "application/json");
+            raw = httpClient.requestUri(URI.create(sb.toString()), HttpMethod.GET, headers);
+        } catch (Exception ex) {
+            return null;
+        }
+        if (raw == null) return null;
+        String t = raw.trim();
+        if (!t.startsWith("{") && !t.startsWith("[")) return null;
+        return t.replaceAll("\"items\"\\s*:\\s*\"\\s*\"", "\"items\":null")
+                .replaceAll("\"item\"\\s*:\\s*\"\\s*\"", "\"item\":null");
+    }
+
+    /** 쉼표 구분 문자열 → 트림된 비어있지 않은 리스트. */
+    private static List<String> splitList(String raw) {
+        if (raw == null || raw.isBlank()) return List.of();
+        return Arrays.stream(raw.split("[,\\n]"))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    /** 값이 HTML 앵커(&lt;a href=...&gt;)면 href 만 추출, 아니면 원문 반환. */
+    private static String extractHref(String raw) {
+        if (raw == null) return null;
+        java.util.regex.Matcher m = java.util.regex.Pattern
+                .compile("href\\s*=\\s*[\"']([^\"']+)[\"']", java.util.regex.Pattern.CASE_INSENSITIVE)
+                .matcher(raw);
+        if (m.find()) return m.group(1).trim();
+        return raw;
+    }
+
+    /** KTO 본문 값에 섞인 HTML 태그/엔티티 제거(<br> → 줄바꿈). */
+    private static String cleanHtml(String s) {
+        if (s == null) return null;
+        String r = s
+                .replaceAll("(?i)<br\\s*/?>", "\n")
+                .replaceAll("<[^>]+>", "")
+                .replace("&amp;", "&")
+                .replace("&lt;", "<")
+                .replace("&gt;", ">")
+                .replace("&quot;", "\"")
+                .replace("&#39;", "'")
+                .replace("&nbsp;", " ")
+                .replaceAll("[ \\t]+\\n", "\n")
+                .trim();
+        return r.isEmpty() ? null : r;
+    }
+
+    /** 공공 API 홈페이지 값이 스킴 없이 도메인만 오는 경우가 많아 브라우저 안전 URL 로 보정. */
+    private static String normalizeHomepage(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String t = raw.trim();
+        if (t.startsWith("//")) return "https:" + t;
+        String lower = t.toLowerCase(Locale.ROOT);
+        if (lower.startsWith("http://") || lower.startsWith("https://")) return t;
+        return "https://" + t;
     }
 
     private void scheduleAllRefresh(String lang) {
@@ -424,4 +603,6 @@ public class VisitKoreaMedicalTourismHttpClient implements MedicalTourismSpotPor
     }
 
     private record PageResult(List<MedicalTourismSpot> items, int totalCount) {}
+
+    private record DetailSnapshot(MedicalTourismSpotDetail detail, long loadedAtEpochMs) {}
 }

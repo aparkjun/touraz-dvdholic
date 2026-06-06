@@ -475,7 +475,16 @@
       "crossAudio": "Audio guide on the way",
       "crossWellness": "Healing before & after",
       "crossCine": "Filming-location tour while you wait",
-      "crossCrowd": "Pick a less-crowded day"
+      "crossCrowd": "Pick a less-crowded day",
+      "loading": "Loading details...",
+      "coordinator": "Foreign-patient coordinator on site",
+      "specialties": "Main specialties",
+      "languages": "Languages supported",
+      "procedures": "Specialized procedures",
+      "facilities": "Facilities for international patients",
+      "history": "History",
+      "reserve": "Online booking",
+      "homepage": "Website"
     }
   },
   "nearbyMedicalTourism": {

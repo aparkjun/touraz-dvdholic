@@ -1229,7 +1229,16 @@
       "crossAudio": "이동길 오디오 가이드",
       "crossWellness": "시술 전후 힐링",
       "crossCine": "대기시간 촬영지 투어",
-      "crossCrowd": "한가한 날 고르기"
+      "crossCrowd": "한가한 날 고르기",
+      "loading": "상세 정보를 불러오는 중...",
+      "coordinator": "외국인 코디네이터 상주",
+      "specialties": "주요 진료과목",
+      "languages": "지원 외국어",
+      "procedures": "특화 시술",
+      "facilities": "외국인 편의 시설",
+      "history": "연혁",
+      "reserve": "온라인 예약",
+      "homepage": "홈페이지"
     }
   },
   "nearbyMedicalTourism": {

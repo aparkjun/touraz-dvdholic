@@ -37,6 +37,14 @@ public interface MedicalTourismSpotPort {
     /** 키워드 검색 (관광지명/클러스터/진료분야 부분일치). */
     List<MedicalTourismSpot> fetchByKeyword(String lang, String keyword, int limit);
 
+    /**
+     * 단일 콘텐츠 상세 조회 (detailCommon + detailMdclTursm 통합).
+     *
+     * @param contentId KTO 콘텐츠 ID
+     * @param lang      언어 (ko/en) — svcLangInfo/개요 등 현지화 값 반환
+     */
+    MedicalTourismSpotDetail fetchDetail(String contentId, String lang);
+
     /** 어댑터 호출 가능 여부 (serviceKey 설정 여부). */
     boolean isConfigured();
 }

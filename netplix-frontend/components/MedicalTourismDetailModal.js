@@ -22,6 +22,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import Link from "next/link";
+import axios from "@/lib/axiosConfig";
 import { useMedicalFavorites } from "@/lib/useMedicalFavorites";
 import { areaLabel, resolveAreaCode } from "@/lib/regionAreaCode";
 import useBackButtonClose from "@/lib/useBackButtonClose";
@@ -45,6 +46,15 @@ import {
   Leaf,
   Film,
   Activity,
+  Loader2,
+  Languages,
+  Building2,
+  UserCheck,
+  CalendarCheck,
+  Sparkles,
+  ClipboardList,
+  History as HistoryIcon,
+  ExternalLink,
 } from "lucide-react";
 
 /**
@@ -105,9 +115,57 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
   const { t, i18n } = useTranslation();
   const [copied, setCopied] = useState(false);
   const [shareError, setShareError] = useState("");
+  const [detail, setDetail] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const activeLang = (i18n?.language || "ko").toLowerCase().startsWith("en") ? "en" : "ko";
 
   const { isSaved, toggle, hydrated: favHydrated } = useMedicalFavorites();
   const saved = favHydrated && spot ? isSaved(spot.id) : false;
+
+  // 카드 클릭 시 KTO detailCommon + detailMdclTursm 통합 상세를 불러온다.
+  useEffect(() => {
+    if (!spot?.id) {
+      setDetail(null);
+      return;
+    }
+    let cancelled = false;
+    setDetail(null);
+    setDetailLoading(true);
+    axios
+      .get("/api/v1/medical-tourism/detail", {
+        params: { contentId: spot.id, lang: activeLang },
+      })
+      .then((res) => {
+        if (cancelled) return;
+        setDetail(res?.data?.data || null);
+      })
+      .catch(() => {
+        if (!cancelled) setDetail(null);
+      })
+      .finally(() => {
+        if (!cancelled) setDetailLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [spot?.id, activeLang]);
+
+  const hasDetailContent = useMemo(() => {
+    if (!detail) return false;
+    return Boolean(
+      detail.overview ||
+        detail.institutionType ||
+        detail.divInfo ||
+        (detail.specialties && detail.specialties.length) ||
+        (detail.languages && detail.languages.length) ||
+        detail.onlineReservation ||
+        detail.specialProcedures ||
+        detail.specialFacilities ||
+        detail.history ||
+        detail.homepage
+    );
+  }, [detail]);
 
   // 교차 네비게이션용 지역명 도출: spot.areaCode 우선, 없으면 address 파싱.
   // 광역 시·도 레벨이 가장 넓게 매칭되므로 쿼리 적중률이 높다.
@@ -306,6 +364,130 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
               </li>
             )}
           </ul>
+
+          {/*
+           * KTO 상세(detailCommon 개요 + detailMdclTursm 의료관광 특화 정보).
+           * 외국인 환자가 가장 궁금해하는 진료과목·지원 외국어·온라인 예약·전용 편의를 우선 노출.
+           */}
+          {detailLoading && (
+            <div className="mtd-detail-loading">
+              <Loader2 size={16} className="mtd-spin" />
+              <span>{t("medicalTourism.detail.loading", "상세 정보를 불러오는 중...")}</span>
+            </div>
+          )}
+
+          {!detailLoading && detail && hasDetailContent && (
+            <div className="mtd-detail">
+              {(detail.institutionType || detail.divInfo || detail.coordinatorResident) && (
+                <div className="mtd-detail-tags">
+                  {detail.institutionType && (
+                    <span className="mtd-dtag">
+                      <Building2 size={12} />
+                      {detail.institutionType}
+                    </span>
+                  )}
+                  {detail.divInfo && detail.divInfo !== detail.institutionType && (
+                    <span className="mtd-dtag">{detail.divInfo}</span>
+                  )}
+                  {detail.coordinatorResident && (
+                    <span className="mtd-dtag mtd-dtag-ok">
+                      <UserCheck size={12} />
+                      {t("medicalTourism.detail.coordinator", "외국인 코디네이터 상주")}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {detail.overview && <p className="mtd-overview">{detail.overview}</p>}
+
+              {detail.specialties && detail.specialties.length > 0 && (
+                <div className="mtd-field">
+                  <div className="mtd-field-label">
+                    <Stethoscope size={13} />
+                    {t("medicalTourism.detail.specialties", "주요 진료과목")}
+                  </div>
+                  <div className="mtd-dchips">
+                    {detail.specialties.map((s) => (
+                      <span key={s} className="mtd-dchip">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {detail.languages && detail.languages.length > 0 && (
+                <div className="mtd-field">
+                  <div className="mtd-field-label">
+                    <Languages size={13} />
+                    {t("medicalTourism.detail.languages", "지원 외국어")}
+                  </div>
+                  <div className="mtd-dchips">
+                    {detail.languages.map((s) => (
+                      <span key={s} className="mtd-dchip mtd-dchip-lang">{s}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {detail.specialProcedures && (
+                <div className="mtd-field">
+                  <div className="mtd-field-label">
+                    <Sparkles size={13} />
+                    {t("medicalTourism.detail.procedures", "특화 시술")}
+                  </div>
+                  <p className="mtd-field-text">{detail.specialProcedures}</p>
+                </div>
+              )}
+
+              {detail.specialFacilities && (
+                <div className="mtd-field">
+                  <div className="mtd-field-label">
+                    <ClipboardList size={13} />
+                    {t("medicalTourism.detail.facilities", "외국인 편의 시설")}
+                  </div>
+                  <p className="mtd-field-text">{detail.specialFacilities}</p>
+                </div>
+              )}
+
+              {detail.history && (
+                <div className="mtd-field">
+                  <div className="mtd-field-label">
+                    <HistoryIcon size={13} />
+                    {t("medicalTourism.detail.history", "연혁")}
+                  </div>
+                  <p className="mtd-field-text">{detail.history}</p>
+                </div>
+              )}
+
+              {(detail.onlineReservation && detail.reservationUrl) || detail.homepage ? (
+                <div className="mtd-detail-links">
+                  {detail.onlineReservation && detail.reservationUrl && (
+                    <a
+                      href={detail.reservationUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mtd-dlink mtd-dlink-rsvt"
+                    >
+                      <CalendarCheck size={14} />
+                      {t("medicalTourism.detail.reserve", "온라인 예약")}
+                      <ExternalLink size={12} />
+                    </a>
+                  )}
+                  {detail.homepage && (
+                    <a
+                      href={detail.homepage}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mtd-dlink"
+                    >
+                      <Globe2 size={14} />
+                      {t("medicalTourism.detail.homepage", "홈페이지")}
+                      <ExternalLink size={12} />
+                    </a>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {/*
            * 4개 액션 버튼: 전화·경로·지도·공유.
@@ -705,6 +887,86 @@ const cssBlock = `
   line-height: 1.45;
 }
 .mtd-hint > svg { flex: 0 0 auto; margin-top: 2px; }
+
+/* KTO 상세 섹션 */
+.mtd-detail-loading {
+  display: flex; align-items: center; gap: 8px;
+  margin: 4px 0 16px;
+  font-size: 0.85rem; color: #94a3b8;
+}
+.mtd-spin { animation: mtd-spin 0.9s linear infinite; }
+@keyframes mtd-spin { to { transform: rotate(360deg); } }
+
+.mtd-detail {
+  margin: 2px 0 16px;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  display: flex; flex-direction: column; gap: 13px;
+}
+.mtd-detail-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.mtd-dtag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 999px;
+  font-size: 0.72rem; font-weight: 700;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: #cbd5e1;
+}
+.mtd-dtag-ok {
+  background: rgba(16,185,129,0.18);
+  border-color: rgba(110,231,183,0.4);
+  color: #6ee7b7;
+}
+.mtd-overview {
+  margin: 0;
+  font-size: 0.88rem; line-height: 1.6;
+  color: #d1d5db;
+  white-space: pre-line;
+}
+.mtd-field { display: flex; flex-direction: column; gap: 6px; }
+.mtd-field-label {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 0.76rem; font-weight: 800; letter-spacing: 0.02em;
+  color: #fca5a5;
+}
+.mtd-field-text {
+  margin: 0;
+  font-size: 0.85rem; line-height: 1.55;
+  color: #cbd5e1;
+  white-space: pre-line;
+}
+.mtd-dchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.mtd-dchip {
+  padding: 4px 10px; border-radius: 8px;
+  font-size: 0.78rem; font-weight: 600;
+  background: rgba(239,68,68,0.16);
+  border: 1px solid rgba(252,165,165,0.3);
+  color: #fecaca;
+}
+.mtd-dchip-lang {
+  background: rgba(59,130,246,0.16);
+  border-color: rgba(147,197,253,0.3);
+  color: #bfdbfe;
+}
+.mtd-detail-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.mtd-dlink {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 13px; border-radius: 10px;
+  font-size: 0.82rem; font-weight: 800;
+  text-decoration: none;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  color: #e5e7eb;
+  transition: transform 0.12s, background 0.15s;
+}
+.mtd-dlink:hover { transform: translateY(-1px); background: rgba(255,255,255,0.12); }
+.mtd-dlink-rsvt {
+  background: linear-gradient(135deg, rgba(16,185,129,0.3), rgba(16,185,129,0.14));
+  border-color: rgba(110,231,183,0.4);
+  color: #d1fae5;
+}
 
 @media (max-width: 480px) {
   .mtd-hero { height: 180px; }

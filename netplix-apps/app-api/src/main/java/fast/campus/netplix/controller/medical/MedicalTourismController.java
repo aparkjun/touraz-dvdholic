@@ -62,4 +62,17 @@ public class MedicalTourismController {
                 .map(MedicalTourismSpotResponse::from).toList();
         return NetplixApiResponse.ok(body);
     }
+
+    /**
+     * 단일 의료관광 스팟 상세 (개요/진료과목/지원언어/온라인예약/외국인 편의 등).
+     * GET /api/v1/medical-tourism/detail?contentId=...&lang=ko|en
+     */
+    @GetMapping("/detail")
+    public NetplixApiResponse<MedicalTourismSpotDetailResponse> detail(
+            @RequestParam String contentId,
+            @RequestParam(defaultValue = "ko") String lang) {
+        MedicalTourismSpotDetailResponse body =
+                MedicalTourismSpotDetailResponse.from(useCase.detail(contentId, lang));
+        return NetplixApiResponse.ok(body);
+    }
 }

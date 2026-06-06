@@ -13,4 +13,6 @@ public interface GetMedicalTourismSpotsUseCase {
     List<MedicalTourismSpot> nearby(String lang, double latitude, double longitude, int radiusM, int limit);
 
     List<MedicalTourismSpot> byKeyword(String lang, String keyword, int limit);
+
+    MedicalTourismSpotDetail detail(String contentId, String lang);
 }

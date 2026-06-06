@@ -46,6 +46,14 @@ public class MedicalTourismSpotService implements GetMedicalTourismSpotsUseCase 
         return port.fetchByKeyword(sanitizeLang(lang), keyword, sanitize(limit));
     }
 
+    @Override
+    public MedicalTourismSpotDetail detail(String contentId, String lang) {
+        if (contentId == null || contentId.isBlank()) {
+            return MedicalTourismSpotDetail.empty(contentId);
+        }
+        return port.fetchDetail(contentId.trim(), sanitizeLang(lang));
+    }
+
     private int sanitize(int limit) {
         if (limit <= 0) return 0;
         return Math.min(limit, MAX_LIMIT);
