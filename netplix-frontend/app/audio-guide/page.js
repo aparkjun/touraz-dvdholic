@@ -39,6 +39,7 @@ import {
 } from "@/lib/audioGuideOdiiLang";
 import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import { resolveAreaCode } from "@/lib/regionAreaCode";
+import { resolveAreaCodeFromAddress } from "@/lib/audioGuideRegion";
 import { getDeviceLocation } from "@/lib/geolocation";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
@@ -166,6 +167,7 @@ function AudioGuidePageInner() {
   const initialType = (searchParams.get("type") || "theme").toLowerCase() === "story" ? "story" : "theme";
   const initialQ = searchParams.get("q") || "";
   const nearbyFromUrl = searchParams.get("nearby") === "true";
+  const regionFromUrl = searchParams.get("region") || "";
 
   const [type, setType] = useState(initialType);
   const [keyword, setKeyword] = useState(initialQ);
@@ -174,15 +176,23 @@ function AudioGuidePageInner() {
   const [userCoords, setUserCoords] = useState(null); // { lat, lng }
   const [wantNearby, setWantNearby] = useState(nearbyFromUrl);
   const [nearbyStatus, setNearbyStatus] = useState("idle"); // idle | locating | ready | denied | error
+  /*
+   * 지역 칩은 키워드 검색이 아니라, 받아온 전체 목록을 주소(address) 기준으로 거르는 클라이언트 필터다.
+   * (한글 지명 키워드 검색은 en/zh/ja 데이터에서 거의 0건이 되는 문제가 있어 주소 필터로 대체.)
+   */
+  const [regionCode, setRegionCode] = useState(regionFromUrl || null);
+  /** STORY 는 address 가 비어 있어 themeId→지역 매핑이 필요하다. odiiLang 별로 { themeId: areaCode } 캐시. */
+  const [themeRegionIndex, setThemeRegionIndex] = useState({});
 
   const audioWeatherRegionCode = useMemo(() => {
     if (wantNearby) return null;
+    if (regionCode) return regionCode;
     const kw = keyword.trim();
     if (!kw) return null;
     const hit = REGION_SHORTCUTS.find((r) => regionSearchKeyword(r, odiiLang) === kw);
     if (hit) return hit.code;
     return resolveAreaCode(kw);
-  }, [keyword, odiiLang, wantNearby]);
+  }, [keyword, odiiLang, wantNearby, regionCode]);
 
   const [items, setItems] = useState([]);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -236,6 +246,7 @@ function AudioGuidePageInner() {
     if (next.type && next.type !== "theme") params.set("type", next.type);
     if (next.keyword) params.set("q", next.keyword);
     if (next.nearby) params.set("nearby", "true");
+    if (next.region) params.set("region", next.region);
     const qs = params.toString();
     router.replace(qs ? `/audio-guide?${qs}` : "/audio-guide", { scroll: false });
   }, [router]);
@@ -307,18 +318,63 @@ function AudioGuidePageInner() {
 
   useEffect(() => { load(); }, [load]);
 
-  // 무한 스크롤
+  /*
+   * STORY 항목은 address 가 비어 있어 주소 기준 지역 필터가 동작하지 않는다.
+   * 지역 필터가 켜진 상태에서 STORY 탭이면, 같은 언어의 THEME 카탈로그(주소 보유)를 한 번 받아
+   * themeId→areaCode 맵을 만들어 STORY 를 상위 THEME 의 지역으로 분류한다.
+   */
+  useEffect(() => {
+    if (!regionCode || type !== "story") return;
+    if (themeRegionIndex[odiiLang]) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await axios.get("/api/v1/audio-guide", {
+          params: { type: "theme", lang: odiiLang, limit: 0 },
+        });
+        const list = Array.isArray(res?.data?.data) ? res.data.data : [];
+        const map = {};
+        for (const it of list) {
+          if (it?.id == null) continue;
+          const code = resolveAreaCodeFromAddress(it.address, odiiLang);
+          if (code) map[String(it.id)] = code;
+        }
+        if (!cancelled) setThemeRegionIndex((prev) => ({ ...prev, [odiiLang]: map }));
+      } catch {
+        /* noop — 실패 시 STORY 지역 필터는 주소 보유 항목만 매칭 */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [regionCode, type, odiiLang, themeRegionIndex]);
+
+  /*
+   * 지역 필터 결과. regionCode 가 없으면 원본 그대로.
+   * THEME 은 자신의 address 로, STORY 는 themeId→지역 인덱스(없으면 address)로 분류한다.
+   */
+  const displayItems = useMemo(() => {
+    if (!regionCode) return items;
+    const idx = themeRegionIndex[odiiLang];
+    return items.filter((it) => {
+      let code = resolveAreaCodeFromAddress(it.address, odiiLang);
+      if (!code && idx && it.themeId != null) {
+        code = idx[String(it.themeId)];
+      }
+      return code === regionCode;
+    });
+  }, [items, regionCode, odiiLang, themeRegionIndex]);
+
+  // 무한 스크롤 (지역 필터 적용 후 목록 기준)
   useEffect(() => {
     const onScroll = () => {
-      if (visibleCount >= items.length) return;
+      if (visibleCount >= displayItems.length) return;
       const bottom = window.scrollY + window.innerHeight;
       if (bottom >= document.body.scrollHeight - 260) {
-        setVisibleCount((c) => Math.min(c + PAGE_SIZE, items.length));
+        setVisibleCount((c) => Math.min(c + PAGE_SIZE, displayItems.length));
       }
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [items.length, visibleCount]);
+  }, [displayItems.length, visibleCount]);
 
   // 내 주변
   const requestNearby = async () => {
@@ -330,6 +386,7 @@ function AudioGuidePageInner() {
       setWantNearby(true);
       setKeyword("");
       setKeywordInput("");
+      setRegionCode(null);
       syncUrl({ type, nearby: true });
     } catch (e) {
       setNearbyStatus(e?.code === "PERMISSION_DENIED" ? "denied" : "error");
@@ -353,6 +410,7 @@ function AudioGuidePageInner() {
     const q = keywordInput.trim();
     setKeyword(q);
     setWantNearby(false);
+    setRegionCode(null);
     syncUrl({ type, keyword: q });
   };
 
@@ -360,6 +418,7 @@ function AudioGuidePageInner() {
     setKeyword("");
     setKeywordInput("");
     setWantNearby(false);
+    setRegionCode(null);
     syncUrl({ type });
   };
 
@@ -368,6 +427,7 @@ function AudioGuidePageInner() {
     setKeywordInput(q);
     setKeyword(q);
     setWantNearby(false);
+    setRegionCode(null);
     syncUrl({ type, keyword: q });
   };
 
@@ -390,6 +450,7 @@ function AudioGuidePageInner() {
     // 이전 autoplay 경로가 실행되지 않도록 차단 (kind === 'nearby' 경로는 별도 취급)
     setAutoplayArm(false);
     setCoursePreview(null);
+    setRegionCode(null);
     setActivatedCourse({ title });
     setCourseToast({ kind: "loading", title });
 
@@ -487,17 +548,30 @@ function AudioGuidePageInner() {
     return () => clearTimeout(h);
   }, [courseToast]);
 
-  const applyRegion = (region) => {
-    setKeywordInput(region);
-    setKeyword(region);
+  /*
+   * 지역 칩 토글. 키워드 검색이 아니라 받아온 전체 목록을 주소 기준으로 거르는 클라이언트 필터다.
+   * 같은 지역을 다시 누르면 해제한다. 지역 선택 시 키워드·내 주변은 초기화한다.
+   */
+  const toggleRegionFilter = (r) => {
+    stopPlayback();
+    if (regionCode === r.code) {
+      setRegionCode(null);
+      setVisibleCount(PAGE_SIZE);
+      syncUrl({ type, keyword: keyword.trim() || undefined });
+      return;
+    }
+    setRegionCode(r.code);
+    setKeyword("");
+    setKeywordInput("");
     setWantNearby(false);
-    syncUrl({ type, keyword: region });
+    setVisibleCount(PAGE_SIZE);
+    syncUrl({ type, region: r.code });
   };
 
   const switchType = (nextType) => {
     if (nextType === type) return;
     setType(nextType);
-    syncUrl({ type: nextType, keyword, nearby: wantNearby });
+    syncUrl({ type: nextType, keyword, nearby: wantNearby, region: regionCode || undefined });
     stopPlayback();
   };
 
@@ -600,7 +674,7 @@ function AudioGuidePageInner() {
       const kw = keyword || "";
       return kw === k || kw.includes(k);
     });
-  const visibleItems = useMemo(() => items.slice(0, visibleCount), [items, visibleCount]);
+  const visibleItems = useMemo(() => displayItems.slice(0, visibleCount), [displayItems, visibleCount]);
 
   return (
     <div className="agp-root">
@@ -977,14 +1051,13 @@ function AudioGuidePageInner() {
         <div className="agp-chips-row">
           <span className="agp-chips-label">{t("audioGuide.chips.region", "지역")}</span>
           {REGION_SHORTCUTS.map((r) => {
-            const regionKeyword = regionSearchKeyword(r, odiiLang);
-            const on = keyword === regionKeyword;
+            const on = regionCode === r.code;
             return (
               <button
                 key={r.code}
                 type="button"
                 className={`agp-chip ${on ? "agp-chip-on" : ""}`}
-                onClick={() => applyRegion(regionKeyword)}
+                onClick={() => toggleRegionFilter(r)}
               >
                 {t(`regionShortcuts.${r.code}`, r.keyword)}
               </button>
@@ -999,7 +1072,7 @@ function AudioGuidePageInner() {
           <span className="agp-meta-count">
             {loading
               ? t("audioGuide.loading", "오디오 가이드를 불러오는 중…")
-              : t("audioGuide.count", "{{count}}개 결과", { count: items.length })}
+              : t("audioGuide.count", "{{count}}개 결과", { count: displayItems.length })}
           </span>
           {errored && (
             <span className="agp-meta-err">
@@ -1032,7 +1105,7 @@ function AudioGuidePageInner() {
               </div>
             </div>
           ))}
-          {!loading && items.length === 0 && (
+          {!loading && displayItems.length === 0 && (
             <div className="agp-empty">
               <Headphones size={32} />
               <div>{t("audioGuide.empty.title", "조건에 맞는 오디오 가이드가 없어요")}</div>
