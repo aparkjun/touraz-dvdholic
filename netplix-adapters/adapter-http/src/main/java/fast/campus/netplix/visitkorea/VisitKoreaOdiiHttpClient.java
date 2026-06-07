@@ -441,7 +441,22 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         if (themeId == null || themeId.isBlank()) return List.of();
         beginHydrateBudget();
         try {
-            return fetchStoriesByThemeInternal(themeId, themeTitleHint, lang, limit, anchorLat, anchorLon);
+            List<AudioGuideItem> result = fetchStoriesByThemeInternal(themeId, themeTitleHint, lang, limit, anchorLat, anchorLon);
+            /*
+             * 대상 언어에 네이티브 해설이 전혀 없는 테마(예: 중국어 몽촌토성 — 원본 카탈로그에 한성백제
+             * 클러스터 자체가 없음)는 한국어 폴백만 남는다. 비한국어 사용자에게 한국어 해설만 노출하면
+             * 혼란스러우므로, 결과가 전부 한국어 폴백이면 빈 목록으로 숨긴다(테마/스토리 미노출).
+             */
+            String nl = normalize(lang);
+            if (!"ko".equals(nl) && !result.isEmpty()) {
+                boolean anyNative = result.stream().anyMatch(it ->
+                        it.getLanguage() != null && !"ko".equalsIgnoreCase(it.getLanguage().trim()));
+                if (!anyNative) {
+                    log.info("[ODII] stories-by-theme: 대상 언어 네이티브 0건 — 숨김(빈 목록) themeId={} lang={}", themeId, nl);
+                    return List.of();
+                }
+            }
+            return result;
         } finally {
             endHydrateBudget();
         }

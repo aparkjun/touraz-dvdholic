@@ -878,6 +878,14 @@ export default function AudioGuideDetailModal({
     && isValidOdiiLang(modalOdiiLang)
     && modalOdiiLang !== "ko"
     && !odiiLangFieldAlignsWithOdii(item.language, modalOdiiLang);
+  // 비한국어로 보는 중인데 이 관광지에 해당 언어 해설이 전혀 없으면(백엔드가 빈 목록 반환),
+  // 한국어 안내를 띄우지 않고 해설 섹션 자체를 숨긴다.
+  const hideThemeStoriesForLang =
+    isThemeCard
+    && !storiesLoading
+    && stories.length === 0
+    && isValidOdiiLang(modalOdiiLang)
+    && modalOdiiLang !== "ko";
   // description 은 리스트 lite 응답에서 빠져 있을 수 있으므로 loadedDesc / theme detail 로 보강.
   // 모달에서 Odii 언어만 바꾼 경우 리스트에 실린 다른 언어 대본이 남지 않게 한다.
   const effectiveDescription = (() => {
@@ -1321,6 +1329,7 @@ export default function AudioGuideDetailModal({
                   </div>
                 </div>
               ) : null}
+              {hideThemeStoriesForLang ? null : (
               <div className="agm-theme-stories">
               <div className="agm-theme-stories-head">
                 <div className="agm-theme-stories-title">
@@ -1433,6 +1442,7 @@ export default function AudioGuideDetailModal({
                 </div>
               ) : null}
             </div>
+            )}
             </>
           ) : hasScript && ttsSupported ? (
             // audioUrl 이 없을 때만 Web Speech API 로 대본 재생.
