@@ -76,6 +76,24 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     private static final int STORY_HYDRATE_NEARBY_LIMIT = 36;
     private static final Set<String> SUPPORTED_LANGS = Set.of("ko", "en", "zh", "ja");
 
+    /*
+     * stories-by-theme 크로스언어 하이드레이션(HTTP) 작업 예산.
+     *
+     * <p>대상 언어에 해당 스토리가 존재하면(예: 영어/일본어 몽촌토성) {@code bridgeKoOrderedStoryIdsToTargetLang}
+     * 가 인메모리 캐시 히트로 즉시 해결하므로 이 예산을 전혀 소비하지 않는다(영향 없음).
+     *
+     * <p>대상 언어에 데이터가 아예 없는 테마(예: 중국어 몽촌토성 — 중국어 Odii 카탈로그에 테마 30/31/32 자체가 없음)
+     * 에서는 KO 스토리마다 storySearchList·근접 API 로 대상 언어 레코드를 찾는다. 좌표로 넓힌 도심 후보가 수백
+     * 테마로 늘면 항목별 HTTP 가 수백 번 발생해 Heroku 30s 라우터 한도를 넘겨 503 이 났다.
+     *
+     * <p>요청 단위로 (1) 데드라인과 (2) 하이드레이션 HTTP 시도 횟수 상한을 둬, 예산 소진 후에는 즉시
+     * 한국어 폴백 레코드를 사용해 빠르게 200 으로 응답한다. 인메모리 해결 경로는 예산과 무관하게 항상 허용한다.
+     */
+    private static final long STORIES_HYDRATE_BUDGET_MS = 16_000L;
+    private static final int STORIES_HYDRATE_MAX_ATTEMPTS = 40;
+    /** [0]=deadline(nanoTime), [1]=남은 하이드레이션 HTTP 시도 횟수 */
+    private static final ThreadLocal<long[]> STORIES_HYDRATE_BUDGET = new ThreadLocal<>();
+
     /**
      * themeBasedList/storyBasedList 는 활용 승인·GW 정책상 0건만 주는데 searchList 는 동작하는 환경이 있다.
      * {@link #refreshAll} 이후에만 호출하며, refresh 락과 다른 모니터로 묶어 데드락을 피한다.
@@ -381,11 +399,56 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
      * 전용 조회 API 가 없어 전체 STORY 캐시에서 필터한다. 캐시가 partial 이면 조인이 빗나가므로
      * {@link #ensureFullStoryCacheForJoin} 으로 전체 적재를 보장한다.
      */
+    /** 요청 단위 하이드레이션 예산 시작(데드라인 + HTTP 시도 횟수). */
+    private void beginHydrateBudget() {
+        STORIES_HYDRATE_BUDGET.set(new long[]{
+                System.nanoTime() + STORIES_HYDRATE_BUDGET_MS * 1_000_000L,
+                STORIES_HYDRATE_MAX_ATTEMPTS,
+        });
+    }
+
+    private void endHydrateBudget() {
+        STORIES_HYDRATE_BUDGET.remove();
+    }
+
+    /** 하이드레이션 데드라인 초과 여부. 예산 미설정 시 false(제한 없음 — 다른 호출 경로 호환). */
+    private boolean hydratePastDeadline() {
+        long[] b = STORIES_HYDRATE_BUDGET.get();
+        return b != null && System.nanoTime() > b[0];
+    }
+
+    /**
+     * 항목별 대상 언어 하이드레이션(HTTP)을 한 번 소비할 수 있으면 true.
+     * 데드라인 초과 또는 시도 횟수 소진 시 false → 호출부는 한국어 폴백 레코드를 쓴다.
+     * 예산 미설정 시 항상 true(제한 없음). 인메모리 해결에는 호출하지 않는다.
+     */
+    private boolean tryConsumeHydration() {
+        long[] b = STORIES_HYDRATE_BUDGET.get();
+        if (b == null) {
+            return true;
+        }
+        if (System.nanoTime() > b[0] || b[1] <= 0) {
+            return false;
+        }
+        b[1]--;
+        return true;
+    }
+
     @Override
     public List<AudioGuideItem> fetchStoriesByTheme(String themeId, String themeTitleHint, String lang, int limit,
-                                                     Double anchorLat, Double anchorLon) {
+                                                    Double anchorLat, Double anchorLon) {
         if (!guardConfigured()) return List.of();
         if (themeId == null || themeId.isBlank()) return List.of();
+        beginHydrateBudget();
+        try {
+            return fetchStoriesByThemeInternal(themeId, themeTitleHint, lang, limit, anchorLat, anchorLon);
+        } finally {
+            endHydrateBudget();
+        }
+    }
+
+    private List<AudioGuideItem> fetchStoriesByThemeInternal(String themeId, String themeTitleHint, String lang,
+                                                             int limit, Double anchorLat, Double anchorLon) {
         String l = normalize(lang);
         String key = themeId.trim();
         List<String> hints = deriveStoryTitleHints(themeTitleHint);
@@ -460,6 +523,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             if (sub.length() < 2) {
                 continue;
             }
+            if (hydratePastDeadline()) {
+                break;
+            }
             List<AudioGuideItem> kw = fetchByKeyword(AudioGuideItem.Type.STORY, l, sub, kwLimit);
             for (AudioGuideItem s : kw) {
                 mergedById.putIfAbsent(s.getId(), s);
@@ -488,7 +554,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 return take(matched, limit);
             }
         }
-        if (!"ko".equals(l)) {
+        if (!"ko".equals(l) && !hydratePastDeadline()) {
             List<AudioGuideItem> koKwBridged = storiesFromKoKeywordBridge(hints, bridgeThemeCandidates, l, limit, kwLimit);
             if (!koKwBridged.isEmpty()) {
                 log.info("[ODII] stories-by-theme: KO 스토리 키워드 브리지 {}건 themeId={} lang={}",
@@ -922,11 +988,22 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             return null;
         }
         String sid = nullIfBlank(ko.getId());
+        // 인메모리 캐시 매칭은 비용 0 — 항상 허용(영어/일본어 정상 경로). 여기서 못 찾으면 HTTP 탐색이 필요하다.
         if (sid != null) {
             AudioGuideItem again = lookupStoryIdInMap(localizedById, sid);
             if (again != null) {
                 return again;
             }
+        }
+        /*
+         * 여기부터는 storySearchList·근접 API(HTTP) 탐색이다. 요청 예산(데드라인·시도 횟수)을 소비하며,
+         * 예산이 소진되면 즉시 null 을 반환해 호출부가 한국어 폴백 레코드를 쓰게 한다. 대상 언어에 데이터가
+         * 아예 없는 테마(예: 중국어 몽촌토성)에서 수백 건을 항목별 HTTP 로 탐색하다 503 이 나던 문제를 막는다.
+         */
+        if (!tryConsumeHydration()) {
+            return null;
+        }
+        if (sid != null) {
             String memoKey = targetLang + ":id:" + sid.trim();
             if (searchMemo.add(memoKey)) {
                 for (AudioGuideItem s : fetchByKeyword(
