@@ -20,6 +20,45 @@ import i18n from '@/lib/i18n';
 
 const MINE_TAB = 'mine';
 
+/*
+ * 지역 탭 날씨 캐시(localStorage).
+ *
+ * <p>내 위치(useTravelWeatherShortReg)는 localStorage + stale-while-revalidate 로 즉시 표시되지만,
+ * 지역 탭은 세션 메모리(regionCache)만 있어 새로고침하면 사라지고 매 첫 클릭이 백엔드 cold 경로(KMA
+ * 순차 호출 5~25s)를 탔다. 같은 패턴으로 localStorage 에 reg 별로 저장해 재클릭·재방문 시 즉시 표시한다.
+ */
+const REGION_CACHE_LS_KEY = 'touraz.weatherRegion.v1';
+/** 이 시간 이내면 재요청하지 않음(신선) */
+const REGION_FRESH_MS = 10 * 60 * 1000;
+/** 이 시간 이내면 즉시 표시 후 백그라운드 갱신(stale-while-revalidate) */
+const REGION_STALE_MS = 6 * 60 * 60 * 1000;
+/** localStorage 보관 최대 지역 수(payload 크기 관리) */
+const REGION_CACHE_MAX = 24;
+
+function readRegionCacheLS() {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return {};
+    const raw = window.localStorage.getItem(REGION_CACHE_LS_KEY);
+    if (!raw) return {};
+    const obj = JSON.parse(raw);
+    return obj && typeof obj === 'object' ? obj : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeRegionCacheLS(map) {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return;
+    const entries = Object.entries(map).filter(([, v]) => v && v.ts && v.d);
+    entries.sort((a, b) => b[1].ts - a[1].ts);
+    const trimmed = Object.fromEntries(entries.slice(0, REGION_CACHE_MAX));
+    window.localStorage.setItem(REGION_CACHE_LS_KEY, JSON.stringify(trimmed));
+  } catch {
+    /* 용량 초과 등은 무시 — 캐시는 best-effort */
+  }
+}
+
 function ForecastSection({ title, hint, slots, t }) {
   if (!slots?.length) return null;
   return (
@@ -317,32 +356,128 @@ export default function DashboardWeatherNavGlyph() {
     regionCacheRef.current = regionCache;
   }, [regionCache]);
 
+  /** reg 별 마지막 적재 시각(ms). 신선/stale 판단·중복요청 방지에 사용. */
+  const regionTsRef = useRef({});
+  /** 현재 진행 중인 reg 요청(중복 방지) */
+  const inflightRef = useRef({});
+  /** 컴포넌트 마운트 여부 — 비동기 setState 가드 */
+  const mountedRef = useRef(true);
   useEffect(() => {
-    if (!panelOpen || activeRegionId === MINE_TAB) return;
-    if (regionCacheRef.current[activeRegionId]) return;
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
-    const preset = WEATHER_REGION_PRESETS.find((p) => p.reg === activeRegionId);
-    if (!preset) return;
+  // 마운트 시 localStorage 에서 지역 캐시 복원 → 재방문/새로고침 후에도 즉시 표시.
+  useEffect(() => {
+    const stored = readRegionCacheLS();
+    const now = Date.now();
+    const hydrated = {};
+    const ts = {};
+    for (const [reg, v] of Object.entries(stored)) {
+      if (v && v.d && v.ts && now - v.ts < REGION_STALE_MS) {
+        hydrated[reg] = v.d;
+        ts[reg] = v.ts;
+      }
+    }
+    if (Object.keys(hydrated).length > 0) {
+      regionTsRef.current = ts;
+      regionCacheRef.current = hydrated;
+      setRegionCache(hydrated);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    let cancelled = false;
-    setFetchingReg(activeRegionId);
+  /** 한 지역 적재(중복요청 방지 + 성공 시 메모리·localStorage 갱신). background=true 면 스피너 미표시. */
+  const loadRegion = useCallback((reg, { background = false } = {}) => {
+    if (!reg || reg === MINE_TAB) return Promise.resolve();
+    if (inflightRef.current[reg]) return inflightRef.current[reg];
+    const preset = WEATHER_REGION_PRESETS.find((p) => p.reg === reg);
+    if (!preset) return Promise.resolve();
 
-    fetchShortRegForPreset(preset)
+    if (!background) setFetchingReg(reg);
+    const p = fetchShortRegForPreset(preset)
       .then((d) => {
-        if (cancelled) return;
-        if (d) setRegionCache((c) => ({ ...c, [activeRegionId]: d }));
-        else setRegionErr((e) => ({ ...e, [activeRegionId]: true }));
+        if (!mountedRef.current) return;
+        if (d) {
+          const ts = Date.now();
+          regionTsRef.current = { ...regionTsRef.current, [reg]: ts };
+          setRegionCache((c) => {
+            const next = { ...c, [reg]: d };
+            // localStorage 에는 ts 와 함께 저장.
+            const lsMap = {};
+            for (const [k, val] of Object.entries(next)) {
+              lsMap[k] = { d: val, ts: regionTsRef.current[k] || ts };
+            }
+            writeRegionCacheLS(lsMap);
+            return next;
+          });
+          setRegionErr((e) => {
+            if (!e[reg]) return e;
+            const next = { ...e };
+            delete next[reg];
+            return next;
+          });
+        } else if (!background && !regionCacheRef.current[reg]) {
+          setRegionErr((e) => ({ ...e, [reg]: true }));
+        }
+      })
+      .catch(() => {
+        /* fetchShortRegForPreset 가 자체적으로 처리 — 여기선 무시 */
       })
       .finally(() => {
-        if (!cancelled) {
-          setFetchingReg((f) => (f === activeRegionId ? null : f));
+        delete inflightRef.current[reg];
+        if (mountedRef.current && !background) {
+          setFetchingReg((f) => (f === reg ? null : f));
         }
       });
+    inflightRef.current[reg] = p;
+    return p;
+  }, []);
+
+  // 지역 탭 클릭: 캐시가 없으면 스피너 후 적재, stale 면 즉시 표시 + 백그라운드 갱신.
+  useEffect(() => {
+    if (!panelOpen || activeRegionId === MINE_TAB) return;
+    const cached = regionCacheRef.current[activeRegionId];
+    const age = Date.now() - (regionTsRef.current[activeRegionId] || 0);
+    if (cached && age < REGION_FRESH_MS) return; // 신선 — 재요청 불필요
+    // 캐시 없으면 background=false(스피너), stale 면 background=true(조용히 갱신)
+    loadRegion(activeRegionId, { background: !!cached });
+  }, [panelOpen, activeRegionId, loadRegion]);
+
+  // 패널 열릴 때 지역 프리페치 — 첫 클릭 지연 제거. 동시성 2로 제한, 신선 캐시는 건너뜀, 패널 닫히면 중단.
+  useEffect(() => {
+    if (!panelOpen) return;
+    let cancelled = false;
+    const myReg = phase === 'ready' && data?.reg ? String(data.reg) : null;
+    // 캐시가 아예 없는 지역만 미리 받는다(빈칸 채우기). 이미 있는(stale 포함) 지역은 클릭 시 갱신.
+    const queue = WEATHER_REGION_PRESETS
+      .map((p) => p.reg)
+      .filter((reg) => reg && reg !== myReg)
+      .filter((reg) => !regionCacheRef.current[reg]);
+
+    const CONCURRENCY = 2;
+    let idx = 0;
+    const pump = () => {
+      if (cancelled) return;
+      if (idx >= queue.length) return;
+      const reg = queue[idx++];
+      loadRegion(reg, { background: true }).finally(() => {
+        if (!cancelled) pump();
+      });
+    };
+    // 내 위치 로딩과 경쟁하지 않도록 약간 지연 후 시작.
+    const timer = setTimeout(() => {
+      for (let i = 0; i < CONCURRENCY; i += 1) pump();
+    }, 600);
 
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
-  }, [panelOpen, activeRegionId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [panelOpen, phase, data?.reg, loadRegion]);
 
   const updatePanelPosition = useCallback(() => {
     const el = anchorRef.current;
