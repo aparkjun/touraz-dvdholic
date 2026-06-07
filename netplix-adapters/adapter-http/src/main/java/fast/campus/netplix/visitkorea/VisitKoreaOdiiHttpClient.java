@@ -89,8 +89,8 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
      * <p>요청 단위로 (1) 데드라인과 (2) 하이드레이션 HTTP 시도 횟수 상한을 둬, 예산 소진 후에는 즉시
      * 한국어 폴백 레코드를 사용해 빠르게 200 으로 응답한다. 인메모리 해결 경로는 예산과 무관하게 항상 허용한다.
      */
-    private static final long STORIES_HYDRATE_BUDGET_MS = 16_000L;
-    private static final int STORIES_HYDRATE_MAX_ATTEMPTS = 40;
+    private static final long STORIES_HYDRATE_BUDGET_MS = 8_000L;
+    private static final int STORIES_HYDRATE_MAX_ATTEMPTS = 24;
     /** [0]=deadline(nanoTime), [1]=남은 하이드레이션 HTTP 시도 횟수 */
     private static final ThreadLocal<long[]> STORIES_HYDRATE_BUDGET = new ThreadLocal<>();
 
