@@ -489,7 +489,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
          * 요청 테마 tid 와 KO STORY 의 상위 tid 가 언어별로 다를 수 있어, 현재 언어 테마 좌표로 KO 테마 tid 를 근접 매칭해 후보를 넓힌다.
          */
         if (!"ko".equals(l)) {
-            List<AudioGuideItem> bridged = storiesByThemeBridgedViaKoIds(bridgeThemeCandidates, l, limit);
+            List<AudioGuideItem> bridged = storiesByThemeBridgedViaKoIds(key, bridgeThemeCandidates, l, limit);
             if (!bridged.isEmpty()) {
                 log.info("[ODII] stories-by-theme: KO 스토리 id 브리지 매칭 {}건 themeId={} lang={} tid후보={}",
                         bridged.size(), key, l, bridgeThemeCandidates.size());
@@ -1214,7 +1214,8 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
      * KO STORY 캐시에서 후보 themeId 들 중 하나라도 상위 tid 와 맞는 스토리 id 순서를 유지한 채,
      * 대상 언어 STORY 캐시에서 같은 id 레코드를 붙인다.
      */
-    private List<AudioGuideItem> storiesByThemeBridgedViaKoIds(Collection<String> candidateThemeIds, String targetLang, int limit) {
+    private List<AudioGuideItem> storiesByThemeBridgedViaKoIds(
+            String exactThemeKey, Collection<String> candidateThemeIds, String targetLang, int limit) {
         if (candidateThemeIds == null || candidateThemeIds.isEmpty()) {
             return List.of();
         }
@@ -1223,13 +1224,39 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         if (koSnap == null || koSnap.sites.isEmpty()) {
             return List.of();
         }
+        /*
+         * 1) 사용자가 연 정확한 테마의 KO 스토리만 먼저 브리지한다.
+         *    좌표로 넓힌 이웃 테마(예: 인접 박물관) 스토리가 클릭한 테마의 스토리보다 먼저 처리돼
+         *    하이드레이션 예산을 소진하면, 정작 클릭한 테마가 한국어로 폴백되던 문제(영어/일본어 회귀)를 막는다.
+         *    - en/ja: 해당 테마 스토리를 네이티브로 즉시 해결(소수 항목이라 빠름)
+         *    - zh   : 네이티브 부재 시 그 테마의 한국어 폴백을 빠르게 반환(이웃 콘텐츠로 빗나가지 않음)
+         */
+        if (exactThemeKey != null && !exactThemeKey.isBlank()) {
+            List<String> exactIds = collectKoStoryIdsForThemes(koSnap, List.of(exactThemeKey));
+            if (!exactIds.isEmpty()) {
+                List<AudioGuideItem> exact = bridgeKoOrderedStoryIdsToTargetLang(koSnap, exactIds, targetLang, limit);
+                if (!exact.isEmpty()) {
+                    return exact;
+                }
+            }
+        }
+        // 2) 정확 매칭이 비면 좌표 확장 후보 전체로 넓힌다(스냅샷 순서 유지).
+        List<String> orderedStoryIds = collectKoStoryIdsForThemes(koSnap, candidateThemeIds);
+        if (orderedStoryIds.isEmpty()) {
+            return List.of();
+        }
+        return bridgeKoOrderedStoryIdsToTargetLang(koSnap, orderedStoryIds, targetLang, limit);
+    }
+
+    /** KO STORY 캐시에서 주어진 themeId 후보에 매칭되는 스토리 id 를 스냅샷 순서대로 모은다. */
+    private List<String> collectKoStoryIdsForThemes(CacheSnapshot koSnap, Collection<String> themeIds) {
         LinkedHashSet<String> seen = new LinkedHashSet<>();
-        List<String> orderedStoryIds = new ArrayList<>();
+        List<String> ordered = new ArrayList<>();
         for (AudioGuideItem s : koSnap.sites) {
             if (s.getThemeId() == null || s.getThemeId().isBlank()) {
                 continue;
             }
-            if (!storyThemeMatchesAnyCandidate(s.getThemeId(), candidateThemeIds)) {
+            if (!storyThemeMatchesAnyCandidate(s.getThemeId(), themeIds)) {
                 continue;
             }
             String sid = s.getId();
@@ -1237,13 +1264,10 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 continue;
             }
             if (seen.add(sid)) {
-                orderedStoryIds.add(sid);
+                ordered.add(sid);
             }
         }
-        if (orderedStoryIds.isEmpty()) {
-            return List.of();
-        }
-        return bridgeKoOrderedStoryIdsToTargetLang(koSnap, orderedStoryIds, targetLang, limit);
+        return ordered;
     }
 
     /** KO 브리지에서 만든 id 순서대로 KO STORY 레코드만 반환한다 (zh/ja 레코드 부재 시 폴백). */
