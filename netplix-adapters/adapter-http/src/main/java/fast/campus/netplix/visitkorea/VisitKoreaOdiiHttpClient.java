@@ -76,6 +76,21 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
     private static final int STORY_HYDRATE_NEARBY_LIMIT = 36;
     private static final Set<String> SUPPORTED_LANGS = Set.of("ko", "en", "zh", "ja");
 
+    /*
+     * stories-by-theme 크로스언어 브리지 작업 예산.
+     *
+     * <p>비-KO 테마가 대상 언어에 없으면(예: 중국어 몽촌토성) 브리지가 KO 스토리마다 대상 언어 레코드를
+     * storySearchList·근접 API 로 찾아본다. 좌표 후보가 도심에서 수백 테마로 넓어지면 항목별 HTTP 가
+     * 수백~수천 번 발생해 Heroku 30s 라우터 한도를 넘겨 503 이 났다.
+     *
+     * <p>요청 단위로 (1) 전체 데드라인과 (2) 항목별 하이드레이션 HTTP 시도 횟수 상한을 둬,
+     * 예산 소진 후에는 즉시 한국어 폴백 레코드를 사용해 빠르게 응답한다.
+     */
+    private static final long STORIES_BY_THEME_BUDGET_MS = 16_000L;
+    private static final int STORIES_BY_THEME_MAX_HYDRATIONS = 10;
+    /** [0]=deadline(nanoTime), [1]=남은 하이드레이션 HTTP 시도 횟수 */
+    private static final ThreadLocal<long[]> STORIES_BUDGET = new ThreadLocal<>();
+
     /**
      * themeBasedList/storyBasedList 는 활용 승인·GW 정책상 0건만 주는데 searchList 는 동작하는 환경이 있다.
      * {@link #refreshAll} 이후에만 호출하며, refresh 락과 다른 모니터로 묶어 데드락을 피한다.
@@ -381,11 +396,56 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
      * 전용 조회 API 가 없어 전체 STORY 캐시에서 필터한다. 캐시가 partial 이면 조인이 빗나가므로
      * {@link #ensureFullStoryCacheForJoin} 으로 전체 적재를 보장한다.
      */
+    /** 요청 단위 stories-by-theme 작업 예산 시작(데드라인 + 하이드레이션 HTTP 횟수). */
+    private void beginStoriesBudget() {
+        STORIES_BUDGET.set(new long[]{
+                System.nanoTime() + STORIES_BY_THEME_BUDGET_MS * 1_000_000L,
+                STORIES_BY_THEME_MAX_HYDRATIONS,
+        });
+    }
+
+    private void endStoriesBudget() {
+        STORIES_BUDGET.remove();
+    }
+
+    /** 데드라인 초과 여부. 예산 미설정 시 false(제한 없음 — 다른 호출 경로 호환). */
+    private boolean storiesPastDeadline() {
+        long[] b = STORIES_BUDGET.get();
+        return b != null && System.nanoTime() > b[0];
+    }
+
+    /**
+     * 항목별 대상 언어 하이드레이션(HTTP)을 한 번 소비할 수 있으면 true.
+     * 데드라인 초과 또는 시도 횟수 소진 시 false → 호출부는 한국어 폴백을 쓴다.
+     * 예산 미설정 시 항상 true(제한 없음).
+     */
+    private boolean tryConsumeStoryHydration() {
+        long[] b = STORIES_BUDGET.get();
+        if (b == null) {
+            return true;
+        }
+        if (System.nanoTime() > b[0] || b[1] <= 0) {
+            return false;
+        }
+        b[1]--;
+        return true;
+    }
+
     @Override
     public List<AudioGuideItem> fetchStoriesByTheme(String themeId, String themeTitleHint, String lang, int limit,
                                                      Double anchorLat, Double anchorLon) {
         if (!guardConfigured()) return List.of();
         if (themeId == null || themeId.isBlank()) return List.of();
+        beginStoriesBudget();
+        try {
+            return fetchStoriesByThemeInternal(themeId, themeTitleHint, lang, limit, anchorLat, anchorLon);
+        } finally {
+            endStoriesBudget();
+        }
+    }
+
+    private List<AudioGuideItem> fetchStoriesByThemeInternal(String themeId, String themeTitleHint, String lang,
+                                                             int limit, Double anchorLat, Double anchorLon) {
         String l = normalize(lang);
         String key = themeId.trim();
         List<String> hints = deriveStoryTitleHints(themeTitleHint);
@@ -460,6 +520,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             if (sub.length() < 2) {
                 continue;
             }
+            if (storiesPastDeadline()) {
+                break;
+            }
             List<AudioGuideItem> kw = fetchByKeyword(AudioGuideItem.Type.STORY, l, sub, kwLimit);
             for (AudioGuideItem s : kw) {
                 mergedById.putIfAbsent(s.getId(), s);
@@ -488,7 +551,7 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
                 return take(matched, limit);
             }
         }
-        if (!"ko".equals(l)) {
+        if (!"ko".equals(l) && !storiesPastDeadline()) {
             List<AudioGuideItem> koKwBridged = storiesFromKoKeywordBridge(hints, bridgeThemeCandidates, l, limit, kwLimit);
             if (!koKwBridged.isEmpty()) {
                 log.info("[ODII] stories-by-theme: KO 스토리 키워드 브리지 {}건 themeId={} lang={}",
@@ -886,6 +949,9 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         Set<String> searchMemo = new HashSet<>();
         List<AudioGuideItem> out = new ArrayList<>();
         for (String sid : orderedStoryIds) {
+            if (out.size() >= limit) {
+                break;
+            }
             AudioGuideItem hit = lookupStoryIdInMap(localizedById, sid);
             if (hit == null && sid != null && sid.trim().matches("\\d+")) {
                 try {
@@ -922,11 +988,23 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
             return null;
         }
         String sid = nullIfBlank(ko.getId());
+        // 인메모리 캐시 매칭은 항상 허용(비용 0). 여기서 못 찾으면 HTTP 탐색이 필요하다.
         if (sid != null) {
             AudioGuideItem again = lookupStoryIdInMap(localizedById, sid);
             if (again != null) {
                 return again;
             }
+        }
+        /*
+         * 여기부터는 storySearchList·근접 API(HTTP) 탐색이다. 요청 예산(데드라인·시도 횟수)을 소비하며,
+         * 예산이 소진되면 즉시 null 을 반환해 호출부가 한국어 폴백 레코드를 쓰게 한다.
+         * 대상 언어에 데이터가 아예 없는 테마(예: 중국어 몽촌토성)에서 수백 건을 항목별로 탐색하다
+         * Heroku 30s 한도를 넘기던 문제를 방지한다.
+         */
+        if (!tryConsumeStoryHydration()) {
+            return null;
+        }
+        if (sid != null) {
             String memoKey = targetLang + ":id:" + sid.trim();
             if (searchMemo.add(memoKey)) {
                 for (AudioGuideItem s : fetchByKeyword(
@@ -1146,21 +1224,32 @@ public class VisitKoreaOdiiHttpClient implements AudioGuideItemPort {
         if (koSnap == null || koSnap.sites.isEmpty()) {
             return List.of();
         }
+        /*
+         * 후보 themeId 우선순위(정확 tid 가 맨 앞)대로 KO 스토리를 모은다.
+         * 좌표로 넓힌 도심 후보(수백 테마)가 실제 테마의 스토리를 뒤로 밀어내지 않게 하기 위함이다.
+         * 한국어 폴백이 채워질 때 요청 테마의 스토리가 먼저 오도록 한다.
+         */
         LinkedHashSet<String> seen = new LinkedHashSet<>();
         List<String> orderedStoryIds = new ArrayList<>();
-        for (AudioGuideItem s : koSnap.sites) {
-            if (s.getThemeId() == null || s.getThemeId().isBlank()) {
+        int collectCap = Math.max(limit * 4, 80);
+        for (String cand : candidateThemeIds) {
+            if (cand == null || cand.isBlank()) {
                 continue;
             }
-            if (!storyThemeMatchesAnyCandidate(s.getThemeId(), candidateThemeIds)) {
-                continue;
+            for (AudioGuideItem s : koSnap.sites) {
+                if (s.getThemeId() == null || !themeIdMatches(s.getThemeId(), cand)) {
+                    continue;
+                }
+                String sid = s.getId();
+                if (sid == null || sid.isBlank()) {
+                    continue;
+                }
+                if (seen.add(sid)) {
+                    orderedStoryIds.add(sid);
+                }
             }
-            String sid = s.getId();
-            if (sid == null || sid.isBlank()) {
-                continue;
-            }
-            if (seen.add(sid)) {
-                orderedStoryIds.add(sid);
+            if (orderedStoryIds.size() >= collectCap) {
+                break;
             }
         }
         if (orderedStoryIds.isEmpty()) {
