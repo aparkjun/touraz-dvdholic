@@ -31,7 +31,7 @@ import lombok.Getter;
  *  - distanceKm (Haversine, nearby 조회 시 계산)
  */
 @Getter
-@Builder
+@Builder(toBuilder = true)
 public class AudioGuideItem {
 
     public enum Type { THEME, STORY }
