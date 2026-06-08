@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import {
   PawPrint,
@@ -34,6 +35,107 @@ const TRAVEL_SHORTCUTS = [
   { href: '/safe-tourism', shortcutKey: 'safeTourism', Icon: ShieldCheck, jewel: 'dts-jewel-11' },
   { href: '/korea-corners', shortcutKey: 'koreaCorners', Icon: MapPinned, jewel: 'dts-jewel-12' },
 ];
+
+// 클릭 시 사방으로 튀는 스파클 색상 팔레트
+const SPARK_COLORS = [
+  '#22d3ee', '#a78bfa', '#f472b6', '#fbbf24',
+  '#34d399', '#60a5fa', '#fb7185', '#fde047',
+];
+
+/**
+ * 개별 바로가기 버튼.
+ * 클릭하면 젤리처럼 말랑 눌렸다가 → 충격파 링 + 색색깔 스파클이 터지고
+ * → 아이콘이 통통 튀는 "톡!" 인터랙션 후 페이지로 이동한다.
+ */
+function ShortcutLink({ href, label, Icon, jewel }) {
+  const router = useRouter();
+  const anchorRef = useRef(null);
+  const [bursting, setBursting] = useState(false);
+  const [origin, setOrigin] = useState({ x: 0, y: 0 });
+  const [sparks, setSparks] = useState([]);
+
+  const handleClick = useCallback(
+    (e) => {
+      // 모션 최소화 환경에서는 효과 없이 즉시 이동
+      const reduce =
+        typeof window !== 'undefined' &&
+        window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (reduce || bursting) return;
+
+      e.preventDefault();
+
+      const rect = anchorRef.current?.getBoundingClientRect();
+      // 클릭 지점(키보드 활성화 시 좌표가 0이면 버튼 중앙에서 터뜨림)
+      const cx =
+        rect && e.clientX ? e.clientX - rect.left : (rect ? rect.width / 2 : 0);
+      const cy =
+        rect && e.clientY ? e.clientY - rect.top : (rect ? rect.height / 2 : 0);
+
+      const count = 12;
+      const newSparks = Array.from({ length: count }, (_, i) => {
+        const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.6;
+        const dist = 28 + Math.random() * 30;
+        return {
+          id: `${Date.now()}-${i}`,
+          tx: Math.cos(angle) * dist,
+          ty: Math.sin(angle) * dist,
+          color: SPARK_COLORS[i % SPARK_COLORS.length],
+          scale: 0.6 + Math.random() * 0.9,
+          rot: Math.floor(Math.random() * 360),
+        };
+      });
+
+      setOrigin({ x: cx, y: cy });
+      setSparks(newSparks);
+      setBursting(true);
+
+      // 효과가 보이도록 살짝 뒤에 이동
+      window.setTimeout(() => router.push(href), 340);
+      window.setTimeout(() => {
+        setBursting(false);
+        setSparks([]);
+      }, 650);
+    },
+    [bursting, href, router]
+  );
+
+  return (
+    <Link
+      ref={anchorRef}
+      href={href}
+      onClick={handleClick}
+      className={`dts-shortcut-link ${jewel}${bursting ? ' is-bursting' : ''}`}
+    >
+      <span
+        className="dts-burst-ring"
+        aria-hidden
+        style={{ left: origin.x, top: origin.y }}
+      />
+      {sparks.map((s) => (
+        <span
+          key={s.id}
+          className="dts-spark"
+          aria-hidden
+          style={{
+            left: origin.x,
+            top: origin.y,
+            color: s.color,
+            background: s.color,
+            '--tx': `${s.tx}px`,
+            '--ty': `${s.ty}px`,
+            '--sc': s.scale,
+            '--rot': `${s.rot}deg`,
+          }}
+        />
+      ))}
+      {Icon ? (
+        <Icon size={18} strokeWidth={2.25} aria-hidden className="dts-jewel-icon" />
+      ) : null}
+      <span className="dts-shortcut-label">{label}</span>
+    </Link>
+  );
+}
 
 /**
  * 대시보드 — 여행 바로가기. 칸마다 원색 2색 듀오 그라데이션(구석구석 CTA 톤).
@@ -89,12 +191,13 @@ export default function DashboardTravelShortcuts() {
 
         <nav className="dts-shortcuts">
           {TRAVEL_SHORTCUTS.map(({ href, shortcutKey, Icon, jewel }) => (
-            <Link key={href} href={href} className={`dts-shortcut-link ${jewel}`}>
-              {Icon ? <Icon size={18} strokeWidth={2.25} aria-hidden className="dts-jewel-icon" /> : null}
-              <span className="dts-shortcut-label">
-                {t(`trendingRegions.shortcuts.${shortcutKey}`, shortcutKey)}
-              </span>
-            </Link>
+            <ShortcutLink
+              key={href}
+              href={href}
+              Icon={Icon}
+              jewel={jewel}
+              label={t(`trendingRegions.shortcuts.${shortcutKey}`, shortcutKey)}
+            />
           ))}
         </nav>
       </div>
@@ -181,6 +284,10 @@ export default function DashboardTravelShortcuts() {
           flex-shrink: 0;
           display: block;
           filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
+          transition: transform 0.2s ease;
+        }
+        .dts-shortcut-link:hover .dts-jewel-icon {
+          transform: rotate(-8deg) scale(1.12);
         }
         .dts-shortcut-label {
           position: relative;
@@ -201,10 +308,119 @@ export default function DashboardTravelShortcuts() {
         .dts-shortcut-link:hover {
           transform: translateY(-2px) scale(1.02);
           filter: saturate(1.15) brightness(1.08);
-          border-color: rgba(255, 255, 255, 0.45);
+          border-color: rgba(255, 255, 255, 0.55);
         }
         .dts-shortcut-link:active {
-          transform: translateY(0) scale(0.99);
+          transform: translateY(0) scale(0.96);
+        }
+
+        /* ── 클릭 인터랙션 ── */
+        /* 1) 버튼 전체가 젤리처럼 말랑하게 눌렸다 튄다 */
+        .dts-shortcut-link.is-bursting {
+          animation: dts-jelly 0.55s cubic-bezier(0.22, 1.4, 0.36, 1) both;
+          z-index: 2;
+        }
+        @keyframes dts-jelly {
+          0% {
+            transform: scale(1, 1);
+          }
+          22% {
+            transform: scale(1.14, 0.82);
+          }
+          44% {
+            transform: scale(0.9, 1.12);
+          }
+          64% {
+            transform: scale(1.06, 0.96);
+          }
+          82% {
+            transform: scale(0.98, 1.02);
+          }
+          100% {
+            transform: scale(1, 1);
+          }
+        }
+
+        /* 2) 아이콘이 통통 튀어오르며 한 바퀴 살짝 돈다 */
+        .dts-shortcut-link.is-bursting .dts-jewel-icon {
+          animation: dts-icon-pop 0.55s cubic-bezier(0.22, 1.4, 0.36, 1) both;
+        }
+        @keyframes dts-icon-pop {
+          0% {
+            transform: scale(1) rotate(0deg);
+          }
+          30% {
+            transform: scale(1.55) rotate(-16deg);
+          }
+          60% {
+            transform: scale(0.85) rotate(14deg);
+          }
+          100% {
+            transform: scale(1) rotate(0deg);
+          }
+        }
+
+        /* 3) 클릭 지점에서 퍼지는 충격파 링 */
+        .dts-burst-ring {
+          position: absolute;
+          width: 10px;
+          height: 10px;
+          margin: -5px 0 0 -5px;
+          border-radius: 50%;
+          border: 2px solid rgba(255, 255, 255, 0.95);
+          opacity: 0;
+          transform: scale(0);
+          pointer-events: none;
+          z-index: 4;
+        }
+        .dts-shortcut-link.is-bursting .dts-burst-ring {
+          animation: dts-ring 0.5s ease-out both;
+        }
+        @keyframes dts-ring {
+          0% {
+            opacity: 0.9;
+            transform: scale(0);
+          }
+          100% {
+            opacity: 0;
+            transform: scale(16);
+          }
+        }
+
+        /* 4) 사방으로 튀는 색색깔 스파클(폭죽) */
+        .dts-spark {
+          position: absolute;
+          width: 7px;
+          height: 7px;
+          margin: -3.5px 0 0 -3.5px;
+          border-radius: 2px;
+          pointer-events: none;
+          z-index: 5;
+          opacity: 0;
+          box-shadow: 0 0 8px currentColor;
+          animation: dts-spark 0.6s cubic-bezier(0.18, 0.7, 0.3, 1) forwards;
+        }
+        @keyframes dts-spark {
+          0% {
+            opacity: 1;
+            transform: translate(0, 0) scale(var(--sc)) rotate(var(--rot));
+          }
+          70% {
+            opacity: 1;
+          }
+          100% {
+            opacity: 0;
+            transform: translate(var(--tx), var(--ty)) scale(0) rotate(var(--rot));
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .dts-shortcut-link.is-bursting,
+          .dts-shortcut-link.is-bursting .dts-jewel-icon,
+          .dts-shortcut-link.is-bursting .dts-burst-ring,
+          .dts-spark {
+            animation: none;
+          }
         }
         /* 2색 듀오 그라데이션 — 구석구석 CTA와 동일 톤(원색 유지, 선명한 2색 조합) */
         .dts-jewel-0 {
