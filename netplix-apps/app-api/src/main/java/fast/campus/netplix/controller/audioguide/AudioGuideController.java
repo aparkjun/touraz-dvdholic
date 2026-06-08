@@ -127,6 +127,25 @@ public class AudioGuideController {
         return NetplixApiResponse.ok(body);
     }
 
+    /**
+     * 단일 STORY 해설 대본 지연 조회(선택 언어).
+     *
+     * <p>stories-by-theme 는 목록 즉시 표시를 위해 비한국어일 때 제목만 번역하고 본문은 비운다.
+     * 프런트는 사용자가 그 스토리를 재생/펼칠 때 이 엔드포인트로 해당 본문만 번역(또는 한국어 원문)을
+     * 끌어온다. 캐시되어 두 번째부터는 즉시 응답한다. 못 찾으면 data=null.
+     */
+    @GetMapping("/stories-by-theme/script")
+    public NetplixApiResponse<String> storyScript(
+            @RequestParam String themeId,
+            @RequestParam(required = false) String themeTitle,
+            @RequestParam String storyId,
+            @RequestParam(defaultValue = "ko") String lang,
+            @RequestParam(required = false) Double lat,
+            @RequestParam(required = false) Double lon) {
+        String script = useCase.storyScript(themeId, themeTitle, storyId, lang, lat, lon);
+        return NetplixApiResponse.ok(script);
+    }
+
     /** Odii tid/stid 가 언어·GW 마다 선행 0·대소문자만 다른 경우가 있어 상세 조회를 느슨하게 맞춘다 */
     private static boolean odiiIdsMatchLoosely(String candidateId, String requestedId) {
         if (candidateId == null || requestedId == null) {

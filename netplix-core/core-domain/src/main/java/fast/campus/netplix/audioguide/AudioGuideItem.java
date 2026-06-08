@@ -57,4 +57,10 @@ public class AudioGuideItem {
     private final String language;
     /** nearby 호출 시 호출자 좌표 기준 km 단위 거리(Haversine). */
     private final Double distanceKm;
+    /**
+     * 해설 대본(description)을 지금은 비워 두지만 지연 조회로 받을 수 있는지 여부.
+     * 목록을 빠르게 보여주려고 비한국어 번역 시 본문 번역을 미루고(=null) 이 플래그만 true 로 둔다.
+     * 프런트는 이 값이 true 면 재생/자막 시 단건 번역 엔드포인트로 대본을 끌어온다.
+     */
+    private final boolean scriptAvailable;
 }

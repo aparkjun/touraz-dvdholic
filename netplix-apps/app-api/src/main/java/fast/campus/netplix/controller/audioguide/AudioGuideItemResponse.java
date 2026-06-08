@@ -23,7 +23,8 @@ public record AudioGuideItemResponse(
         Double longitude,
         String themeCategory,
         String language,
-        Double distanceKm
+        Double distanceKm,
+        boolean scriptAvailable
 ) {
     public static AudioGuideItemResponse from(AudioGuideItem s) {
         return from(s, false);
@@ -52,7 +53,8 @@ public record AudioGuideItemResponse(
                 s.getLongitude(),
                 s.getThemeCategory(),
                 s.getLanguage(),
-                s.getDistanceKm()
+                s.getDistanceKm(),
+                s.isScriptAvailable()
         );
     }
 }

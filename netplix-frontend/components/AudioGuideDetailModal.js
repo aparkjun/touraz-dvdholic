@@ -543,11 +543,76 @@ export default function AudioGuideDetailModal({
   const [liveStoryNativeId, setLiveStoryNativeId] = useState(null);
   /** 사용자가 '자막'을 펼쳐 본 STORY id (재생 중이 아니어도 해설 텍스트 표시) */
   const [openSubtitleId, setOpenSubtitleId] = useState(null);
+  /**
+   * STORY 본문(해설 대본) 지연 번역 캐시. 목록은 제목만 빠르게 받고,
+   * 본문은 재생/자막 때 단건 번역으로 채운다. { [id]: { loading, text } }
+   */
+  const [storyScripts, setStoryScripts] = useState({});
+  const storyScriptsRef = useRef({});
+  /** 본문 단건 조회에 쓸 themeId/title/좌표 — 목록 조회와 동일 파라미터로 맞춘다. */
+  const storyFetchParamsRef = useRef(null);
+  /** 동시 중복 요청 방지 */
+  const inflightScriptsRef = useRef(new Set());
 
   // 리스트 응답은 lite(description 생략)로 내려오므로, STORY 상세에서만 필요한 script 를 지연 조회한다.
   const [loadedDesc, setLoadedDesc] = useState(null);
   /** THEME: 모달 Odii 언어 칩이 리스트 row 와 다를 때 /detail 로 동일 tid 의 해당 언어 레코드 보강 */
   const [themeLangDetail, setThemeLangDetail] = useState(null);
+
+  const writeStoryScript = useCallback((id, val) => {
+    const next = { ...storyScriptsRef.current, [id]: val };
+    storyScriptsRef.current = next;
+    setStoryScripts(next);
+  }, []);
+
+  const clearStoryScripts = useCallback(() => {
+    storyScriptsRef.current = {};
+    inflightScriptsRef.current = new Set();
+    setStoryScripts({});
+  }, []);
+
+  /**
+   * 한 STORY 의 해설 대본을 선택 언어로 확보한다.
+   *  - 한국어이거나 본문이 이미 실려 있으면 그대로 사용(네트워크 X)
+   *  - 비한국어 + scriptAvailable 이면 단건 번역 엔드포인트로 지연 조회 후 캐시
+   * 반환: 확보한 대본 문자열(없으면 "").
+   */
+  const fetchStoryScript = useCallback(async (s) => {
+    const id = s?.id;
+    if (!id) return "";
+    if (modalOdiiLang === "ko") {
+      return s?.description && String(s.description).trim() ? String(s.description) : "";
+    }
+    const native = s?.description && String(s.description).trim();
+    if (native) return String(native);
+    if (!s?.scriptAvailable) return "";
+    const existing = storyScriptsRef.current[id];
+    if (existing && existing.text) return existing.text;
+    if (inflightScriptsRef.current.has(id)) return "";
+    const p = storyFetchParamsRef.current;
+    if (!p || !p.themeId) return "";
+    inflightScriptsRef.current.add(id);
+    writeStoryScript(id, { loading: true, text: existing?.text || "" });
+    try {
+      const params = { themeId: p.themeId, storyId: id, lang: modalOdiiLang };
+      if (p.themeTitle) params.themeTitle = p.themeTitle;
+      if (p.lat != null && p.lon != null) {
+        params.lat = p.lat;
+        params.lon = p.lon;
+      }
+      const res = await axios.get("/api/v1/audio-guide/stories-by-theme/script", { params });
+      const data = res?.data;
+      const ok = data && typeof data === "object" && data.success !== false;
+      const text = ok && data.data != null ? String(data.data) : "";
+      writeStoryScript(id, { loading: false, text });
+      return text;
+    } catch (_) {
+      writeStoryScript(id, { loading: false, text: existing?.text || "" });
+      return "";
+    } finally {
+      inflightScriptsRef.current.delete(id);
+    }
+  }, [modalOdiiLang, writeStoryScript]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
@@ -596,6 +661,8 @@ export default function AudioGuideDetailModal({
     setLoadedDesc(null);
     setThemeLangDetail(null);
     setTtsLastPickerRow(null);
+    setOpenSubtitleId(null);
+    clearStoryScripts();
     if (typeof window !== "undefined" && window.speechSynthesis) {
       try { window.speechSynthesis.cancel(); } catch (_) { /* noop */ }
     }
@@ -612,7 +679,7 @@ export default function AudioGuideDetailModal({
         try { window.speechSynthesis.cancel(); } catch (_) { /* noop */ }
       }
     };
-  }, [item?.id]);
+  }, [item?.id, clearStoryScripts]);
 
   /** Odii 언어·보강된 theme audioUrl 이 바뀌면 네이티브 <audio> 인스턴스를 버려 다음 재생이 새 URL 을 쓰게 한다. */
   useEffect(() => {
@@ -673,6 +740,14 @@ export default function AudioGuideDetailModal({
       params.lat = themeLat;
       params.lon = themeLng;
     }
+    // 단건 대본 조회가 목록과 같은 소스를 쓰도록 파라미터를 기억하고, 이전 언어 캐시는 비운다.
+    storyFetchParamsRef.current = {
+      themeId: themeIdParam,
+      themeTitle: themeTitleHint,
+      lat: params.lat ?? null,
+      lon: params.lon ?? null,
+    };
+    clearStoryScripts();
     axios
       .get("/api/v1/audio-guide/stories-by-theme", {
         params,
@@ -684,6 +759,22 @@ export default function AudioGuideDetailModal({
         const raw = ok ? payload.data : [];
         const arr = Array.isArray(raw) ? raw : [];
         setStories(arr);
+        /*
+         * 목록은 제목만 받아 즉시 떠 있다. 비한국어면 본문(해설 대본)을 백그라운드에서
+         * 순차로 지연 번역해 캐시에 채운다 — 위에서부터 자막이 차오르고, 사용자가 누를 때쯤엔
+         * 대개 준비돼 재생이 매끄럽다. 화면 렌더는 막지 않는다.
+         */
+        if (effectiveLang !== "ko") {
+          (async () => {
+            for (const s of arr) {
+              if (cancelled) return;
+              if (!s?.scriptAvailable) continue;
+              if (s?.description && String(s.description).trim()) continue;
+              // eslint-disable-next-line no-await-in-loop
+              await fetchStoryScript(s);
+            }
+          })();
+        }
       })
       .catch(() => { if (!cancelled) setStories([]); })
       .finally(() => { if (!cancelled) setStoriesLoading(false); });
@@ -704,6 +795,8 @@ export default function AudioGuideDetailModal({
     item?.longitude,
     anchorLat,
     anchorLng,
+    fetchStoryScript,
+    clearStoryScripts,
   ]);
 
   // THEME: 칩 언어 ≠ 리스트 row.lang 일 때 동일 tid 의 해당 언어 레코드(오디오·대본·제목) 보강
@@ -970,9 +1063,20 @@ export default function AudioGuideDetailModal({
 
   const playStoryTts = async (story) => {
     if (!ttsSupported) return;
-    const text = (story?.description && String(story.description).trim())
+    // 본문 우선순위: 리스트 동봉(한국어) → 지연 캐시(번역) → 단건 지연 번역 → 제목 폴백.
+    let text = (story?.description && String(story.description).trim())
       ? String(story.description)
-      : [story?.audioTitle, story?.title, story?.themeCategory].filter(Boolean).join(". ");
+      : "";
+    if (!text) {
+      const cached = storyScriptsRef.current[story?.id];
+      text = cached && cached.text ? cached.text : "";
+    }
+    if (!text && story?.scriptAvailable && modalOdiiLang !== "ko") {
+      text = await fetchStoryScript(story);
+    }
+    if (!text) {
+      text = [story?.audioTitle, story?.title, story?.themeCategory].filter(Boolean).join(". ");
+    }
     if (!text) return;
     try {
       setLiveStoryNativeId(null);
@@ -1366,9 +1470,14 @@ export default function AudioGuideDetailModal({
                     const label = s.audioTitle || s.title || "";
                     const storyAudio = s.audioUrl && String(s.audioUrl).trim() ? String(s.audioUrl).trim() : "";
                     const showTtsBtn = !storyAudio && ttsSupported;
-                    const storyScript = s.description && String(s.description).trim() ? String(s.description).trim() : "";
+                    const lazy = storyScripts[s.id];
+                    const nativeScript = s.description && String(s.description).trim() ? String(s.description).trim() : "";
+                    const resolvedScript = nativeScript || (lazy && lazy.text ? String(lazy.text).trim() : "");
+                    const scriptLoading = !!(lazy && lazy.loading) && !resolvedScript;
+                    // 본문이 이미 있거나(한국어/지연 캐시) 지연 번역으로 받아올 수 있으면 자막 가능.
+                    const canHaveScript = !!resolvedScript || !!s.scriptAvailable;
                     // 재생 중(TTS/네이티브)이거나 사용자가 펼치면 해설 자막을 표시.
-                    const showSubtitle = !!storyScript
+                    const showSubtitle = canHaveScript
                       && (isActive || liveStoryNativeId === s.id || openSubtitleId === s.id);
                     return (
                       <li key={s.id} className={`agm-story-row${isActive && showTtsBtn ? " active" : ""}`}>
@@ -1401,11 +1510,14 @@ export default function AudioGuideDetailModal({
                               )}
                             </div>
                           </div>
-                          {storyScript ? (
+                          {canHaveScript ? (
                             <button
                               type="button"
                               className={`agm-story-cc${openSubtitleId === s.id ? " on" : ""}`}
-                              onClick={() => setOpenSubtitleId((id) => (id === s.id ? null : s.id))}
+                              onClick={() => {
+                                setOpenSubtitleId((id) => (id === s.id ? null : s.id));
+                                if (!resolvedScript) fetchStoryScript(s);
+                              }}
                               aria-pressed={openSubtitleId === s.id}
                               aria-label={td("audioGuide.detail.stories.subtitleToggle", "자막 보기")}
                               title={td("audioGuide.detail.stories.subtitleToggle", "자막 보기")}
@@ -1425,7 +1537,15 @@ export default function AudioGuideDetailModal({
                           ) : null}
                         </div>
                         {showSubtitle ? (
-                          <p className="agm-story-subtitle">{storyScript}</p>
+                          resolvedScript ? (
+                            <p className="agm-story-subtitle">{resolvedScript}</p>
+                          ) : scriptLoading ? (
+                            <p className="agm-story-subtitle agm-story-subtitle--loading">
+                              <Loader2 size={12} className="agm-spin" />
+                              {" "}
+                              {td("audioGuide.detail.stories.subtitleLoading", "자막을 불러오는 중...")}
+                            </p>
+                          ) : null
                         ) : null}
                         {storyAudio ? (
                           <div className="agm-story-audio-wrap">
@@ -2084,6 +2204,13 @@ const modalCss = `
   color: #ede9fe;
   white-space: pre-wrap;
   word-break: break-word;
+}
+.agm-story-subtitle--loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #c4b5fd;
+  font-style: italic;
 }
 
 .agm-script {

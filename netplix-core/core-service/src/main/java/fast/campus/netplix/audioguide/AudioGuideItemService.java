@@ -82,24 +82,30 @@ public class AudioGuideItemService implements GetAudioGuideItemsUseCase {
         return result;
     }
 
-    /** 한국어 스토리들의 제목·오디오제목·해설 대본을 target 언어로 번역해 새 아이템으로 재구성한다. */
+    /**
+     * 한국어 스토리들을 target 언어 목록으로 재구성한다.
+     *
+     * <p>로딩 체감 단축이 목적이라 <b>제목·오디오제목만</b> 번역한다(짧아 즉시 끝남).
+     * 길어서 느린 해설 본문(description)은 비워 두고 {@code scriptAvailable} 플래그만 세워,
+     * 사용자가 그 스토리를 재생/펼칠 때 {@link #storyScript} 로 단건 지연 번역한다.
+     * 이렇게 하면 목록이 거의 즉시 떠 "지루한 로딩"이 사라진다.
+     */
     private List<AudioGuideItem> translateStories(List<AudioGuideItem> koItems, String target) {
         int cap = Math.min(koItems.size(), TRANSLATE_STORY_CAP);
         List<AudioGuideItem> src = koItems.subList(0, cap);
 
-        // [title, audioTitle, description] × N 으로 평탄화해 한 번에 번역.
-        List<String> texts = new ArrayList<>(src.size() * 3);
+        // [title, audioTitle] × N 만 평탄화해 한 번에 번역(본문 제외 → 빠름).
+        List<String> texts = new ArrayList<>(src.size() * 2);
         for (AudioGuideItem it : src) {
             texts.add(nz(it.getTitle()));
             texts.add(nz(it.getAudioTitle()));
-            texts.add(nz(it.getDescription()));
         }
 
         List<String> tr;
         try {
             tr = translationPort.translate(texts, target);
         } catch (Exception e) {
-            log.warn("[AUDIO-GUIDE] 해설 번역 실패 → 한국어 폴백: {}", e.getMessage());
+            log.warn("[AUDIO-GUIDE] 해설 제목 번역 실패 → 한국어 폴백: {}", e.getMessage());
             return koItems;
         }
         if (tr == null || tr.size() != texts.size()) {
@@ -109,13 +115,18 @@ public class AudioGuideItemService implements GetAudioGuideItemsUseCase {
         List<AudioGuideItem> out = new ArrayList<>(src.size());
         for (int i = 0; i < src.size(); i++) {
             AudioGuideItem it = src.get(i);
-            String t = blankToNull(tr.get(i * 3));
-            String at = blankToNull(tr.get(i * 3 + 1));
-            String d = blankToNull(tr.get(i * 3 + 2));
+            String t = blankToNull(tr.get(i * 2));
+            String at = blankToNull(tr.get(i * 2 + 1));
+            boolean hasKoScript = it.getDescription() != null && !it.getDescription().isBlank();
             out.add(it.toBuilder()
                     .title(t != null ? t : it.getTitle())
                     .audioTitle(at != null ? at : it.getAudioTitle())
-                    .description(d != null ? d : it.getDescription())
+                    /*
+                     * 본문은 지연 번역. null 로 비워 프런트가 재생/자막 시 storyScript 로 끌어오게 한다.
+                     * 한국어 원문에 대본이 있으면 scriptAvailable=true 로 알려 자막·TTS 버튼을 띄운다.
+                     */
+                    .description(null)
+                    .scriptAvailable(hasKoScript)
                     /*
                      * 원본 audioUrl 은 한국어 mp3 다. 이걸 남겨두면 프런트가 그 한국어 녹음을
                      * 그대로 재생해 "언어를 바꿔도 소리는 한국어"가 된다. 번역본은 오디오를 비워
@@ -127,6 +138,67 @@ public class AudioGuideItemService implements GetAudioGuideItemsUseCase {
                     .build());
         }
         return out;
+    }
+
+    @Override
+    public String storyScript(String themeId, String themeTitleHint, String storyId, String lang,
+                              Double anchorLat, Double anchorLon) {
+        if (themeId == null || themeId.isBlank() || storyId == null || storyId.isBlank()) {
+            return null;
+        }
+        String id = themeId.trim();
+        String sid = storyId.trim();
+        String hint = themeTitleHint == null || themeTitleHint.isBlank() ? null : themeTitleHint.trim();
+        String target = sanitizeLang(lang);
+
+        // 한국어 원문 목록에서 해당 스토리를 찾아 본문을 가져온다(stories-by-theme 와 같은 소스 → id 정합).
+        List<AudioGuideItem> ko = port.fetchStoriesByTheme(id, hint, "ko", TRANSLATE_STORY_CAP, anchorLat, anchorLon);
+        AudioGuideItem story = ko.stream()
+                .filter(it -> odiiIdsMatchLoosely(it.getId(), sid))
+                .findFirst()
+                .orElse(null);
+        if (story == null) {
+            return null;
+        }
+        String desc = story.getDescription();
+        if (desc == null || desc.isBlank()) {
+            return null;
+        }
+        if ("ko".equals(target) || translationPort == null || !translationPort.isAvailable()) {
+            return desc;
+        }
+        try {
+            List<String> tr = translationPort.translate(List.of(desc), target);
+            if (tr != null && tr.size() == 1 && tr.get(0) != null && !tr.get(0).isBlank()) {
+                return tr.get(0);
+            }
+        } catch (Exception e) {
+            log.warn("[AUDIO-GUIDE] 단일 해설 번역 실패 → 한국어 폴백: {}", e.getMessage());
+        }
+        return desc;
+    }
+
+    /** Odii tid/stid 가 언어·GW 마다 선행 0·대소문자만 다른 경우가 있어 느슨하게 맞춘다. */
+    private static boolean odiiIdsMatchLoosely(String candidateId, String requestedId) {
+        if (candidateId == null || requestedId == null) {
+            return false;
+        }
+        String a = candidateId.trim();
+        String b = requestedId.trim();
+        if (a.isEmpty() || b.isEmpty()) {
+            return false;
+        }
+        if (a.equalsIgnoreCase(b)) {
+            return true;
+        }
+        try {
+            if (a.matches("\\d+") && b.matches("\\d+") && Long.parseLong(a) == Long.parseLong(b)) {
+                return true;
+            }
+        } catch (NumberFormatException ignored) {
+            /* noop */
+        }
+        return false;
     }
 
     /** 콘텐츠 언어 필드가 선택 언어와 일치하는지(BCP47 접두 허용). */

@@ -21,6 +21,16 @@ public interface GetAudioGuideItemsUseCase {
     List<AudioGuideItem> storiesByTheme(String themeId, String themeTitleHint, String lang, int limit,
                                         Double anchorLat, Double anchorLon);
 
+    /**
+     * 단일 STORY 해설 대본을 선택 언어로 지연 조회.
+     *
+     * <p>{@link #storiesByTheme} 는 목록 즉시 표시를 위해 비한국어일 때 제목만 번역하고 본문은 비운다.
+     * 사용자가 그 스토리를 재생/펼칠 때 이 메서드로 해당 본문만 번역(또는 한국어 원문)을 받아온다.
+     * 번역 실패 시 한국어 원문으로 degrade, 못 찾으면 null.
+     */
+    String storyScript(String themeId, String themeTitleHint, String storyId, String lang,
+                       Double anchorLat, Double anchorLon);
+
     /** Odii 키 설정 여부·표본 조회 — 목록이 비어 있을 때 원인 표시용 */
     AudioGuideOdiiMeta odiiMeta();
 }
