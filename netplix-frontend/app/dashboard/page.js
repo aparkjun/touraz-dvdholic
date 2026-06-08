@@ -281,9 +281,9 @@ function DashboardContent() {
 
   const [showAttModal, setShowAttModal] = useState(false);
 
-  // 네비게이션 바로 아래에 풀폭 적응형 배너를 고정 노출한다.
+  // 화면 맨 하단에 풀폭 적응형 배너를 고정 노출한다(iPhone 좌하·우하 모서리는 여백으로 회피).
   // 대시보드에 머무는 동안 계속 표시하고, 페이지를 벗어날 때 내린다.
-  // (콘텐츠 상단은 아래 paddingTop 으로 광고 높이만큼 띄워 가림을 방지)
+  // (콘텐츠 하단은 아래 paddingBottom 으로 광고 높이만큼 띄워 가림을 방지)
   useEffect(() => {
     if (!isNative) return;
     showNavBanner();
@@ -815,9 +815,9 @@ function DashboardContent() {
           "radial-gradient(880px 460px at 50% 100%, rgba(186, 214, 198, 0.22), transparent 60%)," +
           "linear-gradient(180deg, #eef4f9 0%, #f7f2eb 46%, #ebf1f7 100%)",
         minHeight: "100vh",
-        // 네이티브: 네비 아래 풀폭 적응형 배너(고정 오버레이)가 상단 콘텐츠를 가리지 않도록
-        // 광고 높이(적응형 ~50~90px)만큼 상단 패딩을 확보한다.
-        padding: isNative ? "104px 12px 80px" : "20px 12px 28px",
+        // 네이티브: 맨 하단 풀폭 적응형 배너(고정 오버레이)가 하단 콘텐츠를 가리지 않도록
+        // 광고 높이(적응형 ~50~90px)+띄움 여백만큼 하단 패딩을 확보한다.
+        padding: isNative ? "20px 12px 140px" : "20px 12px 28px",
         fontFamily: detailFontFamily,
         maxWidth: "100vw",
         overflow: "hidden",

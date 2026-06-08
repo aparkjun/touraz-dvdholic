@@ -84,15 +84,17 @@ export async function showBanner() {
   }
 }
 
-// 대시보드 상단 네비(.app-nav--dashboard) 콘텐츠 높이(px). 광고를 네비 바로 아래에 띄우기 위한 오프셋.
-const NAV_BAR_OFFSET = 76;
+// 하단 배너를 화면 맨 아래에서 띄워 올리는 여백(px).
+// iPhone 의 둥근 화면 모서리(좌하/우하)와 홈 인디케이터 영역을 피하기 위해 배너를 살짝 위로 올린다.
+const BOTTOM_AD_MARGIN = 24;
 
 /**
- * 대시보드 상단 전용 — 네비게이션 바로 아래에 "풀폭 적응형 배너"를 고정한다.
- * - ADAPTIVE_BANNER 는 화면 너비를 꽉 채워 좌우 여백이 없다(높이는 너비에 맞춰 자동).
- * - TOP_CENTER + margin(네비 높이) 으로 네비 바로 아래에 위치.
- * WebView 특성상 콘텐츠 흐름에 인라인으로 넣을 수 없어 상단 고정 오버레이로 띄우고,
- * 호출부에서 콘텐츠 상단 패딩으로 가림을 방지한다.
+ * 대시보드 전용 — 화면 "맨 하단"에 풀폭 적응형 배너를 고정한다.
+ * - ADAPTIVE_BANNER 는 화면 너비에 맞춰 높이가 자동 결정된다.
+ * - BOTTOM_CENTER + margin 으로 맨 아래에서 살짝 띄워, iPhone 의 좌하·우하 둥근 모서리와
+ *   홈 인디케이터에 광고가 걸치지 않게 한다.
+ * WebView 특성상 콘텐츠 흐름에 인라인으로 넣을 수 없어 하단 고정 오버레이로 띄우고,
+ * 호출부에서 콘텐츠 하단 패딩으로 가림을 방지한다.
  * 대시보드를 벗어날 때는 호출부(useEffect cleanup)에서 hideBanner 로 내린다.
  */
 export async function showNavBanner() {
@@ -117,8 +119,8 @@ export async function showNavBanner() {
     await AdMob.showBanner({
       adId: getFooterRectAdId(),
       adSize: BannerAdSize.ADAPTIVE_BANNER,
-      position: BannerAdPosition.TOP_CENTER,
-      margin: NAV_BAR_OFFSET,
+      position: BannerAdPosition.BOTTOM_CENTER,
+      margin: BOTTOM_AD_MARGIN,
       isTesting: FOOTER_AD_TEST,
     });
     footerRectCreated = true;
