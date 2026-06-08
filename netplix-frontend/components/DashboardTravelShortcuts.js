@@ -87,8 +87,8 @@ function ShortcutLink({ href, label, Icon, jewel }) {
       setSparks(newSparks);
       setBursting(true);
 
-      // 버튼이 눌리는 모양(젤리)이 보이자마자 바로 이동 — 끊김 없이 빠르게.
-      window.setTimeout(() => router.push(href), 150);
+      // 버튼이 눌리는 모양(젤리)이 보이자마자 바로 이동 — 최소 지연.
+      window.setTimeout(() => router.push(href), 80);
       window.setTimeout(() => {
         setBursting(false);
         setSparks([]);
@@ -316,17 +316,17 @@ export default function DashboardTravelShortcuts() {
         /* ── 클릭 인터랙션 ── */
         /* 1) 버튼 전체가 젤리처럼 말랑하게 눌렸다 튄다 */
         .dts-shortcut-link.is-bursting {
-          animation: dts-jelly 0.4s cubic-bezier(0.22, 1.4, 0.36, 1) both;
+          animation: dts-jelly 0.3s cubic-bezier(0.22, 1.4, 0.36, 1) both;
           z-index: 2;
         }
         @keyframes dts-jelly {
           0% {
             transform: scale(1, 1);
           }
-          22% {
-            transform: scale(1.14, 0.82);
+          16% {
+            transform: scale(1.16, 0.8);
           }
-          44% {
+          40% {
             transform: scale(0.9, 1.12);
           }
           64% {
@@ -342,7 +342,7 @@ export default function DashboardTravelShortcuts() {
 
         /* 2) 아이콘이 통통 튀어오르며 한 바퀴 살짝 돈다 */
         .dts-shortcut-link.is-bursting .dts-jewel-icon {
-          animation: dts-icon-pop 0.4s cubic-bezier(0.22, 1.4, 0.36, 1) both;
+          animation: dts-icon-pop 0.3s cubic-bezier(0.22, 1.4, 0.36, 1) both;
         }
         @keyframes dts-icon-pop {
           0% {
