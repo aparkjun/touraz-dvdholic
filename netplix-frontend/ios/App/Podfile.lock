@@ -10,9 +10,13 @@ PODS:
     - Google-Mobile-Ads-SDK (~> 12.14)
     - GoogleUserMessagingPlatform (~> 3.1)
   - CapacitorCordova (8.2.0)
+  - CapacitorGeolocation (8.2.0):
+    - Capacitor
+    - IONGeolocationLib (= 2.1.0)
   - Google-Mobile-Ads-SDK (12.14.0):
     - GoogleUserMessagingPlatform (>= 1.1)
   - GoogleUserMessagingPlatform (3.1.0)
+  - IONGeolocationLib (2.1.0)
 
 DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
@@ -20,12 +24,14 @@ DEPENDENCIES:
   - "CapacitorBrowser (from `../../node_modules/@capacitor/browser`)"
   - "CapacitorCommunityAdmob (from `../../node_modules/@capacitor-community/admob`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorGeolocation (from `../../node_modules/@capacitor/geolocation`)"
   - Google-Mobile-Ads-SDK
 
 SPEC REPOS:
   trunk:
     - Google-Mobile-Ads-SDK
     - GoogleUserMessagingPlatform
+    - IONGeolocationLib
 
 EXTERNAL SOURCES:
   Capacitor:
@@ -38,6 +44,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor-community/admob"
   CapacitorCordova:
     :path: "../../node_modules/@capacitor/ios"
+  CapacitorGeolocation:
+    :path: "../../node_modules/@capacitor/geolocation"
 
 SPEC CHECKSUMS:
   Capacitor: 49a454e1cdbd520bc106a220adca7913536a4933
@@ -45,9 +53,11 @@ SPEC CHECKSUMS:
   CapacitorBrowser: 76847841b74c11ccac0a1afae18cf06e3bd59044
   CapacitorCommunityAdmob: 9c36b466f46da413e5c105f7484e7603178c6223
   CapacitorCordova: a9ac88d84a1f5280f33b349fe50fce1902683ac0
+  CapacitorGeolocation: b36f6287bfc9f2eefa04dc900496f2c8ae666136
   Google-Mobile-Ads-SDK: 4534fd2dfcd3f705c5485a6633c5188d03d4eed2
   GoogleUserMessagingPlatform: befe603da6501006420c206222acd449bba45a9c
+  IONGeolocationLib: 6a7b6f76063fb1b01cfb14fae7d0f526e3c9b271
 
-PODFILE CHECKSUM: 965a0aa48f50a59ec09da03f9e7b30f60e03005d
+PODFILE CHECKSUM: 573875ad83534a6bbd8f9b3847df8d50d1a4bc1c
 
 COCOAPODS: 1.16.2
