@@ -54,53 +54,60 @@ function ShortcutLink({ href, label, Icon, jewel }) {
   const [origin, setOrigin] = useState({ x: 0, y: 0 });
   const [sparks, setSparks] = useState([]);
 
+  // 효과 발동(손가락 닿는 순간 호출). clientX/Y가 없으면 버튼 중앙에서 터뜨림.
+  const triggerBurst = useCallback((clientX, clientY) => {
+    const rect = anchorRef.current?.getBoundingClientRect();
+    const cx = rect && clientX ? clientX - rect.left : rect ? rect.width / 2 : 0;
+    const cy = rect && clientY ? clientY - rect.top : rect ? rect.height / 2 : 0;
+
+    const count = 12;
+    const newSparks = Array.from({ length: count }, (_, i) => {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.6;
+      const dist = 28 + Math.random() * 30;
+      return {
+        id: `${Date.now()}-${i}`,
+        tx: Math.cos(angle) * dist,
+        ty: Math.sin(angle) * dist,
+        color: SPARK_COLORS[i % SPARK_COLORS.length],
+        scale: 0.6 + Math.random() * 0.9,
+        rot: Math.floor(Math.random() * 360),
+      };
+    });
+
+    setOrigin({ x: cx, y: cy });
+    setSparks(newSparks);
+    setBursting(true);
+    window.setTimeout(() => {
+      setBursting(false);
+      setSparks([]);
+    }, 650);
+  }, []);
+
+  // 손가락/마우스가 닿는 순간 즉시 효과 시작 — iOS 사파리에서도 확실히 보인다.
+  const handlePointerDown = useCallback(
+    (e) => {
+      if (e.button != null && e.button !== 0) return; // 주 버튼만
+      if (bursting) return;
+      triggerBurst(e.clientX, e.clientY);
+    },
+    [bursting, triggerBurst]
+  );
+
+  // 손을 떼면(클릭) 이동. pointerdown에서 이미 눌림 모양이 시작됐으므로 거의 즉시 이동.
   const handleClick = useCallback(
     (e) => {
-      // 모바일(iOS 저전력 모드 등)에서도 항상 보이도록 동작 제한 게이트 제거.
-      // 탭 시 잠깐 나타나는 일회성 피드백이라 접근성 영향은 작다.
-      if (bursting) return;
-
       e.preventDefault();
-
-      const rect = anchorRef.current?.getBoundingClientRect();
-      // 클릭 지점(키보드 활성화 시 좌표가 0이면 버튼 중앙에서 터뜨림)
-      const cx =
-        rect && e.clientX ? e.clientX - rect.left : (rect ? rect.width / 2 : 0);
-      const cy =
-        rect && e.clientY ? e.clientY - rect.top : (rect ? rect.height / 2 : 0);
-
-      const count = 12;
-      const newSparks = Array.from({ length: count }, (_, i) => {
-        const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.6;
-        const dist = 28 + Math.random() * 30;
-        return {
-          id: `${Date.now()}-${i}`,
-          tx: Math.cos(angle) * dist,
-          ty: Math.sin(angle) * dist,
-          color: SPARK_COLORS[i % SPARK_COLORS.length],
-          scale: 0.6 + Math.random() * 0.9,
-          rot: Math.floor(Math.random() * 360),
-        };
-      });
-
-      setOrigin({ x: cx, y: cy });
-      setSparks(newSparks);
-      setBursting(true);
-
-      // 버튼이 눌리는 모양(젤리)이 보이자마자 바로 이동 — 최소 지연.
-      window.setTimeout(() => router.push(href), 80);
-      window.setTimeout(() => {
-        setBursting(false);
-        setSparks([]);
-      }, 650);
+      if (!bursting) triggerBurst(e.clientX, e.clientY); // 키보드(Enter) 폴백
+      window.setTimeout(() => router.push(href), 60);
     },
-    [bursting, href, router]
+    [bursting, href, router, triggerBurst]
   );
 
   return (
     <Link
       ref={anchorRef}
       href={href}
+      onPointerDown={handlePointerDown}
       onClick={handleClick}
       className={`dts-shortcut-link ${jewel}${bursting ? ' is-bursting' : ''}`}
     >
