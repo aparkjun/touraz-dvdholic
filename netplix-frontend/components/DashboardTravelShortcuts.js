@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
@@ -147,6 +147,14 @@ function ShortcutLink({ href, label, Icon, jewel }) {
 export default function DashboardTravelShortcuts() {
   const { t } = useTranslation();
 
+  // iOS 사파리는 touch 리스너가 있어야 CSS :active 가 동작한다(알려진 동작).
+  // 빈 리스너를 한 번 등록해 모든 버튼에서 누름 효과가 확실히 보이게 한다.
+  useEffect(() => {
+    const noop = () => {};
+    document.addEventListener('touchstart', noop, { passive: true });
+    return () => document.removeEventListener('touchstart', noop);
+  }, []);
+
   return (
     <section
       aria-label={t('trendingRegions.shortcutsAriaLabel', '여행 바로가기')}
@@ -268,10 +276,10 @@ export default function DashboardTravelShortcuts() {
           color: rgba(255, 250, 245, 0.96);
           font-weight: 600;
           transition:
-            transform 0.2s ease,
-            box-shadow 0.2s ease,
-            filter 0.2s ease,
-            border-color 0.2s ease;
+            transform 0.1s ease,
+            box-shadow 0.12s ease,
+            filter 0.12s ease,
+            border-color 0.12s ease;
           box-shadow:
             0 1px 0 rgba(255, 255, 255, 0.35) inset,
             0 6px 18px rgba(0, 0, 0, 0.35);
@@ -290,7 +298,7 @@ export default function DashboardTravelShortcuts() {
           flex-shrink: 0;
           display: block;
           filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.45));
-          transition: transform 0.2s ease;
+          transition: transform 0.12s ease;
         }
         .dts-shortcut-link:hover .dts-jewel-icon {
           transform: rotate(-8deg) scale(1.12);
@@ -316,8 +324,21 @@ export default function DashboardTravelShortcuts() {
           filter: saturate(1.15) brightness(1.08);
           border-color: rgba(255, 255, 255, 0.55);
         }
+        /* 누르는 동안 — CSS만으로 동작(iOS 사파리 포함). 젤리처럼 눌리며 번쩍. */
         .dts-shortcut-link:active {
-          transform: translateY(0) scale(0.96);
+          transform: scale(1.1, 0.84);
+          filter: saturate(1.35) brightness(1.18);
+          border-color: rgba(255, 255, 255, 0.75);
+          box-shadow:
+            0 0 0 2px rgba(255, 255, 255, 0.4) inset,
+            0 2px 8px rgba(0, 0, 0, 0.4),
+            0 0 28px rgba(255, 255, 255, 0.3);
+        }
+        .dts-shortcut-link:active .dts-jewel-icon {
+          transform: scale(1.4) rotate(-12deg);
+        }
+        .dts-shortcut-link:active .dts-shortcut-label {
+          transform: scale(0.96);
         }
 
         /* ── 클릭 인터랙션 ── */
