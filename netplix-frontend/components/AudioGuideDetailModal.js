@@ -52,6 +52,7 @@ import {
   Info,
   Loader2,
   Mic,
+  Captions,
 } from "lucide-react";
 
 const TTS_KO_VOICE_STORAGE_KEY = "audioGuideDetailModal.ttsVoiceKo";
@@ -540,6 +541,8 @@ export default function AudioGuideDetailModal({
   const [activeStoryPaused, setActiveStoryPaused] = useState(false);
   /** STORY 행 `<audio>` 네이티브 재생 중인 항목 id (제목 옆 음성 GIF 동기화) */
   const [liveStoryNativeId, setLiveStoryNativeId] = useState(null);
+  /** 사용자가 '자막'을 펼쳐 본 STORY id (재생 중이 아니어도 해설 텍스트 표시) */
+  const [openSubtitleId, setOpenSubtitleId] = useState(null);
 
   // 리스트 응답은 lite(description 생략)로 내려오므로, STORY 상세에서만 필요한 script 를 지연 조회한다.
   const [loadedDesc, setLoadedDesc] = useState(null);
@@ -1363,6 +1366,10 @@ export default function AudioGuideDetailModal({
                     const label = s.audioTitle || s.title || "";
                     const storyAudio = s.audioUrl && String(s.audioUrl).trim() ? String(s.audioUrl).trim() : "";
                     const showTtsBtn = !storyAudio && ttsSupported;
+                    const storyScript = s.description && String(s.description).trim() ? String(s.description).trim() : "";
+                    // 재생 중(TTS/네이티브)이거나 사용자가 펼치면 해설 자막을 표시.
+                    const showSubtitle = !!storyScript
+                      && (isActive || liveStoryNativeId === s.id || openSubtitleId === s.id);
                     return (
                       <li key={s.id} className={`agm-story-row${isActive && showTtsBtn ? " active" : ""}`}>
                         <div className="agm-story-row-main">
@@ -1394,6 +1401,18 @@ export default function AudioGuideDetailModal({
                               )}
                             </div>
                           </div>
+                          {storyScript ? (
+                            <button
+                              type="button"
+                              className={`agm-story-cc${openSubtitleId === s.id ? " on" : ""}`}
+                              onClick={() => setOpenSubtitleId((id) => (id === s.id ? null : s.id))}
+                              aria-pressed={openSubtitleId === s.id}
+                              aria-label={td("audioGuide.detail.stories.subtitleToggle", "자막 보기")}
+                              title={td("audioGuide.detail.stories.subtitleToggle", "자막 보기")}
+                            >
+                              <Captions size={14} />
+                            </button>
+                          ) : null}
                           {isActive && showTtsBtn ? (
                             <button
                               type="button"
@@ -1405,6 +1424,9 @@ export default function AudioGuideDetailModal({
                             </button>
                           ) : null}
                         </div>
+                        {showSubtitle ? (
+                          <p className="agm-story-subtitle">{storyScript}</p>
+                        ) : null}
                         {storyAudio ? (
                           <div className="agm-story-audio-wrap">
                             <audio
@@ -2038,6 +2060,31 @@ const modalCss = `
   flex-shrink: 0;
 }
 .agm-story-stop:hover { background: rgba(239,68,68,0.85); border-color: transparent; }
+.agm-story-cc {
+  width: 28px; height: 28px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(0,0,0,0.35); color: #c4b5fd; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.agm-story-cc:hover { background: rgba(255,255,255,0.12); color: #fff; }
+.agm-story-cc.on {
+  background: linear-gradient(135deg, #a78bfa 0%, #f59e0b 100%);
+  border-color: transparent; color: #1b0a38;
+}
+.agm-story-subtitle {
+  margin: 8px 0 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.28);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-left: 3px solid #a78bfa;
+  font-size: 0.86rem;
+  line-height: 1.65;
+  color: #ede9fe;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 .agm-script {
   background: rgba(255,255,255,0.03);

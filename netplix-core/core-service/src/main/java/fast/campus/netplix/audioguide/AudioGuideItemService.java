@@ -116,6 +116,13 @@ public class AudioGuideItemService implements GetAudioGuideItemsUseCase {
                     .title(t != null ? t : it.getTitle())
                     .audioTitle(at != null ? at : it.getAudioTitle())
                     .description(d != null ? d : it.getDescription())
+                    /*
+                     * 원본 audioUrl 은 한국어 mp3 다. 이걸 남겨두면 프런트가 그 한국어 녹음을
+                     * 그대로 재생해 "언어를 바꿔도 소리는 한국어"가 된다. 번역본은 오디오를 비워
+                     * 프런트가 번역 대본을 선택 언어 TTS 음성으로 읽도록 한다.
+                     */
+                    .audioUrl(null)
+                    .playTimeText(null)
                     .language(target)
                     .build());
         }
