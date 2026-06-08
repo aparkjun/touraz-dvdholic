@@ -317,3 +317,14 @@ visitkorea:
     course-list: ${visitkorea.durunubi.base-url}/courseList
     route-list: ${visitkorea.durunubi.base-url}/routeList
     cache-minutes: 360
+
+# 행정안전부 생활안전지도(safemap.go.kr) 가스사고발생통계 (IF_0064)
+#  - XML 호출 URL: https://www.safemap.go.kr/openapi2/IF_0064?serviceKey=..&returnType=XML&numOfRows=..&pageNo=..
+#  - 제공: 한국가스안전공사 / 시군구 단위 가스사고 발생건수·피해 통계
+#  - 키는 safemap 에서 발급(활용신청). SAFEMAP_API_KEY 미설정 시 기본값(제공받은 키) 사용.
+#  - 어댑터에서 24h in-memory 캐시. 키 미등록/필드 불일치 시 빈 목록으로 자연 degrade.
+safemap:
+  gas-accident:
+    base-url: https://www.safemap.go.kr/openapi2/IF_0064
+    api-key: ${SAFEMAP_API_KEY:PNWARSI4-PNWA-PNWA-PNWA-PNWARSI4P3}
+    cache-minutes: 1440
