@@ -379,6 +379,7 @@ const cssBlock = `
   margin-top: 14px;
   display: flex;
   flex-wrap: wrap;
+  justify-content: center;
   gap: 8px;
 }
 .pgp-chip {
