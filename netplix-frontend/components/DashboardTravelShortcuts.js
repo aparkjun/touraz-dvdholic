@@ -56,12 +56,9 @@ function ShortcutLink({ href, label, Icon, jewel }) {
 
   const handleClick = useCallback(
     (e) => {
-      // 모션 최소화 환경에서는 효과 없이 즉시 이동
-      const reduce =
-        typeof window !== 'undefined' &&
-        window.matchMedia &&
-        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (reduce || bursting) return;
+      // 모바일(iOS 저전력 모드 등)에서도 항상 보이도록 동작 제한 게이트 제거.
+      // 탭 시 잠깐 나타나는 일회성 피드백이라 접근성 영향은 작다.
+      if (bursting) return;
 
       e.preventDefault();
 
@@ -258,6 +255,8 @@ export default function DashboardTravelShortcuts() {
           border-radius: 12px;
           text-decoration: none;
           overflow: hidden;
+          touch-action: manipulation;
+          -webkit-tap-highlight-color: transparent;
           border: 1px solid rgba(255, 255, 255, 0.22);
           color: rgba(255, 250, 245, 0.96);
           font-weight: 600;
@@ -411,15 +410,6 @@ export default function DashboardTravelShortcuts() {
           100% {
             opacity: 0;
             transform: translate(var(--tx), var(--ty)) scale(0) rotate(var(--rot));
-          }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .dts-shortcut-link.is-bursting,
-          .dts-shortcut-link.is-bursting .dts-jewel-icon,
-          .dts-shortcut-link.is-bursting .dts-burst-ring,
-          .dts-spark {
-            animation: none;
           }
         }
         /* 2색 듀오 그라데이션 — 구석구석 CTA와 동일 톤(원색 유지, 선명한 2색 조합) */
