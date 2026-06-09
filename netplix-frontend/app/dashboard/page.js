@@ -13,7 +13,7 @@ import TrendingRegionsWidget from "@/components/TrendingRegionsWidget";
 import DashboardTravelShortcuts from "@/components/DashboardTravelShortcuts";
 import LikedMoviesRecommendStrip from "@/components/LikedMoviesRecommendStrip";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
-import GasSafetyModal from "@/components/GasSafetyModal";
+import GasSafetySign from "@/components/GasSafetySign";
 
 function CategorySentinel({ cat, isLoadingMore, loadMoreCategory, palette }) {
   const sentinelRef = useRef(null);
@@ -281,7 +281,6 @@ function DashboardContent() {
   }, []);
 
   const [showAttModal, setShowAttModal] = useState(false);
-  const [showGasModal, setShowGasModal] = useState(false);
 
   // 화면 맨 하단에 풀폭 적응형 배너를 고정 노출한다(iPhone 좌하·우하 모서리는 여백으로 회피).
   // 대시보드에 머무는 동안 계속 표시하고, 페이지를 벗어날 때 내린다.
@@ -1809,31 +1808,7 @@ function DashboardContent() {
                     >
                       {t("dashboard.musicCategoryBridgeCineTrip")}
                     </button>
-                    <button
-                      type="button"
-                      className="js-fast-tap"
-                      onClick={() => setShowGasModal(true)}
-                      style={{
-                        marginLeft: "auto",
-                        padding: "8px 16px",
-                        borderRadius: "12px",
-                        border: "2px solid rgba(251,146,60,0.9)",
-                        background: "linear-gradient(145deg, rgba(234,88,12,0.5) 0%, rgba(154,52,18,0.4) 100%)",
-                        color: "#fff7ed",
-                        fontSize: "12px",
-                        fontWeight: 800,
-                        lineHeight: 1.25,
-                        textAlign: "center",
-                        letterSpacing: "-0.02em",
-                        cursor: "pointer",
-                        boxShadow: "0 4px 18px rgba(234,88,12,0.35), inset 0 1px 0 rgba(255,255,255,0.12)",
-                        textShadow: "0 1px 2px rgba(0,0,0,0.4)",
-                      }}
-                    >
-                      여행가기전
-                      <br />
-                      가스점검꼭
-                    </button>
+                    <GasSafetySign />
                   </div>
                 </div>
               )}
@@ -2001,7 +1976,6 @@ function DashboardContent() {
 
 
       {showAttModal && <AttTrackingModal onClose={() => setShowAttModal(false)} />}
-      {showGasModal && <GasSafetyModal onClose={() => setShowGasModal(false)} />}
     </div>
   );
 }
