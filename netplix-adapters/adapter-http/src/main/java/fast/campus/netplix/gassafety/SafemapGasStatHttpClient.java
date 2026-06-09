@@ -85,6 +85,30 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         return fetched;
     }
 
+    @Override
+    public String debugProbe() {
+        if (!isConfigured()) return "NOT_CONFIGURED keyBlank=" + (apiKey == null || apiKey.isBlank());
+        String masked = apiKey.length() <= 6 ? "***" : (apiKey.substring(0, 4) + "..." + apiKey.substring(apiKey.length() - 2));
+        String url = baseUrl + (baseUrl.contains("?") ? "&" : "?")
+                + "serviceKey=" + apiKey + "&returnType=XML&numOfRows=2&pageNo=1";
+        StringBuilder sb = new StringBuilder();
+        sb.append("baseUrl=").append(baseUrl).append(" key=").append(masked).append(" keyLen=").append(apiKey.length());
+        String raw;
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.add(HttpHeaders.ACCEPT, "application/xml");
+            raw = httpClient.requestUri(URI.create(url), HttpMethod.GET, headers);
+        } catch (Exception ex) {
+            sb.append(" | CALL_EXCEPTION=").append(ex.getClass().getSimpleName()).append(": ").append(ex.getMessage());
+            return sb.toString();
+        }
+        if (raw == null) return sb.append(" | NULL_RESPONSE").toString();
+        sb.append(" | len=").append(raw.length());
+        String snippet = raw.length() > 400 ? raw.substring(0, 400) : raw;
+        sb.append(" | snippet=").append(snippet.replaceAll("[\\r\\n]+", " "));
+        return sb.toString();
+    }
+
     /** 전 페이지를 순회하며 시군구별로 [발생건수, 사상자합계]를 누적한 뒤 발생건수 내림차순 정렬해 반환. */
     private List<GasAccidentStat> fetchAllAndAggregate() {
         Map<String, int[]> agg = new LinkedHashMap<>(); // region -> [accidentCount, casualtySum]

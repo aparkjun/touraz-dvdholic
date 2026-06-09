@@ -13,4 +13,7 @@ public interface GasAccidentStatPort {
 
     /** 시군구 단위 가스사고 발생건수 목록(발생건수 내림차순). */
     List<GasAccidentStat> fetchSigunguStats();
+
+    /** 임시 진단: safemap page1 호출의 원시 결과(키 마스킹·resultCode·앞부분 스니펫)를 문자열로. */
+    String debugProbe();
 }

@@ -9,4 +9,7 @@ public interface GetGasAccidentStatUseCase {
 
     /** 시군구 단위 가스사고 발생건수 목록(발생건수 내림차순). */
     List<GasAccidentStat> sigunguStats();
+
+    /** 임시 진단용 — safemap 원시 응답 점검. */
+    String debugProbe();
 }

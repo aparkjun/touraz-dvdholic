@@ -18,4 +18,9 @@ public class GasAccidentStatService implements GetGasAccidentStatUseCase {
     public List<GasAccidentStat> sigunguStats() {
         return port.fetchSigunguStats();
     }
+
+    @Override
+    public String debugProbe() {
+        return port.debugProbe();
+    }
 }
