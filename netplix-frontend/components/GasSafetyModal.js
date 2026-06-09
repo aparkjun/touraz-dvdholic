@@ -26,6 +26,67 @@ function haversineKm(aLat, aLon, bLat, bLon) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+/** 좌표 → 가장 가까운 시군구(중심좌표 기준). 역지오코딩 실패 시 폴백용. */
+function nearestByCentroid(loc, rows) {
+  let best = null;
+  let bestD = Infinity;
+  for (const r of rows) {
+    if (!Number.isFinite(r.lat) || !Number.isFinite(r.lon)) continue;
+    const d = haversineKm(loc.lat, loc.lon, r.lat, r.lon);
+    if (d < bestD) {
+      bestD = d;
+      best = r;
+    }
+  }
+  return best;
+}
+
+/**
+ * 좌표 → 행정구역명(역지오코딩, OpenStreetMap Nominatim) → 스냅샷의 시군구 행에 매칭.
+ *
+ * 섬/넓은 군처럼 중심좌표 최근접이 틀리는 경우를 바로잡는다(예: 거문도=여수시 삼산면).
+ * Nominatim 은 무료·키 불필요·CORS 허용. 실패하면 null 반환(호출부가 중심좌표로 폴백).
+ */
+async function reverseMatchRegion(loc, rows) {
+  const url =
+    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${loc.lat}` +
+    `&lon=${loc.lon}&accept-language=ko&addressdetails=1&zoom=10`;
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) return null;
+  const j = await res.json();
+  const a = j?.address || {};
+  const sido = (a.province || a.state || a.region || "").trim();
+  // 시/군/구 후보(구체적인 구가 앞서도록 나열) — region 문자열에 포함되면 가점.
+  const parts = [
+    a.city_district,
+    a.borough,
+    a.city,
+    a.county,
+    a.town,
+    a.municipality,
+  ]
+    .filter(Boolean)
+    .map((s) => String(s).trim());
+  if (parts.length === 0) return null;
+
+  let pool = sido ? rows.filter((r) => String(r.region).startsWith(sido)) : rows;
+  if (pool.length === 0) pool = rows;
+
+  let best = null;
+  let bestScore = 0;
+  for (const r of pool) {
+    let score = 0;
+    for (const p of parts) {
+      if (p && String(r.region).includes(p)) score += p.length; // 길수록(=구체적) 우선
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = r;
+    }
+  }
+  return bestScore > 0 ? best : null;
+}
+
 export default function GasSafetyModal({ onClose }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -34,6 +95,8 @@ export default function GasSafetyModal({ onClose }) {
   // 'loading' | 'ok' | 'denied' | 'unavailable'
   const [geoState, setGeoState] = useState("loading");
   const [userLoc, setUserLoc] = useState(null);
+  const [myRegion, setMyRegion] = useState(null);
+  const [resolving, setResolving] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [q, setQ] = useState("");
 
@@ -99,20 +162,27 @@ export default function GasSafetyModal({ onClose }) {
     return map;
   }, [rows]);
 
-  // GPS 좌표에서 가장 가까운 시군구.
-  const myRegion = useMemo(() => {
-    if (!userLoc) return null;
-    let best = null;
-    let bestD = Infinity;
-    for (const r of rows) {
-      if (!Number.isFinite(r.lat) || !Number.isFinite(r.lon)) continue;
-      const d = haversineKm(userLoc.lat, userLoc.lon, r.lat, r.lon);
-      if (d < bestD) {
-        bestD = d;
-        best = r;
+  // GPS 좌표 → 시군구 판정: 역지오코딩(정확) 우선, 실패 시 중심좌표 최근접으로 폴백.
+  useEffect(() => {
+    if (!userLoc || rows.length === 0) return;
+    let cancelled = false;
+    setResolving(true);
+    (async () => {
+      let region = null;
+      try {
+        region = await reverseMatchRegion(userLoc, rows);
+      } catch (_) {
+        region = null;
       }
-    }
-    return best ? { ...best, distanceKm: bestD } : null;
+      if (!region) region = nearestByCentroid(userLoc, rows);
+      if (!cancelled) {
+        setMyRegion(region);
+        setResolving(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [userLoc, rows]);
 
   const total = useMemo(
@@ -128,7 +198,8 @@ export default function GasSafetyModal({ onClose }) {
 
   const dataReady = !loading && !error && rows.length > 0;
   const showMyCard = dataReady && geoState === "ok" && myRegion && !showAll;
-  const geoBusy = geoState === "loading";
+  const geoBusy =
+    geoState === "loading" || (geoState === "ok" && resolving && !myRegion);
 
   return (
     <div
