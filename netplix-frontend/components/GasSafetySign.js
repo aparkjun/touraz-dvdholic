@@ -111,27 +111,31 @@ export default function GasSafetySign() {
     };
   }, [userLoc, rows]);
 
+  const total = useMemo(
+    () => rows.reduce((sum, r) => sum + (Number(r.count) || 0), 0),
+    [rows],
+  );
+
   const frames = useMemo(() => {
-    const title = { id: "title", kind: "title" };
+    const out = [{ id: "title", kind: "title" }];
+    // 1) 전국 합계는 항상 먼저 노출(즉시 정보 제공).
+    if (total > 0) {
+      out.push({ id: "nat", kind: "stat", label: "전국 가스사고", value: total, unit: "건", tone: "red" });
+    }
     if (region) {
+      // 2) 내 시군구가 잡히면 슬라이드로 이어서 현재위치 → 시군구 → 건수 → 인명피해.
       const count = Number(region.count) || 0;
       const cas = region.casualties != null ? Number(region.casualties) : 0;
-      return [
-        title,
+      out.push(
         { id: "region", kind: "region", text: region.region },
         { id: "count", kind: "stat", label: "가스사고", value: count, unit: "건", tone: "red" },
         { id: "cas", kind: "stat", label: "인명피해", value: cas, unit: "명", tone: "blue" },
-      ];
+      );
+    } else if (geoState === "loading" || resolving) {
+      out.push({ id: "loc", kind: "note", text: "내 위치 확인 중…" });
     }
-    if (geoState === "loading" || resolving) {
-      return [title, { id: "loc", kind: "note", text: "위치 확인 중…" }];
-    }
-    if (geoState === "denied") {
-      return [title, { id: "denied", kind: "note", text: "설정에서 위치 허용" }];
-    }
-    // 자동 위치요청 실패(주로 iOS standalone) → 탭으로 직접 요청 유도.
-    return [title, { id: "tap", kind: "note", text: "👆 탭하여 내 위치" }];
-  }, [region, geoState, resolving]);
+    return out;
+  }, [region, geoState, resolving, total]);
 
   // 프레임 1초마다 순환. 프레임 구성이 바뀌면 처음부터.
   useEffect(() => {
@@ -152,12 +156,9 @@ export default function GasSafetySign() {
         type="button"
         className="gss-board js-fast-tap"
         onClick={() => {
-          // 내 지역이 아직 안 잡혔으면 탭(제스처) 순간 위치를 직접 요청.
-          // 단, 권한이 거부된 상태면 재요청해도 팝업이 안 뜨므로 상세 모달을 연다.
-          if (!region && geoState !== "denied") {
-            requestLocation();
-            return;
-          }
+          // 내 지역이 아직 안 잡혔으면 탭(제스처) 순간 위치를 직접 요청(권한 거부 시는 생략),
+          // 동시에 상세 모달을 연다.
+          if (!region && geoState !== "denied") requestLocation();
           setOpenModal(true);
         }}
         aria-label="가스사고 발생통계 보기"
@@ -234,12 +235,14 @@ const css = `
 .gss-frame {
   display: flex; align-items: center; justify-content: center;
   width: 100%; text-align: center;
-  animation: gss-in 220ms ease-out;
+  animation: gss-slide 360ms cubic-bezier(0.22, 0.61, 0.36, 1);
   font-family: "Menlo", "Consolas", "Apple SD Gothic Neo", sans-serif;
 }
-@keyframes gss-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
+/* 전광판 슬라이드: 오른쪽에서 밀려 들어옴 */
+@keyframes gss-slide {
+  0% { opacity: 0; transform: translateX(90%); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: translateX(0); }
 }
 
 .gss-title { display: flex; flex-direction: column; line-height: 1.12; }
