@@ -268,7 +268,7 @@ export default function GasSafetyModal({ onClose }) {
         <div className="gsm-foot">
           여행 전, 가스밸브·중간밸브를 꼭 잠그고 점검하세요.
           <span className="gsm-diag">
-            {`v3 · native:${Capacitor?.isNativePlatform?.() ? "Y" : "N"} · geo:${geoState}${
+            {`v4 · native:${Capacitor?.isNativePlatform?.() ? "Y" : "N"} · geo:${geoState}${
               myRegion ? ` · ${myRegion.region}` : ""
             }`}
           </span>

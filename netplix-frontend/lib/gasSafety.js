@@ -96,43 +96,81 @@ export function nearestByCentroid(loc, rows) {
   return best;
 }
 
-/**
- * 좌표 → 행정구역명(역지오코딩, OpenStreetMap Nominatim) → 스냅샷 시군구 행에 매칭.
- *
- * 섬/넓은 군처럼 중심좌표 최근접이 틀리는 경우를 바로잡는다(예: 거문도=여수시 삼산면).
- * Nominatim 은 무료·키 불필요·CORS 허용. 실패하면 null(호출부가 중심좌표 폴백).
- */
-export async function reverseMatchRegion(loc, rows) {
-  const url =
-    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${loc.lat}` +
-    `&lon=${loc.lon}&accept-language=ko&addressdetails=1&zoom=10`;
-  // iOS 등에서 응답 지연 시 무한 대기를 막기 위해 7초 후 중단(→ 호출부가 중심좌표로 폴백).
+async function fetchJsonCapped(url, ms) {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 7000);
-  let res;
+  const timer = setTimeout(() => ctrl.abort(), ms);
   try {
-    res = await fetch(url, {
+    const res = await fetch(url, {
       headers: { Accept: "application/json" },
       signal: ctrl.signal,
     });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (_) {
+    return null;
   } finally {
     clearTimeout(timer);
   }
-  if (!res.ok) return null;
-  const j = await res.json();
-  const a = j?.address || {};
-  const sido = (a.province || a.state || a.region || "").trim();
-  const parts = [
-    a.city_district,
-    a.borough,
-    a.city,
-    a.county,
-    a.town,
-    a.municipality,
-  ]
-    .filter(Boolean)
-    .map((s) => String(s).trim());
-  if (parts.length === 0) return null;
+}
+
+/**
+ * 좌표 → 행정구역 계층(시도 + 시·군·구 후보 이름들) 역지오코딩.
+ * 1순위 BigDataCloud(키 불필요·CORS·한국 행정구역 계층 정확), 2순위 Nominatim.
+ * 섬/넓은 군처럼 중심좌표 최근접이 틀리는 경우(예: 거문도=여수시 삼산면)를 바로잡기 위함.
+ */
+async function reverseAdminNames(loc) {
+  // 1) BigDataCloud — localityInfo.administrative 로 도/시군구/읍면동 계층을 한국어로 제공.
+  const bdc = await fetchJsonCapped(
+    `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${loc.lat}` +
+      `&longitude=${loc.lon}&localityLanguage=ko`,
+    8000,
+  );
+  if (bdc) {
+    const sido = String(bdc.principalSubdivision || "").trim();
+    const names = [];
+    const admin = bdc.localityInfo && bdc.localityInfo.administrative;
+    if (Array.isArray(admin)) {
+      for (const a of admin) {
+        if (a && a.name) names.push(String(a.name).trim());
+      }
+    }
+    if (bdc.city) names.push(String(bdc.city).trim());
+    if (bdc.locality) names.push(String(bdc.locality).trim());
+    const parts = names.filter(Boolean);
+    if (sido || parts.length) return { sido, parts };
+  }
+
+  // 2) Nominatim 폴백
+  const nom = await fetchJsonCapped(
+    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${loc.lat}` +
+      `&lon=${loc.lon}&accept-language=ko&addressdetails=1&zoom=10`,
+    8000,
+  );
+  if (nom) {
+    const a = nom.address || {};
+    const sido = String(a.province || a.state || a.region || "").trim();
+    const parts = [
+      a.city_district,
+      a.borough,
+      a.city,
+      a.county,
+      a.town,
+      a.municipality,
+    ]
+      .filter(Boolean)
+      .map((s) => String(s).trim());
+    if (sido || parts.length) return { sido, parts };
+  }
+
+  return null;
+}
+
+/** 좌표 → 역지오코딩 행정구역명 → 스냅샷 시군구 행 매칭. 실패 시 null(호출부가 중심좌표 폴백). */
+export async function reverseMatchRegion(loc, rows) {
+  const info = await reverseAdminNames(loc);
+  if (!info) return null;
+  const { sido, parts } = info;
+  if (parts.length === 0 && !sido) return null;
 
   let pool = sido ? rows.filter((r) => String(r.region).startsWith(sido)) : rows;
   if (pool.length === 0) pool = rows;
