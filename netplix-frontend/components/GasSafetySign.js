@@ -11,7 +11,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { fetchGasSigungu, resolveMyRegion, getCachedGeo } from "@/lib/gasSafety";
+import { fetchGasSigungu, resolveMyRegion, getCachedGeo, getIpGeo } from "@/lib/gasSafety";
 import { getSharedGeo, subscribeSharedGeo, setSharedGeo } from "@/lib/sharedGeo";
 import { getDeviceLocation, ensureSharedLocation } from "@/lib/geolocation";
 import GasSafetyModal from "@/components/GasSafetyModal";
@@ -79,12 +79,21 @@ export default function GasSafetySign() {
       setGeoState("ok");
     });
     ensureSharedLocation({ maxMs: 12000 })
-      .then((loc) => {
+      .then(async (loc) => {
         if (cancelled) return;
         if (loc) {
           setUserLoc(loc);
           setGeoState("ok");
-        } else if (!immediate) {
+          return;
+        }
+        if (immediate) return;
+        // GPS 실패 → IP 기반 대략 위치로라도 내 시군구 추정
+        const ip = await getIpGeo();
+        if (cancelled) return;
+        if (ip) {
+          setUserLoc({ lat: ip.lat, lon: ip.lon });
+          setGeoState("ok");
+        } else {
           setGeoState((s) => (s === "ok" ? s : "unavailable"));
         }
       })

@@ -35,6 +35,40 @@ export function getCachedGeo() {
   }
 }
 
+/**
+ * GPS(위성/플러그인)로 좌표를 못 받을 때의 최후 폴백: 공인 IP 기반 대략 위치.
+ * iOS 네이티브에서 위치 권한/플러그인 문제로 좌표가 안 잡혀도 시군구를 추정하기 위함.
+ * HTTPS·CORS 허용 무료 서비스 사용. 실패 시 null. (통신사 게이트웨이 IP 라 정확도는 도시 단위)
+ */
+export async function getIpGeo() {
+  const endpoints = [
+    "https://ipapi.co/json/",
+    "https://ipwho.is/",
+  ];
+  for (const url of endpoints) {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 6000);
+      let res;
+      try {
+        res = await fetch(url, { signal: ctrl.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+      if (!res.ok) continue;
+      const j = await res.json();
+      const lat = Number(j.latitude ?? j.lat);
+      const lon = Number(j.longitude ?? j.lon ?? j.lng);
+      if (Number.isFinite(lat) && Number.isFinite(lon)) {
+        return { lat, lon, approx: true };
+      }
+    } catch (_) {
+      /* 다음 엔드포인트 시도 */
+    }
+  }
+  return null;
+}
+
 export function haversineKm(aLat, aLon, bLat, bLon) {
   const R = 6371;
   const dLat = ((bLat - aLat) * Math.PI) / 180;

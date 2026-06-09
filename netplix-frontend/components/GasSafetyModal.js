@@ -11,9 +11,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import axios from "@/lib/axiosConfig";
-import { resolveMyRegion, getCachedGeo } from "@/lib/gasSafety";
+import { resolveMyRegion, getCachedGeo, getIpGeo } from "@/lib/gasSafety";
 import { getSharedGeo, subscribeSharedGeo } from "@/lib/sharedGeo";
 import { ensureSharedLocation } from "@/lib/geolocation";
+import { Capacitor } from "@capacitor/core";
 import { X, Flame, Search, Info, Loader2, MapPin, ChevronDown } from "lucide-react";
 
 export default function GasSafetyModal({ onClose }) {
@@ -72,10 +73,17 @@ export default function GasSafetyModal({ onClose }) {
     });
     if (!immediate) {
       ensureSharedLocation({ maxMs: 9000 })
-        .then((loc) => {
+        .then(async (loc) => {
           if (cancelled) return;
           if (loc) {
             setUserLoc(loc);
+            setGeoState("ok");
+            return;
+          }
+          const ip = await getIpGeo();
+          if (cancelled) return;
+          if (ip) {
+            setUserLoc({ lat: ip.lat, lon: ip.lon });
             setGeoState("ok");
           } else {
             setGeoState((s) => (s === "ok" ? s : "unavailable"));
@@ -259,6 +267,11 @@ export default function GasSafetyModal({ onClose }) {
 
         <div className="gsm-foot">
           여행 전, 가스밸브·중간밸브를 꼭 잠그고 점검하세요.
+          <span className="gsm-diag">
+            {`v3 · native:${Capacitor?.isNativePlatform?.() ? "Y" : "N"} · geo:${geoState}${
+              myRegion ? ` · ${myRegion.region}` : ""
+            }`}
+          </span>
         </div>
       </div>
     </div>
@@ -400,5 +413,10 @@ const css = `
   color: #b9aee0;
   border-top: 1px solid rgba(255,255,255,0.08);
   background: rgba(251,146,60,0.07);
+}
+.gsm-diag {
+  display: block; margin-top: 4px;
+  font-size: 0.62rem; color: #7c739c; letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
 }
 `;
