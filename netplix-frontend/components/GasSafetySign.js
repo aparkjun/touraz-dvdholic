@@ -43,6 +43,10 @@ export default function GasSafetySign() {
   useEffect(() => {
     let cancelled = false;
     setGeoState("loading");
+    // 워치독: 위치 획득이 너무 오래 걸리면(아이폰 권한 프롬프트 무응답 등) 전국 합계로 넘어간다.
+    const watchdog = setTimeout(() => {
+      if (!cancelled) setGeoState((s) => (s === "loading" ? "unavailable" : s));
+    }, 14000);
     getDeviceLocation({ timeout: 12000 })
       .then((loc) => {
         if (cancelled) return;
@@ -57,9 +61,13 @@ export default function GasSafetySign() {
         if (!cancelled) {
           setGeoState(e?.code === "PERMISSION_DENIED" ? "denied" : "unavailable");
         }
+      })
+      .finally(() => {
+        clearTimeout(watchdog);
       });
     return () => {
       cancelled = true;
+      clearTimeout(watchdog);
     };
   }, []);
 

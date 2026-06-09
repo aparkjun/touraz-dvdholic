@@ -51,7 +51,18 @@ export async function reverseMatchRegion(loc, rows) {
   const url =
     `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${loc.lat}` +
     `&lon=${loc.lon}&accept-language=ko&addressdetails=1&zoom=10`;
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  // iOS 등에서 응답 지연 시 무한 대기를 막기 위해 7초 후 중단(→ 호출부가 중심좌표로 폴백).
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 7000);
+  let res;
+  try {
+    res = await fetch(url, {
+      headers: { Accept: "application/json" },
+      signal: ctrl.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
   if (!res.ok) return null;
   const j = await res.json();
   const a = j?.address || {};
