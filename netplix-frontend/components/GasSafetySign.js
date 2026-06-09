@@ -11,8 +11,8 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { getGeoForWeatherCapped } from "@/lib/travelWeatherShared";
 import { fetchGasSigungu, resolveMyRegion, getCachedGeo } from "@/lib/gasSafety";
+import { getSharedGeo, subscribeSharedGeo, setSharedGeo } from "@/lib/sharedGeo";
 import GasSafetyModal from "@/components/GasSafetyModal";
 
 const FRAME_MS = 1000;
@@ -21,11 +21,31 @@ export default function GasSafetySign() {
   const [rows, setRows] = useState([]);
   const [region, setRegion] = useState(null);
   const [userLoc, setUserLoc] = useState(null);
-  // 'loading' | 'ok' | 'unavailable'
+  // 'loading' | 'ok' | 'denied' | 'unavailable'
   const [geoState, setGeoState] = useState("loading");
   const [resolving, setResolving] = useState(false);
   const [frameIdx, setFrameIdx] = useState(0);
   const [openModal, setOpenModal] = useState(false);
+
+  // 최후 폴백: 탭(사용자 제스처) 순간 직접 위치 요청. (공유 좌표를 못 받았을 때만 사용)
+  const requestLocation = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setGeoState("unavailable");
+      return;
+    }
+    setGeoState("loading");
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        setUserLoc({ lat: p.coords.latitude, lon: p.coords.longitude });
+        setGeoState("ok");
+        setSharedGeo(p.coords.latitude, p.coords.longitude);
+      },
+      (err) => {
+        setGeoState(err && err.code === 1 ? "denied" : "unavailable");
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+    );
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -39,31 +59,35 @@ export default function GasSafetySign() {
     };
   }, []);
 
-  // 위치 획득: 날씨 위젯과 동일한 iOS-안전 경로 사용.
-  // 1) 캐시된 좌표(날씨가 저장)로 즉시 표시 → 2) 최신 좌표(벽시계 상한)로 갱신.
+  // 위치 획득: 사인은 자체 GPS를 호출하지 않는다(iOS 동시요청 충돌 방지).
+  // 네비 날씨 위젯이 GPS로 잡은 좌표를 공유 저장소에서 구독해 그대로 재사용한다.
   useEffect(() => {
     let cancelled = false;
-    setGeoState("loading");
-    const cached = getCachedGeo();
-    if (cached) {
-      setUserLoc(cached);
+    // 1) 이미 확보된 좌표(이번 세션 공유값 → 직전 세션 캐시) 즉시 사용
+    const immediate = getSharedGeo() || getCachedGeo();
+    if (immediate) {
+      setUserLoc(immediate);
       setGeoState("ok");
+    } else {
+      setGeoState("loading");
     }
-    getGeoForWeatherCapped(9000)
-      .then((pos) => {
-        if (cancelled) return;
-        if (pos?.coords) {
-          setUserLoc({ lat: pos.coords.latitude, lon: pos.coords.longitude });
-          setGeoState("ok");
-        } else if (!cached) {
-          setGeoState("unavailable");
-        }
-      })
-      .catch(() => {
-        if (!cancelled && !cached) setGeoState("unavailable");
-      });
+    // 2) 날씨 위젯이 좌표를 잡는 즉시 받아서 사용
+    const unsub = subscribeSharedGeo((g) => {
+      if (cancelled) return;
+      setUserLoc(g);
+      setGeoState("ok");
+    });
+    // 3) 일정 시간 내 좌표가 안 오면 탭으로 직접 요청하도록 유도
+    let watchdog;
+    if (!immediate) {
+      watchdog = setTimeout(() => {
+        if (!cancelled) setGeoState((s) => (s === "loading" ? "unavailable" : s));
+      }, 20000);
+    }
     return () => {
       cancelled = true;
+      unsub();
+      if (watchdog) clearTimeout(watchdog);
     };
   }, []);
 
@@ -87,11 +111,6 @@ export default function GasSafetySign() {
     };
   }, [userLoc, rows]);
 
-  const total = useMemo(
-    () => rows.reduce((sum, r) => sum + (Number(r.count) || 0), 0),
-    [rows],
-  );
-
   const frames = useMemo(() => {
     const title = { id: "title", kind: "title" };
     if (region) {
@@ -107,14 +126,12 @@ export default function GasSafetySign() {
     if (geoState === "loading" || resolving) {
       return [title, { id: "loc", kind: "note", text: "위치 확인 중…" }];
     }
-    if (total > 0) {
-      return [
-        title,
-        { id: "nat", kind: "stat", label: "전국 가스사고", value: total, unit: "건", tone: "red" },
-      ];
+    if (geoState === "denied") {
+      return [title, { id: "denied", kind: "note", text: "설정에서 위치 허용" }];
     }
-    return [title];
-  }, [region, geoState, resolving, total]);
+    // 자동 위치요청 실패(주로 iOS standalone) → 탭으로 직접 요청 유도.
+    return [title, { id: "tap", kind: "note", text: "👆 탭하여 내 위치" }];
+  }, [region, geoState, resolving]);
 
   // 프레임 1초마다 순환. 프레임 구성이 바뀌면 처음부터.
   useEffect(() => {
@@ -134,7 +151,15 @@ export default function GasSafetySign() {
       <button
         type="button"
         className="gss-board js-fast-tap"
-        onClick={() => setOpenModal(true)}
+        onClick={() => {
+          // 내 지역이 아직 안 잡혔으면 탭(제스처) 순간 위치를 직접 요청.
+          // 단, 권한이 거부된 상태면 재요청해도 팝업이 안 뜨므로 상세 모달을 연다.
+          if (!region && geoState !== "denied") {
+            requestLocation();
+            return;
+          }
+          setOpenModal(true);
+        }}
         aria-label="가스사고 발생통계 보기"
       >
         <span className="gss-scan" aria-hidden="true" />

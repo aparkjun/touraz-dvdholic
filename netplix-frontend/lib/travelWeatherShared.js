@@ -335,6 +335,7 @@ function attachGlyphPickMeta(weatherData, slot, t) {
 }
 import axios from '@/lib/axiosConfig';
 import i18n from '@/lib/i18n';
+import { setSharedGeo } from '@/lib/sharedGeo';
 
 /** 빠른 1회 시도 (다른 화면·테스트용) */
 export function getGeoOnce() {
@@ -445,6 +446,10 @@ function geoTryOnce({ enableHighAccuracy, maximumAge, timeoutMs }) {
       if (settled) return;
       settled = true;
       if (wallTimer !== undefined) clearTimeout(wallTimer);
+      // 좌표를 얻었으면 앱 공유 저장소에 발행 → 다른 컴포넌트(가스 사인 등)가 재사용.
+      if (value?.coords) {
+        setSharedGeo(value.coords.latitude, value.coords.longitude);
+      }
       resolve(value);
     };
     wallTimer = setTimeout(() => finish(null), wallMs);
