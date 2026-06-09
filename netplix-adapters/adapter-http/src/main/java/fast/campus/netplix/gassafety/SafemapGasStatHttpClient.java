@@ -29,12 +29,17 @@ import java.util.Map;
  * 행정안전부 생활안전지도 가스사고발생통계(IF_0064) HTTP 어댑터.
  *
  * <p>외부: {@code https://www.safemap.go.kr/openapi2/IF_0064?serviceKey=..&returnType=XML}
- *  - 응답 XML 의 각 {@code <item>} 를 읽어 "시군구 명칭 + 발생건수"로 환원한다.
- *  - 통계는 자주 바뀌지 않아 24h in-memory 캐시.
  *
- * <p>주의: IF_0064 의 출력 필드명이 공개 명세에서 확정되지 않아, 태그명/값 패턴 기반의
- * 방어적 파싱을 한다(시도/시군구로 보이는 텍스트 + 발생건수로 보이는 정수 추출).
- * 키 미등록·필드 불일치 시 빈 목록으로 자연 degrade 한다.
+ * <p>응답 스키마(실제 확인): 각 {@code <item>} 은 가스사고 1건(objt_id 고유)이며 읍면동/지번 단위 레코드다.
+ * 주요 필드:
+ * <ul>
+ *   <li>{@code ctprvn_nm} 시도명 · {@code sgg_nm} 시군구명 · {@code emd_nm} 읍면동명</li>
+ *   <li>{@code tot} 사상자 합계(= {@code death}+{@code injpsn}) · {@code death} 사망 · {@code injpsn} 부상</li>
+ * </ul>
+ * 따라서 <b>시군구 발생건수 = 해당 시군구 item 개수</b>, <b>피해(사상자) = tot 합계</b> 로 집계한다.
+ *
+ * <p>전체 건수는 {@code totalCount}(약 5천 건)이고 한 페이지 최대 1000건이라 페이지네이션으로 모두 수집한다.
+ * 통계는 자주 바뀌지 않아 24h in-memory 캐시. 키 미등록·필드 불일치 시 빈 목록으로 자연 degrade.
  */
 @Slf4j
 @Component
@@ -42,29 +47,8 @@ import java.util.Map;
 public class SafemapGasStatHttpClient implements GasAccidentStatPort {
 
     private static final long CACHE_TTL_MS = 24L * 60 * 60 * 1000;
-    private static final int NUM_OF_ROWS = 5000;
-
-    /** 발생건수로 우선 채택할 태그명 힌트(소문자 비교). */
-    private static final String[] COUNT_HINTS = {
-            "발생건수", "사고건수", "건수", "발생", "occr", "acdnt", "accident", "cnt", "count", "case", "ocrn"
-    };
-    /** 발생건수 후보에서 제외할 태그명 힌트(연도/월/코드/좌표 등). */
-    private static final String[] COUNT_EXCLUDE = {
-            "year", "연도", "yyyy", "prd", "기간", "month", "월", "code", "cd", "seq", "gid",
-            "lat", "lon", "경도", "위도", "mapx", "mapy", "_x", "_y", "id", "rnum", "no"
-    };
-    /** 인명피해(사상)로 채택할 태그명 힌트. */
-    private static final String[] CASUALTY_HINTS = {
-            "피해", "사상", "부상", "사망", "인명", "casualt", "injur", "death", "dmg", "dead", "wound", "cas"
-    };
-    /** 시군구 명칭으로 볼 태그명 힌트. */
-    private static final String[] SIGUNGU_HINTS = {
-            "sgg", "sigungu", "signgu", "sig", "시군구", "gugun", "gun", "gu_nm"
-    };
-    /** 시도 명칭으로 볼 태그명 힌트. */
-    private static final String[] SIDO_HINTS = {
-            "sido", "ctprvn", "ctp", "시도", "sd_nm", "do_nm", "metro"
-    };
+    private static final int ROWS_PER_PAGE = 1000; // 서버가 페이지당 1000건으로 캡함
+    private static final int MAX_PAGES = 12;        // 안전장치(약 5천 건 → 6페이지면 충분)
 
     private final HttpClient httpClient;
 
@@ -93,7 +77,7 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         if (cached != null && now - cachedAtMs < CACHE_TTL_MS) {
             return cached;
         }
-        List<GasAccidentStat> fetched = callAndParse();
+        List<GasAccidentStat> fetched = fetchAllAndAggregate();
         if (!fetched.isEmpty()) {
             cache = fetched;
             cachedAtMs = now;
@@ -101,36 +85,64 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         return fetched;
     }
 
-    private List<GasAccidentStat> callAndParse() {
+    /** 전 페이지를 순회하며 시군구별로 [발생건수, 사상자합계]를 누적한 뒤 발생건수 내림차순 정렬해 반환. */
+    private List<GasAccidentStat> fetchAllAndAggregate() {
+        Map<String, int[]> agg = new LinkedHashMap<>(); // region -> [accidentCount, casualtySum]
+        int page = 1;
+        int totalCount = Integer.MAX_VALUE;
+        int collected = 0;
+
+        while (page <= MAX_PAGES) {
+            String xml = call(page);
+            if (xml == null || xml.isBlank()) break;
+
+            PageResult pr;
+            try {
+                pr = parsePage(xml, agg);
+            } catch (Exception ex) {
+                log.warn("[GAS-STAT] 파싱 실패(page={}): {}", page, ex.getMessage());
+                break;
+            }
+            if (pr.error) break;          // resultCode != 00
+            if (pr.totalCount >= 0) totalCount = pr.totalCount;
+            if (pr.itemCount == 0) break; // 더 이상 없음
+
+            collected += pr.itemCount;
+            if (collected >= totalCount) break;
+            page++;
+        }
+
+        List<GasAccidentStat> out = new ArrayList<>(agg.size());
+        for (Map.Entry<String, int[]> e : agg.entrySet()) {
+            int[] v = e.getValue();
+            out.add(new GasAccidentStat(e.getKey(), v[0], v[1]));
+        }
+        out.sort(Comparator.comparingInt(GasAccidentStat::accidentCount).reversed());
+        log.info("[GAS-STAT] 시군구 {}개 집계(수집 {}건)", out.size(), collected);
+        return out;
+    }
+
+    private String call(int pageNo) {
         String url = baseUrl
                 + (baseUrl.contains("?") ? "&" : "?")
                 + "serviceKey=" + apiKey
                 + "&returnType=XML"
-                + "&numOfRows=" + NUM_OF_ROWS
-                + "&pageNo=1";
-
-        String raw;
+                + "&numOfRows=" + ROWS_PER_PAGE
+                + "&pageNo=" + pageNo;
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.add(HttpHeaders.ACCEPT, "application/xml");
-            raw = httpClient.requestUri(URI.create(url), HttpMethod.GET, headers);
+            return httpClient.requestUri(URI.create(url), HttpMethod.GET, headers);
         } catch (Exception ex) {
-            log.warn("[GAS-STAT] 호출 실패: {}", ex.getMessage());
-            return List.of();
-        }
-        if (raw == null || raw.isBlank()) {
-            log.warn("[GAS-STAT] 빈 응답");
-            return List.of();
-        }
-        try {
-            return parse(raw);
-        } catch (Exception ex) {
-            log.warn("[GAS-STAT] 파싱 실패: {}", ex.getMessage());
-            return List.of();
+            log.warn("[GAS-STAT] 호출 실패(page={}): {}", pageNo, ex.getMessage());
+            return null;
         }
     }
 
-    private List<GasAccidentStat> parse(String xml) throws Exception {
+    private record PageResult(int totalCount, int itemCount, boolean error) { }
+
+    /** 한 페이지 XML 을 파싱해 agg 에 누적하고, totalCount/itemCount/오류여부를 돌려준다. */
+    private PageResult parsePage(String xml, Map<String, int[]> agg) throws Exception {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
         dbf.setExpandEntityReferences(false);
@@ -142,54 +154,38 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         DocumentBuilder db = dbf.newDocumentBuilder();
         Document doc = db.parse(new InputSource(new StringReader(xml)));
 
-        // 에러 응답(헤더 resultCode 가 정상 아님)이면 빈 목록.
-        String resultMsg = firstTagText(doc, "resultMsg");
         String resultCode = firstTagText(doc, "resultCode");
         if (resultCode != null && !(resultCode.equals("00") || resultCode.equals("0") || resultCode.equals("000"))) {
-            log.warn("[GAS-STAT] API 오류 resultCode={} msg={}", resultCode, resultMsg);
-            return List.of();
+            log.warn("[GAS-STAT] API 오류 resultCode={} msg={}", resultCode, firstTagText(doc, "resultMsg"));
+            return new PageResult(-1, 0, true);
         }
+
+        Integer totalCount = toInt(firstTagText(doc, "totalCount"));
 
         NodeList items = doc.getElementsByTagName("item");
-        if (items.getLength() == 0) {
-            log.info("[GAS-STAT] item 없음 (msg={})", resultMsg);
-            return List.of();
-        }
-
-        // 동일 시군구가 월별/장소별로 여러 행이면 합산.
-        Map<String, int[]> agg = new LinkedHashMap<>(); // region -> [accidentSum, casualtySum, casualtySeen]
+        int itemCount = 0;
         for (int i = 0; i < items.getLength(); i++) {
             Node node = items.item(i);
             if (node.getNodeType() != Node.ELEMENT_NODE) continue;
-            Map<String, String> fields = childFields((Element) node);
-            if (fields.isEmpty()) continue;
+            Map<String, String> f = childFields((Element) node);
+            if (f.isEmpty()) continue;
+            itemCount++;
 
-            String region = extractRegion(fields);
+            String region = extractRegion(f);
             if (region == null || region.isBlank()) continue;
 
-            Integer count = extractByHints(fields, COUNT_HINTS, COUNT_EXCLUDE, true);
-            if (count == null) continue; // 발생건수를 못 찾으면 의미 없는 행 → 스킵
-            Integer casualty = extractByHints(fields, CASUALTY_HINTS, new String[]{}, false);
+            // 사상자 합계: tot 우선, 없으면 death+injpsn.
+            Integer tot = toInt(f.get("tot"));
+            int casualty = tot != null ? tot : (orZero(toInt(f.get("death"))) + orZero(toInt(f.get("injpsn"))));
 
-            int[] cur = agg.computeIfAbsent(region, k -> new int[]{0, 0, 0});
-            cur[0] += count;
-            if (casualty != null) {
-                cur[1] += casualty;
-                cur[2] = 1;
-            }
+            int[] cur = agg.computeIfAbsent(region, k -> new int[]{0, 0});
+            cur[0] += 1;          // 발생건수 = 레코드 1건
+            cur[1] += casualty;   // 피해(사상자)
         }
-
-        List<GasAccidentStat> out = new ArrayList<>(agg.size());
-        for (Map.Entry<String, int[]> e : agg.entrySet()) {
-            int[] v = e.getValue();
-            out.add(new GasAccidentStat(e.getKey(), v[0], v[2] == 1 ? v[1] : null));
-        }
-        out.sort(Comparator.comparingInt(GasAccidentStat::accidentCount).reversed());
-        log.info("[GAS-STAT] 시군구 {}건 파싱", out.size());
-        return out;
+        return new PageResult(totalCount == null ? -1 : totalCount, itemCount, false);
     }
 
-    /** item 의 직속 자식 엘리먼트들을 (소문자 태그명 → 텍스트) 맵으로. 원본 태그명도 별도 보관 키로 추가. */
+    /** item 직속 자식 엘리먼트들을 (소문자 태그명 → 텍스트) 맵으로. */
     private static Map<String, String> childFields(Element item) {
         Map<String, String> map = new LinkedHashMap<>();
         NodeList children = item.getChildNodes();
@@ -197,59 +193,34 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
             Node c = children.item(i);
             if (c.getNodeType() != Node.ELEMENT_NODE) continue;
             String name = c.getNodeName();
-            String text = c.getTextContent();
             if (name == null) continue;
+            String text = c.getTextContent();
             map.put(name.toLowerCase(), text == null ? "" : text.trim());
         }
         return map;
     }
 
-    /** 시도 + 시군구 텍스트를 조합해 시군구 표기 생성. 힌트가 없으면 지명처럼 보이는 값으로 폴백. */
-    private static String extractRegion(Map<String, String> fields) {
-        String sido = pickRegionValue(fields, SIDO_HINTS);
-        String sigungu = pickRegionValue(fields, SIGUNGU_HINTS);
+    /** ctprvn_nm(시도) + sgg_nm(시군구) 조합. 표준 필드가 없으면 지명처럼 보이는 값으로 폴백. */
+    private static String extractRegion(Map<String, String> f) {
+        String sido = f.getOrDefault("ctprvn_nm", "").trim();
+        String sigungu = f.getOrDefault("sgg_nm", "").trim();
 
-        if (sigungu == null) {
-            // 힌트 태그가 없으면, '시/군/구' 로 끝나는(또는 한글 지명) 값 중 시도형이 아닌 것을 시군구로.
-            for (String v : fields.values()) {
-                if (looksLikeSigungu(v)) {
-                    sigungu = v;
-                    break;
-                }
+        if (sigungu.isEmpty()) {
+            for (String v : f.values()) {
+                if (looksLikeSigungu(v)) { sigungu = v.trim(); break; }
             }
         }
-        if (sido == null) {
-            for (String v : fields.values()) {
-                if (looksLikeSido(v)) {
-                    sido = v;
-                    break;
-                }
+        if (sido.isEmpty()) {
+            for (String v : f.values()) {
+                if (looksLikeSido(v)) { sido = v.trim(); break; }
             }
         }
 
-        String s1 = sido == null ? "" : sido.trim();
-        String s2 = sigungu == null ? "" : sigungu.trim();
-        if (!s2.isEmpty() && !s1.isEmpty()) {
-            // 시군구 값이 이미 시도를 포함하면 중복 제거.
-            if (s2.startsWith(s1)) return s2;
-            return s1 + " " + s2;
+        if (!sigungu.isEmpty() && !sido.isEmpty()) {
+            return sigungu.startsWith(sido) ? sigungu : (sido + " " + sigungu);
         }
-        if (!s2.isEmpty()) return s2;
-        if (!s1.isEmpty()) return s1;
-        return null;
-    }
-
-    private static String pickRegionValue(Map<String, String> fields, String[] hints) {
-        for (Map.Entry<String, String> e : fields.entrySet()) {
-            String key = e.getKey();
-            String val = e.getValue();
-            if (val == null || val.isBlank()) continue;
-            for (String h : hints) {
-                if (key.contains(h)) {
-                    return val;
-                }
-            }
-        }
+        if (!sigungu.isEmpty()) return sigungu;
+        if (!sido.isEmpty()) return sido;
         return null;
     }
 
@@ -264,42 +235,12 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         if (v == null) return false;
         String s = v.trim();
         if (s.isEmpty() || looksLikeSido(s)) return false;
-        // 숫자/코드 제외
-        if (s.matches(".*\\d.*") && s.length() <= 6) return false;
+        if (s.matches(".*\\d.*")) return false; // 코드/숫자 제외
         return s.endsWith("시") || s.endsWith("군") || s.endsWith("구");
     }
 
-    /**
-     * 태그명 힌트로 정수 값을 찾는다.
-     * @param preferHinted true 면 힌트 매칭 필드를 우선 채택, 못 찾으면 숫자형 필드 중 첫째(연도/월/코드 제외).
-     */
-    private static Integer extractByHints(Map<String, String> fields, String[] hints, String[] exclude, boolean preferHinted) {
-        // 1) 힌트 매칭 우선
-        for (Map.Entry<String, String> e : fields.entrySet()) {
-            String key = e.getKey();
-            if (containsAny(key, exclude)) continue;
-            if (!containsAny(key, hints)) continue;
-            Integer n = toInt(e.getValue());
-            if (n != null) return n;
-        }
-        if (!preferHinted) return null;
-        // 2) 폴백: 연도/월/코드처럼 보이지 않는 첫 정수 필드
-        for (Map.Entry<String, String> e : fields.entrySet()) {
-            String key = e.getKey();
-            if (containsAny(key, exclude)) continue;
-            Integer n = toInt(e.getValue());
-            if (n == null) continue;
-            if (n >= 1900 && n <= 2100) continue; // 연도로 추정 → 제외
-            return n;
-        }
-        return null;
-    }
-
-    private static boolean containsAny(String key, String[] hints) {
-        for (String h : hints) {
-            if (key.contains(h)) return true;
-        }
-        return false;
+    private static int orZero(Integer v) {
+        return v == null ? 0 : v;
     }
 
     private static Integer toInt(String raw) {
