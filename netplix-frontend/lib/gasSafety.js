@@ -14,6 +14,27 @@ export async function fetchGasSigungu() {
   return ok && Array.isArray(payload.data) ? payload.data : [];
 }
 
+/**
+ * 날씨 네비 위젯이 저장해 둔 마지막 좌표를 즉시 가져온다(localStorage).
+ * iOS WebView 에서 위치 콜백이 지연될 때, 이미 확보된 좌표로 바로 내 시군구를 표시하기 위함.
+ * 캐시 geo 는 {lat, lng} 형태(웹) — lon/lng 모두 허용.
+ */
+export function getCachedGeo() {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) return null;
+    const raw = localStorage.getItem("touraz.weatherNav.v1");
+    if (!raw) return null;
+    const o = JSON.parse(raw);
+    const g = o?.geo || {};
+    const lat = Number(g.lat);
+    const lon = Number(g.lng != null ? g.lng : g.lon);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
+    return null;
+  } catch (_) {
+    return null;
+  }
+}
+
 export function haversineKm(aLat, aLon, bLat, bLon) {
   const R = 6371;
   const dLat = ((bLat - aLat) * Math.PI) / 180;

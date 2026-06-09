@@ -10,9 +10,9 @@
  * 탭하면 전체 시군구 상세 모달을 연다.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { getDeviceLocation } from "@/lib/geolocation";
-import { fetchGasSigungu, resolveMyRegion } from "@/lib/gasSafety";
+import { useEffect, useMemo, useState } from "react";
+import { getGeoForWeatherCapped } from "@/lib/travelWeatherShared";
+import { fetchGasSigungu, resolveMyRegion, getCachedGeo } from "@/lib/gasSafety";
 import GasSafetyModal from "@/components/GasSafetyModal";
 
 const FRAME_MS = 1000;
@@ -20,13 +20,12 @@ const FRAME_MS = 1000;
 export default function GasSafetySign() {
   const [rows, setRows] = useState([]);
   const [region, setRegion] = useState(null);
-  // 'loading' | 'ok' | 'denied' | 'unavailable'
+  const [userLoc, setUserLoc] = useState(null);
+  // 'loading' | 'ok' | 'unavailable'
   const [geoState, setGeoState] = useState("loading");
   const [resolving, setResolving] = useState(false);
   const [frameIdx, setFrameIdx] = useState(0);
   const [openModal, setOpenModal] = useState(false);
-
-  const locRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,42 +39,40 @@ export default function GasSafetySign() {
     };
   }, []);
 
+  // 위치 획득: 날씨 위젯과 동일한 iOS-안전 경로 사용.
+  // 1) 캐시된 좌표(날씨가 저장)로 즉시 표시 → 2) 최신 좌표(벽시계 상한)로 갱신.
   useEffect(() => {
     let cancelled = false;
     setGeoState("loading");
-    // 워치독: 위치 획득이 너무 오래 걸리면(아이폰 권한 프롬프트 무응답 등) 전국 합계로 넘어간다.
-    const watchdog = setTimeout(() => {
-      if (!cancelled) setGeoState((s) => (s === "loading" ? "unavailable" : s));
-    }, 14000);
-    getDeviceLocation({ timeout: 12000 })
-      .then((loc) => {
+    const cached = getCachedGeo();
+    if (cached) {
+      setUserLoc(cached);
+      setGeoState("ok");
+    }
+    getGeoForWeatherCapped(9000)
+      .then((pos) => {
         if (cancelled) return;
-        if (loc && Number.isFinite(loc.lat) && Number.isFinite(loc.lon)) {
-          locRef.current = { lat: loc.lat, lon: loc.lon };
+        if (pos?.coords) {
+          setUserLoc({ lat: pos.coords.latitude, lon: pos.coords.longitude });
           setGeoState("ok");
-        } else {
+        } else if (!cached) {
           setGeoState("unavailable");
         }
       })
-      .catch((e) => {
-        if (!cancelled) {
-          setGeoState(e?.code === "PERMISSION_DENIED" ? "denied" : "unavailable");
-        }
-      })
-      .finally(() => {
-        clearTimeout(watchdog);
+      .catch(() => {
+        if (!cancelled && !cached) setGeoState("unavailable");
       });
     return () => {
       cancelled = true;
-      clearTimeout(watchdog);
     };
   }, []);
 
+  // 좌표 → 내 시군구(역지오코딩 우선, 실패 시 중심좌표 폴백). 좌표가 갱신되면 다시 해석.
   useEffect(() => {
-    if (geoState !== "ok" || !locRef.current || rows.length === 0) return;
+    if (!userLoc || rows.length === 0) return undefined;
     let cancelled = false;
     setResolving(true);
-    resolveMyRegion(locRef.current, rows)
+    resolveMyRegion(userLoc, rows)
       .then((r) => {
         if (!cancelled) {
           setRegion(r);
@@ -88,7 +85,7 @@ export default function GasSafetySign() {
     return () => {
       cancelled = true;
     };
-  }, [geoState, rows]);
+  }, [userLoc, rows]);
 
   const total = useMemo(
     () => rows.reduce((sum, r) => sum + (Number(r.count) || 0), 0),
