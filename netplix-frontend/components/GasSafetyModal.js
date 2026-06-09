@@ -11,10 +11,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import axios from "@/lib/axiosConfig";
-import { resolveMyRegionDetailed, getCachedGeo, getIpGeo } from "@/lib/gasSafety";
+import { resolveMyRegion, getCachedGeo, getIpGeo } from "@/lib/gasSafety";
 import { getSharedGeo, subscribeSharedGeo } from "@/lib/sharedGeo";
 import { ensureSharedLocation } from "@/lib/geolocation";
-import { Capacitor } from "@capacitor/core";
 import { X, Flame, Search, Info, Loader2, MapPin, ChevronDown } from "lucide-react";
 
 export default function GasSafetyModal({ onClose }) {
@@ -26,7 +25,6 @@ export default function GasSafetyModal({ onClose }) {
   const [geoState, setGeoState] = useState("loading");
   const [userLoc, setUserLoc] = useState(null);
   const [myRegion, setMyRegion] = useState(null);
-  const [geoDbg, setGeoDbg] = useState(null);
   const [resolving, setResolving] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [q, setQ] = useState("");
@@ -121,16 +119,9 @@ export default function GasSafetyModal({ onClose }) {
     let cancelled = false;
     setResolving(true);
     (async () => {
-      const detail = await resolveMyRegionDetailed(userLoc, rows);
+      const region = await resolveMyRegion(userLoc, rows);
       if (!cancelled) {
-        setMyRegion(detail.region);
-        setGeoDbg({
-          source: detail.source,
-          sido: detail.sido,
-          parts: detail.parts,
-          lat: userLoc.lat,
-          lon: userLoc.lon,
-        });
+        setMyRegion(region);
         setResolving(false);
       }
     })();
@@ -275,13 +266,6 @@ export default function GasSafetyModal({ onClose }) {
 
         <div className="gsm-foot">
           여행 전, 가스밸브·중간밸브를 꼭 잠그고 점검하세요.
-          <span className="gsm-diag">
-            {`v6 · native:${Capacitor?.isNativePlatform?.() ? "Y" : "N"} · geo:${geoState}`}
-            {geoDbg
-              ? ` · loc:${Number(geoDbg.lat).toFixed(3)},${Number(geoDbg.lon).toFixed(3)} · src:${geoDbg.source} · rg:[${geoDbg.sido || "-"}|${(geoDbg.parts || []).slice(0, 3).join(",") || "-"}]`
-              : ""}
-            {myRegion ? ` · ▶${myRegion.region}` : ""}
-          </span>
         </div>
       </div>
     </div>
@@ -423,10 +407,5 @@ const css = `
   color: #b9aee0;
   border-top: 1px solid rgba(255,255,255,0.08);
   background: rgba(251,146,60,0.07);
-}
-.gsm-diag {
-  display: block; margin-top: 4px;
-  font-size: 0.62rem; color: #7c739c; letter-spacing: 0.02em;
-  font-variant-numeric: tabular-nums;
 }
 `;
