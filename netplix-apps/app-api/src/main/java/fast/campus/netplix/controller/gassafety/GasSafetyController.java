@@ -29,10 +29,4 @@ public class GasSafetyController {
                 .toList();
         return NetplixApiResponse.ok(body);
     }
-
-    /** 임시 진단 — safemap 원시 응답 점검(운영 확인 후 제거 예정). */
-    @GetMapping("/debug")
-    public NetplixApiResponse<String> debug() {
-        return NetplixApiResponse.ok(useCase.debugProbe());
-    }
 }

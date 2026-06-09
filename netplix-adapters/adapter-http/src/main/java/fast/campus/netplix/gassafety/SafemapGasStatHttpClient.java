@@ -49,6 +49,8 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
     private static final long CACHE_TTL_MS = 24L * 60 * 60 * 1000;
     private static final int ROWS_PER_PAGE = 1000; // 서버가 페이지당 1000건으로 캡함
     private static final int MAX_PAGES = 12;        // 안전장치(약 5천 건 → 6페이지면 충분)
+    private static final com.fasterxml.jackson.databind.ObjectMapper OBJECT_MAPPER =
+            new com.fasterxml.jackson.databind.ObjectMapper();
 
     private final HttpClient httpClient;
 
@@ -78,6 +80,12 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
             return cached;
         }
         List<GasAccidentStat> fetched = fetchAllAndAggregate();
+        if (fetched.isEmpty()) {
+            // safemap 은 해외(클라우드) IP 의 연결을 막는다(Connection reset). 따라서 운영 서버(미국)에서는
+            // 라이브 호출이 실패하므로, 내장 스냅샷(연 1회 갱신 데이터를 한국 IP 에서 미리 수집·집계)으로 fallback.
+            // 한국 IP 에서 실행되면 라이브 결과가 우선한다.
+            fetched = loadSnapshot();
+        }
         if (!fetched.isEmpty()) {
             cache = fetched;
             cachedAtMs = now;
@@ -85,28 +93,29 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         return fetched;
     }
 
-    @Override
-    public String debugProbe() {
-        if (!isConfigured()) return "NOT_CONFIGURED keyBlank=" + (apiKey == null || apiKey.isBlank());
-        String masked = apiKey.length() <= 6 ? "***" : (apiKey.substring(0, 4) + "..." + apiKey.substring(apiKey.length() - 2));
-        String url = baseUrl + (baseUrl.contains("?") ? "&" : "?")
-                + "serviceKey=" + apiKey + "&returnType=XML&numOfRows=2&pageNo=1";
-        StringBuilder sb = new StringBuilder();
-        sb.append("baseUrl=").append(baseUrl).append(" key=").append(masked).append(" keyLen=").append(apiKey.length());
-        String raw;
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.add(HttpHeaders.ACCEPT, "application/xml");
-            raw = httpClient.requestUri(URI.create(url), HttpMethod.GET, headers);
-        } catch (Exception ex) {
-            sb.append(" | CALL_EXCEPTION=").append(ex.getClass().getSimpleName()).append(": ").append(ex.getMessage());
-            return sb.toString();
+    /** 클래스패스에 내장된 시군구 집계 스냅샷(JSON)을 로드한다. */
+    private List<GasAccidentStat> loadSnapshot() {
+        try (java.io.InputStream is = getClass().getResourceAsStream("/gas-accident-sigungu-snapshot.json")) {
+            if (is == null) {
+                log.warn("[GAS-STAT] 스냅샷 리소스 없음");
+                return List.of();
+            }
+            com.fasterxml.jackson.databind.JsonNode arr = OBJECT_MAPPER.readTree(is);
+            List<GasAccidentStat> out = new ArrayList<>();
+            for (com.fasterxml.jackson.databind.JsonNode n : arr) {
+                String region = n.path("region").asText(null);
+                if (region == null || region.isBlank()) continue;
+                int count = n.path("count").asInt(0);
+                int cas = n.path("casualties").asInt(0);
+                out.add(new GasAccidentStat(region, count, cas));
+            }
+            out.sort(Comparator.comparingInt(GasAccidentStat::accidentCount).reversed());
+            log.info("[GAS-STAT] 스냅샷 {}개 시군구 로드", out.size());
+            return out;
+        } catch (Exception e) {
+            log.warn("[GAS-STAT] 스냅샷 로드 실패: {}", e.getMessage());
+            return List.of();
         }
-        if (raw == null) return sb.append(" | NULL_RESPONSE").toString();
-        sb.append(" | len=").append(raw.length());
-        String snippet = raw.length() > 400 ? raw.substring(0, 400) : raw;
-        sb.append(" | snippet=").append(snippet.replaceAll("[\\r\\n]+", " "));
-        return sb.toString();
     }
 
     /** 전 페이지를 순회하며 시군구별로 [발생건수, 사상자합계]를 누적한 뒤 발생건수 내림차순 정렬해 반환. */
