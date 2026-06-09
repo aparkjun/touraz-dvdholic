@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState } from "react";
 import axios from "@/lib/axiosConfig";
 import { resolveMyRegion, getCachedGeo } from "@/lib/gasSafety";
 import { getSharedGeo, subscribeSharedGeo } from "@/lib/sharedGeo";
+import { ensureSharedLocation } from "@/lib/geolocation";
 import { X, Flame, Search, Info, Loader2, MapPin, ChevronDown } from "lucide-react";
 
 export default function GasSafetyModal({ onClose }) {
@@ -53,8 +54,8 @@ export default function GasSafetyModal({ onClose }) {
     };
   }, []);
 
-  // 위치: 사인과 동일하게 자체 GPS 호출 없이 공유 좌표(없으면 직전 세션 캐시)를 재사용.
-  // 좌표를 못 받으면 워치독으로 'unavailable' 처리 → 무한 "위치 확인 중" 방지(검색 목록으로 폴백).
+  // 위치: 공유 좌표(없으면 직전 세션 캐시) 즉시 사용 + 직접 확보 시도(Capacitor 플러그인,
+  // iOS 네이티브 지원). 벽시계 상한이 있어 무한 "위치 확인 중" 없이 검색 목록으로 폴백.
   useEffect(() => {
     let cancelled = false;
     const immediate = getSharedGeo() || getCachedGeo();
@@ -69,16 +70,24 @@ export default function GasSafetyModal({ onClose }) {
       setUserLoc(g);
       setGeoState("ok");
     });
-    let watchdog;
     if (!immediate) {
-      watchdog = setTimeout(() => {
-        if (!cancelled) setGeoState((s) => (s === "loading" ? "unavailable" : s));
-      }, 10000);
+      ensureSharedLocation({ maxMs: 9000 })
+        .then((loc) => {
+          if (cancelled) return;
+          if (loc) {
+            setUserLoc(loc);
+            setGeoState("ok");
+          } else {
+            setGeoState((s) => (s === "ok" ? s : "unavailable"));
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setGeoState((s) => (s === "ok" ? s : "unavailable"));
+        });
     }
     return () => {
       cancelled = true;
       unsub();
-      if (watchdog) clearTimeout(watchdog);
     };
   }, []);
 

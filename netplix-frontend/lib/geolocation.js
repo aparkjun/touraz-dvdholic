@@ -1,4 +1,5 @@
 import { Capacitor } from "@capacitor/core";
+import { setSharedGeo, getSharedGeo } from "@/lib/sharedGeo";
 
 /**
  * 기기의 실제 위치(GPS/네트워크)를 가져온다.
@@ -84,4 +85,29 @@ export async function getDeviceLocation({ timeout = 15000, maximumAge = 120000 }
       { enableHighAccuracy: false, timeout, maximumAge }
     );
   });
+}
+
+/**
+ * 위치를 한 번 확보해 앱 공유 저장소(sharedGeo)에 발행한다. 실패해도 throw 하지 않고 null.
+ *
+ * - Capacitor 네이티브(iOS/Android)에서는 플러그인 경로를 사용 → iOS WKWebView 에서
+ *   navigator.geolocation 이 막혀 있어도 좌표를 받을 수 있다.
+ * - 플러그인/네트워크가 콜백을 안 줘도 벽시계 상한(maxMs)으로 반드시 종료(무한 대기 방지).
+ *
+ * @returns {Promise<{lat:number, lon:number}|null>}
+ */
+export async function ensureSharedLocation({ maxMs = 12000 } = {}) {
+  const existing = getSharedGeo();
+  if (existing) return existing;
+
+  const capped = await Promise.race([
+    getDeviceLocation({ timeout: maxMs }).catch(() => null),
+    new Promise((r) => setTimeout(() => r(null), maxMs + 2000)),
+  ]);
+
+  if (capped && Number.isFinite(capped.lat) && Number.isFinite(capped.lon)) {
+    setSharedGeo(capped.lat, capped.lon);
+    return { lat: capped.lat, lon: capped.lon };
+  }
+  return null;
 }

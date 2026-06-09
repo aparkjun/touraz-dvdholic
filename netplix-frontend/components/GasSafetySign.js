@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchGasSigungu, resolveMyRegion, getCachedGeo } from "@/lib/gasSafety";
 import { getSharedGeo, subscribeSharedGeo, setSharedGeo } from "@/lib/sharedGeo";
+import { getDeviceLocation, ensureSharedLocation } from "@/lib/geolocation";
 import GasSafetyModal from "@/components/GasSafetyModal";
 
 const FRAME_MS = 1000;
@@ -27,24 +28,23 @@ export default function GasSafetySign() {
   const [frameIdx, setFrameIdx] = useState(0);
   const [openModal, setOpenModal] = useState(false);
 
-  // 최후 폴백: 탭(사용자 제스처) 순간 직접 위치 요청. (공유 좌표를 못 받았을 때만 사용)
+  // 최후 폴백: 탭(사용자 제스처) 순간 직접 위치 요청.
+  // Capacitor 플러그인 경로 사용 → iOS 네이티브(WKWebView)에서도 권한 요청·좌표 획득 가능.
   const requestLocation = () => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setGeoState("unavailable");
-      return;
-    }
     setGeoState("loading");
-    navigator.geolocation.getCurrentPosition(
-      (p) => {
-        setUserLoc({ lat: p.coords.latitude, lon: p.coords.longitude });
-        setGeoState("ok");
-        setSharedGeo(p.coords.latitude, p.coords.longitude);
-      },
-      (err) => {
-        setGeoState(err && err.code === 1 ? "denied" : "unavailable");
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
-    );
+    getDeviceLocation({ timeout: 15000 })
+      .then((loc) => {
+        if (loc && Number.isFinite(loc.lat) && Number.isFinite(loc.lon)) {
+          setUserLoc({ lat: loc.lat, lon: loc.lon });
+          setGeoState("ok");
+          setSharedGeo(loc.lat, loc.lon);
+        } else {
+          setGeoState("unavailable");
+        }
+      })
+      .catch((e) => {
+        setGeoState(e?.code === "PERMISSION_DENIED" ? "denied" : "unavailable");
+      });
   };
 
   useEffect(() => {
@@ -59,11 +59,13 @@ export default function GasSafetySign() {
     };
   }, []);
 
-  // 위치 획득: 사인은 자체 GPS를 호출하지 않는다(iOS 동시요청 충돌 방지).
-  // 네비 날씨 위젯이 GPS로 잡은 좌표를 공유 저장소에서 구독해 그대로 재사용한다.
+  // 위치 획득:
+  //  1) 이미 확보된 좌표(공유값 → 직전 세션 캐시) 즉시 사용
+  //  2) 날씨 위젯 등 다른 곳이 잡은 좌표를 구독
+  //  3) 직접 확보 시도(ensureSharedLocation) — Capacitor 플러그인으로 iOS 네이티브도 지원,
+  //     벽시계 상한으로 무한 대기 없음. 못 받으면 탭으로 직접 요청 유도.
   useEffect(() => {
     let cancelled = false;
-    // 1) 이미 확보된 좌표(이번 세션 공유값 → 직전 세션 캐시) 즉시 사용
     const immediate = getSharedGeo() || getCachedGeo();
     if (immediate) {
       setUserLoc(immediate);
@@ -71,23 +73,29 @@ export default function GasSafetySign() {
     } else {
       setGeoState("loading");
     }
-    // 2) 날씨 위젯이 좌표를 잡는 즉시 받아서 사용
     const unsub = subscribeSharedGeo((g) => {
       if (cancelled) return;
       setUserLoc(g);
       setGeoState("ok");
     });
-    // 3) 일정 시간 내 좌표가 안 오면 탭으로 직접 요청하도록 유도
-    let watchdog;
-    if (!immediate) {
-      watchdog = setTimeout(() => {
-        if (!cancelled) setGeoState((s) => (s === "loading" ? "unavailable" : s));
-      }, 20000);
-    }
+    ensureSharedLocation({ maxMs: 12000 })
+      .then((loc) => {
+        if (cancelled) return;
+        if (loc) {
+          setUserLoc(loc);
+          setGeoState("ok");
+        } else if (!immediate) {
+          setGeoState((s) => (s === "ok" ? s : "unavailable"));
+        }
+      })
+      .catch(() => {
+        if (!cancelled && !immediate) {
+          setGeoState((s) => (s === "ok" ? s : "unavailable"));
+        }
+      });
     return () => {
       cancelled = true;
       unsub();
-      if (watchdog) clearTimeout(watchdog);
     };
   }, []);
 
