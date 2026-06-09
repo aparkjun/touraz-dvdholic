@@ -11,8 +11,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import axios from "@/lib/axiosConfig";
-import { getDeviceLocation } from "@/lib/geolocation";
-import { resolveMyRegion } from "@/lib/gasSafety";
+import { resolveMyRegion, getCachedGeo } from "@/lib/gasSafety";
+import { getSharedGeo, subscribeSharedGeo } from "@/lib/sharedGeo";
 import { X, Flame, Search, Info, Loader2, MapPin, ChevronDown } from "lucide-react";
 
 export default function GasSafetyModal({ onClose }) {
@@ -53,25 +53,32 @@ export default function GasSafetyModal({ onClose }) {
     };
   }, []);
 
+  // 위치: 사인과 동일하게 자체 GPS 호출 없이 공유 좌표(없으면 직전 세션 캐시)를 재사용.
+  // 좌표를 못 받으면 워치독으로 'unavailable' 처리 → 무한 "위치 확인 중" 방지(검색 목록으로 폴백).
   useEffect(() => {
     let cancelled = false;
-    setGeoState("loading");
-    getDeviceLocation({ timeout: 12000 })
-      .then((loc) => {
-        if (cancelled) return;
-        if (loc && Number.isFinite(loc.lat) && Number.isFinite(loc.lon)) {
-          setUserLoc({ lat: loc.lat, lon: loc.lon });
-          setGeoState("ok");
-        } else {
-          setGeoState("unavailable");
-        }
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        setGeoState(e?.code === "PERMISSION_DENIED" ? "denied" : "unavailable");
-      });
+    const immediate = getSharedGeo() || getCachedGeo();
+    if (immediate) {
+      setUserLoc(immediate);
+      setGeoState("ok");
+    } else {
+      setGeoState("loading");
+    }
+    const unsub = subscribeSharedGeo((g) => {
+      if (cancelled) return;
+      setUserLoc(g);
+      setGeoState("ok");
+    });
+    let watchdog;
+    if (!immediate) {
+      watchdog = setTimeout(() => {
+        if (!cancelled) setGeoState((s) => (s === "loading" ? "unavailable" : s));
+      }, 10000);
+    }
     return () => {
       cancelled = true;
+      unsub();
+      if (watchdog) clearTimeout(watchdog);
     };
   }, []);
 
