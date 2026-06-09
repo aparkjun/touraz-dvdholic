@@ -165,12 +165,14 @@ async function reverseAdminNames(loc) {
   return null;
 }
 
-/** 좌표 → 역지오코딩 행정구역명 → 스냅샷 시군구 행 매칭. 실패 시 null(호출부가 중심좌표 폴백). */
-export async function reverseMatchRegion(loc, rows) {
-  const info = await reverseAdminNames(loc);
+// 역지오코딩 결과(시도, 표기 변형) 노출용(디버그/진단). 다른 모듈에서 좌표 추적에 사용.
+export { reverseAdminNames };
+
+/** 역지오코딩 행정구역명({sido, parts}) → 스냅샷 시군구 행 매칭. 실패 시 null. */
+function matchRegionByNames(info, rows) {
   if (!info) return null;
   const { sido, parts } = info;
-  if (parts.length === 0 && !sido) return null;
+  if ((!parts || parts.length === 0) && !sido) return null;
 
   let pool = sido ? rows.filter((r) => String(r.region).startsWith(sido)) : rows;
   if (pool.length === 0) pool = rows;
@@ -179,7 +181,7 @@ export async function reverseMatchRegion(loc, rows) {
   let bestScore = 0;
   for (const r of pool) {
     let score = 0;
-    for (const p of parts) {
+    for (const p of parts || []) {
       if (p && String(r.region).includes(p)) score += p.length;
     }
     if (score > bestScore) {
@@ -190,15 +192,36 @@ export async function reverseMatchRegion(loc, rows) {
   return bestScore > 0 ? best : null;
 }
 
+/** 좌표 → 역지오코딩 행정구역명 → 스냅샷 시군구 행 매칭. 실패 시 null(호출부가 중심좌표 폴백). */
+export async function reverseMatchRegion(loc, rows) {
+  const info = await reverseAdminNames(loc);
+  return matchRegionByNames(info, rows);
+}
+
 /** GPS 좌표로 내 시군구 행을 해석(역지오코딩 우선, 실패 시 중심좌표 폴백). */
 export async function resolveMyRegion(loc, rows) {
-  if (!loc || !Array.isArray(rows) || rows.length === 0) return null;
-  let region = null;
-  try {
-    region = await reverseMatchRegion(loc, rows);
-  } catch (_) {
-    region = null;
-  }
-  if (!region) region = nearestByCentroid(loc, rows);
+  const { region } = await resolveMyRegionDetailed(loc, rows);
   return region;
+}
+
+/**
+ * resolveMyRegion 의 상세판: 매칭 결과 + 진단 정보(역지오코딩 시도/이름, 사용 경로).
+ * @returns {Promise<{region:object|null, source:'reverse'|'centroid'|'none', sido?:string, parts?:string[]}>}
+ */
+export async function resolveMyRegionDetailed(loc, rows) {
+  if (!loc || !Array.isArray(rows) || rows.length === 0) {
+    return { region: null, source: "none" };
+  }
+  let info = null;
+  try {
+    info = await reverseAdminNames(loc);
+  } catch (_) {
+    info = null;
+  }
+  const matched = matchRegionByNames(info, rows);
+  if (matched) {
+    return { region: matched, source: "reverse", sido: info?.sido, parts: info?.parts };
+  }
+  const c = nearestByCentroid(loc, rows);
+  return { region: c, source: "centroid", sido: info?.sido, parts: info?.parts };
 }

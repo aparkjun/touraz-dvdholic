@@ -11,7 +11,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import axios from "@/lib/axiosConfig";
-import { resolveMyRegion, getCachedGeo, getIpGeo } from "@/lib/gasSafety";
+import { resolveMyRegionDetailed, getCachedGeo, getIpGeo } from "@/lib/gasSafety";
 import { getSharedGeo, subscribeSharedGeo } from "@/lib/sharedGeo";
 import { ensureSharedLocation } from "@/lib/geolocation";
 import { Capacitor } from "@capacitor/core";
@@ -26,6 +26,7 @@ export default function GasSafetyModal({ onClose }) {
   const [geoState, setGeoState] = useState("loading");
   const [userLoc, setUserLoc] = useState(null);
   const [myRegion, setMyRegion] = useState(null);
+  const [geoDbg, setGeoDbg] = useState(null);
   const [resolving, setResolving] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [q, setQ] = useState("");
@@ -120,9 +121,16 @@ export default function GasSafetyModal({ onClose }) {
     let cancelled = false;
     setResolving(true);
     (async () => {
-      const region = await resolveMyRegion(userLoc, rows);
+      const detail = await resolveMyRegionDetailed(userLoc, rows);
       if (!cancelled) {
-        setMyRegion(region);
+        setMyRegion(detail.region);
+        setGeoDbg({
+          source: detail.source,
+          sido: detail.sido,
+          parts: detail.parts,
+          lat: userLoc.lat,
+          lon: userLoc.lon,
+        });
         setResolving(false);
       }
     })();
@@ -268,9 +276,11 @@ export default function GasSafetyModal({ onClose }) {
         <div className="gsm-foot">
           여행 전, 가스밸브·중간밸브를 꼭 잠그고 점검하세요.
           <span className="gsm-diag">
-            {`v4 · native:${Capacitor?.isNativePlatform?.() ? "Y" : "N"} · geo:${geoState}${
-              myRegion ? ` · ${myRegion.region}` : ""
-            }`}
+            {`v5 · native:${Capacitor?.isNativePlatform?.() ? "Y" : "N"} · geo:${geoState}`}
+            {geoDbg
+              ? ` · loc:${Number(geoDbg.lat).toFixed(3)},${Number(geoDbg.lon).toFixed(3)} · src:${geoDbg.source} · rg:[${geoDbg.sido || "-"}|${(geoDbg.parts || []).slice(0, 3).join(",") || "-"}]`
+              : ""}
+            {myRegion ? ` · ▶${myRegion.region}` : ""}
           </span>
         </div>
       </div>
