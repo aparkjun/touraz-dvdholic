@@ -6,6 +6,7 @@
  */
 
 import axios from "@/lib/axiosConfig";
+import { Capacitor, CapacitorHttp } from "@capacitor/core";
 
 export async function fetchGasSigungu() {
   const res = await axios.get("/api/v1/gas-safety/sigungu");
@@ -41,29 +42,15 @@ export function getCachedGeo() {
  * HTTPS·CORS 허용 무료 서비스 사용. 실패 시 null. (통신사 게이트웨이 IP 라 정확도는 도시 단위)
  */
 export async function getIpGeo() {
-  const endpoints = [
-    "https://ipapi.co/json/",
-    "https://ipwho.is/",
-  ];
+  const endpoints = ["https://ipapi.co/json/", "https://ipwho.is/"];
   for (const url of endpoints) {
-    try {
-      const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 6000);
-      let res;
-      try {
-        res = await fetch(url, { signal: ctrl.signal });
-      } finally {
-        clearTimeout(timer);
-      }
-      if (!res.ok) continue;
-      const j = await res.json();
+    const j = await fetchJsonCapped(url, 6000);
+    if (j) {
       const lat = Number(j.latitude ?? j.lat);
       const lon = Number(j.longitude ?? j.lon ?? j.lng);
       if (Number.isFinite(lat) && Number.isFinite(lon)) {
         return { lat, lon, approx: true };
       }
-    } catch (_) {
-      /* 다음 엔드포인트 시도 */
     }
   }
   return null;
@@ -96,7 +83,37 @@ export function nearestByCentroid(loc, rows) {
   return best;
 }
 
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), ms)),
+  ]);
+}
+
+/**
+ * 외부 API GET → JSON. 네이티브(Capacitor)에서는 CapacitorHttp(네이티브 HTTP)를 직접 사용한다.
+ *
+ * CapacitorHttp 가 켜져 있으면 WKWebView 의 fetch 가 네이티브로 패치되는데, 외부 도메인 요청·
+ * AbortController signal 조합에서 실패하는 사례가 있어(가스 사인 역지오코딩이 통째로 실패),
+ * 네이티브에서는 플러그인을 직접 호출하고 웹에서는 표준 fetch 를 쓴다. 실패 시 null.
+ */
 async function fetchJsonCapped(url, ms) {
+  if (Capacitor?.isNativePlatform?.() && CapacitorHttp) {
+    try {
+      const res = await withTimeout(
+        CapacitorHttp.get({ url, headers: { Accept: "application/json" } }),
+        ms,
+      );
+      const status = res?.status;
+      if (status != null && status >= 400) return null;
+      const d = res?.data;
+      if (d == null) return null;
+      return typeof d === "string" ? JSON.parse(d) : d;
+    } catch (_) {
+      return null;
+    }
+  }
+
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);
   try {
