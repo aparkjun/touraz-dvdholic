@@ -107,7 +107,9 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
                 if (region == null || region.isBlank()) continue;
                 int count = n.path("count").asInt(0);
                 int cas = n.path("casualties").asInt(0);
-                out.add(new GasAccidentStat(region, count, cas));
+                Double lat = n.hasNonNull("lat") ? n.path("lat").asDouble() : null;
+                Double lon = n.hasNonNull("lon") ? n.path("lon").asDouble() : null;
+                out.add(new GasAccidentStat(region, count, cas, lat, lon));
             }
             out.sort(Comparator.comparingInt(GasAccidentStat::accidentCount).reversed());
             log.info("[GAS-STAT] 스냅샷 {}개 시군구 로드", out.size());
@@ -118,9 +120,10 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         }
     }
 
-    /** 전 페이지를 순회하며 시군구별로 [발생건수, 사상자합계]를 누적한 뒤 발생건수 내림차순 정렬해 반환. */
+    /** 전 페이지를 순회하며 시군구별로 발생건수·사상자·중심좌표를 누적한 뒤 발생건수 내림차순 정렬해 반환. */
     private List<GasAccidentStat> fetchAllAndAggregate() {
-        Map<String, int[]> agg = new LinkedHashMap<>(); // region -> [accidentCount, casualtySum]
+        // region -> [accidentCount, casualtySum, sumLat, sumLon, nCoords]
+        Map<String, double[]> agg = new LinkedHashMap<>();
         int page = 1;
         int totalCount = Integer.MAX_VALUE;
         int collected = 0;
@@ -146,13 +149,29 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         }
 
         List<GasAccidentStat> out = new ArrayList<>(agg.size());
-        for (Map.Entry<String, int[]> e : agg.entrySet()) {
-            int[] v = e.getValue();
-            out.add(new GasAccidentStat(e.getKey(), v[0], v[1]));
+        for (Map.Entry<String, double[]> e : agg.entrySet()) {
+            double[] v = e.getValue();
+            Double lat = v[4] > 0 ? round5(v[2] / v[4]) : null;
+            Double lon = v[4] > 0 ? round5(v[3] / v[4]) : null;
+            out.add(new GasAccidentStat(e.getKey(), (int) v[0], (int) v[1], lat, lon));
         }
         out.sort(Comparator.comparingInt(GasAccidentStat::accidentCount).reversed());
         log.info("[GAS-STAT] 시군구 {}개 집계(수집 {}건)", out.size(), collected);
         return out;
+    }
+
+    private static Double round5(double v) {
+        return Math.round(v * 100000.0) / 100000.0;
+    }
+
+    /** EPSG:3857(Web Mercator) → WGS84 위도. */
+    private static double mercToLat(double y) {
+        return Math.toDegrees(Math.atan(Math.exp(y / 6378137.0)) * 2.0 - Math.PI / 2.0);
+    }
+
+    /** EPSG:3857(Web Mercator) → WGS84 경도. */
+    private static double mercToLon(double x) {
+        return x / 20037508.34 * 180.0;
     }
 
     private String call(int pageNo) {
@@ -175,7 +194,7 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
     private record PageResult(int totalCount, int itemCount, boolean error) { }
 
     /** 한 페이지 XML 을 파싱해 agg 에 누적하고, totalCount/itemCount/오류여부를 돌려준다. */
-    private PageResult parsePage(String xml, Map<String, int[]> agg) throws Exception {
+    private PageResult parsePage(String xml, Map<String, double[]> agg) throws Exception {
         DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
         dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
         dbf.setExpandEntityReferences(false);
@@ -211,9 +230,18 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
             Integer tot = toInt(f.get("tot"));
             int casualty = tot != null ? tot : (orZero(toInt(f.get("death"))) + orZero(toInt(f.get("injpsn"))));
 
-            int[] cur = agg.computeIfAbsent(region, k -> new int[]{0, 0});
+            double[] cur = agg.computeIfAbsent(region, k -> new double[]{0, 0, 0, 0, 0});
             cur[0] += 1;          // 발생건수 = 레코드 1건
             cur[1] += casualty;   // 피해(사상자)
+
+            // 중심좌표 누적: x/y 는 EPSG:3857 → WGS84 로 변환해 합산(나중에 평균).
+            Double x = toDouble(f.get("x"));
+            Double y = toDouble(f.get("y"));
+            if (x != null && y != null) {
+                cur[2] += mercToLat(y);
+                cur[3] += mercToLon(x);
+                cur[4] += 1;
+            }
         }
         return new PageResult(totalCount == null ? -1 : totalCount, itemCount, false);
     }
@@ -282,6 +310,17 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         if (digits.isEmpty() || !digits.matches("-?\\d+")) return null;
         try {
             return Integer.parseInt(digits);
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
+    private static Double toDouble(String raw) {
+        if (raw == null) return null;
+        String s = raw.replaceAll("[,\\s]", "");
+        if (s.isEmpty()) return null;
+        try {
+            return Double.parseDouble(s);
         } catch (NumberFormatException ex) {
             return null;
         }

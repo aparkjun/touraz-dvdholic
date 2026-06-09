@@ -3,19 +3,38 @@
 /**
  * GasSafetyModal — "여행가기전 가스점검꼭" 버튼이 여는 작은 모달.
  *
- * 행정안전부 생활안전지도(safemap.go.kr) 가스사고발생통계(IF_0064, XML)를
- * 백엔드 프록시(/api/v1/gas-safety/sigungu)로 받아 시군구 단위 발생건수를
- * 발생건수 내림차순으로 간결하게 보여준다(작은 박스 + 내부 스크롤).
+ * 행정안전부 생활안전지도(safemap.go.kr) 가스사고발생통계(IF_0064)를
+ * 백엔드 프록시(/api/v1/gas-safety/sigungu)로 받아온다(시군구별 발생건수+중심좌표).
+ * GPS 로 현재 위치를 잡아, 좌표가 가장 가까운 "내 시군구" 하나만 크게 보여준다.
+ * 위치 거부/실패 시 전체 시군구 목록(검색)으로 자연 폴백.
  */
 
 import { useEffect, useMemo, useState } from "react";
 import axios from "@/lib/axiosConfig";
-import { X, Flame, Search, Info, Loader2 } from "lucide-react";
+import { getDeviceLocation } from "@/lib/geolocation";
+import { X, Flame, Search, Info, Loader2, MapPin, ChevronDown } from "lucide-react";
+
+function haversineKm(aLat, aLon, bLat, bLon) {
+  const R = 6371;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLon = ((bLon - aLon) * Math.PI) / 180;
+  const la1 = (aLat * Math.PI) / 180;
+  const la2 = (bLat * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(la1) * Math.cos(la2) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
 
 export default function GasSafetyModal({ onClose }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [rows, setRows] = useState([]);
+
+  // 'loading' | 'ok' | 'denied' | 'unavailable'
+  const [geoState, setGeoState] = useState("loading");
+  const [userLoc, setUserLoc] = useState(null);
+  const [showAll, setShowAll] = useState(false);
   const [q, setQ] = useState("");
 
   useEffect(() => {
@@ -44,6 +63,28 @@ export default function GasSafetyModal({ onClose }) {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    setGeoState("loading");
+    getDeviceLocation({ timeout: 12000 })
+      .then((loc) => {
+        if (cancelled) return;
+        if (loc && Number.isFinite(loc.lat) && Number.isFinite(loc.lon)) {
+          setUserLoc({ lat: loc.lat, lon: loc.lon });
+          setGeoState("ok");
+        } else {
+          setGeoState("unavailable");
+        }
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setGeoState(e?.code === "PERMISSION_DENIED" ? "denied" : "unavailable");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
     const onKey = (e) => {
       if (e.key === "Escape") onClose?.();
     };
@@ -51,16 +92,43 @@ export default function GasSafetyModal({ onClose }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  // rows 는 백엔드에서 발생건수 내림차순으로 정렬돼 온다 → 인덱스+1 = 전국 순위.
+  const rankByRegion = useMemo(() => {
+    const map = new Map();
+    rows.forEach((r, i) => map.set(r.region, i + 1));
+    return map;
+  }, [rows]);
+
+  // GPS 좌표에서 가장 가까운 시군구.
+  const myRegion = useMemo(() => {
+    if (!userLoc) return null;
+    let best = null;
+    let bestD = Infinity;
+    for (const r of rows) {
+      if (!Number.isFinite(r.lat) || !Number.isFinite(r.lon)) continue;
+      const d = haversineKm(userLoc.lat, userLoc.lon, r.lat, r.lon);
+      if (d < bestD) {
+        bestD = d;
+        best = r;
+      }
+    }
+    return best ? { ...best, distanceKm: bestD } : null;
+  }, [userLoc, rows]);
+
+  const total = useMemo(
+    () => rows.reduce((sum, r) => sum + (Number(r.count) || 0), 0),
+    [rows],
+  );
+
   const filtered = useMemo(() => {
     const kw = q.trim();
     if (!kw) return rows;
     return rows.filter((r) => String(r.region || "").includes(kw));
   }, [rows, q]);
 
-  const total = useMemo(
-    () => rows.reduce((sum, r) => sum + (Number(r.count) || 0), 0),
-    [rows],
-  );
+  const dataReady = !loading && !error && rows.length > 0;
+  const showMyCard = dataReady && geoState === "ok" && myRegion && !showAll;
+  const geoBusy = geoState === "loading";
 
   return (
     <div
@@ -82,26 +150,8 @@ export default function GasSafetyModal({ onClose }) {
           <div className="gsm-title">
             <Flame size={15} /> 가스사고 발생통계
           </div>
-          <div className="gsm-sub">행정안전부 생활안전지도 · 시군구 단위</div>
+          <div className="gsm-sub">행정안전부 생활안전지도 · 내 지역</div>
         </div>
-
-        {!loading && !error && rows.length > 0 && (
-          <>
-            <div className="gsm-total">
-              전국 합계 <b>{total.toLocaleString()}</b>건 · {rows.length}개 시군구
-            </div>
-            <div className="gsm-search">
-              <Search size={13} />
-              <input
-                type="text"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="지역 검색 (예: 강남)"
-                aria-label="지역 검색"
-              />
-            </div>
-          </>
-        )}
 
         <div className="gsm-body">
           {loading ? (
@@ -112,22 +162,89 @@ export default function GasSafetyModal({ onClose }) {
             <div className="gsm-state gsm-state-warn">
               <Info size={14} /> 통계를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.
             </div>
+          ) : showMyCard ? (
+            <>
+              <div className="gsm-mycard">
+                <div className="gsm-mycard-loc">
+                  <MapPin size={13} /> 현재 위치
+                </div>
+                <div className="gsm-mycard-region">{myRegion.region}</div>
+                <div className="gsm-mycard-stats">
+                  <div className="gsm-stat">
+                    <span className="gsm-stat-num">
+                      {Number(myRegion.count).toLocaleString()}
+                    </span>
+                    <span className="gsm-stat-label">가스사고 발생</span>
+                  </div>
+                  <div className="gsm-stat">
+                    <span className="gsm-stat-num gsm-stat-cas">
+                      {myRegion.casualties != null
+                        ? Number(myRegion.casualties).toLocaleString()
+                        : 0}
+                    </span>
+                    <span className="gsm-stat-label">인명피해(명)</span>
+                  </div>
+                </div>
+                <div className="gsm-mycard-meta">
+                  전국 {rows.length}개 시군구 중{" "}
+                  <b>{rankByRegion.get(myRegion.region) || "-"}위</b>
+                  {" · "}전국 합계 {total.toLocaleString()}건
+                </div>
+              </div>
+              <button className="gsm-allbtn" onClick={() => setShowAll(true)}>
+                전체 시군구 보기 <ChevronDown size={13} />
+              </button>
+            </>
           ) : (
-            <ul className="gsm-list">
-              {filtered.map((r, i) => (
-                <li key={`${r.region}-${i}`} className="gsm-row">
-                  <span className="gsm-rank">{i + 1}</span>
-                  <span className="gsm-region">{r.region}</span>
-                  {r.casualties != null && (
-                    <span className="gsm-cas">피해 {Number(r.casualties).toLocaleString()}</span>
-                  )}
-                  <span className="gsm-count">{Number(r.count).toLocaleString()}</span>
-                </li>
-              ))}
-              {filtered.length === 0 && (
-                <li className="gsm-state">검색 결과가 없어요.</li>
+            <>
+              {geoBusy && !showAll && (
+                <div className="gsm-geo-note">
+                  <Loader2 size={12} className="gsm-spin" /> 현재 위치 확인 중...
+                </div>
               )}
-            </ul>
+              {!geoBusy && geoState !== "ok" && !showAll && (
+                <div className="gsm-geo-note gsm-geo-warn">
+                  <Info size={12} />{" "}
+                  {geoState === "denied"
+                    ? "위치 권한이 꺼져 있어요. 아래에서 지역을 검색하세요."
+                    : "현재 위치를 확인할 수 없어요. 아래에서 지역을 검색하세요."}
+                </div>
+              )}
+              <div className="gsm-total">
+                전국 합계 <b>{total.toLocaleString()}</b>건 · {rows.length}개 시군구
+              </div>
+              <div className="gsm-search">
+                <Search size={13} />
+                <input
+                  type="text"
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder="지역 검색 (예: 강남)"
+                  aria-label="지역 검색"
+                />
+              </div>
+              <ul className="gsm-list">
+                {filtered.map((r, i) => (
+                  <li key={`${r.region}-${i}`} className="gsm-row">
+                    <span className="gsm-rank">
+                      {rankByRegion.get(r.region) || i + 1}
+                    </span>
+                    <span className="gsm-region">{r.region}</span>
+                    {r.casualties != null && r.casualties > 0 && (
+                      <span className="gsm-cas">
+                        피해 {Number(r.casualties).toLocaleString()}
+                      </span>
+                    )}
+                    <span className="gsm-count">
+                      {Number(r.count).toLocaleString()}
+                    </span>
+                  </li>
+                ))}
+                {filtered.length === 0 && (
+                  <li className="gsm-state">검색 결과가 없어요.</li>
+                )}
+              </ul>
+            </>
           )}
         </div>
 
@@ -174,13 +291,65 @@ const css = `
 }
 .gsm-title svg { color: #fb923c; }
 .gsm-sub { margin-top: 3px; font-size: 0.72rem; color: #b9aee0; }
+.gsm-body { overflow-y: auto; padding: 0 8px 4px; min-height: 80px; }
+
+.gsm-mycard {
+  margin: 4px 8px 10px; padding: 16px 14px;
+  border-radius: 12px;
+  background: linear-gradient(160deg, rgba(234,88,12,0.22) 0%, rgba(124,45,18,0.18) 100%);
+  border: 1px solid rgba(251,146,60,0.45);
+  text-align: center;
+}
+.gsm-mycard-loc {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.72rem; font-weight: 700; color: #fcd9b6;
+}
+.gsm-mycard-region {
+  margin-top: 4px; font-size: 1.18rem; font-weight: 900; color: #fff;
+  letter-spacing: -0.02em;
+}
+.gsm-mycard-stats {
+  display: flex; justify-content: center; gap: 26px; margin-top: 12px;
+}
+.gsm-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.gsm-stat-num {
+  font-size: 1.7rem; font-weight: 900; color: #fb923c; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.gsm-stat-num.gsm-stat-cas { color: #fca5a5; }
+.gsm-stat-label { font-size: 0.68rem; color: #c9bff0; }
+.gsm-mycard-meta {
+  margin-top: 12px; padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  font-size: 0.72rem; color: #c9bff0;
+}
+.gsm-mycard-meta b { color: #fcd9b6; font-weight: 800; }
+
+.gsm-allbtn {
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  width: calc(100% - 16px); margin: 0 8px 6px; padding: 8px;
+  border-radius: 9px; cursor: pointer;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.14);
+  color: #d9d2f5; font-size: 0.78rem; font-weight: 700;
+}
+.gsm-allbtn:hover { background: rgba(255,255,255,0.1); }
+
+.gsm-geo-note {
+  display: flex; align-items: center; gap: 5px;
+  margin: 4px 8px 8px; padding: 7px 10px; border-radius: 8px;
+  font-size: 0.74rem; color: #c4b5fd;
+  background: rgba(255,255,255,0.05);
+}
+.gsm-geo-warn { color: #fcd34d; }
+
 .gsm-total {
-  margin: 0 16px 8px; font-size: 0.76rem; color: #fcd9b6;
+  margin: 0 8px 8px; font-size: 0.76rem; color: #fcd9b6;
 }
 .gsm-total b { color: #fb923c; font-weight: 800; }
 .gsm-search {
   display: flex; align-items: center; gap: 6px;
-  margin: 0 16px 8px; padding: 6px 10px;
+  margin: 0 8px 8px; padding: 6px 10px;
   border-radius: 9px;
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.12);
@@ -191,7 +360,6 @@ const css = `
   background: transparent; color: #f4f1ff; font-size: 0.82rem;
 }
 .gsm-search input::placeholder { color: #8a82ad; }
-.gsm-body { overflow-y: auto; padding: 0 8px 4px; min-height: 60px; }
 .gsm-list { list-style: none; margin: 0; padding: 0; }
 .gsm-row {
   display: flex; align-items: center; gap: 8px;
@@ -200,7 +368,7 @@ const css = `
 }
 .gsm-row:nth-child(odd) { background: rgba(255,255,255,0.035); }
 .gsm-rank {
-  flex: 0 0 22px; text-align: center;
+  flex: 0 0 26px; text-align: center;
   font-size: 0.7rem; font-weight: 800; color: #8a82ad;
   font-variant-numeric: tabular-nums;
 }

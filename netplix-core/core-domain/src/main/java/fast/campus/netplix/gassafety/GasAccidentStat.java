@@ -7,10 +7,13 @@ package fast.campus.netplix.gassafety;
  *  - regionName: 시군구 명칭(예: "서울특별시 강남구"). 원문 시도+시군구를 합쳐 표기.
  *  - accidentCount: 해당 지역 가스사고 발생건수 합계.
  *  - casualtyCount: 인명피해(사상) 수. 원문에 없으면 null.
+ *  - centerLat/centerLon: 시군구 대표 좌표(사고 지점 평균=중심). GPS 로 현재 시군구를 고를 때 사용. 없으면 null.
  */
 public record GasAccidentStat(
         String regionName,
         int accidentCount,
-        Integer casualtyCount
+        Integer casualtyCount,
+        Double centerLat,
+        Double centerLon
 ) {
 }

@@ -8,9 +8,12 @@ import fast.campus.netplix.gassafety.GasAccidentStat;
 public record GasAccidentStatResponse(
         String region,
         int count,
-        Integer casualties
+        Integer casualties,
+        Double lat,
+        Double lon
 ) {
     public static GasAccidentStatResponse from(GasAccidentStat s) {
-        return new GasAccidentStatResponse(s.regionName(), s.accidentCount(), s.casualtyCount());
+        return new GasAccidentStatResponse(s.regionName(), s.accidentCount(), s.casualtyCount(),
+                s.centerLat(), s.centerLon());
     }
 }
