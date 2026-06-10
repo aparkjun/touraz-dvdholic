@@ -5,7 +5,6 @@ import NavBar from "@/components/NavBar";
 import Providers from "@/components/Providers";
 import AppRouteTheme from "@/components/AppRouteTheme";
 import FloatingBackButton from "@/components/FloatingBackButton";
-import WheelDebugOverlay from "@/components/WheelDebugOverlay";
 
 export const metadata = {
   title: "Holic Store",
@@ -39,7 +38,6 @@ export default function RootLayout({ children }) {
       </head>
       <body suppressHydrationWarning>
         <Providers>
-          <WheelDebugOverlay />
           <AppRouteTheme>
             <div className="app-shell">
               <NavBar />
