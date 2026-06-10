@@ -79,7 +79,10 @@ export default function Providers({ children }) {
     const onWheel = (e) => {
       const absX = Math.abs(e.deltaX);
       const absY = Math.abs(e.deltaY);
-      if (absX <= absY || absX < 1) return;
+      // 명확한 수평 제스처(가로가 세로보다 확실히 우세)만 차단 대상으로 본다.
+      // Magic Mouse/트랙패드의 느린 세로 스크롤은 deltaY 가 작아 노이즈 deltaX 에 쉽게
+      // 역전되므로, |deltaX|>|deltaY| 만으로 preventDefault 하면 세로 스크롤이 끊긴다.
+      if (absX <= absY * 1.5 || absX < 4) return;
       if (hasHorizontalScrollAncestor(e.target)) return;
       e.preventDefault();
     };
