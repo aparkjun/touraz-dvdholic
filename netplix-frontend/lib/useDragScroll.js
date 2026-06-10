@@ -264,8 +264,13 @@ export default function useDragScrollAll(containerRef) {
           e.preventDefault();
           // 스크롤러에 scroll-behavior:smooth 가 걸려 있으면 scrollTop 누적이 매 휠마다
           // 부드러운 애니메이션을 새로 시작해 서로 상쇄되며 사실상 멈춘다(대시보드 먹통).
-          // behavior:'instant' 로 강제 즉시 스크롤해 네이티브 휠과 동일하게 동작시킨다.
-          scroller.scrollBy({ top: e.deltaY * step, behavior: "instant" });
+          // scrollBy({behavior:'instant'}) 는 Safari 가 무시(→auto=smooth)할 수 있으므로,
+          // 인라인 스타일로 smooth 를 잠시 끄고 scrollTop 을 직접 갱신해 모든 브라우저에서
+          // 네이티브 휠과 동일한 즉시 스크롤을 보장한다.
+          const prevBehavior = scroller.style.scrollBehavior;
+          scroller.style.scrollBehavior = "auto";
+          scroller.scrollTop += e.deltaY * step;
+          scroller.style.scrollBehavior = prevBehavior;
           return;
         }
 
