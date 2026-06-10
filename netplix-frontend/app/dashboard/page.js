@@ -821,7 +821,9 @@ function DashboardContent() {
         padding: isNative ? "20px 12px 140px" : "20px 12px 28px",
         fontFamily: detailFontFamily,
         maxWidth: "100vw",
-        overflow: "hidden",
+        // overflow:hidden 은 이 래퍼를 스크롤 컨테이너로 만들어 Safari 가 휠을 래칭 → 페이지 멈춤.
+        // overflowX:clip 으로 가로만 잘라내고 세로는 페이지(html)로 전달되게 한다.
+        overflowX: "clip",
       }}
     >
       <AmbientBackdrop
