@@ -223,19 +223,52 @@ export default function useDragScrollAll(containerRef) {
         wheelVelX *= WHEEL_MOMENTUM_DECAY;
         wheelRaf = requestAnimationFrame(wheelTick);
       };
-      const onWheel = (e) => {
-        // 컨테이너가 실제로 가로 스크롤 가능한지 먼저 확인
-        if (el.scrollWidth <= el.clientWidth + 1) return;
+      // 이 레일을 감싸는 "가장 가까운 세로 스크롤 조상"을 찾는다(없으면 문서). 한 번 찾으면 캐시.
+      // 세로 휠을 여기로 직접 위임해, 가로 스트립이 휠 제스처를 래칭해 삼키는 현상을 우회한다.
+      let vScroller; // undefined=미계산
+      const resolveVScroller = () => {
+        if (vScroller !== undefined) return vScroller;
+        let n = el.parentElement;
+        while (n && n !== document.body && n !== document.documentElement) {
+          const st = window.getComputedStyle(n);
+          const oy = st.overflowY;
+          if (
+            (oy === "auto" || oy === "scroll" || oy === "overlay") &&
+            n.scrollHeight > n.clientHeight + 1
+          ) {
+            vScroller = n;
+            return vScroller;
+          }
+          n = n.parentElement;
+        }
+        vScroller = document.scrollingElement || document.documentElement;
+        return vScroller;
+      };
 
-        // 커스텀 휠→가로 변환은 'Shift+휠'(데스크탑 휠 마우스의 의도적 수평 스크롤)에만 적용한다.
-        //
-        // Magic Mouse·트랙패드의 수평 스와이프는 브라우저가 overflow-x:auto 레일을 네이티브로
-        // 가로 스크롤하므로 커스텀 변환이 필요 없다. 오히려 이들 기기는 느린 세로 스크롤에서
-        // deltaY 가 1~3px 로 작게 들어오는데 표면 노이즈로 섞인 deltaX 가 그보다 커지기 쉬워,
-        // |deltaX| 우세만으로 가로채면 세로 스크롤이 막힌다(대시보드 먹통의 진짜 원인).
-        // → 비(非)Shift 휠은 절대 가로채지 않고 페이지 기본 세로 스크롤로 양보한다.
-        if (!e.shiftKey) return;
-        const horizontalDelta = e.deltaY;
+      const onWheel = (e) => {
+        const absX = Math.abs(e.deltaX);
+        const absY = Math.abs(e.deltaY);
+
+        // ── 세로 의도(세로 성분이 가로보다 우세) → 페이지로 직접 위임 ──
+        // 가로 스트립(overflow-x:auto)은 Chromium/macOS 등에서 트랙패드·Magic Mouse 의
+        // 연속 휠 제스처를 자신에게 '래칭'시켜 세로 스크롤을 통째로 삼킨다. 그 결과 스트립
+        // 위에서는 페이지가 전혀 스크롤되지 않는다. 따라서 세로 우세 휠은 우리가 직접
+        // 가장 가까운 세로 스크롤러를 움직이고 preventDefault 로 스트립의 가로 처리를 막는다.
+        // (Shift+휠은 의도적 가로 스크롤이므로 아래 가로 분기로 보낸다.)
+        if (!e.shiftKey && absY >= absX) {
+          if (absY === 0) return;
+          // deltaMode: 0=픽셀(트랙패드/Magic Mouse), 1=줄(휠 마우스), 2=페이지
+          const step =
+            e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1;
+          const scroller = resolveVScroller();
+          e.preventDefault();
+          scroller.scrollTop += e.deltaY * step;
+          return;
+        }
+
+        // ── 가로 의도(Shift+휠 또는 가로 우세 스와이프) → 스트립 가로 스크롤(+관성) ──
+        if (el.scrollWidth <= el.clientWidth + 1) return;
+        const horizontalDelta = e.shiftKey ? e.deltaY : e.deltaX;
         if (horizontalDelta === 0) return;
 
         e.preventDefault();
