@@ -76,12 +76,54 @@ export default function Providers({ children }) {
       return false;
     };
 
+    const STRIP_SELECTOR =
+      '.dashboard-scroll-row, .cinetrip-scroll-row, .js-drag-scroll';
+
+    // 세로 휠을 받아 페이지를 '직접' 스크롤한다.
+    // 배경: 일부 macOS Safari(Magic Mouse)에서 네이티브 휠→스크롤 변환이 동작하지 않는다
+    // (휠 이벤트는 도달하고 누구도 preventDefault 하지 않으며 스크롤러는 html 인데도 scrollTop 불변,
+    //  반면 키보드 스크롤은 정상). WebKit 휠 제스처 처리 이슈로 보이며, 네이티브에 의존하지 않고
+    // 우리가 직접 scrollTop 을 갱신하면 모든 브라우저에서 일관되게 동작한다.
+    const scrollPageByWheel = (e) => {
+      // 가로 스트립(.dashboard-scroll-row 등)은 전용 드래그/휠 엔진이 처리 → 위임
+      if (e.target?.closest?.(STRIP_SELECTOR)) return false;
+      // 내부에 실제 세로 스크롤이 가능한 컨테이너(모달/리스트 등)가 있으면 그쪽에 맡긴다
+      let n = e.target instanceof Element ? e.target : null;
+      while (n && n !== document.body && n !== document.documentElement) {
+        const s = window.getComputedStyle(n);
+        if (
+          (s.overflowY === 'auto' || s.overflowY === 'scroll') &&
+          n.scrollHeight > n.clientHeight + 1
+        ) {
+          return false;
+        }
+        n = n.parentElement;
+      }
+      const se = document.scrollingElement || document.documentElement;
+      if (!se || se.scrollHeight <= se.clientHeight + 1) return false;
+      const step =
+        e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1;
+      const prev = se.style.scrollBehavior;
+      se.style.scrollBehavior = 'auto'; // CSS scroll-behavior:smooth 와의 상쇄 방지(즉시 스크롤)
+      se.scrollTop += e.deltaY * step;
+      se.style.scrollBehavior = prev;
+      return true;
+    };
+
     const onWheel = (e) => {
+      // 다른 핸들러(가로 스트립 휠, 지도 줌 등)가 이미 처리했으면 개입하지 않는다
+      if (e.defaultPrevented) return;
+      if (e.ctrlKey) return; // 핀치 줌(트랙패드)
       const absX = Math.abs(e.deltaX);
       const absY = Math.abs(e.deltaY);
-      // 명확한 수평 제스처(가로가 세로보다 확실히 우세)만 차단 대상으로 본다.
-      // Magic Mouse/트랙패드의 느린 세로 스크롤은 deltaY 가 작아 노이즈 deltaX 에 쉽게
-      // 역전되므로, |deltaX|>|deltaY| 만으로 preventDefault 하면 세로 스크롤이 끊긴다.
+
+      // 세로 우세 → 페이지 직접 스크롤(네이티브 휠 미동작 Safari 우회)
+      if (absY > absX) {
+        if (scrollPageByWheel(e)) e.preventDefault();
+        return;
+      }
+
+      // 명확한 수평 제스처(가로가 세로보다 확실히 우세)만 차단(뒤로가기 제스처 방지).
       if (absX <= absY * 1.5 || absX < 4) return;
       if (hasHorizontalScrollAncestor(e.target)) return;
       e.preventDefault();
