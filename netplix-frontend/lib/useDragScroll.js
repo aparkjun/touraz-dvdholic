@@ -229,12 +229,14 @@ export default function useDragScrollAll(containerRef) {
 
         // 명시적 수평 제스처만 가로 스크롤로 매핑:
         //  - Shift+휠 (데스크탑 휠 마우스에서 의도적 수평 스크롤)
-        //  - 트랙패드 수평 스와이프 (|deltaX| > |deltaY|)
-        // 일반 수직 휠(마우스 트랙볼 위/아래)은 페이지 세로 스크롤을
-        // 방해하지 않도록 통과시킴.
+        //  - 트랙패드/Magic Mouse 수평 스와이프 (가로 성분이 세로보다 "확실히" 우세)
+        // Magic Mouse·트랙패드는 세로 스크롤에도 작은 deltaX 가 섞여 들어오므로,
+        // |deltaX| > |deltaY| 만으로 가로채면 세로 스크롤이 막힌다(대시보드 먹통 원인).
+        // 가로가 명확히 우세(>1.5배)할 때만 가로채고, 그 외 세로 의도는 페이지
+        // 기본 세로 스크롤로 양보한다. 일반 수직 휠(deltaX≈0)도 자연히 통과.
         const horizontalDelta = e.shiftKey
           ? e.deltaY
-          : Math.abs(e.deltaX) > Math.abs(e.deltaY)
+          : Math.abs(e.deltaX) > Math.abs(e.deltaY) * 1.5
           ? e.deltaX
           : 0;
         if (horizontalDelta === 0) return;
