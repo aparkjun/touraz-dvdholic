@@ -262,7 +262,10 @@ export default function useDragScrollAll(containerRef) {
             e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1;
           const scroller = resolveVScroller();
           e.preventDefault();
-          scroller.scrollTop += e.deltaY * step;
+          // 스크롤러에 scroll-behavior:smooth 가 걸려 있으면 scrollTop 누적이 매 휠마다
+          // 부드러운 애니메이션을 새로 시작해 서로 상쇄되며 사실상 멈춘다(대시보드 먹통).
+          // behavior:'instant' 로 강제 즉시 스크롤해 네이티브 휠과 동일하게 동작시킨다.
+          scroller.scrollBy({ top: e.deltaY * step, behavior: "instant" });
           return;
         }
 
