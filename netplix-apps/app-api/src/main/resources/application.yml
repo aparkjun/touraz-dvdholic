@@ -1,4 +1,7 @@
 spring:
+  datasource:
+    hikari:
+      connection-init-sql: SET NAMES utf8mb4
   web:
     resources:
       add-mappings: false  # SPA 폴백만 SpaResourceConfig에서 처리(동일 오리진 배포 시)
