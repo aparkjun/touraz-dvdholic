@@ -83,7 +83,7 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         if (cached != null && now - cachedAtMs < CACHE_TTL_MS) {
             return cached;
         }
-        List<GasAccidentStat> fetched = fetchAllAndAggregate();
+        List<GasAccidentStat> fetched = normalizeAllStats(fetchAllAndAggregate());
         if (!fetched.isEmpty() && !regionsLookValid(fetched)) {
             log.warn("[GAS-STAT] 라이브 응답 한글 손상(인코딩 오류) — 스냅샷으로 폴백");
             fetched = List.of();
@@ -121,7 +121,7 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
             }
             out.sort(Comparator.comparingInt(GasAccidentStat::accidentCount).reversed());
             log.info("[GAS-STAT] 스냅샷 {}개 시군구 로드", out.size());
-            return out;
+            return normalizeAllStats(out);
         } catch (Exception e) {
             log.warn("[GAS-STAT] 스냅샷 로드 실패: {}", e.getMessage());
             return List.of();
@@ -284,6 +284,56 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         return false;
     }
 
+    /** 행정구역명처럼 보이는지(한글 + 시·군·구·도 등). EUC-KR 오해 디코딩의 가짜 한글은 걸러낸다. */
+    private static boolean looksLikeKoreanAdminName(String s) {
+        if (s == null || !containsHangul(s)) {
+            return false;
+        }
+        if (s.contains("특별") || s.contains("광역")) {
+            return true;
+        }
+        return s.endsWith("시") || s.endsWith("군") || s.endsWith("구") || s.endsWith("도");
+    }
+
+    /**
+     * UTF-8 바이트를 ISO-8859-1 로 잘못 읽어 생긴 mojibake 복구.
+     * (RestTemplate String 변환·잘못된 XML charset 시 흔함)
+     */
+    private static String normalizeRegionName(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return raw;
+        }
+        String trimmed = raw.trim();
+        if (looksLikeKoreanAdminName(trimmed)) {
+            return trimmed;
+        }
+        try {
+            String fixed = new String(trimmed.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
+            if (looksLikeKoreanAdminName(fixed)) {
+                return fixed;
+            }
+        } catch (Exception ignored) {
+            /* ISO-8859-1 미지원 JVM — 원문 유지 */
+        }
+        return trimmed;
+    }
+
+    private static List<GasAccidentStat> normalizeAllStats(List<GasAccidentStat> stats) {
+        if (stats == null || stats.isEmpty()) {
+            return stats == null ? List.of() : stats;
+        }
+        List<GasAccidentStat> out = new ArrayList<>(stats.size());
+        for (GasAccidentStat s : stats) {
+            out.add(new GasAccidentStat(
+                    normalizeRegionName(s.regionName()),
+                    s.accidentCount(),
+                    s.casualtyCount(),
+                    s.centerLat(),
+                    s.centerLon()));
+        }
+        return out;
+    }
+
     /** 집계 결과에 한글 시군구명이 포함되는지 검사(인코딩 오류 조기 감지). */
     private static boolean regionsLookValid(List<GasAccidentStat> stats) {
         if (stats == null || stats.isEmpty()) {
@@ -292,7 +342,7 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         int checked = Math.min(5, stats.size());
         int valid = 0;
         for (int i = 0; i < checked; i++) {
-            if (containsHangul(stats.get(i).regionName())) {
+            if (looksLikeKoreanAdminName(stats.get(i).regionName())) {
                 valid++;
             }
         }
@@ -386,10 +436,10 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         }
 
         if (!sigungu.isEmpty() && !sido.isEmpty()) {
-            return sigungu.startsWith(sido) ? sigungu : (sido + " " + sigungu);
+            return normalizeRegionName(sigungu.startsWith(sido) ? sigungu : (sido + " " + sigungu));
         }
-        if (!sigungu.isEmpty()) return sigungu;
-        if (!sido.isEmpty()) return sido;
+        if (!sigungu.isEmpty()) return normalizeRegionName(sigungu);
+        if (!sido.isEmpty()) return normalizeRegionName(sido);
         return null;
     }
 
