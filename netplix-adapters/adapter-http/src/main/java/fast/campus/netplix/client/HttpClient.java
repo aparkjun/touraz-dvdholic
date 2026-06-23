@@ -4,6 +4,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
@@ -45,5 +46,10 @@ public class HttpClient {
                 new ParameterizedTypeReference<String>() {
                 }
         ).getBody();
+    }
+
+    /** 응답 charset 을 애플리케이션에서 판별해야 할 때(한글 XML 등) 원시 바이트+헤더를 반환한다. */
+    public ResponseEntity<byte[]> requestUriBytes(URI uri, HttpMethod httpMethod, HttpHeaders headers) {
+        return restTemplate.exchange(uri, httpMethod, new HttpEntity<>(headers), byte[].class);
     }
 }

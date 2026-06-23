@@ -6,6 +6,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -18,6 +20,8 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.StringReader;
 import java.net.URI;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -80,6 +84,10 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
             return cached;
         }
         List<GasAccidentStat> fetched = fetchAllAndAggregate();
+        if (!fetched.isEmpty() && !regionsLookValid(fetched)) {
+            log.warn("[GAS-STAT] 라이브 응답 한글 손상(인코딩 오류) — 스냅샷으로 폴백");
+            fetched = List.of();
+        }
         if (fetched.isEmpty()) {
             // safemap 은 해외(클라우드) IP 의 연결을 막는다(Connection reset). 따라서 운영 서버(미국)에서는
             // 라이브 호출이 실패하므로, 내장 스냅샷(연 1회 갱신 데이터를 한국 IP 에서 미리 수집·집계)으로 fallback.
@@ -184,11 +192,111 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.add(HttpHeaders.ACCEPT, "application/xml");
-            return httpClient.requestUri(URI.create(url), HttpMethod.GET, headers);
+            ResponseEntity<byte[]> res = httpClient.requestUriBytes(URI.create(url), HttpMethod.GET, headers);
+            byte[] body = res.getBody();
+            if (body == null || body.length == 0) {
+                return null;
+            }
+            return decodeSafemapXml(body, res.getHeaders());
         } catch (Exception ex) {
             log.warn("[GAS-STAT] 호출 실패(page={}): {}", pageNo, ex.getMessage());
             return null;
         }
+    }
+
+    /**
+     * safemap XML 응답 charset 을 올바르게 고른다.
+     * RestTemplate String 변환은 Content-Type/본문 인코딩을 놓치면 한글이 깨진 채로 파싱된다.
+     */
+    private static String decodeSafemapXml(byte[] b, HttpHeaders headers) {
+        Charset fromHeader = charsetFromContentType(headers);
+        if (fromHeader != null) {
+            return new String(b, fromHeader);
+        }
+        Charset fromXml = encodingFromXmlDeclaration(b);
+        if (fromXml != null) {
+            String decoded = new String(b, fromXml);
+            if (containsHangul(decoded)) {
+                return decoded;
+            }
+        }
+        String utf8 = new String(b, StandardCharsets.UTF_8);
+        if (containsHangul(utf8)) {
+            return utf8;
+        }
+        try {
+            Charset euc = Charset.forName("EUC-KR");
+            String eucKr = new String(b, euc);
+            if (containsHangul(eucKr)) {
+                return eucKr;
+            }
+        } catch (Exception ignored) {
+            /* EUC-KR 미지원 JVM — UTF-8 그대로 */
+        }
+        return utf8;
+    }
+
+    private static Charset charsetFromContentType(HttpHeaders headers) {
+        MediaType mt = headers.getContentType();
+        if (mt == null) {
+            return null;
+        }
+        return mt.getCharset();
+    }
+
+    /** {@code <?xml ... encoding="UTF-8"?>} 선두에서 charset 추출. */
+    private static Charset encodingFromXmlDeclaration(byte[] b) {
+        int len = Math.min(b.length, 256);
+        String head = new String(b, 0, len, StandardCharsets.US_ASCII).toLowerCase();
+        int encIdx = head.indexOf("encoding=");
+        if (encIdx < 0) {
+            return null;
+        }
+        int q = head.indexOf('"', encIdx);
+        if (q < 0) {
+            return null;
+        }
+        int q2 = head.indexOf('"', q + 1);
+        if (q2 < 0) {
+            return null;
+        }
+        String enc = head.substring(q + 1, q2).trim();
+        if (enc.isEmpty()) {
+            return null;
+        }
+        try {
+            return Charset.forName(enc);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private static boolean containsHangul(String s) {
+        if (s == null || s.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c >= 0xAC00 && c <= 0xD7A3) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 집계 결과에 한글 시군구명이 포함되는지 검사(인코딩 오류 조기 감지). */
+    private static boolean regionsLookValid(List<GasAccidentStat> stats) {
+        if (stats == null || stats.isEmpty()) {
+            return false;
+        }
+        int checked = Math.min(5, stats.size());
+        int valid = 0;
+        for (int i = 0; i < checked; i++) {
+            if (containsHangul(stats.get(i).regionName())) {
+                valid++;
+            }
+        }
+        return valid >= Math.max(1, checked / 2);
     }
 
     private record PageResult(int totalCount, int itemCount, boolean error) { }
