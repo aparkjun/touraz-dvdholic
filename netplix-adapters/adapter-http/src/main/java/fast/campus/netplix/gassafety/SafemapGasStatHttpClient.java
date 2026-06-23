@@ -1,6 +1,7 @@
 package fast.campus.netplix.gassafety;
 
 import fast.campus.netplix.client.HttpClient;
+import fast.campus.netplix.util.GasRegionNameNormalizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -81,7 +82,12 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         long now = Instant.now().toEpochMilli();
         List<GasAccidentStat> cached = cache;
         if (cached != null && now - cachedAtMs < CACHE_TTL_MS) {
-            return cached;
+            List<GasAccidentStat> normalized = normalizeAllStats(cached);
+            if (regionsLookValid(normalized)) {
+                return normalized;
+            }
+            log.warn("[GAS-STAT] 손상된 캐시 무시 — 재조회");
+            cache = null;
         }
         List<GasAccidentStat> fetched = normalizeAllStats(fetchAllAndAggregate());
         if (!fetched.isEmpty() && !regionsLookValid(fetched)) {
@@ -284,40 +290,6 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         return false;
     }
 
-    /** 행정구역명처럼 보이는지(한글 + 시·군·구·도 등). EUC-KR 오해 디코딩의 가짜 한글은 걸러낸다. */
-    private static boolean looksLikeKoreanAdminName(String s) {
-        if (s == null || !containsHangul(s)) {
-            return false;
-        }
-        if (s.contains("특별") || s.contains("광역")) {
-            return true;
-        }
-        return s.endsWith("시") || s.endsWith("군") || s.endsWith("구") || s.endsWith("도");
-    }
-
-    /**
-     * UTF-8 바이트를 ISO-8859-1 로 잘못 읽어 생긴 mojibake 복구.
-     * (RestTemplate String 변환·잘못된 XML charset 시 흔함)
-     */
-    private static String normalizeRegionName(String raw) {
-        if (raw == null || raw.isBlank()) {
-            return raw;
-        }
-        String trimmed = raw.trim();
-        if (looksLikeKoreanAdminName(trimmed)) {
-            return trimmed;
-        }
-        try {
-            String fixed = new String(trimmed.getBytes(StandardCharsets.ISO_8859_1), StandardCharsets.UTF_8);
-            if (looksLikeKoreanAdminName(fixed)) {
-                return fixed;
-            }
-        } catch (Exception ignored) {
-            /* ISO-8859-1 미지원 JVM — 원문 유지 */
-        }
-        return trimmed;
-    }
-
     private static List<GasAccidentStat> normalizeAllStats(List<GasAccidentStat> stats) {
         if (stats == null || stats.isEmpty()) {
             return stats == null ? List.of() : stats;
@@ -325,7 +297,7 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         List<GasAccidentStat> out = new ArrayList<>(stats.size());
         for (GasAccidentStat s : stats) {
             out.add(new GasAccidentStat(
-                    normalizeRegionName(s.regionName()),
+                    GasRegionNameNormalizer.normalize(s.regionName()),
                     s.accidentCount(),
                     s.casualtyCount(),
                     s.centerLat(),
@@ -342,7 +314,7 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         int checked = Math.min(5, stats.size());
         int valid = 0;
         for (int i = 0; i < checked; i++) {
-            if (looksLikeKoreanAdminName(stats.get(i).regionName())) {
+            if (GasRegionNameNormalizer.looksLikeKoreanAdminName(stats.get(i).regionName())) {
                 valid++;
             }
         }
@@ -436,10 +408,10 @@ public class SafemapGasStatHttpClient implements GasAccidentStatPort {
         }
 
         if (!sigungu.isEmpty() && !sido.isEmpty()) {
-            return normalizeRegionName(sigungu.startsWith(sido) ? sigungu : (sido + " " + sigungu));
+            return GasRegionNameNormalizer.normalize(sigungu.startsWith(sido) ? sigungu : (sido + " " + sigungu));
         }
-        if (!sigungu.isEmpty()) return normalizeRegionName(sigungu);
-        if (!sido.isEmpty()) return normalizeRegionName(sido);
+        if (!sigungu.isEmpty()) return GasRegionNameNormalizer.normalize(sigungu);
+        if (!sido.isEmpty()) return GasRegionNameNormalizer.normalize(sido);
         return null;
     }
 

@@ -1,6 +1,7 @@
 package fast.campus.netplix.controller.gassafety;
 
 import fast.campus.netplix.gassafety.GasAccidentStat;
+import fast.campus.netplix.util.GasRegionNameNormalizer;
 
 /**
  * 가스사고발생통계(시군구) 프론트 소비용 DTO.
@@ -13,7 +14,11 @@ public record GasAccidentStatResponse(
         Double lon
 ) {
     public static GasAccidentStatResponse from(GasAccidentStat s) {
-        return new GasAccidentStatResponse(s.regionName(), s.accidentCount(), s.casualtyCount(),
-                s.centerLat(), s.centerLon());
+        return new GasAccidentStatResponse(
+                GasRegionNameNormalizer.normalize(s.regionName()),
+                s.accidentCount(),
+                s.casualtyCount(),
+                s.centerLat(),
+                s.centerLon());
     }
 }
