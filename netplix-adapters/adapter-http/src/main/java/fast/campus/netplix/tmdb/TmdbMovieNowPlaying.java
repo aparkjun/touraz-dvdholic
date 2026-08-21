@@ -1,5 +1,6 @@
 package fast.campus.netplix.tmdb;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import fast.campus.netplix.movie.NetplixMovie;
 import lombok.Getter;
@@ -7,6 +8,7 @@ import lombok.Getter;
 import java.util.List;
 
 @Getter
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TmdbMovieNowPlaying {
     private Boolean adult;
 

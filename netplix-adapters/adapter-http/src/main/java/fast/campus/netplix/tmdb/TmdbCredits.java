@@ -1,14 +1,17 @@
 package fast.campus.netplix.tmdb;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
 import java.util.List;
 
 @Getter
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TmdbCredits {
     private List<Cast> cast;
     private List<Crew> crew;
     
     @Getter
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Cast {
         private String name;
         private String character;
@@ -16,6 +19,7 @@ public class TmdbCredits {
     }
     
     @Getter
+    @JsonIgnoreProperties(ignoreUnknown = true)
     public static class Crew {
         private String name;
         private String job;

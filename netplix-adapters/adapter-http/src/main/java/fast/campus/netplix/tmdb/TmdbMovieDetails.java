@@ -1,5 +1,6 @@
 package fast.campus.netplix.tmdb;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 
@@ -9,6 +10,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Getter
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class TmdbMovieDetails {
     private Integer id;
     private String title;
