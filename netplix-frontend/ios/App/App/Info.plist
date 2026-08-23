@@ -134,7 +134,7 @@
 	<!-- Universal Links for OAuth callback -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:dvdholic-01a66e19fbd3.herokuapp.com</string>
+		<string>applinks:touraz-dvdholic-2194adc70fa6.herokuapp.com</string>
 	</array>
 </dict>
 </plist>
