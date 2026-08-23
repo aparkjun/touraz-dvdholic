@@ -1,4 +1,4 @@
-$base = "https://touraz-dvdholic-2507bcb348dd.herokuapp.com"
+$base = "https://touraz-dvdholic-2194adc70fa6.herokuapp.com"
 $tests = @(
     @{ Label = "CineTrip count";             Url = "$base/api/v1/cine-trip/count" },
     @{ Label = "CineTrip mix (limit=5)";     Url = "$base/api/v1/cine-trip?limit=5" },

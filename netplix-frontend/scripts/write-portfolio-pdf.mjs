@@ -71,7 +71,7 @@ async function extractLegacyText(legacyPath) {
 }
 
 function writeTourazSection(doc, fonts) {
-  paragraph(doc, '배포 URL: https://touraz-dvdholic-2507bcb348dd.herokuapp.com/', { size: 10, bold: false });
+  paragraph(doc, '배포 URL: https://touraz-dvdholic-2194adc70fa6.herokuapp.com/', { size: 10, bold: false });
   paragraph(
     doc,
     '이 섹션은 같은 PDF 문서에서, 앞쪽에 배치한 원본 PDF 텍스트 추출분 뒤에 이어 붙인 Touraz Holic 프로젝트 보충입니다.',

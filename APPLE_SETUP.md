@@ -10,8 +10,8 @@
    - Description: `Touraz Holic Web`
    - Identifier: `com.yourcompany.dvdholic.service` (??μ쪠????
    - **Sign In with Apple** ??戮?뎽????Configure
-   - Domains: `touraz-dvdholic-2507bcb348dd.herokuapp.com` (???깆젷 ???熬곣뫁而??
-   - Return URLs: `https://touraz-dvdholic-2507bcb348dd.herokuapp.com/login/oauth2/code/apple`
+   - Domains: `touraz-dvdholic-2194adc70fa6.herokuapp.com` (???깆젷 ???熬곣뫁而??
+   - Return URLs: `https://touraz-dvdholic-2194adc70fa6.herokuapp.com/login/oauth2/code/apple`
 
 4. **Keys** 嶺뚮∥?????????????諛댁뎽
    - **Sign In with Apple** ??戮?뎽??
@@ -62,7 +62,7 @@ console.log(token);
 heroku config:set SPRING_PROFILES_ACTIVE=apple -a touraz-dvdholic
 heroku config:set SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_APPLE_CLIENT_ID=com.yourcompany.dvdholic.service -a touraz-dvdholic
 heroku config:set SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_APPLE_CLIENT_SECRET="??諛댁뎽??JWT" -a touraz-dvdholic
-heroku config:set SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_APPLE_REDIRECT_URI=https://touraz-dvdholic-2507bcb348dd.herokuapp.com/login/oauth2/code/apple -a touraz-dvdholic
+heroku config:set SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_APPLE_REDIRECT_URI=https://touraz-dvdholic-2194adc70fa6.herokuapp.com/login/oauth2/code/apple -a touraz-dvdholic
 heroku config:set REACT_APP_APPLE_LOGIN_ENABLED=true -a touraz-dvdholic
 ```
 

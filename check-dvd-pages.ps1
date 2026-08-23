@@ -2,7 +2,7 @@
 # 1留뚰렪 = ?섏씠吏 0~999 (1000?섏씠吏), ?섏씠吏??10??
 
 param(
-    [string]$BaseUrl = "https://touraz-dvdholic-2507bcb348dd.herokuapp.com",
+    [string]$BaseUrl = "https://touraz-dvdholic-2194adc70fa6.herokuapp.com",
     [int]$LastPage = 999,
     [switch]$CheckImages
 )

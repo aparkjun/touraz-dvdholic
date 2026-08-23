@@ -21,7 +21,6 @@ const nextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: 'image.tmdb.org' },
       { protocol: 'https', hostname: 'img.icons8.com' },
-      { protocol: 'https', hostname: 'touraz-dvdholic-2507bcb348dd.herokuapp.com' },
       { protocol: 'https', hostname: 'touraz-dvdholic-2194adc70fa6.herokuapp.com' },
       { protocol: 'https', hostname: 'cdnjs.cloudflare.com' },
       { protocol: 'https', hostname: 'raw.githubusercontent.com' },

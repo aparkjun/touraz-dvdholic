@@ -14,8 +14,8 @@
  */
 import { Capacitor } from "@capacitor/core";
 
-const HEROKU_API_URL = "https://touraz-dvdholic-2507bcb348dd.herokuapp.com";
-const HEROKU_API_HOST = "touraz-dvdholic-2507bcb348dd.herokuapp.com";
+const HEROKU_API_URL = "https://touraz-dvdholic-2194adc70fa6.herokuapp.com";
+const HEROKU_API_HOST = "touraz-dvdholic-2194adc70fa6.herokuapp.com";
 
 function isNativeCapacitor() {
   try {

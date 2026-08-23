@@ -5,7 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Touraz Holic',
   webDir: 'build',
   server: {
-    url: 'https://touraz-dvdholic-2507bcb348dd.herokuapp.com',
+    url: 'https://touraz-dvdholic-2194adc70fa6.herokuapp.com',
     cleartext: false,
   },
   plugins: {

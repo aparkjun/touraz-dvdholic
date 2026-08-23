@@ -3,7 +3,7 @@
 # 留덉?留??섏씠吏(999)媛 ?뺤긽 議고쉶?섎뒗吏 ?뺤씤
 
 param(
-    [string]$BaseUrl = "https://touraz-dvdholic-2507bcb348dd.herokuapp.com",
+    [string]$BaseUrl = "https://touraz-dvdholic-2194adc70fa6.herokuapp.com",
     [int]$LastPage = 999,
     [switch]$CheckImages
 )

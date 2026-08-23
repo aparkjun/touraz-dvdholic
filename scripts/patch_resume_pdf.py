@@ -4,11 +4,11 @@ import tempfile
 
 src = r"c:\Users\USER\Downloads\이력서예제_갱신 (1) (1).pdf"
 old_url = "https://dvdholic-01a66e19fbd3.herokuapp.com/"
-new_url = "https://touraz-dvdholic-2507bcb348dd.herokuapp.com/"
+new_url = "https://touraz-dvdholic-2194adc70fa6.herokuapp.com/"
 
 doc = fitz.open(src)
 page_text = doc[2].get_text()
-needs_edit = old_url in page_text or "touraz-dvdholic-2507bcb348dd" not in page_text
+needs_edit = old_url in page_text or "touraz-dvdholic-2194adc70fa6" not in page_text
 
 if needs_edit:
     page = doc[2]
@@ -35,6 +35,6 @@ t2 = doc2[2].get_text()
 doc2.close()
 
 print("overwritten:", src)
-print("touraz_ok:", "touraz-dvdholic-2507bcb348dd.herokuapp.com" in t2)
+print("touraz_ok:", "touraz-dvdholic-2194adc70fa6.herokuapp.com" in t2)
 print("old_gone:", old_url not in t2)
 print("size:", os.path.getsize(src))
