@@ -824,6 +824,20 @@ body.app-theme-travel-cinema .app-nav-mobile .app-chip-mypage:hover {
  * 클릭 가능 영역이 brand 아래로 가려지지 않게 보장. */
 .app-nav-leftmost { flex: 0 0 auto; margin-left: 12px; margin-right: auto; position: relative; display: flex; align-items: center; gap: 8px; z-index: 2; }
 
+/* 랜딩(/) 전용 — 언어 토글(KO/EN/日本語)이 가운데 브랜드 로고를 가리지 않도록,
+ * 세 버튼을 같은 수평선에 유지한 채 상단바 로고 아래(둘째 줄, 좌측)로 내린다. */
+.app-nav.app-nav--landing {
+  padding-bottom: 42px;
+}
+.app-nav.app-nav--landing .app-nav-leftmost {
+  position: absolute;
+  left: 12px;
+  right: auto;
+  top: calc(100% + 4px);
+  bottom: auto;
+  margin: 0;
+}
+
 /* /dashboard 전용 — 중앙 로고 양옆 광고 문구 (CSS 애니메이션으로 ‘GIF’ 느낌) */
 .app-nav-dashboard-promo {
   position: absolute;

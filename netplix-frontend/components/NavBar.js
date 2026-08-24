@@ -68,7 +68,8 @@ export default function NavBar() {
   const navClass =
     'app-nav' +
     (isDashboardRoute ? ' app-nav--dashboard' : '') +
-    (useSolidWhiteNav ? ' app-nav--landing-light' : '');
+    (useSolidWhiteNav ? ' app-nav--landing-light' : '') +
+    (isLandingPage ? ' app-nav--landing' : '');
 
   return (
     <nav className={navClass}>
