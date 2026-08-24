@@ -18,7 +18,7 @@ import useBackButtonClose from '@/lib/useBackButtonClose';
  */
 export default function PhotoGalleryStrip({ areaCode = null, keyword = null, limit = 12, title = '수상작 포토스팟' }) {
   const { i18n } = useTranslation();
-  const isEn = i18n.language && i18n.language.startsWith('en');
+  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja'));
 
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -224,7 +224,7 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
   // KTO 관광공모전(수상작 사진) 서비스는 영문판이 존재하지 않는 한국 특화 데이터라,
   // 영어 모드에서는 섹션 자체를 숨겨 한국어 사진 설명/수상 정보가 외국인 사용자에게
   // 그대로 노출되는 것을 막는다. (ㄴ 정책)
-  if (isEn) return null;
+  if (isForeign) return null;
 
   return (
     <section style={{ marginTop: 32, marginBottom: 24 }}>

@@ -44,7 +44,10 @@ function secureTourImageUrl(url) {
 
 export default function EngTourSpotsStrip({ areaCode, regionLabel = '' }) {
   const { t, i18n } = useTranslation();
-  const isEn = i18n.language && i18n.language.startsWith('en');
+  // 외국어(영어/일본어) 모드에서만 노출. 로케일에 따라 EngService2 / JpnService2 로 라우팅.
+  const lang = (i18n.language || 'ko').slice(0, 2);
+  const isForeign = lang === 'en' || lang === 'ja';
+  const tourEndpoint = lang === 'ja' ? '/api/v1/tour/jpn' : '/api/v1/tour/eng';
 
   const [buckets, setBuckets] = useState({});
   const [activeBucket, setActiveBucket] = useState('attractions');
@@ -55,7 +58,7 @@ export default function EngTourSpotsStrip({ areaCode, regionLabel = '' }) {
   useBackButtonClose(!!activePoi, () => setActivePoi(null));
 
   useEffect(() => {
-    if (!isEn || !areaCode) {
+    if (!isForeign || !areaCode) {
       setBuckets({});
       setLoading(false);
       return;
@@ -64,11 +67,11 @@ export default function EngTourSpotsStrip({ areaCode, regionLabel = '' }) {
     (async () => {
       setLoading(true);
       try {
-        // 3 버킷 동시 요청(병렬). EngService2 는 응답이 빠르고 캐시되어 있어 다중 호출 부담 낮음.
+        // 3 버킷 동시 요청(병렬). EngService2/JpnService2 는 응답이 빠르고 캐시되어 있어 다중 호출 부담 낮음.
         const results = await Promise.all(
           BUCKETS.map((b) =>
             axios
-              .get(`/api/v1/tour/eng?areaCode=${encodeURIComponent(areaCode)}&type=${b.type}&limit=8`)
+              .get(`${tourEndpoint}?areaCode=${encodeURIComponent(areaCode)}&type=${b.type}&limit=8`)
               .then((res) => [b.key, Array.isArray(res?.data?.data) ? res.data.data : []])
               .catch(() => [b.key, []])
           )
@@ -89,7 +92,7 @@ export default function EngTourSpotsStrip({ areaCode, regionLabel = '' }) {
     return () => {
       alive = false;
     };
-  }, [isEn, areaCode]);
+  }, [isForeign, tourEndpoint, areaCode]);
 
   // 활성 탭이 비어있으면 첫 번째로 채워진 탭으로 자동 전환 (hook 순서 규칙 준수를 위해 early return 전).
   useEffect(() => {
@@ -106,7 +109,7 @@ export default function EngTourSpotsStrip({ areaCode, regionLabel = '' }) {
     [buckets]
   );
 
-  if (!isEn) return null; // 이 컴포넌트는 영어 모드 전용.
+  if (!isForeign) return null; // 이 컴포넌트는 외국어(영어/일본어) 모드 전용.
   if (!loading && totalCount === 0) return null;
 
   const activeList = buckets?.[activeBucket] || [];

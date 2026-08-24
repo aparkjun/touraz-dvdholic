@@ -23,4 +23,16 @@ public interface TextTranslationPort {
      * 번역 실패·미지원 언어·키 미설정 시 입력 원문을 그대로 반환한다.
      */
     List<String> translate(List<String> texts, String targetLang);
+
+    /**
+     * 도메인별 페르소나/문체를 적용해 번역한다.
+     *
+     * <p>{@code domain}에 따라 시스템 프롬프트(문체·전문용어)가 달라진다. 예:
+     * {@code "tourism"}(관광 오디오가이드 해설), {@code "film"}(영화/DVD/음악영화 카탈로그 소개문).
+     * 미지원 도메인은 기본 번역과 동일하게 동작한다. 기본 구현은 도메인을 무시하고
+     * {@link #translate(List, String)}에 위임하므로 기존 구현체는 그대로 컴파일된다.
+     */
+    default List<String> translate(List<String> texts, String targetLang, String domain) {
+        return translate(texts, targetLang);
+    }
 }

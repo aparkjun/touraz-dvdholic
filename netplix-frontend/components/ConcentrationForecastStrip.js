@@ -20,7 +20,7 @@ import { useTranslation } from 'react-i18next';
  */
 export default function ConcentrationForecastStrip({ areaCode = null, regionLabel = '' }) {
   const { i18n } = useTranslation();
-  const isEn = i18n.language && i18n.language.startsWith('en');
+  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja'));
 
   const [predictions, setPredictions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -54,7 +54,7 @@ export default function ConcentrationForecastStrip({ areaCode = null, regionLabe
   if (!areaCode) return null;
   if (!loading && predictions.length === 0) return null;
   // 혼잡도 예측(KorService2 국내 관광지 한정) 영어판 미제공 → 영어 모드에서는 섹션 자체 숨김.
-  if (isEn) return null;
+  if (isForeign) return null;
 
   const spotName = predictions[0]?.spotName;
   const signguName = predictions[0]?.signguName;

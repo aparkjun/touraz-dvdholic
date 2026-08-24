@@ -95,7 +95,7 @@ const THEME_PALETTE = {
 
 export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '', theme = 'dark' }) {
   const { i18n } = useTranslation();
-  const isEn = i18n.language && i18n.language.startsWith('en');
+  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja'));
   const palette = THEME_PALETTE[theme === 'light' ? 'light' : 'dark'];
 
   const [buckets, setBuckets] = useState({});
@@ -142,7 +142,7 @@ export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '', them
   );
   if (!loading && totalCount === 0) return null;
   // 반려동물 친화 관광(KorPetTourService) 국내 전용 → 영어 모드에서는 섹션 숨김.
-  if (isEn) return null;
+  if (isForeign) return null;
 
   const activeList = buckets?.[activeBucket] || [];
 

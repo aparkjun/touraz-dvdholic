@@ -148,17 +148,33 @@ function NavLogoutButton({ onLogout }) {
 
 function LanguageToggle() {
   const { i18n } = useTranslation();
-  const nextLang = i18n.language?.startsWith('ko') ? 'en' : 'ko';
-  const label = nextLang === 'en' ? 'EN' : 'KO';
+  const current = (i18n.language || 'ko').slice(0, 2);
+  const langs = [
+    { code: 'ko', label: 'KO' },
+    { code: 'en', label: 'EN' },
+    { code: 'ja', label: '日本語' },
+  ];
   return (
-    <button
-      className="app-chip app-chip-secondary"
-      onClick={() => setUserLanguage(nextLang)}
-      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', minWidth: 'auto', padding: '4px 10px', fontSize: '12px' }}
+    <div
+      className="app-lang-switch"
+      role="group"
+      aria-label="Language"
+      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
     >
-      <Globe size={14} />
-      {label}
-    </button>
+      <Globe size={14} aria-hidden="true" />
+      {langs.map(({ code, label }) => (
+        <button
+          key={code}
+          type="button"
+          className={`app-chip ${current === code ? 'app-chip-primary' : 'app-chip-secondary'}`}
+          aria-pressed={current === code}
+          onClick={() => setUserLanguage(code)}
+          style={{ minWidth: 'auto', padding: '4px 8px', fontSize: '12px', lineHeight: 1 }}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
   );
 }
 

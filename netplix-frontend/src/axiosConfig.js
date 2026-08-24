@@ -4,7 +4,13 @@ import { getApiBaseUrl } from "./apiConfig";
 // i18next 현재 언어 감지(브라우저 전용). Capacitor WebView 에서도 동일하게 동작.
 function getAcceptLanguage() {
   if (typeof window === "undefined") return "ko-KR,ko;q=0.9";
-  const lang = (window.localStorage?.getItem("i18nextLng") || "ko").toLowerCase();
+  const lang = (
+    window.localStorage?.getItem("user_lang") ||
+    window.localStorage?.getItem("i18nextLng") ||
+    "ko"
+  ).toLowerCase();
+  if (lang.startsWith("ja")) return "ja-JP,ja;q=0.9";
+  if (lang.startsWith("zh")) return "zh-CN,zh;q=0.9";
   if (lang.startsWith("en")) return "en-US,en;q=0.9";
   return "ko-KR,ko;q=0.9";
 }

@@ -26,7 +26,7 @@ import { resolveAreaCode, areaLabel } from '@/lib/regionAreaCode';
  */
 export default function DvdReturnQuietSpots({ keyword = '', lat, lng }) {
   const { i18n } = useTranslation();
-  const isEn = i18n.language && i18n.language.startsWith('en');
+  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja'));
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -35,7 +35,7 @@ export default function DvdReturnQuietSpots({ keyword = '', lat, lng }) {
   const areaCode = useMemo(() => resolveAreaCode(keyword), [keyword]);
 
   useEffect(() => {
-    if (!areaCode || isEn) return;
+    if (!areaCode || isForeign) return;
     let alive = true;
     (async () => {
       setLoading(true);
@@ -53,7 +53,7 @@ export default function DvdReturnQuietSpots({ keyword = '', lat, lng }) {
     return () => {
       alive = false;
     };
-  }, [areaCode, isEn]);
+  }, [areaCode, isForeign]);
 
   const topQuiet = useMemo(() => {
     if (!areaCode) return [];
@@ -88,7 +88,7 @@ export default function DvdReturnQuietSpots({ keyword = '', lat, lng }) {
     return enriched.sort((a, b) => a.avg - b.avg).slice(0, 6);
   }, [rows, areaCode]);
 
-  if (isEn) return null;
+  if (isForeign) return null;
   if (!areaCode) return null;
   if (!loading && topQuiet.length === 0) return null;
 

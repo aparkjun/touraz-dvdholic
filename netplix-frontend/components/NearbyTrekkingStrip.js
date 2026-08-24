@@ -31,7 +31,7 @@ export default function NearbyTrekkingStrip({
   showEarthProLinks = true,
 }) {
   const { i18n } = useTranslation();
-  const isEn = i18n.language && i18n.language.startsWith('en');
+  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja'));
 
   const isLight = theme === 'light';
   const headerBadgeBg = isLight
@@ -78,7 +78,7 @@ export default function NearbyTrekkingStrip({
 
   if (!loading && !error && courses.length === 0) return null;
   // 두루누비(한국관광공사 코리아둘레길) 국내 전용 트래킹 코스 → 영어 모드에서는 섹션 숨김.
-  if (isEn) return null;
+  if (isForeign) return null;
 
   const lightRailStyle = isLight
     ? {

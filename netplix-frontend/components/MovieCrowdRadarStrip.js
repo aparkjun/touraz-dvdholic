@@ -20,7 +20,7 @@ import { areaLabel, resolveAreaCode } from '@/lib/regionAreaCode';
  */
 export default function MovieCrowdRadarStrip({ movieName }) {
   const { i18n } = useTranslation();
-  const isEn = i18n.language && i18n.language.startsWith('en');
+  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja'));
 
   const [mapping, setMapping] = useState(null); // { areaCode, regionName, evidence } | null
   const [predictions, setPredictions] = useState([]);
@@ -28,7 +28,7 @@ export default function MovieCrowdRadarStrip({ movieName }) {
   const lastMovieRef = useRef('');
 
   useEffect(() => {
-    if (!movieName || isEn) return;
+    if (!movieName || isForeign) return;
     if (lastMovieRef.current === movieName) return;
     lastMovieRef.current = movieName;
     let alive = true;
@@ -75,7 +75,7 @@ export default function MovieCrowdRadarStrip({ movieName }) {
     return () => {
       alive = false;
     };
-  }, [movieName, isEn]);
+  }, [movieName, isForeign]);
 
   const summary = useMemo(() => {
     if (!predictions.length) return null;
@@ -105,7 +105,7 @@ export default function MovieCrowdRadarStrip({ movieName }) {
     };
   }, [predictions]);
 
-  if (isEn) return null;
+  if (isForeign) return null;
   if (!movieName) return null;
   if (!loading && (!mapping || !predictions.length)) return null;
 

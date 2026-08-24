@@ -88,6 +88,21 @@ visitkorea:
     search-keyword: ${visitkorea.eng.base-url}/searchKeyword2
     detail-common: ${visitkorea.eng.base-url}/detailCommon2
     cache-minutes: 360
+  # 일문 관광정보 서비스 (한국관광공사_일문_관광정보서비스_GW, Base URL: apis.data.go.kr/B551011/JpnService2)
+  # EngService2 와 오퍼레이션 스펙·응답 구조·다국어 contentTypeId 체계(76/78/85/75/77/80/79/82)가 동일하며,
+  # 응답 메타(title/addr1/overview 등)만 일문으로 내려온다. 일본어 모드 사용자가 촬영지·배경지·주변
+  # 여행 POI 를 일문으로 탐색할 수 있게 연결한다.
+  # - 서비스 키: VISITKOREA_JPN_SERVICE_KEY 우선, 미설정 시 공용 VISITKOREA_SERVICE_KEY 로 fallback.
+  # - 지원 오퍼레이션(Phase 1): areaBasedList2 / locationBasedList2 / searchKeyword2 / detailCommon2
+  jpn:
+    auth:
+      service-key: ${VISITKOREA_JPN_SERVICE_KEY:${VISITKOREA_SERVICE_KEY:}}
+    base-url: https://apis.data.go.kr/B551011/JpnService2
+    area-based: ${visitkorea.jpn.base-url}/areaBasedList2
+    location-based: ${visitkorea.jpn.base-url}/locationBasedList2
+    search-keyword: ${visitkorea.jpn.base-url}/searchKeyword2
+    detail-common: ${visitkorea.jpn.base-url}/detailCommon2
+    cache-minutes: 360
   api:
     base-url: https://apis.data.go.kr/B551011/DataLabService
     # 광역 지자체 방문자수 (metcoRegnVisitrDDList) - 활성. 응답의 areaCode 는 11,26,... 이며

@@ -131,6 +131,21 @@ public class MovieEntity extends MutableBaseEntity {
     @Column(name = "BACKDROP_PATH_EN", length = 500)
     private String backdropPathEn;
 
+    @Column(name = "MOVIE_NAME_JA", length = 500)
+    private String movieNameJa;
+
+    @Column(name = "OVERVIEW_JA", columnDefinition = "TEXT")
+    private String overviewJa;
+
+    @Column(name = "TAGLINE_JA", length = 500)
+    private String taglineJa;
+
+    @Column(name = "POSTER_PATH_JA", length = 500)
+    private String posterPathJa;
+
+    @Column(name = "BACKDROP_PATH_JA", length = 500)
+    private String backdropPathJa;
+
     @Setter
     @Column(name = "FIRST_SEEN_AT")
     private LocalDateTime firstSeenAt;
@@ -172,6 +187,11 @@ public class MovieEntity extends MutableBaseEntity {
                 .taglineEn(this.taglineEn)
                 .posterPathEn(this.posterPathEn)
                 .backdropPathEn(this.backdropPathEn)
+                .movieNameJa(this.movieNameJa)
+                .overviewJa(this.overviewJa)
+                .taglineJa(this.taglineJa)
+                .posterPathJa(this.posterPathJa)
+                .backdropPathJa(this.backdropPathJa)
                 .firstSeenAt(this.firstSeenAt)
                 .build();
     }
@@ -214,6 +234,11 @@ public class MovieEntity extends MutableBaseEntity {
                 netplixMovie.getTaglineEn(),
                 netplixMovie.getPosterPathEn(),
                 netplixMovie.getBackdropPathEn(),
+                netplixMovie.getMovieNameJa(),
+                truncateOrNull(netplixMovie.getOverviewJa()),
+                netplixMovie.getTaglineJa(),
+                netplixMovie.getPosterPathJa(),
+                netplixMovie.getBackdropPathJa(),
                 netplixMovie.getFirstSeenAt() != null ? netplixMovie.getFirstSeenAt() : LocalDateTime.now()
         );
     }

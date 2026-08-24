@@ -17,16 +17,23 @@ i18n.use(initReactI18next).init({
   interpolation: { escapeValue: false },
 });
 
+export const SUPPORTED_LANGS = ["ko", "en", "ja", "zh"];
+
 export function detectAndApplyLanguage() {
   if (typeof window === "undefined") return;
   const userChoice = localStorage.getItem("user_lang");
-  if (userChoice && ["ko", "en", "ja", "zh"].includes(userChoice)) {
+  if (userChoice && SUPPORTED_LANGS.includes(userChoice)) {
+    // axiosConfig 의 Accept-Language(관광 POI·TMDB 라우팅)는 i18nextLng 를 읽으므로 함께 동기화한다.
+    localStorage.setItem("i18nextLng", userChoice);
     i18n.changeLanguage(userChoice);
   }
 }
 
 export function setUserLanguage(lang) {
+  if (!SUPPORTED_LANGS.includes(lang)) return;
   localStorage.setItem("user_lang", lang);
+  // user_lang 과 i18nextLng 불일치로 UI 언어와 Accept-Language 가 어긋나던 버그 방지.
+  localStorage.setItem("i18nextLng", lang);
   i18n.changeLanguage(lang);
 }
 

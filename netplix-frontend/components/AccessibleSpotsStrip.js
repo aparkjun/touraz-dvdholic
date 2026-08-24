@@ -50,7 +50,7 @@ const BUCKET_ORDER = [
 
 export default function AccessibleSpotsStrip({ areaCode, regionLabel = '' }) {
   const { i18n } = useTranslation();
-  const isEn = i18n.language && i18n.language.startsWith('en');
+  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja'));
 
   const [buckets, setBuckets] = useState({});
   const [activeBucket, setActiveBucket] = useState('attractions');
@@ -99,7 +99,7 @@ export default function AccessibleSpotsStrip({ areaCode, regionLabel = '' }) {
     return null;
   }
   // 무장애 관광(KorWithService2) 국내 전용 데이터셋 → 영어 모드에서는 섹션 전체 숨김.
-  if (isEn) return null;
+  if (isForeign) return null;
 
   const activeList = buckets?.[activeBucket] || [];
 

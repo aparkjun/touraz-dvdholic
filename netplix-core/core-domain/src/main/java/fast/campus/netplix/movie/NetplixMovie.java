@@ -47,5 +47,11 @@ public class NetplixMovie {
     private final String posterPathEn;     // 영어 포스터 경로
     private final String backdropPathEn;   // 영어 배경 이미지 경로
 
+    private final String movieNameJa;      // 일본어 제목 (邦題, TMDB ja-JP)
+    private final String overviewJa;       // 일본어 줄거리 (TMDB ja-JP → 없으면 AI 번역)
+    private final String taglineJa;        // 일본어 태그라인
+    private final String posterPathJa;     // 일본어 포스터 경로
+    private final String backdropPathJa;   // 일본어 배경 이미지 경로
+
     private final LocalDateTime firstSeenAt; // 이 영화/DVD가 카탈로그에 최초 등장한 시점 (NEW 뱃지 기준)
 }

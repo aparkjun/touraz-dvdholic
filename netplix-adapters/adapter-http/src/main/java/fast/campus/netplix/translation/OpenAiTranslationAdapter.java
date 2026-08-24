@@ -74,10 +74,16 @@ public class OpenAiTranslationAdapter implements TextTranslationPort {
 
     @Override
     public List<String> translate(List<String> texts, String targetLang) {
+        return translate(texts, targetLang, "tourism");
+    }
+
+    @Override
+    public List<String> translate(List<String> texts, String targetLang, String domain) {
         if (texts == null || texts.isEmpty()) {
             return texts == null ? List.of() : texts;
         }
         String lang = targetLang == null ? "" : targetLang.trim().toLowerCase(Locale.ROOT);
+        String dom = domain == null || domain.isBlank() ? "tourism" : domain.trim().toLowerCase(Locale.ROOT);
         if (!LANG_NAMES.containsKey(lang) || !isAvailable()) {
             return new ArrayList<>(texts);
         }
@@ -96,7 +102,7 @@ public class OpenAiTranslationAdapter implements TextTranslationPort {
             if (src.isBlank()) {
                 continue; // 공백은 그대로
             }
-            String cached = cache.get(cacheKey(lang, src));
+            String cached = cache.get(cacheKey(lang, dom, src));
             if (cached != null) {
                 out.set(i, cached);
             } else {
@@ -109,7 +115,7 @@ public class OpenAiTranslationAdapter implements TextTranslationPort {
         }
 
         List<String> uniqueSources = new ArrayList<>(pending.keySet());
-        List<String> translated = callTranslate(uniqueSources, lang);
+        List<String> translated = callTranslate(uniqueSources, lang, dom);
         if (translated == null || translated.size() != uniqueSources.size()) {
             // 실패 → 원문 유지(out 은 이미 원문). 캐시에 넣지 않는다.
             return out;
@@ -124,7 +130,7 @@ public class OpenAiTranslationAdapter implements TextTranslationPort {
             if (dst == null || dst.isBlank()) {
                 dst = src; // 빈 번역은 원문 유지
             }
-            cache.put(cacheKey(lang, src), dst);
+            cache.put(cacheKey(lang, dom, src), dst);
             for (int idx : pending.get(src)) {
                 out.set(idx, dst);
             }
@@ -132,7 +138,7 @@ public class OpenAiTranslationAdapter implements TextTranslationPort {
         return out;
     }
 
-    private List<String> callTranslate(List<String> sources, String lang) {
+    private List<String> callTranslate(List<String> sources, String lang, String domain) {
         try {
             String langName = LANG_NAMES.get(lang);
             ArrayNode inItems = mapper.createArrayNode();
@@ -142,12 +148,7 @@ public class OpenAiTranslationAdapter implements TextTranslationPort {
             ObjectNode userPayload = mapper.createObjectNode();
             userPayload.set("items", inItems);
 
-            String system = "You are a professional translator localizing Korean tourism audio-guide narration into "
-                    + langName + ". Translate every string in the input JSON array \"items\" from Korean into "
-                    + langName + ". Keep place names and proper nouns natural for " + langName
-                    + " readers. Preserve meaning and tone; do not summarize or add notes. "
-                    + "Return ONLY a JSON object of the form {\"items\":[...]} whose array has EXACTLY the same "
-                    + "length and order as the input. Each element is the translated string.";
+            String system = buildSystemPrompt(lang, langName, domain);
 
             Map<String, Object> body = new HashMap<>();
             body.put("model", MODEL);
@@ -186,8 +187,42 @@ public class OpenAiTranslationAdapter implements TextTranslationPort {
         }
     }
 
-    private static String cacheKey(String lang, String src) {
-        return lang + "\u0001" + src;
+    /**
+     * 도메인·언어별 시스템 프롬프트.
+     *
+     * <p>{@code film} 도메인은 영화/DVD/음악영화 카탈로그 소개문(줄거리·태그라인)을 대상으로 하며,
+     * 일본어의 경우 "한국에서 25년간 활동한 현지 일본인 영화·DVD·음악·한국여행 해설사" 페르소나로
+     * 자연스러운 현지 일본어(あらすじ 문체)를 만든다. 단 사실(제목·인명·연도·스포일러)은 지어내지 않는다.
+     */
+    private static String buildSystemPrompt(String lang, String langName, String domain) {
+        if ("film".equals(domain)) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("You are a professional localizer of Korean movie/DVD/music-film catalog metadata ")
+                    .append("(plot summaries and taglines) into ").append(langName).append(". ");
+            if ("ja".equals(lang)) {
+                sb.append("Write as a native Japanese film commentator who has lived and worked in Korea for 25 years ")
+                        .append("and is passionate about cinema, DVDs, music films and Korean travel. Produce natural, ")
+                        .append("fluent Japanese (自然な日本語) in the style of Japanese movie catalog あらすじ that ")
+                        .append("Japanese film fans immediately understand; use standard Japanese film vocabulary and phrasing. ");
+            }
+            sb.append("Translate every string in the input JSON array \"items\" from Korean into ").append(langName)
+                    .append(". Translate faithfully: do NOT invent facts, titles, names, dates, or spoilers not present ")
+                    .append("in the source; do not summarize away key information or add notes/opinions. ")
+                    .append("Return ONLY a JSON object of the form {\"items\":[...]} whose array has EXACTLY the same ")
+                    .append("length and order as the input. Each element is the translated string.");
+            return sb.toString();
+        }
+        // 기본: 관광 오디오가이드 해설
+        return "You are a professional translator localizing Korean tourism audio-guide narration into "
+                + langName + ". Translate every string in the input JSON array \"items\" from Korean into "
+                + langName + ". Keep place names and proper nouns natural for " + langName
+                + " readers. Preserve meaning and tone; do not summarize or add notes. "
+                + "Return ONLY a JSON object of the form {\"items\":[...]} whose array has EXACTLY the same "
+                + "length and order as the input. Each element is the translated string.";
+    }
+
+    private static String cacheKey(String lang, String domain, String src) {
+        return lang + "\u0001" + domain + "\u0001" + src;
     }
 
     private static String truncate(String s, int max) {

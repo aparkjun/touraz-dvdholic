@@ -7,9 +7,16 @@ import { getApiBaseUrl } from "@/lib/apiConfig";
 // 라우팅의 단일 진실 공급원(Single Source of Truth) 이 된다.
 function getAcceptLanguage() {
   if (typeof window === "undefined") return "ko-KR,ko;q=0.9";
-  const lang = (window.localStorage?.getItem("i18nextLng") || "ko").toLowerCase();
+  // user_lang(사용자 명시 선택) 우선, 없으면 i18nextLng 폴백.
+  const lang = (
+    window.localStorage?.getItem("user_lang") ||
+    window.localStorage?.getItem("i18nextLng") ||
+    "ko"
+  ).toLowerCase();
   // i18next 는 "en-US" 같은 full code 또는 "ko" 같은 short code 를 둘 다 쓴다.
   // HTTP Accept-Language 포맷으로 정규화.
+  if (lang.startsWith("ja")) return "ja-JP,ja;q=0.9";
+  if (lang.startsWith("zh")) return "zh-CN,zh;q=0.9";
   if (lang.startsWith("en")) return "en-US,en;q=0.9";
   return "ko-KR,ko;q=0.9";
 }

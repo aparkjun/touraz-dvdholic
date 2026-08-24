@@ -14,12 +14,12 @@ import { useTranslation } from 'react-i18next';
  */
 export default function ConcentrationHeatmap30({ areaCode = null, regionLabel = '' }) {
   const { i18n } = useTranslation();
-  const isEn = i18n.language && i18n.language.startsWith('en');
+  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja'));
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!areaCode || isEn) {
+    if (!areaCode || isForeign) {
       setRows([]);
       return;
     }
@@ -42,7 +42,7 @@ export default function ConcentrationHeatmap30({ areaCode = null, regionLabel = 
     return () => {
       alive = false;
     };
-  }, [areaCode, isEn]);
+  }, [areaCode, isForeign]);
 
   const { bestDay, worstDay, avg, byDate } = useMemo(() => {
     const map = new Map();
@@ -69,7 +69,7 @@ export default function ConcentrationHeatmap30({ areaCode = null, regionLabel = 
     };
   }, [rows]);
 
-  if (isEn) return null;
+  if (isForeign) return null;
   if (!areaCode) return null;
   if (!loading && rows.length === 0) return null;
 

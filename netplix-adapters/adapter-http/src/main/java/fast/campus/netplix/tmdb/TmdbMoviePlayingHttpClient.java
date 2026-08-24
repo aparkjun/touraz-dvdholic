@@ -4,6 +4,7 @@ import fast.campus.netplix.client.TmdbHttpClient;
 import fast.campus.netplix.movie.NetplixMovie;
 import fast.campus.netplix.movie.NetplixPageableMovies;
 import fast.campus.netplix.movie.TmdbMoviePlayingPort;
+import fast.campus.netplix.translation.TextTranslationPort;
 import fast.campus.netplix.util.ObjectMapperUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,11 +28,16 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
     @Value("${tmdb.batch.movie.enrich:true}")
     private boolean enrich;
 
+    /** TMDB 일본어 줄거리가 비었을 때 한국어 원문을 AI(일본인 해설사 페르소나)로 번역해 채운다. */
+    @Value("${tmdb.batch.ja-translate-fallback:true}")
+    private boolean jaTranslateFallback;
+
     /** TMDB에서 응답 지연/멈춤으로 배치가 걸리는 ID → Enrich 스킵 (enrich=true일 때만 사용) */
     private static final Set<Integer> SKIP_ENRICH_TMDB_IDS = Set.of(1476682, 1356587, 1597535);
 
     private final TmdbHttpClient tmdbHttpClient;
     private final TmdbMovieDetailsHttpClient tmdbMovieDetailsHttpClient;
+    private final TextTranslationPort textTranslationPort;
 
     @Override
     public NetplixPageableMovies fetchPageable(int page) {
@@ -68,6 +74,7 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
             TmdbCredits credits = tmdbMovieDetailsHttpClient.fetchMovieCredits(tmdbId);
             TmdbMovieDetails details = tmdbMovieDetailsHttpClient.fetchMovieDetails(tmdbId);
             TmdbMovieDetails detailsEn = tmdbMovieDetailsHttpClient.fetchMovieDetailsEn(tmdbId);
+            TmdbMovieDetails detailsJa = tmdbMovieDetailsHttpClient.fetchMovieDetailsJa(tmdbId);
             String trailerUrl = tmdbMovieDetailsHttpClient.fetchMovieTrailer(tmdbId);
             String ottProviders = tmdbMovieDetailsHttpClient.fetchOttProviders(tmdbId);
             String recommendations = tmdbMovieDetailsHttpClient.fetchRecommendations(tmdbId);
@@ -110,6 +117,11 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
                     .taglineEn(detailsEn != null ? detailsEn.getTagline() : null)
                     .posterPathEn(detailsEn != null ? detailsEn.getPosterPath() : null)
                     .backdropPathEn(detailsEn != null ? detailsEn.getBackdropPath() : null)
+                    .movieNameJa(detailsJa != null ? detailsJa.getTitle() : null)
+                    .overviewJa(resolveOverviewJa(detailsJa, movie.getOverview()))
+                    .taglineJa(detailsJa != null ? detailsJa.getTagline() : null)
+                    .posterPathJa(detailsJa != null ? detailsJa.getPosterPath() : null)
+                    .backdropPathJa(detailsJa != null ? detailsJa.getBackdropPath() : null)
                     .build();
 
             log.info("✓ Enriched movie: {}", movie.getMovieName());
@@ -118,6 +130,29 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
             log.error("✗ Failed to enrich movie: {} - {}", movie.getMovieName(), e.getMessage());
             return movie;
         }
+    }
+
+    /**
+     * 일본어 줄거리 결정: TMDB ja-JP 줄거리가 있으면 그대로, 없으면 한국어 원문을
+     * AI(일본인 해설사 페르소나)로 번역. 번역 불가/실패 시 null → 프론트에서 한국어 폴백.
+     */
+    private String resolveOverviewJa(TmdbMovieDetails detailsJa, String koOverview) {
+        String jaOverview = detailsJa != null ? detailsJa.getOverview() : null;
+        if (jaOverview != null && !jaOverview.isBlank()) {
+            return jaOverview;
+        }
+        if (!jaTranslateFallback || koOverview == null || koOverview.isBlank() || !textTranslationPort.isAvailable()) {
+            return jaOverview;
+        }
+        try {
+            List<String> out = textTranslationPort.translate(List.of(koOverview), "ja", "film");
+            if (out != null && !out.isEmpty() && out.get(0) != null && !out.get(0).isBlank()) {
+                return out.get(0);
+            }
+        } catch (Exception e) {
+            log.warn("✗ JA overview translate fallback failed: {}", e.getMessage());
+        }
+        return jaOverview;
     }
 
     private static NetplixMovie withContentType(NetplixMovie m, String contentType) {
@@ -157,6 +192,11 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
                 .taglineEn(m.getTaglineEn())
                 .posterPathEn(m.getPosterPathEn())
                 .backdropPathEn(m.getBackdropPathEn())
+                .movieNameJa(m.getMovieNameJa())
+                .overviewJa(m.getOverviewJa())
+                .taglineJa(m.getTaglineJa())
+                .posterPathJa(m.getPosterPathJa())
+                .backdropPathJa(m.getBackdropPathJa())
                 .build();
     }
 }
