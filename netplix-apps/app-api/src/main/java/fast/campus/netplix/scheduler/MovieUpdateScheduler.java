@@ -359,6 +359,11 @@ public class MovieUpdateScheduler {
                 .taglineEn(movie.getTaglineEn())
                 .posterPathEn(movie.getPosterPathEn())
                 .backdropPathEn(movie.getBackdropPathEn())
+                .movieNameJa(movie.getMovieNameJa())
+                .overviewJa(movie.getOverviewJa())
+                .taglineJa(movie.getTaglineJa())
+                .posterPathJa(movie.getPosterPathJa())
+                .backdropPathJa(movie.getBackdropPathJa())
                 .firstSeenAt(firstSeenAt)
                 .build();
     }
