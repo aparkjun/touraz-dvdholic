@@ -44,10 +44,13 @@ function secureTourImageUrl(url) {
 
 export default function EngTourSpotsStrip({ areaCode, regionLabel = '' }) {
   const { t, i18n } = useTranslation();
-  // 외국어(영어/일본어) 모드에서만 노출. 로케일에 따라 EngService2 / JpnService2 로 라우팅.
+  // 외국어(영어/일본어/중국어) 모드에서만 노출. 로케일에 따라 EngService2 / JpnService2 / ChsService2 로 라우팅.
   const lang = (i18n.language || 'ko').slice(0, 2);
-  const isForeign = lang === 'en' || lang === 'ja';
-  const tourEndpoint = lang === 'ja' ? '/api/v1/tour/jpn' : '/api/v1/tour/eng';
+  const isForeign = lang === 'en' || lang === 'ja' || lang === 'zh';
+  const tourEndpoint =
+    lang === 'zh' ? '/api/v1/tour/chs'
+    : lang === 'ja' ? '/api/v1/tour/jpn'
+    : '/api/v1/tour/eng';
 
   const [buckets, setBuckets] = useState({});
   const [activeBucket, setActiveBucket] = useState('attractions');
@@ -109,7 +112,7 @@ export default function EngTourSpotsStrip({ areaCode, regionLabel = '' }) {
     [buckets]
   );
 
-  if (!isForeign) return null; // 이 컴포넌트는 외국어(영어/일본어) 모드 전용.
+  if (!isForeign) return null; // 이 컴포넌트는 외국어(영어/일본어/중국어) 모드 전용.
   if (!loading && totalCount === 0) return null;
 
   const activeList = buckets?.[activeBucket] || [];

@@ -32,6 +32,10 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
     @Value("${tmdb.batch.ja-translate-fallback:true}")
     private boolean jaTranslateFallback;
 
+    /** TMDB 중국어(간체) 줄거리가 비었을 때 한국어 원문을 AI(중국인 해설사 페르소나)로 번역해 채운다. */
+    @Value("${tmdb.batch.zh-translate-fallback:true}")
+    private boolean zhTranslateFallback;
+
     /** TMDB에서 응답 지연/멈춤으로 배치가 걸리는 ID → Enrich 스킵 (enrich=true일 때만 사용) */
     private static final Set<Integer> SKIP_ENRICH_TMDB_IDS = Set.of(1476682, 1356587, 1597535);
 
@@ -75,6 +79,7 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
             TmdbMovieDetails details = tmdbMovieDetailsHttpClient.fetchMovieDetails(tmdbId);
             TmdbMovieDetails detailsEn = tmdbMovieDetailsHttpClient.fetchMovieDetailsEn(tmdbId);
             TmdbMovieDetails detailsJa = tmdbMovieDetailsHttpClient.fetchMovieDetailsJa(tmdbId);
+            TmdbMovieDetails detailsZh = tmdbMovieDetailsHttpClient.fetchMovieDetailsZh(tmdbId);
             String trailerUrl = tmdbMovieDetailsHttpClient.fetchMovieTrailer(tmdbId);
             String ottProviders = tmdbMovieDetailsHttpClient.fetchOttProviders(tmdbId);
             String recommendations = tmdbMovieDetailsHttpClient.fetchRecommendations(tmdbId);
@@ -122,6 +127,11 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
                     .taglineJa(detailsJa != null ? detailsJa.getTagline() : null)
                     .posterPathJa(detailsJa != null ? detailsJa.getPosterPath() : null)
                     .backdropPathJa(detailsJa != null ? detailsJa.getBackdropPath() : null)
+                    .movieNameZh(detailsZh != null ? detailsZh.getTitle() : null)
+                    .overviewZh(resolveOverviewZh(detailsZh, movie.getOverview()))
+                    .taglineZh(detailsZh != null ? detailsZh.getTagline() : null)
+                    .posterPathZh(detailsZh != null ? detailsZh.getPosterPath() : null)
+                    .backdropPathZh(detailsZh != null ? detailsZh.getBackdropPath() : null)
                     .build();
 
             log.info("✓ Enriched movie: {}", movie.getMovieName());
@@ -153,6 +163,29 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
             log.warn("✗ JA overview translate fallback failed: {}", e.getMessage());
         }
         return jaOverview;
+    }
+
+    /**
+     * 중국어(간체) 줄거리 결정: TMDB zh-CN 줄거리가 있으면 그대로, 없으면 한국어 원문을
+     * AI(중국인 해설사 페르소나)로 번역. 번역 불가/실패 시 null → 프론트에서 한국어 폴백.
+     */
+    private String resolveOverviewZh(TmdbMovieDetails detailsZh, String koOverview) {
+        String zhOverview = detailsZh != null ? detailsZh.getOverview() : null;
+        if (zhOverview != null && !zhOverview.isBlank()) {
+            return zhOverview;
+        }
+        if (!zhTranslateFallback || koOverview == null || koOverview.isBlank() || !textTranslationPort.isAvailable()) {
+            return zhOverview;
+        }
+        try {
+            List<String> out = textTranslationPort.translate(List.of(koOverview), "zh", "film");
+            if (out != null && !out.isEmpty() && out.get(0) != null && !out.get(0).isBlank()) {
+                return out.get(0);
+            }
+        } catch (Exception e) {
+            log.warn("✗ ZH overview translate fallback failed: {}", e.getMessage());
+        }
+        return zhOverview;
     }
 
     private static NetplixMovie withContentType(NetplixMovie m, String contentType) {
@@ -197,6 +230,11 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
                 .taglineJa(m.getTaglineJa())
                 .posterPathJa(m.getPosterPathJa())
                 .backdropPathJa(m.getBackdropPathJa())
+                .movieNameZh(m.getMovieNameZh())
+                .overviewZh(m.getOverviewZh())
+                .taglineZh(m.getTaglineZh())
+                .posterPathZh(m.getPosterPathZh())
+                .backdropPathZh(m.getBackdropPathZh())
                 .build();
     }
 }

@@ -364,6 +364,11 @@ public class MovieUpdateScheduler {
                 .taglineJa(movie.getTaglineJa())
                 .posterPathJa(movie.getPosterPathJa())
                 .backdropPathJa(movie.getBackdropPathJa())
+                .movieNameZh(movie.getMovieNameZh())
+                .overviewZh(movie.getOverviewZh())
+                .taglineZh(movie.getTaglineZh())
+                .posterPathZh(movie.getPosterPathZh())
+                .backdropPathZh(movie.getBackdropPathZh())
                 .firstSeenAt(firstSeenAt)
                 .build();
     }

@@ -204,6 +204,11 @@ public class OpenAiTranslationAdapter implements TextTranslationPort {
                         .append("and is passionate about cinema, DVDs, music films and Korean travel. Produce natural, ")
                         .append("fluent Japanese (自然な日本語) in the style of Japanese movie catalog あらすじ that ")
                         .append("Japanese film fans immediately understand; use standard Japanese film vocabulary and phrasing. ");
+            } else if ("zh".equals(lang)) {
+                sb.append("Write as a native Chinese film commentator who has lived and worked in Korea for 25 years ")
+                        .append("and is passionate about cinema, DVDs, music films and Korean travel. Produce natural, ")
+                        .append("fluent Simplified Chinese (地道的简体中文) in the style of a Chinese movie catalog 剧情简介 that ")
+                        .append("mainland Chinese film fans immediately understand; use standard Chinese film vocabulary and phrasing. ");
             }
             sb.append("Translate every string in the input JSON array \"items\" from Korean into ").append(langName)
                     .append(". Translate faithfully: do NOT invent facts, titles, names, dates, or spoilers not present ")

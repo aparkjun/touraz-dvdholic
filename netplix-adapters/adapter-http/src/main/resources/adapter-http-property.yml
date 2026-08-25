@@ -103,6 +103,35 @@ visitkorea:
     search-keyword: ${visitkorea.jpn.base-url}/searchKeyword2
     detail-common: ${visitkorea.jpn.base-url}/detailCommon2
     cache-minutes: 360
+  # 중문(간체) 관광정보 서비스 (한국관광공사_중문_관광정보서비스_GW(간체), Base URL: apis.data.go.kr/B551011/ChsService2)
+  # EngService2/JpnService2 와 오퍼레이션 스펙·응답 구조·다국어 contentTypeId 체계(76/78/85/75/77/80/79/82)가 동일하며,
+  # 응답 메타(title/addr1/overview 등)만 간체 중국어로 내려온다. 중국어(zh, 简体) 모드 사용자가 촬영지·배경지·주변
+  # 여행 POI 를 간체 중국어로 탐색할 수 있게 연결한다. 이것이 중국어 모드의 기본 관광 스택.
+  # - 서비스 키: VISITKOREA_CHS_SERVICE_KEY 우선, 미설정 시 공용 VISITKOREA_SERVICE_KEY 로 fallback.
+  # - 지원 오퍼레이션(Phase 1): areaBasedList2 / locationBasedList2 / searchKeyword2 / detailCommon2
+  chs:
+    auth:
+      service-key: ${VISITKOREA_CHS_SERVICE_KEY:${VISITKOREA_SERVICE_KEY:}}
+    base-url: https://apis.data.go.kr/B551011/ChsService2
+    area-based: ${visitkorea.chs.base-url}/areaBasedList2
+    location-based: ${visitkorea.chs.base-url}/locationBasedList2
+    search-keyword: ${visitkorea.chs.base-url}/searchKeyword2
+    detail-common: ${visitkorea.chs.base-url}/detailCommon2
+    cache-minutes: 360
+  # 중문(번체) 관광정보 서비스 (한국관광공사_중문_관광서비스_GW(번체), Base URL: apis.data.go.kr/B551011/ChtService2)
+  # 간체(ChsService2)와 동일 스펙이며 응답 메타만 번체 중국어. 현재 UI 는 중국어를 하나(简体, zh)로 노출하므로
+  # 번체 스택 전체를 별도 언어로 노출하지는 않되, SpotBrief(단건 간단 상세) 폴백 체인에 searchKeyword2 를 추가해
+  # 간체에서 0건인 촬영지가 번체 DB 에는 존재하는 경우를 보완한다(두 서비스 모두 활용).
+  # - 서비스 키: VISITKOREA_CHT_SERVICE_KEY 우선, 미설정 시 공용 VISITKOREA_SERVICE_KEY 로 fallback.
+  cht:
+    auth:
+      service-key: ${VISITKOREA_CHT_SERVICE_KEY:${VISITKOREA_SERVICE_KEY:}}
+    base-url: https://apis.data.go.kr/B551011/ChtService2
+    area-based: ${visitkorea.cht.base-url}/areaBasedList2
+    location-based: ${visitkorea.cht.base-url}/locationBasedList2
+    search-keyword: ${visitkorea.cht.base-url}/searchKeyword2
+    detail-common: ${visitkorea.cht.base-url}/detailCommon2
+    cache-minutes: 360
   api:
     base-url: https://apis.data.go.kr/B551011/DataLabService
     # 광역 지자체 방문자수 (metcoRegnVisitrDDList) - 활성. 응답의 areaCode 는 11,26,... 이며

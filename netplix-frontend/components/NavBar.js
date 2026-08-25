@@ -154,6 +154,7 @@ function LanguageToggle() {
     { code: 'ko', label: 'KO' },
     { code: 'en', label: 'EN' },
     { code: 'ja', label: '日本語' },
+    { code: 'zh', label: '中文' },
   ];
   return (
     <div

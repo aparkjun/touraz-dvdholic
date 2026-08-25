@@ -20,7 +20,7 @@ import { areaLabel, resolveAreaCode } from '@/lib/regionAreaCode';
  */
 export default function MovieCrowdRadarStrip({ movieName }) {
   const { i18n } = useTranslation();
-  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja'));
+  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja') || i18n.language.startsWith('zh'));
 
   const [mapping, setMapping] = useState(null); // { areaCode, regionName, evidence } | null
   const [predictions, setPredictions] = useState([]);

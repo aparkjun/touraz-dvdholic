@@ -106,6 +106,26 @@ public class TmdbMovieDetailsHttpClient {
         }
     }
 
+    public TmdbMovieDetails fetchMovieDetailsZh(Integer movieId) {
+        try {
+            log.debug("→ Fetching ZH details for movieId: {}", movieId);
+            String url = movieDetailsUrl.replace("{movie_id}", String.valueOf(movieId))
+                    .replace("language=ko-KR", "language=zh-CN");
+            String response = createRestClientWithTimeout()
+                    .get()
+                    .uri(url)
+                    .retrieve()
+                    .body(String.class);
+
+            TmdbMovieDetails result = objectMapper.readValue(response, TmdbMovieDetails.class);
+            log.debug("✓ ZH details fetched for movieId: {}", movieId);
+            return result;
+        } catch (Exception e) {
+            log.warn("✗ Failed to fetch ZH details for movieId: {} - {}", movieId, e.getMessage());
+            return null;
+        }
+    }
+
     public TmdbCredits fetchMovieCredits(Integer movieId) {
         try {
             log.debug("→ Fetching credits for movieId: {}", movieId);

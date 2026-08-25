@@ -18,7 +18,7 @@ import useBackButtonClose from '@/lib/useBackButtonClose';
  */
 export default function PhotoGalleryStrip({ areaCode = null, keyword = null, limit = 12, title = '수상작 포토스팟' }) {
   const { i18n } = useTranslation();
-  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja'));
+  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja') || i18n.language.startsWith('zh'));
 
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);

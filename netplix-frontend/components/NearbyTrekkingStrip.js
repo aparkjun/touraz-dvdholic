@@ -31,7 +31,7 @@ export default function NearbyTrekkingStrip({
   showEarthProLinks = true,
 }) {
   const { i18n } = useTranslation();
-  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja'));
+  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja') || i18n.language.startsWith('zh'));
 
   const isLight = theme === 'light';
   const headerBadgeBg = isLight

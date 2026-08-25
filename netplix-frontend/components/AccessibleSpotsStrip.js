@@ -50,7 +50,7 @@ const BUCKET_ORDER = [
 
 export default function AccessibleSpotsStrip({ areaCode, regionLabel = '' }) {
   const { i18n } = useTranslation();
-  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja'));
+  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja') || i18n.language.startsWith('zh'));
 
   const [buckets, setBuckets] = useState({});
   const [activeBucket, setActiveBucket] = useState('attractions');
