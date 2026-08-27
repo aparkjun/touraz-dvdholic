@@ -220,7 +220,7 @@ public class OpenAiTranslationAdapter implements TextTranslationPort {
                         .append("warmly to people in Nepal. Produce natural, everyday Nepali in Devanagari (नेपाली) — friendly, ")
                         .append("clear and easy to read, not stiff, literary, or mixed with unnecessary English. ");
             }
-            sb.append("Translate every string in the input JSON array \"items\" from Korean into ").append(langName)
+            sb.append("Translate every string in the input JSON array \"items\" from Korean or English into ").append(langName)
                     .append(". Translate faithfully: do NOT invent facts, titles, names, dates, or spoilers not present ")
                     .append("in the source; do not summarize away key information or add notes/opinions. ")
                     .append("Return ONLY a JSON object of the form {\"items\":[...]} whose array has EXACTLY the same ")

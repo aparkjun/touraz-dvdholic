@@ -139,10 +139,12 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
                     .posterPathZh(detailsZh != null ? detailsZh.getPosterPath() : null)
                     .backdropPathZh(detailsZh != null ? detailsZh.getBackdropPath() : null)
                     .movieNameNe(detailsNe != null ? detailsNe.getTitle() : null)
-                    .overviewNe(resolveOverviewNe(detailsNe, movie.getOverview()))
+                    .overviewNe(resolveOverviewNe(detailsNe, movie.getOverview(),
+                            detailsEn != null ? detailsEn.getOverview() : null))
                     .taglineNe(resolveNeText(
                             detailsNe != null ? detailsNe.getTagline() : null,
-                            details != null ? details.getTagline() : null))
+                            details != null ? details.getTagline() : null,
+                            detailsEn != null ? detailsEn.getTagline() : null))
                     .posterPathNe(detailsNe != null ? detailsNe.getPosterPath() : null)
                     .backdropPathNe(detailsNe != null ? detailsNe.getBackdropPath() : null)
                     .build();
@@ -203,21 +205,22 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
 
     /**
      * 네팔어 줄거리: TMDB ne-NP 에 데바나가리가 있으면 그대로, 없거나 영어 폴백이면
-     * 한국어 원문을 AI(네팔인 친구 페르소나)로 번역. 실패 시 null → 프론트에서 한국어 폴백.
+     * 한국어(없으면 영어) 원문을 AI로 번역. 실패 시 null → 프론트에서 한국어 폴백.
      */
-    private String resolveOverviewNe(TmdbMovieDetails detailsNe, String koOverview) {
-        return resolveNeText(detailsNe != null ? detailsNe.getOverview() : null, koOverview);
+    private String resolveOverviewNe(TmdbMovieDetails detailsNe, String koOverview, String enOverview) {
+        return resolveNeText(detailsNe != null ? detailsNe.getOverview() : null, koOverview, enOverview);
     }
 
-    private String resolveNeText(String tmdbNe, String koText) {
+    private String resolveNeText(String tmdbNe, String koText, String enText) {
         if (NepaliScript.isUsable(tmdbNe)) {
             return tmdbNe;
         }
-        if (!neTranslateFallback || koText == null || koText.isBlank() || !textTranslationPort.isAvailable()) {
+        String src = NepaliScript.firstTranslatable(koText, enText);
+        if (!neTranslateFallback || src == null || !textTranslationPort.isAvailable()) {
             return null;
         }
         try {
-            List<String> out = textTranslationPort.translate(List.of(koText), "ne", "film");
+            List<String> out = textTranslationPort.translate(List.of(src), "ne", "film");
             if (out != null && !out.isEmpty() && NepaliScript.isUsable(out.get(0))) {
                 return out.get(0);
             }
