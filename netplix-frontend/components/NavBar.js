@@ -155,6 +155,7 @@ function LanguageToggle() {
     { code: 'en', label: 'EN' },
     { code: 'ja', label: '日本語' },
     { code: 'zh', label: '中文' },
+    { code: 'ne', label: 'नेपाली' },
   ];
   return (
     <div

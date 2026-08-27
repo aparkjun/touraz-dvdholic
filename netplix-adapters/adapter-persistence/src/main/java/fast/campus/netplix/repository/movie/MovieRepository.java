@@ -106,9 +106,16 @@ public class MovieRepository implements PersistenceMoviePort {
             return entity.getMovieId();
         } else {
             MovieEntity existingEntity = byMovieName.get();
-            
-            // Skip if detailed info already exists
+
             if (existingEntity.getCast() != null && existingEntity.getDirector() != null) {
+                boolean missingNe = existingEntity.getMovieNameNe() == null || existingEntity.getMovieNameNe().isBlank();
+                boolean incomingNe = netplixMovie.getMovieNameNe() != null && !netplixMovie.getMovieNameNe().isBlank();
+                if (missingNe && incomingNe) {
+                    log.info("Backfilling Nepali titles: {}", netplixMovie.getMovieName());
+                    existingEntity.applyNepaliFrom(netplixMovie);
+                    movieJpaRepository.save(existingEntity);
+                    return existingEntity.getMovieId();
+                }
                 log.info("Skipping movie (already has details): {}", netplixMovie.getMovieName());
                 return existingEntity.getMovieId();
             }

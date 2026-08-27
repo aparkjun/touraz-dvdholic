@@ -80,6 +80,7 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
             TmdbMovieDetails detailsEn = tmdbMovieDetailsHttpClient.fetchMovieDetailsEn(tmdbId);
             TmdbMovieDetails detailsJa = tmdbMovieDetailsHttpClient.fetchMovieDetailsJa(tmdbId);
             TmdbMovieDetails detailsZh = tmdbMovieDetailsHttpClient.fetchMovieDetailsZh(tmdbId);
+            TmdbMovieDetails detailsNe = tmdbMovieDetailsHttpClient.fetchMovieDetailsNe(tmdbId);
             String trailerUrl = tmdbMovieDetailsHttpClient.fetchMovieTrailer(tmdbId);
             String ottProviders = tmdbMovieDetailsHttpClient.fetchOttProviders(tmdbId);
             String recommendations = tmdbMovieDetailsHttpClient.fetchRecommendations(tmdbId);
@@ -132,6 +133,11 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
                     .taglineZh(detailsZh != null ? detailsZh.getTagline() : null)
                     .posterPathZh(detailsZh != null ? detailsZh.getPosterPath() : null)
                     .backdropPathZh(detailsZh != null ? detailsZh.getBackdropPath() : null)
+                    .movieNameNe(detailsNe != null ? detailsNe.getTitle() : null)
+                    .overviewNe(detailsNe != null ? detailsNe.getOverview() : null)
+                    .taglineNe(detailsNe != null ? detailsNe.getTagline() : null)
+                    .posterPathNe(detailsNe != null ? detailsNe.getPosterPath() : null)
+                    .backdropPathNe(detailsNe != null ? detailsNe.getBackdropPath() : null)
                     .build();
 
             log.info("✓ Enriched movie: {}", movie.getMovieName());
@@ -235,6 +241,11 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
                 .taglineZh(m.getTaglineZh())
                 .posterPathZh(m.getPosterPathZh())
                 .backdropPathZh(m.getBackdropPathZh())
+                .movieNameNe(m.getMovieNameNe())
+                .overviewNe(m.getOverviewNe())
+                .taglineNe(m.getTaglineNe())
+                .posterPathNe(m.getPosterPathNe())
+                .backdropPathNe(m.getBackdropPathNe())
                 .build();
     }
 }

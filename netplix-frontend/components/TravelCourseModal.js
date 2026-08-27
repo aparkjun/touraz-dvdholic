@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
+import { getMovieTitle, getPosterPath } from '@/lib/movieLang';
 import useBackButtonClose from '@/lib/useBackButtonClose';
 import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
 import ConcentrationForecastStrip from '@/components/ConcentrationForecastStrip';
@@ -285,8 +286,8 @@ export default function TravelCourseModal({
         <div className="tc-modal-scroll" ref={modalScrollRef}>
         <div className="tc-modal-header">
           <img
-            src={posterSrc(movie.posterPath)}
-            alt={movie.movieName || 'poster'}
+            src={posterSrc(getPosterPath(movie) || movie.posterPath)}
+            alt={getMovieTitle(movie) || 'poster'}
             draggable={false}
             onDragStart={(e) => e.preventDefault()}
             className="tc-modal-poster"
@@ -316,7 +317,7 @@ export default function TravelCourseModal({
               <Sparkles size={12} /> {t('travelCourse.badge')}
             </div>
             <h2 className="tc-modal-title">
-              {movie.movieName || t('cineTripPage.untitled')}
+              {getMovieTitle(movie) || t('cineTripPage.untitled')}
             </h2>
             {(movie.tagline || movie.genre) && (
               <p style={{ color: '#a0a0a0', fontSize: 13, margin: '0 0 14px' }}>

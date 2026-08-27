@@ -11,6 +11,7 @@ function getAcceptLanguage() {
   ).toLowerCase();
   if (lang.startsWith("ja")) return "ja-JP,ja;q=0.9";
   if (lang.startsWith("zh")) return "zh-CN,zh;q=0.9";
+  if (lang.startsWith("ne")) return "ne-NP,ne;q=0.9,en;q=0.8";
   if (lang.startsWith("en")) return "en-US,en;q=0.9";
   return "ko-KR,ko;q=0.9";
 }

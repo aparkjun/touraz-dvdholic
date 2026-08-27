@@ -9,6 +9,9 @@ export function hasCatalogMovieSummary(movie) {
   if (typeof movie.tagline === 'string' && movie.tagline.trim()) return true;
   if (movie.voteAverage != null && Number.isFinite(Number(movie.voteAverage))) return true;
   if (typeof movie.movieNameEn === 'string' && movie.movieNameEn.trim()) return true;
+  if (typeof movie.movieNameJa === 'string' && movie.movieNameJa.trim()) return true;
+  if (typeof movie.movieNameZh === 'string' && movie.movieNameZh.trim()) return true;
+  if (typeof movie.movieNameNe === 'string' && movie.movieNameNe.trim()) return true;
   if (typeof movie.releasedAt === 'string' && movie.releasedAt.trim()) return true;
   if (typeof movie.backdropPath === 'string' && movie.backdropPath.trim()) return true;
   return false;

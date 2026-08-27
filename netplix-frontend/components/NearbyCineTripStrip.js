@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Film, Sparkles, ArrowRight, MapPin } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { getMovieTitle, getPosterPath } from '@/lib/movieLang';
 import axios from '@/lib/axiosConfig';
 import { sigunToAreaCode, areaCodeToLabel } from '@/lib/regionMap';
 import TravelCourseModal from '@/components/TravelCourseModal';
@@ -207,7 +208,7 @@ function MoviePosterCard({ item, index }) {
     setCourseOpen(true);
   };
 
-  const name = movie.movieName;
+  const name = getMovieTitle(movie) || movie.movieName;
 
   if (!name) {
     return null;
@@ -247,8 +248,8 @@ function MoviePosterCard({ item, index }) {
       >
       <div style={{ position: 'relative', width: '100%', aspectRatio: '2 / 3', overflow: 'hidden' }}>
         <img
-          src={posterSrc(movie.posterPath)}
-          alt={movie.movieName || 'movie'}
+          src={posterSrc(getPosterPath(movie) || movie.posterPath)}
+          alt={getMovieTitle(movie) || 'movie'}
           loading="lazy"
           draggable={false}
           onDragStart={(e) => e.preventDefault()}
@@ -301,7 +302,7 @@ function MoviePosterCard({ item, index }) {
             overflow: 'hidden',
           }}
         >
-          {movie.movieName || t('nearbyCineTrip.untitled', '제목 미상')}
+          {getMovieTitle(movie) || t('nearbyCineTrip.untitled', '제목 미상')}
         </div>
         {mapping?.regionName && (
           <div

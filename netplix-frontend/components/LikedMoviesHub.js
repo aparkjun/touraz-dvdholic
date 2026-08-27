@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
+import { getMovieTitle } from "@/lib/movieLang";
 import {
   Heart,
   MapPin,
@@ -468,7 +469,7 @@ export default function LikedMoviesHub() {
                 }
               >
                 <img src={posterUrl(m)} alt="" />
-                <span>{m.movieName}</span>
+                <span>{getMovieTitle(m) || m.movieName}</span>
               </button>
             ))}
           </div>

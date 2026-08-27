@@ -16,6 +16,7 @@ import {
 import { useSearchParams } from 'next/navigation';
 import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
+import { getMovieTitle, getPosterPath } from '@/lib/movieLang';
 import { shareContent, shareResultMessage } from '@/lib/shareUtils';
 import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
 import TourGallerySection from '@/components/TourGallerySection';
@@ -201,7 +202,7 @@ function MovieSpotlightBanner({ movieName, onFocusRegion, onDismiss }) {
   const regionChips = Array.from(uniqueRegions.values());
   const primaryAreaCode = regionChips[0]?.areaCode;
   const hasMapping = regionChips.length > 0;
-  const poster = posterSrc(movie.posterPath);
+  const poster = posterSrc(getPosterPath(movie) || movie.posterPath);
 
   return (
     <motion.div
@@ -278,7 +279,7 @@ function MovieSpotlightBanner({ movieName, onFocusRegion, onDismiss }) {
         >
           <img
             src={poster}
-            alt={movie.movieName || 'movie'}
+            alt={getMovieTitle(movie) || 'movie'}
             loading="lazy"
             decoding="async"
             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
@@ -321,7 +322,7 @@ function MovieSpotlightBanner({ movieName, onFocusRegion, onDismiss }) {
               lineHeight: 1.25,
             }}
           >
-            {t('movieSpotlight.title', '『{{movie}}』의 발자취를 따라', { movie: movie.movieName || movieName })}
+            {t('movieSpotlight.title', '『{{movie}}』의 발자취를 따라', { movie: getMovieTitle(movie) || movieName })}
           </h2>
           <p
             style={{
@@ -540,7 +541,7 @@ function MovieCard({ item, index, eager = false }) {
       .filter(Boolean)
       .join(', ');
     const channel = await shareContent({
-      title: t('cineTripPage.shareTitle', '{{movie}} · CineTrip', { movie: movie.movieName || t('cineTripPage.movieFallback', '영화') }),
+      title: t('cineTripPage.shareTitle', '{{movie}} · CineTrip', { movie: getMovieTitle(movie) || t('cineTripPage.movieFallback', '영화') }),
       description: regionLabel
         ? t('cineTripPage.shareDesc', '이 영화로 떠나는 여행: {{regions}}', { regions: regionLabel })
         : t('cineTripPage.shareDescNoRegion', '이 영화로 떠나는 여행 큐레이션'),
@@ -601,8 +602,8 @@ function MovieCard({ item, index, eager = false }) {
         }}
       >
         <img
-          src={posterSrc(movie.posterPath)}
-          alt={movie.movieName || 'movie'}
+          src={posterSrc(getPosterPath(movie) || movie.posterPath)}
+          alt={getMovieTitle(movie) || 'movie'}
           // 첫 배치 외 카드는 lazy 디코딩 → iOS Safari 메모리 압박 완화.
           loading={eager ? 'eager' : 'lazy'}
           decoding="async"
@@ -673,7 +674,7 @@ function MovieCard({ item, index, eager = false }) {
             whiteSpace: 'nowrap',
           }}
         >
-          {movie.movieName || t('cineTripPage.untitled', '제목 미상')}
+          {getMovieTitle(movie) || t('cineTripPage.untitled', '제목 미상')}
         </h3>
         <p
           style={{

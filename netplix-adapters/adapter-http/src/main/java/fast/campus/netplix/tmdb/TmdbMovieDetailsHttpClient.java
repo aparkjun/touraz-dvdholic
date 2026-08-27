@@ -67,10 +67,18 @@ public class TmdbMovieDetailsHttpClient {
     }
 
     public TmdbMovieDetails fetchMovieDetailsEn(Integer movieId) {
+        return fetchMovieDetailsForLanguage(movieId, "en-US", "EN");
+    }
+
+    public TmdbMovieDetails fetchMovieDetailsNe(Integer movieId) {
+        return fetchMovieDetailsForLanguage(movieId, "ne-NP", "NE");
+    }
+
+    private TmdbMovieDetails fetchMovieDetailsForLanguage(Integer movieId, String languageTag, String logLabel) {
         try {
-            log.debug("→ Fetching EN details for movieId: {}", movieId);
+            log.debug("→ Fetching {} details for movieId: {}", logLabel, movieId);
             String url = movieDetailsUrl.replace("{movie_id}", String.valueOf(movieId))
-                    .replace("language=ko-KR", "language=en-US");
+                    .replace("language=ko-KR", "language=" + languageTag);
             String response = createRestClientWithTimeout()
                     .get()
                     .uri(url)
@@ -78,10 +86,10 @@ public class TmdbMovieDetailsHttpClient {
                     .body(String.class);
 
             TmdbMovieDetails result = objectMapper.readValue(response, TmdbMovieDetails.class);
-            log.debug("✓ EN details fetched for movieId: {}", movieId);
+            log.debug("✓ {} details fetched for movieId: {}", logLabel, movieId);
             return result;
         } catch (Exception e) {
-            log.warn("✗ Failed to fetch EN details for movieId: {} - {}", movieId, e.getMessage());
+            log.warn("✗ Failed to fetch {} details for movieId: {} - {}", logLabel, movieId, e.getMessage());
             return null;
         }
     }

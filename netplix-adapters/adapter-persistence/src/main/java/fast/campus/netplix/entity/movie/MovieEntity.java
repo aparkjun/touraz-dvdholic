@@ -161,6 +161,21 @@ public class MovieEntity extends MutableBaseEntity {
     @Column(name = "BACKDROP_PATH_ZH", length = 500)
     private String backdropPathZh;
 
+    @Column(name = "MOVIE_NAME_NE", length = 500)
+    private String movieNameNe;
+
+    @Column(name = "OVERVIEW_NE", columnDefinition = "TEXT")
+    private String overviewNe;
+
+    @Column(name = "TAGLINE_NE", length = 500)
+    private String taglineNe;
+
+    @Column(name = "POSTER_PATH_NE", length = 500)
+    private String posterPathNe;
+
+    @Column(name = "BACKDROP_PATH_NE", length = 500)
+    private String backdropPathNe;
+
     @Setter
     @Column(name = "FIRST_SEEN_AT")
     private LocalDateTime firstSeenAt;
@@ -212,6 +227,11 @@ public class MovieEntity extends MutableBaseEntity {
                 .taglineZh(this.taglineZh)
                 .posterPathZh(this.posterPathZh)
                 .backdropPathZh(this.backdropPathZh)
+                .movieNameNe(this.movieNameNe)
+                .overviewNe(this.overviewNe)
+                .taglineNe(this.taglineNe)
+                .posterPathNe(this.posterPathNe)
+                .backdropPathNe(this.backdropPathNe)
                 .firstSeenAt(this.firstSeenAt)
                 .build();
     }
@@ -264,8 +284,22 @@ public class MovieEntity extends MutableBaseEntity {
                 netplixMovie.getTaglineZh(),
                 netplixMovie.getPosterPathZh(),
                 netplixMovie.getBackdropPathZh(),
+                netplixMovie.getMovieNameNe(),
+                truncateOrNull(netplixMovie.getOverviewNe()),
+                netplixMovie.getTaglineNe(),
+                netplixMovie.getPosterPathNe(),
+                netplixMovie.getBackdropPathNe(),
                 netplixMovie.getFirstSeenAt() != null ? netplixMovie.getFirstSeenAt() : LocalDateTime.now()
         );
+    }
+
+    public void applyNepaliFrom(NetplixMovie src) {
+        if (src == null) return;
+        this.movieNameNe = src.getMovieNameNe();
+        this.overviewNe = src.getOverviewNe();
+        this.taglineNe = src.getTaglineNe();
+        this.posterPathNe = src.getPosterPathNe();
+        this.backdropPathNe = src.getBackdropPathNe();
     }
 
     private static String getSubstrOverview(String overview) {
