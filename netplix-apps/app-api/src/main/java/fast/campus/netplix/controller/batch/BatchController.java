@@ -188,6 +188,21 @@ public class BatchController {
         }
     }
 
+    @PostMapping("/nepali-overviews")
+    public NetplixApiResponse<String> backfillNepaliOverviews() {
+        log.info("네팔어 줄거리 백필 요청");
+        if (movieUpdateScheduler.isBatchRunning()) {
+            return NetplixApiResponse.ok("다른 배치 실행 중입니다. 완료 후 다시 시도하세요.");
+        }
+        try {
+            CompletableFuture.runAsync(movieUpdateScheduler::backfillNepaliOverviews);
+            return NetplixApiResponse.ok("네팔어 줄거리 번역을 시작했습니다. 기존 목록을 지우지 않고 비어 있는 줄거리만 채웁니다.");
+        } catch (Exception e) {
+            log.error("네팔어 줄거리 백필 실패: {}", e.getMessage(), e);
+            return NetplixApiResponse.ok("네팔어 줄거리 백필 실패: " + e.getMessage());
+        }
+    }
+
     /**
      * LLM + 룰 기반 영화-지역 자동 태깅 수동 트리거.
      * Heroku 는 web dyno 만 외부 노출이므로 app-batch 의 동명 엔드포인트를 여기로도 노출한다.

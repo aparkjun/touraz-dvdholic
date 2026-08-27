@@ -27,7 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * OpenAI(gpt-4o-mini) 기반 텍스트 번역 어댑터.
  *
  * <p>원칙:
- *  - 한국어 원문 → en/zh/ja 번역. 그 외 언어는 원문 그대로 반환.
+ *  - 한국어 원문 → en/zh/ja/ne 번역. 그 외 언어는 원문 그대로 반환.
  *  - 인메모리 캐시(언어+원문 키)로 동일 텍스트 재번역 방지 → 모달 재오픈·언어 토글 시 무비용.
  *  - 미번역 텍스트들만 모아 <b>한 번의 호출</b>로 일괄 번역(JSON in/out).
  *  - 어떤 실패든 입력 원문을 그대로 반환 — 절대 예외 전파하지 않는다.
@@ -49,7 +49,8 @@ public class OpenAiTranslationAdapter implements TextTranslationPort {
     private static final Map<String, String> LANG_NAMES = Map.of(
             "en", "English",
             "zh", "Simplified Chinese",
-            "ja", "Japanese"
+            "ja", "Japanese",
+            "ne", "Nepali"
     );
 
     @Value("${openai.api-key:}")
@@ -209,6 +210,10 @@ public class OpenAiTranslationAdapter implements TextTranslationPort {
                         .append("and is passionate about cinema, DVDs, music films and Korean travel. Produce natural, ")
                         .append("fluent Simplified Chinese (地道的简体中文) in the style of a Chinese movie catalog 剧情简介 that ")
                         .append("mainland Chinese film fans immediately understand; use standard Chinese film vocabulary and phrasing. ");
+            } else if ("ne".equals(lang)) {
+                sb.append("Write as a native Nepali friend who loves cinema and explains Korean movies, DVDs and music films ")
+                        .append("warmly to people in Nepal. Produce natural, everyday Nepali in Devanagari (नेपाली) — friendly, ")
+                        .append("clear and easy to read, not stiff, literary, or mixed with unnecessary English. ");
             }
             sb.append("Translate every string in the input JSON array \"items\" from Korean into ").append(langName)
                     .append(". Translate faithfully: do NOT invent facts, titles, names, dates, or spoilers not present ")

@@ -16,7 +16,7 @@ import {
 import { useSearchParams } from 'next/navigation';
 import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
-import { getMovieTitle, getPosterPath } from '@/lib/movieLang';
+import { getMovieTitle, getPosterPath, getTagline, getOverview } from '@/lib/movieLang';
 import { shareContent, shareResultMessage } from '@/lib/shareUtils';
 import PhotoGalleryStrip from '@/components/PhotoGalleryStrip';
 import TourGallerySection from '@/components/TourGallerySection';
@@ -687,7 +687,7 @@ function MovieCard({ item, index, eager = false }) {
             whiteSpace: 'nowrap',
           }}
         >
-          {movie.tagline || movie.genre || ' '}
+          {getTagline(movie) || getOverview(movie) || movie.genre || ' '}
         </p>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>

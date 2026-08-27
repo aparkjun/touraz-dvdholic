@@ -1,6 +1,7 @@
 package fast.campus.netplix.entity.movie;
 
 import fast.campus.netplix.entity.audit.MutableBaseEntity;
+import fast.campus.netplix.movie.NepaliScript;
 import fast.campus.netplix.movie.NetplixMovie;
 import io.micrometer.common.util.StringUtils;
 import jakarta.persistence.Column;
@@ -300,6 +301,15 @@ public class MovieEntity extends MutableBaseEntity {
         this.taglineNe = src.getTaglineNe();
         this.posterPathNe = src.getPosterPathNe();
         this.backdropPathNe = src.getBackdropPathNe();
+    }
+
+    public void applyNepaliCopy(String overviewNe, String taglineNe) {
+        if (NepaliScript.isUsable(overviewNe)) {
+            this.overviewNe = overviewNe;
+        }
+        if (NepaliScript.isUsable(taglineNe)) {
+            this.taglineNe = taglineNe;
+        }
     }
 
     private static String getSubstrOverview(String overview) {

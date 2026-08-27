@@ -1,6 +1,7 @@
 package fast.campus.netplix.repository.movie;
 
 import fast.campus.netplix.entity.movie.MovieEntity;
+import fast.campus.netplix.movie.NepaliScript;
 import fast.campus.netplix.movie.NetplixMovie;
 import fast.campus.netplix.movie.PersistenceMoviePort;
 import lombok.RequiredArgsConstructor;
@@ -110,9 +111,19 @@ public class MovieRepository implements PersistenceMoviePort {
             if (existingEntity.getCast() != null && existingEntity.getDirector() != null) {
                 boolean missingNe = existingEntity.getMovieNameNe() == null || existingEntity.getMovieNameNe().isBlank();
                 boolean incomingNe = netplixMovie.getMovieNameNe() != null && !netplixMovie.getMovieNameNe().isBlank();
+                boolean overviewNeedsNe = !NepaliScript.isUsable(existingEntity.getOverviewNe())
+                        && NepaliScript.isUsable(netplixMovie.getOverviewNe());
+                boolean taglineNeedsNe = !NepaliScript.isUsable(existingEntity.getTaglineNe())
+                        && NepaliScript.isUsable(netplixMovie.getTaglineNe());
                 if (missingNe && incomingNe) {
                     log.info("Backfilling Nepali titles: {}", netplixMovie.getMovieName());
                     existingEntity.applyNepaliFrom(netplixMovie);
+                    movieJpaRepository.save(existingEntity);
+                    return existingEntity.getMovieId();
+                }
+                if (overviewNeedsNe || taglineNeedsNe) {
+                    log.info("Backfilling Nepali overview/tagline: {}", netplixMovie.getMovieName());
+                    existingEntity.applyNepaliCopy(netplixMovie.getOverviewNe(), netplixMovie.getTaglineNe());
                     movieJpaRepository.save(existingEntity);
                     return existingEntity.getMovieId();
                 }
@@ -133,6 +144,16 @@ public class MovieRepository implements PersistenceMoviePort {
             movieJpaRepository.save(entity);
             return entity.getMovieId();
         }
+    }
+
+    @Override
+    @Transactional
+    public void updateNepaliCopy(String movieName, String overviewNe, String taglineNe) {
+        if (movieName == null || movieName.isBlank()) return;
+        movieJpaRepository.findByMovieName(movieName).ifPresent(existing -> {
+            existing.applyNepaliCopy(overviewNe, taglineNe);
+            movieJpaRepository.save(existing);
+        });
     }
 
     @Override

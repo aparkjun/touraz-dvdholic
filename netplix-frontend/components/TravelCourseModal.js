@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
-import { getMovieTitle, getPosterPath } from '@/lib/movieLang';
+import { getMovieTitle, getPosterPath, getTagline, getOverview } from '@/lib/movieLang';
 import useBackButtonClose from '@/lib/useBackButtonClose';
 import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
 import ConcentrationForecastStrip from '@/components/ConcentrationForecastStrip';
@@ -319,9 +319,9 @@ export default function TravelCourseModal({
             <h2 className="tc-modal-title">
               {getMovieTitle(movie) || t('cineTripPage.untitled')}
             </h2>
-            {(movie.tagline || movie.genre) && (
+            {(getTagline(movie) || getOverview(movie) || movie.genre) && (
               <p style={{ color: '#a0a0a0', fontSize: 13, margin: '0 0 14px' }}>
-                {movie.tagline || movie.genre}
+                {getTagline(movie) || getOverview(movie) || movie.genre}
               </p>
             )}
 

@@ -4,6 +4,7 @@ import fast.campus.netplix.client.TmdbHttpClient;
 import fast.campus.netplix.movie.NetplixMovie;
 import fast.campus.netplix.movie.NetplixPageableMovies;
 import fast.campus.netplix.movie.TmdbMoviePlayingPort;
+import fast.campus.netplix.movie.NepaliScript;
 import fast.campus.netplix.translation.TextTranslationPort;
 import fast.campus.netplix.util.ObjectMapperUtil;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,10 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
     /** TMDB 중국어(간체) 줄거리가 비었을 때 한국어 원문을 AI(중국인 해설사 페르소나)로 번역해 채운다. */
     @Value("${tmdb.batch.zh-translate-fallback:true}")
     private boolean zhTranslateFallback;
+
+    /** TMDB 네팔어 줄거리가 없거나 영어 폴백일 때 한국어 원문을 AI로 네팔어 번역해 채운다. */
+    @Value("${tmdb.batch.ne-translate-fallback:true}")
+    private boolean neTranslateFallback;
 
     /** TMDB에서 응답 지연/멈춤으로 배치가 걸리는 ID → Enrich 스킵 (enrich=true일 때만 사용) */
     private static final Set<Integer> SKIP_ENRICH_TMDB_IDS = Set.of(1476682, 1356587, 1597535);
@@ -134,8 +139,10 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
                     .posterPathZh(detailsZh != null ? detailsZh.getPosterPath() : null)
                     .backdropPathZh(detailsZh != null ? detailsZh.getBackdropPath() : null)
                     .movieNameNe(detailsNe != null ? detailsNe.getTitle() : null)
-                    .overviewNe(detailsNe != null ? detailsNe.getOverview() : null)
-                    .taglineNe(detailsNe != null ? detailsNe.getTagline() : null)
+                    .overviewNe(resolveOverviewNe(detailsNe, movie.getOverview()))
+                    .taglineNe(resolveNeText(
+                            detailsNe != null ? detailsNe.getTagline() : null,
+                            details != null ? details.getTagline() : null))
                     .posterPathNe(detailsNe != null ? detailsNe.getPosterPath() : null)
                     .backdropPathNe(detailsNe != null ? detailsNe.getBackdropPath() : null)
                     .build();
@@ -192,6 +199,32 @@ public class TmdbMoviePlayingHttpClient implements TmdbMoviePlayingPort {
             log.warn("✗ ZH overview translate fallback failed: {}", e.getMessage());
         }
         return zhOverview;
+    }
+
+    /**
+     * 네팔어 줄거리: TMDB ne-NP 에 데바나가리가 있으면 그대로, 없거나 영어 폴백이면
+     * 한국어 원문을 AI(네팔인 친구 페르소나)로 번역. 실패 시 null → 프론트에서 한국어 폴백.
+     */
+    private String resolveOverviewNe(TmdbMovieDetails detailsNe, String koOverview) {
+        return resolveNeText(detailsNe != null ? detailsNe.getOverview() : null, koOverview);
+    }
+
+    private String resolveNeText(String tmdbNe, String koText) {
+        if (NepaliScript.isUsable(tmdbNe)) {
+            return tmdbNe;
+        }
+        if (!neTranslateFallback || koText == null || koText.isBlank() || !textTranslationPort.isAvailable()) {
+            return null;
+        }
+        try {
+            List<String> out = textTranslationPort.translate(List.of(koText), "ne", "film");
+            if (out != null && !out.isEmpty() && NepaliScript.isUsable(out.get(0))) {
+                return out.get(0);
+            }
+        } catch (Exception e) {
+            log.warn("✗ NE text translate fallback failed: {}", e.getMessage());
+        }
+        return null;
     }
 
     private static NetplixMovie withContentType(NetplixMovie m, String contentType) {

@@ -1,6 +1,7 @@
 package fast.campus.netplix.scheduler;
 
 import fast.campus.netplix.dvdstore.DvdStoreUseCase;
+import fast.campus.netplix.movie.NepaliScript;
 import fast.campus.netplix.movie.NetplixMovie;
 import fast.campus.netplix.movie.NetplixPageableMovies;
 import fast.campus.netplix.movie.OwnerRecommendUseCase;
@@ -8,6 +9,7 @@ import fast.campus.netplix.movie.PersistenceMoviePort;
 import fast.campus.netplix.movie.TmdbMoviePlayingPort;
 import fast.campus.netplix.movie.TmdbMoviePort;
 import fast.campus.netplix.notification.NotificationUseCase;
+import fast.campus.netplix.translation.TextTranslationPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -39,6 +41,7 @@ public class MovieUpdateScheduler {
     private final NotificationUseCase notificationUseCase;
     private final DvdStoreUseCase dvdStoreUseCase;
     private final OwnerRecommendUseCase ownerRecommendUseCase;
+    private final TextTranslationPort textTranslationPort;
 
     public boolean isBatchRunning() {
         return batchInProgress.get();
@@ -376,5 +379,91 @@ public class MovieUpdateScheduler {
                 .backdropPathNe(movie.getBackdropPathNe())
                 .firstSeenAt(firstSeenAt)
                 .build();
+    }
+
+    /**
+     * 이미 저장된 영화/DVD 중 네팔어 줄거리·태그라인이 없거나 영어 폴백인 것만
+     * 한국어 원문에서 AI 번역해 채운다. TMDB 재수집·기존 행 삭제는 하지 않는다.
+     */
+    public void backfillNepaliOverviews() {
+        if (!batchInProgress.compareAndSet(false, true)) {
+            log.warn("=== 다른 배치 실행 중. 네팔어 줄거리 백필 스킵 ===");
+            return;
+        }
+        try {
+            if (textTranslationPort == null || !textTranslationPort.isAvailable()) {
+                log.warn("=== 네팔어 줄거리 백필 중단: 번역기 없음 ===");
+                return;
+            }
+            log.info("=== 네팔어 줄거리 백필 시작 ({}) ===", LocalDateTime.now());
+            int updated = 0;
+            for (String type : List.of("dvd", "movie")) {
+                updated += backfillNepaliOverviewsForType(type);
+            }
+            log.info("=== 네팔어 줄거리 백필 완료: {}편 갱신 ===", updated);
+        } catch (Exception e) {
+            log.error("=== 네팔어 줄거리 백필 실패: {} ===", e.getMessage(), e);
+        } finally {
+            batchInProgress.set(false);
+        }
+    }
+
+    private int backfillNepaliOverviewsForType(String contentType) {
+        int updated = 0;
+        int page = 0;
+        while (true) {
+            List<NetplixMovie> batch = persistenceMoviePort.fetchByContentType(contentType, page, 50);
+            if (batch.isEmpty()) break;
+            List<NetplixMovie> needOverview = new ArrayList<>();
+            List<NetplixMovie> needTagline = new ArrayList<>();
+            for (NetplixMovie m : batch) {
+                if (!NepaliScript.isUsable(m.getOverviewNe()) && isTranslatableKo(m.getOverview())) {
+                    needOverview.add(m);
+                }
+                if (!NepaliScript.isUsable(m.getTaglineNe()) && isTranslatableKo(m.getTagline())) {
+                    needTagline.add(m);
+                }
+            }
+            Map<String, String> overviewByName = translateField(needOverview, NetplixMovie::getOverview);
+            Map<String, String> taglineByName = translateField(needTagline, NetplixMovie::getTagline);
+            Set<String> names = new LinkedHashSet<>();
+            names.addAll(overviewByName.keySet());
+            names.addAll(taglineByName.keySet());
+            for (String name : names) {
+                persistenceMoviePort.updateNepaliCopy(name, overviewByName.get(name), taglineByName.get(name));
+                updated++;
+            }
+            if (batch.size() < 50) break;
+            page++;
+        }
+        return updated;
+    }
+
+    private Map<String, String> translateField(List<NetplixMovie> movies, java.util.function.Function<NetplixMovie, String> getter) {
+        Map<String, String> out = new LinkedHashMap<>();
+        if (movies.isEmpty()) return out;
+        final int chunk = 8;
+        for (int i = 0; i < movies.size(); i += chunk) {
+            List<NetplixMovie> slice = movies.subList(i, Math.min(i + chunk, movies.size()));
+            List<String> sources = slice.stream().map(getter).toList();
+            try {
+                List<String> translated = textTranslationPort.translate(sources, "ne", "film");
+                if (translated == null || translated.size() != sources.size()) continue;
+                for (int j = 0; j < slice.size(); j++) {
+                    String dst = translated.get(j);
+                    if (NepaliScript.isUsable(dst)) {
+                        out.put(slice.get(j).getMovieName(), dst);
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("네팔어 번역 청크 실패: {}", e.getMessage());
+            }
+        }
+        return out;
+    }
+
+    private static boolean isTranslatableKo(String text) {
+        if (text == null || text.isBlank()) return false;
+        return !"No description available.".equalsIgnoreCase(text.trim());
     }
 }
