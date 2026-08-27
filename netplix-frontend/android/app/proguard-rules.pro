@@ -28,3 +28,8 @@
 # Google Play Services / AdMob
 -keep class com.google.android.gms.** { *; }
 -dontwarn com.google.android.gms.**
+
+# Google Play Billing (인앱결제 권한·클라이언트)
+-keep class com.android.vending.billing.** { *; }
+-keep class com.android.billingclient.** { *; }
+-dontwarn com.android.billingclient.**

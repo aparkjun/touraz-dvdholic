@@ -74,6 +74,8 @@ netplix-frontend/src/_pages_cra_backup/
 
 # TWA / Bubblewrap build artifacts
 app-release-bundle.aab
+holic-v*.aab
+*.aab
 
 # R8/ProGuard mapping (large; regenerate from release build)
 /mapping.txt
@@ -85,6 +87,7 @@ app-release-signed.apk.idsig
 app-release-unsigned-aligned.apk
 android.keystore
 signing.keystore
+upload_certificate.pem
 store_icon.png
 manifest-checksum.txt
 twa-manifest.json

@@ -16,6 +16,10 @@
     <uses-permission
         android:name="android.permission.ACCESS_ADSERVICES_AD_ID"
         tools:node="merge" />
+    <!-- Play Console 일회성 제품(인앱결제) 등록에 필요 -->
+    <uses-permission
+        android:name="com.android.vending.BILLING"
+        tools:node="merge" />
 
     <application
         android:allowBackup="true"
