@@ -397,7 +397,8 @@ public class MovieUpdateScheduler {
             }
             log.info("=== 네팔어 줄거리 백필 시작 ({}) ===", LocalDateTime.now());
             int updated = 0;
-            for (String type : List.of("dvd", "movie")) {
+            // 영화 줄거리가 더 비어 있으므로 영화부터 채운다. DVD는 이미 대부분 완료.
+            for (String type : List.of("movie", "dvd")) {
                 updated += backfillNepaliOverviewsForType(type);
             }
             log.info("=== 네팔어 줄거리 백필 완료: {}편 갱신 ===", updated);
@@ -442,22 +443,39 @@ public class MovieUpdateScheduler {
     private Map<String, String> translateField(List<NetplixMovie> movies, java.util.function.Function<NetplixMovie, String> getter) {
         Map<String, String> out = new LinkedHashMap<>();
         if (movies.isEmpty()) return out;
-        final int chunk = 8;
+        // 8편씩이면 gpt-4o-mini 가 24초 읽기 제한을 자주 넘긴다. 3편 + 실패 시 1편 재시도.
+        final int chunk = 3;
         for (int i = 0; i < movies.size(); i += chunk) {
             List<NetplixMovie> slice = movies.subList(i, Math.min(i + chunk, movies.size()));
-            List<String> sources = slice.stream().map(getter).toList();
-            try {
-                List<String> translated = textTranslationPort.translate(sources, "ne", "film");
-                if (translated == null || translated.size() != sources.size()) continue;
-                for (int j = 0; j < slice.size(); j++) {
-                    String dst = translated.get(j);
-                    if (NepaliScript.isUsable(dst)) {
-                        out.put(slice.get(j).getMovieName(), dst);
-                    }
+            Map<String, String> part = translateSlice(slice, getter);
+            if (part.size() < slice.size()) {
+                for (NetplixMovie m : slice) {
+                    if (part.containsKey(m.getMovieName())) continue;
+                    part.putAll(translateSlice(List.of(m), getter));
                 }
-            } catch (Exception e) {
-                log.warn("네팔어 번역 청크 실패: {}", e.getMessage());
             }
+            out.putAll(part);
+        }
+        return out;
+    }
+
+    private Map<String, String> translateSlice(List<NetplixMovie> slice,
+            java.util.function.Function<NetplixMovie, String> getter) {
+        Map<String, String> out = new LinkedHashMap<>();
+        List<String> sources = slice.stream().map(getter).toList();
+        try {
+            List<String> translated = textTranslationPort.translate(sources, "ne", "film");
+            if (translated == null || translated.size() != sources.size()) {
+                return out;
+            }
+            for (int j = 0; j < slice.size(); j++) {
+                String dst = translated.get(j);
+                if (NepaliScript.isUsable(dst)) {
+                    out.put(slice.get(j).getMovieName(), dst);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("네팔어 번역 청크 실패 count={}: {}", slice.size(), e.getMessage());
         }
         return out;
     }
