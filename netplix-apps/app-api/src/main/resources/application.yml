@@ -1,4 +1,17 @@
+# HTTP 응답 gzip 압축: 대시보드 목록/카테고리 JSON(다국어 필드 다수)이 크므로
+# 전송 크기를 크게 줄인다(단일 512MB 다이노에서 첫 로딩 체감 개선). min-response-size
+# 이상만 압축해 작은 응답의 오버헤드는 피한다.
+server:
+  compression:
+    enabled: true
+    mime-types: application/json,application/javascript,text/css,text/html,text/plain,text/xml,application/xml
+    min-response-size: 1024
+
 spring:
+  # null 필드는 직렬화에서 제외 → 아직 채워지지 않은 다국어/부가 메타(En/Ja/Zh, budget 등)
+  # 를 응답에서 빼 페이로드를 줄인다. 프론트는 모든 필드를 옵셔널(?.)/폴백으로 읽어 안전.
+  jackson:
+    default-property-inclusion: non_null
   datasource:
     hikari:
       connection-init-sql: SET NAMES utf8mb4
