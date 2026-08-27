@@ -25,6 +25,7 @@ import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
+import { navigateBack } from "@/lib/navigateBack";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 import { MapServiceLinkButton } from "@/components/MapServiceLinkButton";
 import FastImg from "@/components/FastImg";
@@ -229,7 +230,7 @@ function CampingDetailInner() {
         <button
           type="button"
           className="cmd-back"
-          onClick={() => router.back()}
+          onClick={() => navigateBack(router, "/camping")}
           aria-label={t("camping.backToList")}
         >
           <ArrowLeft size={16} />

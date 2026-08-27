@@ -1,11 +1,11 @@
 'use client';
-import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Undo2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { navigateBack } from '@/lib/navigateBack';
 
-/** 비로그인 시 뒤로가기 숨김 경로 */
-const BACK_HIDDEN_PATHS = new Set(['/', '/dashboard']);
+/** 홈(뒤로갈 상위가 없는 화면)에서는 숨김 */
+const BACK_HIDDEN_PATHS = new Set(['/', '/dashboard', '/mypage']);
 
 const baseButtonStyle = {
   display: 'inline-flex',
@@ -54,31 +54,14 @@ export default function FloatingBackButton() {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useTranslation();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
-  useEffect(() => {
-    const refresh = () => setIsLoggedIn(!!localStorage.getItem('token'));
-    refresh();
-    window.addEventListener('token-stored', refresh);
-    window.addEventListener('storage', refresh);
-    return () => {
-      window.removeEventListener('token-stored', refresh);
-      window.removeEventListener('storage', refresh);
-    };
-  }, [pathname]);
 
   if (!pathname) return null;
-  if (isLoggedIn) return null;
   if (BACK_HIDDEN_PATHS.has(pathname)) return null;
 
   const label = t('common.back', '뒤로');
 
   const handleBack = () => {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push('/dashboard');
-    }
+    navigateBack(router, '/dashboard');
   };
 
   return (

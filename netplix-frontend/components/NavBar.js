@@ -60,6 +60,7 @@ export default function NavBar() {
     pathname === '/admin' ||
     (pathname?.startsWith('/admin/') ?? false) ||
     pathname === '/korea-corners' ||
+    (pathname?.startsWith('/korea-corners/') ?? false) ||
     pathname === '/safe-tourism' ||
     (pathname?.startsWith('/safe-tourism/') ?? false) ||
     pathname === '/trekking' ||

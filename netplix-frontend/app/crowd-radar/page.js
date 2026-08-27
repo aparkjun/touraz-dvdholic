@@ -21,6 +21,7 @@
 
 import { Suspense, useEffect, useId, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { navigateBack } from "@/lib/navigateBack";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import axios from "@/lib/axiosConfig";
@@ -363,7 +364,7 @@ function CrowdRadarInner() {
 
       <div style={styles.wrap}>
         <button
-          onClick={() => router.back()}
+          onClick={() => navigateBack(router, "/dashboard")}
           style={styles.backBtn}
           aria-label="back"
         >

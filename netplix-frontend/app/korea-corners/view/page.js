@@ -3,29 +3,25 @@
 /**
  * /korea-corners/view — 여행기사 외부 페이지 인앱 뷰어
  * 고정 상단 바로 목록 복귀 경로를 유지한다.
+ * iOS: iframe 이 WebView/뒤로가기를 가로채지 않도록 네이티브 브라우저로 연다.
  */
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ExternalLink, Newspaper } from 'lucide-react';
+import useViewerBack from '@/lib/useViewerBack';
+import {
+  isHttpUrl,
+  isNativeCapacitor,
+  openExternalUrl,
+} from '@/lib/openExternalUrl';
 
 const RETURN_KEY = 'korea-corners-return';
 
-function isSafeHttpUrl(raw) {
-  if (!raw || typeof raw !== 'string') return false;
-  try {
-    const u = new URL(raw.trim());
-    return u.protocol === 'https:' || u.protocol === 'http:';
-  } catch {
-    return false;
-  }
-}
-
 function KoreaCornersViewInner() {
   const { t } = useTranslation();
-  const router = useRouter();
   const searchParams = useSearchParams();
 
   const rawUrl = searchParams.get('url') || '';
@@ -33,8 +29,10 @@ function KoreaCornersViewInner() {
   const fromParam = searchParams.get('from') || '';
 
   const [returnPath, setReturnPath] = useState('/korea-corners');
+  const [nativeShell, setNativeShell] = useState(false);
 
-  const detailUrl = useMemo(() => (isSafeHttpUrl(rawUrl) ? rawUrl.trim() : ''), [rawUrl]);
+  const detailUrl = useMemo(() => (isHttpUrl(rawUrl) ? rawUrl.trim() : ''), [rawUrl]);
+  const goBack = useViewerBack(returnPath, '/korea-corners');
 
   useEffect(() => {
     const saved =
@@ -48,9 +46,24 @@ function KoreaCornersViewInner() {
     }
   }, [fromParam]);
 
-  const goBack = useCallback(() => {
-    router.push(returnPath);
-  }, [router, returnPath]);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const native = await isNativeCapacitor();
+      if (cancelled) return;
+      setNativeShell(native);
+      if (native && detailUrl) {
+        await openExternalUrl(detailUrl);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [detailUrl]);
+
+  const openOutside = useCallback(() => {
+    if (detailUrl) openExternalUrl(detailUrl);
+  }, [detailUrl]);
 
   if (!detailUrl) {
     return (
@@ -79,24 +92,38 @@ function KoreaCornersViewInner() {
           <Newspaper size={14} aria-hidden />
           <span className="kcv-bar-name">{title || t('koreaCornersPage.readArticle', '기사 보기')}</span>
         </div>
-        <a
-          href={detailUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
           className="kcv-external"
+          onClick={openOutside}
           title={t('koreaCornersPage.openExternal', '외부 브라우저에서 열기')}
         >
           <ExternalLink size={16} aria-hidden />
           <span className="kcv-external-label">{t('koreaCornersPage.openExternalShort', '새 창')}</span>
-        </a>
+        </button>
       </header>
 
-      <iframe
-        className="kcv-frame"
-        src={detailUrl}
-        title={title || 'korea-corners-article'}
-        referrerPolicy="no-referrer-when-downgrade"
-      />
+      {nativeShell ? (
+        <div className="kcv-native">
+          <p className="kcv-native-msg">
+            {t(
+              'koreaCornersPage.nativeOpened',
+              '대한민국 구석구석 기사를 외부 창에서 열었습니다. 창을 닫으면 이 화면으로 돌아옵니다.',
+            )}
+          </p>
+          <button type="button" className="kcv-native-reopen" onClick={openOutside}>
+            {t('koreaCornersPage.openExternal', '외부 브라우저에서 열기')}
+          </button>
+        </div>
+      ) : (
+        <iframe
+          className="kcv-frame"
+          src={detailUrl}
+          title={title || 'korea-corners-article'}
+          referrerPolicy="no-referrer-when-downgrade"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox"
+        />
+      )}
 
       <p className="kcv-hint">
         {t(
@@ -120,19 +147,20 @@ const cssBlock = `
 .kcv-root {
   display: flex;
   flex-direction: column;
-  min-height: 100dvh;
+  height: calc(100dvh - 64px - env(safe-area-inset-top, 0px));
+  max-height: calc(100dvh - 64px - env(safe-area-inset-top, 0px));
+  overflow: hidden;
   background: #0a0b12;
   color: #f5f5f5;
 }
 .kcv-bar {
-  position: sticky;
-  top: 0;
-  z-index: 100;
+  position: relative;
+  z-index: 30;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
-  padding-top: max(10px, env(safe-area-inset-top));
   background: rgba(10, 11, 18, 0.96);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(12px);
@@ -182,19 +210,50 @@ const cssBlock = `
   text-decoration: none;
   font-size: 0.75rem;
   font-weight: 600;
+  cursor: pointer;
 }
 @media (max-width: 380px) {
   .kcv-external-label { display: none; }
 }
 .kcv-frame {
-  flex: 1;
+  flex: 1 1 auto;
   width: 100%;
   min-height: 0;
-  height: calc(100dvh - 52px - 36px);
   border: none;
   background: #fff;
+  position: relative;
+  z-index: 0;
+}
+.kcv-native {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 24px 20px;
+  text-align: center;
+}
+.kcv-native-msg {
+  margin: 0;
+  max-width: 360px;
+  color: #d1d5db;
+  font-size: 0.95rem;
+  line-height: 1.55;
+}
+.kcv-native-reopen {
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: rgba(249, 115, 22, 0.2);
+  color: #fde68a;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 10px 16px;
+  border-radius: 999px;
+  cursor: pointer;
 }
 .kcv-hint {
+  flex-shrink: 0;
   margin: 0;
   padding: 8px 12px 12px;
   padding-bottom: max(12px, env(safe-area-inset-bottom));

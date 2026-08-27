@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { navigateBack } from "@/lib/navigateBack";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import { motion } from "framer-motion";
@@ -110,7 +111,7 @@ function Account() {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5 }}
-          onClick={() => router.back()}
+          onClick={() => navigateBack(router, "/dashboard")}
           style={{
             display: "inline-flex",
             alignItems: "center",

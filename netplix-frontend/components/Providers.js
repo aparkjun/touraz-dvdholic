@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { clearOAuthRedirectPending } from '@/lib/oauthPending';
 import { OAUTH_BROWSER_CANCELLED, resetNativeOAuthSession } from '@/lib/oauthNativeBrowser';
 import useDragScrollAll from '@/lib/useDragScroll';
+import { isSameAppOrigin, openExternalUrl } from '@/lib/openExternalUrl';
 
 export default function Providers({ children }) {
   useEffect(() => {
@@ -37,6 +38,8 @@ export default function Providers({ children }) {
 
   useEffect(() => {
     const EDGE_PX = 30;
+    const STRIP_SELECTOR =
+      '.dashboard-scroll-row, .cinetrip-scroll-row, .js-drag-scroll';
     let startX = 0;
     let startY = 0;
     const onTouchStart = (e) => {
@@ -48,6 +51,9 @@ export default function Providers({ children }) {
       if (!e.touches.length) return;
       const dx = Math.abs(e.touches[0].clientX - startX);
       const dy = Math.abs(e.touches[0].clientY - startY);
+      // 가로 캐러셀 안에서만 가장자리 스와이프를 가로챈다.
+      // 왼쪽 가장자리 preventDefault 는 iOS 뒤로가기 제스처를 끊으므로 페이지 전역에서는 하지 않는다.
+      if (!e.target?.closest?.(STRIP_SELECTOR)) return;
       const isEdge = startX < EDGE_PX || startX > window.innerWidth - EDGE_PX;
       if (isEdge && dx > dy) {
         e.preventDefault();
@@ -59,6 +65,40 @@ export default function Providers({ children }) {
       document.removeEventListener('touchstart', onTouchStart);
       document.removeEventListener('touchmove', onTouchMove);
     };
+  }, []);
+
+  useEffect(() => {
+    const onClick = (e) => {
+      if (e.defaultPrevented) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (e.button != null && e.button !== 0) return;
+      const a = e.target instanceof Element ? e.target.closest('a[href]') : null;
+      if (!a) return;
+      const href = a.getAttribute('href') || '';
+      if (
+        !href ||
+        href.startsWith('#') ||
+        href.startsWith('mailto:') ||
+        href.startsWith('tel:') ||
+        href.startsWith('javascript:') ||
+        href.startsWith('/')
+      ) {
+        return;
+      }
+      if (a.hasAttribute('download')) return;
+      if (isSameAppOrigin(href)) return;
+      let abs;
+      try {
+        abs = new URL(href, window.location.href).href;
+      } catch {
+        return;
+      }
+      if (!/^https?:/i.test(abs)) return;
+      e.preventDefault();
+      openExternalUrl(abs);
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
   }, []);
 
   useEffect(() => {

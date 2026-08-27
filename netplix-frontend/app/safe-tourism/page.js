@@ -18,6 +18,7 @@ import {
   Leaf,
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
+import { navigateBack } from '@/lib/navigateBack';
 import AmbientBackdrop from '@/components/AmbientBackdrop';
 import FastImg from '@/components/FastImg';
 
@@ -135,11 +136,7 @@ function SafeTourismInner() {
   const areaLabel = useMemo(() => areaKeyword || null, [areaKeyword]);
 
   const goBackDashboard = useCallback(() => {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
-      return;
-    }
-    router.push('/dashboard');
+    navigateBack(router, '/dashboard');
   }, [router]);
 
   const openDetail = useCallback(
