@@ -74,6 +74,11 @@ public class OpenAiTranslationAdapter implements TextTranslationPort {
     }
 
     @Override
+    public void clearCache() {
+        cache.clear();
+    }
+
+    @Override
     public List<String> translate(List<String> texts, String targetLang) {
         return translate(texts, targetLang, "tourism");
     }

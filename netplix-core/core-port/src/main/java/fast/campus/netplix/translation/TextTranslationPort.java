@@ -35,4 +35,8 @@ public interface TextTranslationPort {
     default List<String> translate(List<String> texts, String targetLang, String domain) {
         return translate(texts, targetLang);
     }
+
+    /** 인메모리 번역 캐시를 비운다. 기본 구현은 no-op. */
+    default void clearCache() {
+    }
 }
