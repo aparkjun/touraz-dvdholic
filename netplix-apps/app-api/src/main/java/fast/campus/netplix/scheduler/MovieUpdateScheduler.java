@@ -389,7 +389,7 @@ public class MovieUpdateScheduler {
 
     /**
      * 이미 저장된 영화/DVD 중 네팔어 줄거리·태그라인이 없거나 영어 폴백인 것만
-     * 한국어 원문(없으면 영어)에서 AI 번역해 채운다. TMDB 재수집·기존 행 삭제는 하지 않는다.
+     * 한국어 원문(없으면 영어·일본어·중국어)에서 AI 번역해 채운다. TMDB 재수집·기존 행 삭제는 하지 않는다.
      *
      * <p>{@code contentType}은 {@code dvd} 또는 {@code movie} 한 종류만 처리한다.
      * 메모리 한도가 작은 dyno에서 둘을 한 번에 돌리지 않기 위함이다.
@@ -455,17 +455,17 @@ public class MovieUpdateScheduler {
             for (NetplixMovie m : batch) {
                 if (overview) {
                     if (!NepaliScript.isUsable(m.getOverviewNe())
-                            && NepaliScript.firstTranslatable(m.getOverview(), m.getOverviewEn()) != null) {
+                            && overviewSource(m) != null) {
                         need.add(m);
                     }
                 } else if (!NepaliScript.isUsable(m.getTaglineNe())
-                        && NepaliScript.firstTranslatable(m.getTagline(), m.getTaglineEn()) != null) {
+                        && taglineSource(m) != null) {
                     need.add(m);
                 }
             }
             Map<String, String> byName = translateField(need, overview
-                    ? m -> NepaliScript.firstTranslatable(m.getOverview(), m.getOverviewEn())
-                    : m -> NepaliScript.firstTranslatable(m.getTagline(), m.getTaglineEn()));
+                    ? MovieUpdateScheduler::overviewSource
+                    : MovieUpdateScheduler::taglineSource);
             for (Map.Entry<String, String> e : byName.entrySet()) {
                 if (overview) {
                     persistenceMoviePort.updateNepaliCopy(e.getKey(), e.getValue(), null);
@@ -518,5 +518,15 @@ public class MovieUpdateScheduler {
             log.warn("네팔어 번역 청크 실패 count={}: {}", slice.size(), e.getMessage());
         }
         return out;
+    }
+
+    private static String overviewSource(NetplixMovie m) {
+        return NepaliScript.firstTranslatable(
+                m.getOverview(), m.getOverviewEn(), m.getOverviewJa(), m.getOverviewZh());
+    }
+
+    private static String taglineSource(NetplixMovie m) {
+        return NepaliScript.firstTranslatable(
+                m.getTagline(), m.getTaglineEn(), m.getTaglineJa(), m.getTaglineZh());
     }
 }

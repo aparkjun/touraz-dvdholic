@@ -16,7 +16,7 @@ public final class NepaliScript {
         return text.codePoints().anyMatch(cp -> cp >= 0x0900 && cp <= 0x097F);
     }
 
-    /** 한국어가 없으면 영어 줄거리·태그라인을 네팔어 번역 원문으로 쓴다. */
+    /** 한국어가 없으면 영어·일본어·중국어 줄거리·태그라인을 네팔어 번역 원문으로 쓴다. */
     public static boolean isTranslatableSource(String text) {
         if (text == null || text.isBlank()) {
             return false;
