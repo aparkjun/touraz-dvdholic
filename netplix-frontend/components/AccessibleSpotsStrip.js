@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
+import { ktoThumbUrl } from '@/lib/fastImage';
 import { useTranslation } from 'react-i18next';
 import useBackButtonClose from '@/lib/useBackButtonClose';
 
@@ -239,7 +240,7 @@ function PoiCard({ poi, bucket, onOpen }) {
   const Icon = meta.icon;
   const addr = poi.addr1 || poi.addr2 || '';
   // KTO 이미지 URL 이 http 인 경우 HTTPS 페이지에서 mixed-content 로 차단된다. https 로 승격.
-  const cardImg = secureTourImageUrl(poi.firstImageThumb || poi.firstImage);
+  const cardImg = ktoThumbUrl(poi.firstImageThumb || poi.firstImage);
 
   return (
     <motion.button
@@ -278,6 +279,7 @@ function PoiCard({ poi, bucket, onOpen }) {
             src={cardImg}
             alt={poi.title || 'poi'}
             loading="lazy"
+            decoding="async"
             referrerPolicy="no-referrer"
             draggable={false}
             onDragStart={(e) => e.preventDefault()}

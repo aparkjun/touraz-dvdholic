@@ -36,6 +36,7 @@ import MedicalTourismDailyPicks from "@/components/MedicalTourismDailyPicks";
 import { useMedicalFavorites } from "@/lib/useMedicalFavorites";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
+import FastImg from "@/components/FastImg";
 import { resolveAreaCode } from "@/lib/regionAreaCode";
 import {
   Stethoscope,
@@ -89,7 +90,7 @@ if (typeof window !== "undefined") {
 const KOREA_CENTER = [36.5, 127.5];
 const DEFAULT_ZOOM = 7;
 const RADIUS_OPTIONS = [10, 30, 50]; // km
-const PAGE_SIZE = 60;
+const PAGE_SIZE = 24;
 
 // keyword: KTO 의료관광 API 검색용 한글, code: i18n 라벨 키
 const REGION_SHORTCUTS = [
@@ -735,11 +736,9 @@ function MedicalTourismCard({ spot, weatherRegionCode, onOpen, isSaved: savedPro
     >
       <div className="mt-img">
         {spot.imageUrl ? (
-          <img
+          <FastImg
             src={spot.imageUrl}
             alt={spot.name || ""}
-            loading="lazy"
-            referrerPolicy="no-referrer"
             onError={(e) => { e.currentTarget.style.display = "none"; }}
           />
         ) : (

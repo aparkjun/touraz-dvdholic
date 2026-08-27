@@ -1182,6 +1182,8 @@ function CineTripPageInner() {
             title={t('tourGallery.regionSection')}
             subtitle={t('tourGallery.poweredBy')}
             limit={0}
+            infinite
+            pageSize={24}
             weatherRegionCode={selectedAreaCode}
           />
         )}

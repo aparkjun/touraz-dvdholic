@@ -23,6 +23,7 @@ import {
   Sparkles, MapPin, Phone, Stethoscope, ChevronRight,
   Syringe, Smile, Leaf, Activity, HeartPulse, Bone,
 } from "lucide-react";
+import FastImg from "@/components/FastImg";
 
 /**
  * KTO 의료관광 데이터셋에는 시설 사진이 등록돼 있지 않다(detailCommon orgImage/thumbImage 공란).
@@ -121,11 +122,9 @@ export default function MedicalTourismDailyPicks({ spots, onOpen }) {
           >
             <div className="mtp-img" style={s.imageUrl ? undefined : { backgroundImage: theme.grad }}>
               {s.imageUrl ? (
-                <img
+                <FastImg
                   src={s.imageUrl}
                   alt={s.name || ""}
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
                   onError={(e) => { e.currentTarget.style.display = "none"; }}
                 />
               ) : (

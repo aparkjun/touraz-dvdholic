@@ -432,7 +432,7 @@ public class VisitKoreaGalleryHttpClient implements TourGalleryPort {
                 .photoLocation(i.getGalPhotographyLocation())
                 .searchKeyword(i.getGalSearchKeyword())
                 .imageUrl(img)
-                .thumbnailUrl(img) // 별도 썸네일 필드가 없음 → 대형 이미지로 대체
+                .thumbnailUrl(toGalleryThumbUrl(img))
                 .createdTime(i.getCreatedtime())
                 .modifiedTime(i.getModifiedtime())
                 .build();
@@ -445,6 +445,18 @@ public class VisitKoreaGalleryHttpClient implements TourGalleryPort {
             return "https://" + url.substring(7);
         }
         return url;
+    }
+
+    /**
+     * PhotoGalleryService1 은 썸네일 필드가 없다. CMS 원본({@code _image2_})을
+     * 목록용 저해상도({@code _image3_})로 치환해 카드 로딩을 줄인다. 패턴이 없으면 원본 유지.
+     */
+    static String toGalleryThumbUrl(String img) {
+        if (img == null || img.isBlank()) return img;
+        if (img.contains("_image2_")) {
+            return img.replace("_image2_", "_image3_");
+        }
+        return img;
     }
 
     private CacheSnapshot getSnapshot(String key) {

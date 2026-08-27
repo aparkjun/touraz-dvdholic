@@ -562,6 +562,8 @@ function DvdStoresContent() {
             title={t("tourGallery.dvdStoreSection")}
             subtitle={t("tourGallery.poweredBy")}
             limit={0}
+            infinite
+            pageSize={24}
           />
         </div>
       )}

@@ -19,6 +19,7 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/src/axiosConfig";
 import { Tent, MapPin, Phone, ExternalLink, ArrowRight } from "lucide-react";
+import FastImg from "@/components/FastImg";
 
 /**
  * GoCamping homepage 필드 정규화. 자세한 케이스는 app/camping/page.js 의 동명 함수 주석 참조.
@@ -170,11 +171,9 @@ function CampingMiniCard({ site }) {
     <>
       <div className="ncs-img">
         {site.imageUrl ? (
-          <img
+          <FastImg
             src={site.imageUrl}
             alt={site.name || ""}
-            loading="lazy"
-            referrerPolicy="no-referrer"
             onError={(e) => { e.currentTarget.style.display = "none"; }}
           />
         ) : (

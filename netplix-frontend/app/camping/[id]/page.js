@@ -27,6 +27,8 @@ import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 import { MapServiceLinkButton } from "@/components/MapServiceLinkButton";
+import FastImg from "@/components/FastImg";
+import { fullImageUrl } from "@/lib/fastImage";
 import {
   Tent,
   ArrowLeft,
@@ -258,7 +260,7 @@ function CampingDetailInner() {
             <div
               className="cmd-hero-bg"
               style={{
-                backgroundImage: site.imageUrl ? `url(${site.imageUrl})` : "none",
+                backgroundImage: site.imageUrl ? `url(${fullImageUrl(site.imageUrl)})` : "none",
               }}
               aria-hidden
             />
@@ -517,11 +519,9 @@ function CampingDetailInner() {
                       rel="noopener noreferrer"
                       className="cmd-gallery-item"
                     >
-                      <img
+                      <FastImg
                         src={url}
                         alt={`${site.name} ${i + 1}`}
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
                         onError={(e) => {
                           e.currentTarget.parentElement.style.display = "none";
                         }}

@@ -42,7 +42,7 @@ const NO_POSTER_PLACEHOLDER = '/no-poster-placeholder.png';
 const posterSrc = (posterPath) => {
   if (!posterPath) return NO_POSTER_PLACEHOLDER;
   if (posterPath.startsWith('http')) return posterPath;
-  return `https://image.tmdb.org/t/p/w500${posterPath}`;
+  return `https://image.tmdb.org/t/p/w342${posterPath}`;
 };
 
 const kakaoMapUrl = (regionName) => {
@@ -625,7 +625,7 @@ export default function TravelCourseModal({
                     subtitle={t('tourGallery.poweredBy')}
                     limit={0}
                     infinite
-                    pageSize={48}
+                    pageSize={24}
                   />
 
                   <AccessibleSpotsStrip

@@ -186,7 +186,7 @@ function PhotoGalleryInner() {
           limit={0}
           allowEmpty
           infinite
-          pageSize={60}
+          pageSize={24}
           soundLayerEnabled={layerMode === "sound"}
           weatherRegionCode={galleryWeatherRegionCode}
         />

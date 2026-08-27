@@ -45,6 +45,7 @@ import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
 import VoiceMicIcon from "@/components/VoiceMicIcon";
+import FastImg from "@/components/FastImg";
 import {
   Headphones,
   Globe2,
@@ -69,7 +70,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-const PAGE_SIZE = 60;
+const PAGE_SIZE = 24;
 /** 20km 이하: Odii location API. 그 초과(100km): 서버가 전체 목록+Haversine으로 넓은 반경 필터. */
 const RADIUS_OPTIONS = [5, 10, 20, 100]; // km
 
@@ -1363,11 +1364,9 @@ function AudioCard({ item, listKind, weatherRegionCode, playing, onToggle, onOpe
     >
       <div className="agp-card-img">
         {item.imageUrl ? (
-          <img
+          <FastImg
             src={item.imageUrl}
             alt={item.title || ""}
-            loading="lazy"
-            referrerPolicy="no-referrer"
             onError={(e) => { e.currentTarget.style.display = "none"; }}
           />
         ) : (

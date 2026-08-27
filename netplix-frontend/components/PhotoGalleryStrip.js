@@ -6,6 +6,7 @@ import { Camera, X, MapPin } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
 import useBackButtonClose from '@/lib/useBackButtonClose';
+import FastImg from '@/components/FastImg';
 
 /**
  * 관광공모전(사진) 수상작 갤러리 스트립.
@@ -309,10 +310,10 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
                 }}
                 title={`${p.title || ''} · ${p.filmSite || ''}`}
               >
-                <img
+                <FastImg
                   src={p.thumbnailUrl || p.imageUrl}
+                  fallbackSrc={p.imageUrl}
                   alt={p.title || '관광 사진'}
-                  loading="lazy"
                   draggable={false}
                   onContextMenu={(e) => e.preventDefault()}
                   onDragStart={(e) => e.preventDefault()}
@@ -471,6 +472,8 @@ export default function PhotoGalleryStrip({ areaCode = null, keyword = null, lim
                   src={activePhoto.imageUrl || activePhoto.thumbnailUrl}
                   alt={activePhoto.title || '관광 사진'}
                   draggable={false}
+                  decoding="async"
+                  referrerPolicy="no-referrer"
                   onDragStart={(e) => e.preventDefault()}
                   style={{
                     maxWidth: '100%',

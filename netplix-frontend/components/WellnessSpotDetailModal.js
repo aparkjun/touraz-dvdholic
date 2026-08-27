@@ -16,6 +16,7 @@ import {
 import axios from '@/lib/axiosConfig';
 import useBackButtonClose from '@/lib/useBackButtonClose';
 import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
+import { httpsImageUrl, ktoThumbUrl } from '@/lib/fastImage';
 
 /**
  * 상세 본문(개요/이용정보/갤러리) 렌더 중 예외가 나도 앱 전체가 흰 화면/"This page couldn't load"
@@ -77,28 +78,6 @@ const LDONG_REGN_LABEL = {
   '43': '충북', '44': '충남', '45': '경북', '46': '경남', '47': '전북', '48': '전남',
   '50': '제주', '51': '강원', '52': '경북',
 };
-
-// KTO 이미지 URL 이 http 인 경우 HTTPS 페이지에서 mixed-content 차단 → https 승격
-function secureTourImageUrl(url) {
-  const s = String(url || '').trim();
-  if (!s) return '';
-  if (s.startsWith('http://')) return `https://${s.slice(7)}`;
-  return s;
-}
-
-/**
- * KTO tong 이미지의 썸네일(저해상도) 변형으로 치환.
- * 원본 `..._image2_1.jpg`(수백 KB) → 썸네일 `..._image3_1.jpg`(수십 KB)로,
- * 작은 갤러리 칸에 충분한 화질을 유지하면서 기기 WebView 메모리 사용을 크게 줄인다.
- */
-function ktoThumbUrl(url) {
-  const s = secureTourImageUrl(url);
-  if (!s) return '';
-  if (s.includes('tong.visitkorea.or.kr') && s.includes('_image2_')) {
-    return s.replace('_image2_', '_image3_');
-  }
-  return s;
-}
 
 function regionLabelForSpot(spot) {
   const ac = String(spot?.areaCode ?? '').trim();
@@ -256,7 +235,7 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
         <div className="ws-mod-hero">
           {spot.imageUrl ? (
             <img
-              src={secureTourImageUrl(spot.imageUrl)}
+              src={httpsImageUrl(spot.imageUrl)}
               alt={spot.name || ''}
               loading="lazy"
               decoding="async"

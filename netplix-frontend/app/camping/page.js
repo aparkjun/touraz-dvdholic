@@ -30,6 +30,7 @@ import AmbientBackdrop from "@/components/AmbientBackdrop";
 import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
 import { resolveAreaCode } from "@/lib/regionAreaCode";
 import { MapServiceLinkButton } from "@/components/MapServiceLinkButton";
+import FastImg from "@/components/FastImg";
 import {
   Tent,
   Search,
@@ -78,7 +79,7 @@ if (typeof window !== "undefined") {
 const KOREA_CENTER = [36.5, 127.5];
 const DEFAULT_ZOOM = 7;
 const RADIUS_OPTIONS = [10, 30, 50]; // km
-const PAGE_SIZE = 60;
+const PAGE_SIZE = 24;
 
 /**
  * 목록 페이지의 인메모리 + sessionStorage 캐시.
@@ -790,11 +791,9 @@ function CampingCard({ site, weatherRegionCode }) {
     <>
       <div className="cmp-img">
         {site.imageUrl ? (
-          <img
+          <FastImg
             src={site.imageUrl}
             alt={site.name || ""}
-            loading="lazy"
-            referrerPolicy="no-referrer"
             onError={(e) => {
               e.currentTarget.style.display = "none";
             }}

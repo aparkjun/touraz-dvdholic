@@ -22,6 +22,8 @@ import {
   galleryOdiiItemKey,
 } from "@/lib/galleryOdiiMatch";
 import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
+import FastImg from "@/components/FastImg";
+import { fullImageUrl } from "@/lib/fastImage";
 
 /**
  * 관광사진갤러리 섹션 (공용 컴포넌트).
@@ -58,9 +60,9 @@ export default function TourGallerySection({
   allowEmpty = false,
   // 무한 스크롤 모드. 초기 pageSize 만 그리고, pageSize 씩 증가.
   // 그리드: 문서 세로 스크롤로 하단 센티넬이 보일 때. rail: 가로 레일 끝 스크롤에 반응.
-  // 6,000장 규모 데이터에서 DOM 부담을 줄이기 위해 /photo-gallery 에서 켜 사용.
-  infinite = false,
-  pageSize = 60,
+  // 기본 true: limit=0 전량 DOM 렌더·원본 JPEG 폭주를 막기 위해 모든 접점에서 켠다.
+  infinite = true,
+  pageSize = 24,
   /** 사진 클릭 시 관광공사 오디오 가이드(Odii)와 연동 */
   soundLayerEnabled = false,
   /** Odii 검색어. 미입력 시 keyword 와 동일하게 사용 */
@@ -168,14 +170,30 @@ export default function TourGallerySection({
   useEffect(() => {
     if (!soundLayerEnabled || loading || !items.length) return undefined;
     const controller = new AbortController();
-    const slice = items.slice(0, visibleCount);
-    prefetchGalleryOdiiBatch(slice, effectiveSoundKeyword, lang, {
-      photoIndexOffset: 0,
-      concurrency: 4,
-      signal: controller.signal,
-      onUpdate: bumpOdiiMatch,
-    });
-    return () => controller.abort();
+    // 이미지 대역폭을 먼저 쓰고, 오디오 매칭은 idle 이후 소수만 조회.
+    const slice = items.slice(0, Math.min(visibleCount, 12));
+    const run = () => {
+      prefetchGalleryOdiiBatch(slice, effectiveSoundKeyword, lang, {
+        photoIndexOffset: 0,
+        concurrency: 2,
+        signal: controller.signal,
+        onUpdate: bumpOdiiMatch,
+      });
+    };
+    let idleId;
+    let timeoutId;
+    if (typeof requestIdleCallback === "function") {
+      idleId = requestIdleCallback(run, { timeout: 2500 });
+    } else {
+      timeoutId = setTimeout(run, 800);
+    }
+    return () => {
+      controller.abort();
+      if (idleId != null && typeof cancelIdleCallback === "function") {
+        cancelIdleCallback(idleId);
+      }
+      if (timeoutId != null) clearTimeout(timeoutId);
+    };
   }, [
     soundLayerEnabled,
     loading,
@@ -626,11 +644,11 @@ export default function TourGallerySection({
               >
                 <div className="tg-img">
                   {(item.thumbnailUrl || item.imageUrl) && (
-                    <img
-                      src={galleryImageSrc(item)}
+                    <FastImg
+                      src={item.thumbnailUrl || item.imageUrl}
+                      fallbackSrc={item.imageUrl}
                       alt={item.title || ""}
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
+                      priority={index < 8}
                     />
                   )}
                   {soundLayerEnabled && odiiMatch?.status === "ready" && (
@@ -750,15 +768,12 @@ function GalleryLightboxPortal({ children }) {
 }
 
 function galleryImageSrc(item) {
-  return normalizeGalleryImageUrl(item?.imageUrl || item?.thumbnailUrl || "");
+  return fullImageUrl(item?.imageUrl || item?.thumbnailUrl || "");
 }
 
 /** KTO 갤러리 이미지는 http 로 내려오는 경우가 많아 HTTPS 페이지에서 mixed-content 로 막힐 수 있음 */
 function normalizeGalleryImageUrl(url) {
-  const raw = String(url || "").trim();
-  if (!raw) return "";
-  if (raw.startsWith("http://")) return `https://${raw.slice(7)}`;
-  return raw;
+  return fullImageUrl(url);
 }
 
 function Lightbox({
@@ -1129,6 +1144,7 @@ function Lightbox({
               src={imageSrc}
               alt={item.title || ""}
               className="tg-lb-img"
+              decoding="async"
               referrerPolicy="no-referrer"
               draggable={false}
               onError={handleImageError}
@@ -1335,6 +1351,8 @@ const cssBlock = `
   padding: 0;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  content-visibility: auto;
+  contain-intrinsic-size: 220px 260px;
 }
 .tg-card:hover {
   transform: translateY(-2px) scale(1.01);

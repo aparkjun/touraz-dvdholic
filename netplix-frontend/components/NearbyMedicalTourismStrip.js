@@ -20,6 +20,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import axios from "@/src/axiosConfig";
 import { Stethoscope, MapPin, Phone, ArrowRight, Globe2 } from "lucide-react";
+import FastImg from "@/components/FastImg";
 
 export default function NearbyMedicalTourismStrip({
   lat,
@@ -131,11 +132,9 @@ function MedicalMiniCard({ spot }) {
     <article className="nmt-card">
       <div className="nmt-img">
         {spot.imageUrl ? (
-          <img
+          <FastImg
             src={spot.imageUrl}
             alt={spot.name || ""}
-            loading="lazy"
-            referrerPolicy="no-referrer"
             onError={(e) => { e.currentTarget.style.display = "none"; }}
           />
         ) : (

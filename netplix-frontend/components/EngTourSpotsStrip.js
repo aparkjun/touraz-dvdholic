@@ -15,6 +15,8 @@ import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
 import useBackButtonClose from '@/lib/useBackButtonClose';
 import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
+import FastImg from '@/components/FastImg';
+import { httpsImageUrl } from '@/lib/fastImage';
 
 /**
  * 영어 모드 전용 "Travel Spots Around This Film" 스트립.
@@ -33,14 +35,6 @@ const BUCKETS = [
   { key: 'restaurants', type: '39', icon: UtensilsCrossed, color: '#f97316' },
   { key: 'accommodations', type: '32', icon: Hotel, color: '#6366f1' },
 ];
-
-/** KTO 이미지 URL 이 http 인 경우 HTTPS 페이지에서 mixed-content 차단 → https 승격 */
-function secureTourImageUrl(url) {
-  const s = String(url || '').trim();
-  if (!s) return '';
-  if (s.startsWith('http://')) return `https://${s.slice(7)}`;
-  return s;
-}
 
 export default function EngTourSpotsStrip({ areaCode, regionLabel = '' }) {
   const { t, i18n } = useTranslation();
@@ -212,11 +206,10 @@ export default function EngTourSpotsStrip({ areaCode, regionLabel = '' }) {
               <div style={{ width: '100%', height: 120, background: '#0f172a' }}>
                 {poi.firstImage ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={secureTourImageUrl(poi.firstImage)}
+                  <FastImg
+                    src={poi.firstImageThumb || poi.firstImage}
+                    fallbackSrc={poi.firstImage}
                     alt={poi.title}
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
@@ -331,8 +324,9 @@ export default function EngTourSpotsStrip({ areaCode, regionLabel = '' }) {
               {activePoi.firstImage && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={secureTourImageUrl(activePoi.firstImage)}
+                  src={httpsImageUrl(activePoi.firstImage)}
                   alt={activePoi.title}
+                  decoding="async"
                   referrerPolicy="no-referrer"
                   style={{
                     width: '100%',

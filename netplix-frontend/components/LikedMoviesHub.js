@@ -259,7 +259,7 @@ export default function LikedMoviesHub() {
                         )
                       }
                     >
-                      <img src={posterUrl(card.movie)} alt="" />
+                      <img src={posterUrl(card.movie)} alt="" loading="lazy" decoding="async" />
                     </button>
                     <div className="fav-card-body">
                       <h3>{name}</h3>
@@ -468,7 +468,7 @@ export default function LikedMoviesHub() {
                   )
                 }
               >
-                <img src={posterUrl(m)} alt="" />
+                <img src={posterUrl(m)} alt="" loading="lazy" decoding="async" />
                 <span>{getMovieTitle(m) || m.movieName}</span>
               </button>
             ))}

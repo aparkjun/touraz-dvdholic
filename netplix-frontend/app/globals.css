@@ -233,6 +233,8 @@ button,
   border-radius: 10px;
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  content-visibility: auto;
+  contain-intrinsic-size: 140px 236px;
 }
 .dashboard-page .dash-card-img {
   width: 100%;

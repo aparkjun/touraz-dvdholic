@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import AmbientBackdrop from '@/components/AmbientBackdrop';
+import FastImg from '@/components/FastImg';
 
 const REGION_SHORTCUTS = [
   { keyword: '서울' },
@@ -247,7 +248,7 @@ function SafeTourismInner() {
                 >
                   <div className="stc-thumb">
                     {item.imageUrl ? (
-                      <img src={item.imageUrl} alt="" loading="lazy" />
+                      <FastImg src={item.imageUrl} alt="" />
                     ) : (
                       <div className="stc-thumb-fallback" aria-hidden>
                         <Leaf size={32} />

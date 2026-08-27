@@ -62,6 +62,8 @@ export default function LikedMoviesRecommendStrip() {
                   : "/no-poster-placeholder.png"
               }
               alt=""
+              loading="lazy"
+              decoding="async"
               style={{ width: 100, height: 150, objectFit: "cover", borderRadius: 10 }}
             />
             <span style={{ fontSize: 11, display: "block", marginTop: 6 }}>{getMovieTitle(m) || m.movieName}</span>

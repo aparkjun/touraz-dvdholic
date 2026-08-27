@@ -29,6 +29,7 @@ import { attachAudioMediaSession } from "@/lib/audioMediaSession";
 import { getAudioGuideOdiiLang, defaultOdiiLangFromUiLang, subscribeAudioGuideOdiiLang, odiiLangChipLabel } from "@/lib/audioGuideOdiiLang";
 import AudioGuideDetailModal from "@/components/AudioGuideDetailModal";
 import VoiceMicIcon from "@/components/VoiceMicIcon";
+import FastImg from "@/components/FastImg";
 import { Headphones, MapPin, Play, Pause, Clock, ArrowRight, Globe2 } from "lucide-react";
 
 export default function NearbyAudioGuideStrip({
@@ -290,11 +291,9 @@ function AudioGuideMiniCard({ item, playing, onToggle, onOpen }) {
     >
       <div className="nag-img">
         {item.imageUrl ? (
-          <img
+          <FastImg
             src={item.imageUrl}
             alt={item.title || ""}
-            loading="lazy"
-            referrerPolicy="no-referrer"
             onError={(e) => { e.currentTarget.style.display = "none"; }}
           />
         ) : (

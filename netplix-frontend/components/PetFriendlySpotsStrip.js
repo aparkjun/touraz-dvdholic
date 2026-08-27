@@ -19,6 +19,7 @@ import {
 import axios from '@/lib/axiosConfig';
 import { useTranslation } from 'react-i18next';
 import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
+import { ktoThumbUrl } from '@/lib/fastImage';
 import useBackButtonClose from '@/lib/useBackButtonClose';
 
 /**
@@ -309,7 +310,7 @@ function PoiCard({ poi, bucket, palette, onOpen }) {
   const addr = poi.addr1 || poi.addr2 || '';
   // KTO 이미지 URL 이 http 인 경우가 많아 HTTPS 페이지에서 mixed-content 로 차단된다.
   // 상세 모달과 동일하게 https 로 승격해 카드 썸네일이 뜨도록 한다.
-  const cardImg = secureTourImageUrl(poi.firstImageThumb || poi.firstImage);
+  const cardImg = ktoThumbUrl(poi.firstImageThumb || poi.firstImage);
 
   return (
     <motion.button
@@ -349,6 +350,7 @@ function PoiCard({ poi, bucket, palette, onOpen }) {
             src={cardImg}
             alt={poi.title || 'poi'}
             loading="lazy"
+            decoding="async"
             referrerPolicy="no-referrer"
             draggable={false}
             onDragStart={(e) => e.preventDefault()}

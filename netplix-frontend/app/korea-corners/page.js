@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft, ExternalLink, MapPin, Newspaper, Search } from 'lucide-react';
 import axios from '@/lib/axiosConfig';
 import AmbientBackdrop from '@/components/AmbientBackdrop';
+import FastImg from '@/components/FastImg';
 
 const REGION_SHORTCUTS = [
   { keyword: '서울', code: '1' },
@@ -228,7 +229,7 @@ function KoreaCornersInner() {
                 >
                   <div className="kcc-thumb">
                     {item.imageUrl ? (
-                      <img src={item.imageUrl} alt="" loading="lazy" />
+                      <FastImg src={item.imageUrl} alt="" />
                     ) : (
                       <div className="kcc-thumb-fallback" aria-hidden>
                         <Newspaper size={32} />

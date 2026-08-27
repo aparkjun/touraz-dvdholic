@@ -9,6 +9,7 @@ import axios from '@/lib/axiosConfig';
 import AmbientBackdrop from '@/components/AmbientBackdrop';
 import RegionWeatherGlyph from '@/components/RegionWeatherGlyph';
 import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
+import FastImg from '@/components/FastImg';
 
 // "조용한 명소 + 함께 가는 명소" — 잔잔한 데이터 산책 화면.
 // 키워드(/grouped/keyword) + 광역 코드(/grouped/area) + 인기 지역(trending-regions) 칩.
@@ -1047,11 +1048,9 @@ function SpotBriefSection({ brief, loading, title }) {
           }}
         >
           {/* 외부 호스트 이미지라 next/image 대신 plain img 사용 (cms.visitkorea.or.kr) */}
-          <img
+          <FastImg
             src={heroSrc}
             alt={title}
-            loading="lazy"
-            referrerPolicy="no-referrer"
             onError={(e) => { e.currentTarget.style.display = 'none'; }}
             style={{
               width: '100%',

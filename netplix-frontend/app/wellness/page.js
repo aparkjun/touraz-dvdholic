@@ -45,11 +45,12 @@ import {
 import WellnessRecoveryCalendar from "@/components/WellnessRecoveryCalendar";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
 import WellnessSpotDetailModal from "@/components/WellnessSpotDetailModal";
+import FastImg from "@/components/FastImg";
 import { MapServiceLinkButton } from "@/components/MapServiceLinkButton";
 import RegionWeatherGlyph from "@/components/RegionWeatherGlyph";
 
 const RADIUS_OPTIONS = [10, 30, 50]; // km
-const PAGE_SIZE = 60;
+const PAGE_SIZE = 24;
 /** Heroku 웜업·공공 API(data.go.kr) 지연까지 고려해 넉넉히 둠. */
 const WELLNESS_FETCH_TIMEOUT_MS = 120_000;
 
@@ -596,14 +597,6 @@ function WellnessInner() {
   );
 }
 
-// KTO 이미지 URL 이 http 인 경우 HTTPS 페이지에서 mixed-content 로 차단 → https 로 승격
-function secureTourImageUrl(url) {
-  const s = String(url || "").trim();
-  if (!s) return "";
-  if (s.startsWith("http://")) return `https://${s.slice(7)}`;
-  return s;
-}
-
 function WellnessCard({ spot, onOpenDetail, filterWeatherCode }) {
   const { t } = useTranslation();
   const weatherRegionCode =
@@ -632,11 +625,9 @@ function WellnessCard({ spot, onOpenDetail, filterWeatherCode }) {
     >
       <div className="wel-img">
         {spot.imageUrl ? (
-          <img
-            src={secureTourImageUrl(spot.imageUrl)}
+          <FastImg
+            src={spot.imageUrl}
             alt={spot.name || ""}
-            loading="lazy"
-            referrerPolicy="no-referrer"
             onError={(e) => { e.currentTarget.style.display = "none"; }}
           />
         ) : (

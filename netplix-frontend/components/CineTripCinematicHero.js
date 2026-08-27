@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Film, Play, MapPin } from 'lucide-react';
+import { cardImageUrl } from '@/lib/fastImage';
 
 /**
  * CineTripCinematicHero
@@ -355,12 +356,15 @@ export default function CineTripCinematicHero({
 }) {
   // 스트립에 쓸 포스터. 부족하면 반복해서 채움.
   const stripImages = useMemo(() => {
-    const clean = (posters || []).filter(Boolean);
+    const clean = (posters || [])
+      .filter(Boolean)
+      .slice(0, 8)
+      .map((u) => cardImageUrl(u, { tmdbSize: 'w185' }));
     if (clean.length === 0) return [];
-    const minCount = 12;
+    const minCount = 8;
     const result = [...clean];
     while (result.length < minCount) result.push(...clean);
-    return [...result, ...result]; // 무한 스크롤을 위해 2배 복제
+    return [...result, ...result];
   }, [posters]);
 
   const D2_FONT = '"D2Coding", "D2 Coding", monospace';

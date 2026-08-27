@@ -644,6 +644,8 @@ function MovieImagesContent() {
               title={t("tourGallery.movieSection")}
               subtitle={t("tourGallery.poweredBy")}
               limit={0}
+              infinite
+              pageSize={24}
             />
           </div>
         )}

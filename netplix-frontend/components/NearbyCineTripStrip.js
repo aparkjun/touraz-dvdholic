@@ -34,7 +34,7 @@ const MAPPING_TYPE_FALLBACK = {
 const posterSrc = (posterPath) => {
   if (!posterPath) return NO_POSTER_PLACEHOLDER;
   if (posterPath.startsWith('http')) return posterPath;
-  return `https://image.tmdb.org/t/p/w500${posterPath}`;
+  return `https://image.tmdb.org/t/p/w342${posterPath}`;
 };
 
 export default function NearbyCineTripStrip({
@@ -251,6 +251,7 @@ function MoviePosterCard({ item, index }) {
           src={posterSrc(getPosterPath(movie) || movie.posterPath)}
           alt={getMovieTitle(movie) || 'movie'}
           loading="lazy"
+          decoding="async"
           draggable={false}
           onDragStart={(e) => e.preventDefault()}
           onError={(e) => {

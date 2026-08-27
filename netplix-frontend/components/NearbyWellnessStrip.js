@@ -22,6 +22,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import axios from "@/src/axiosConfig";
 import { Sparkles, MapPin, Phone, ArrowRight } from "lucide-react";
+import FastImg from "@/components/FastImg";
 
 /**
  * 영화 장르 → 웰니스 키워드 매핑.
@@ -193,11 +194,9 @@ function WellnessMiniCard({ spot }) {
     <article className="nws-card">
       <div className="nws-img">
         {spot.imageUrl ? (
-          <img
+          <FastImg
             src={spot.imageUrl}
             alt={spot.name || ""}
-            loading="lazy"
-            referrerPolicy="no-referrer"
             onError={(e) => { e.currentTarget.style.display = "none"; }}
           />
         ) : (

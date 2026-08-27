@@ -364,17 +364,33 @@ function DashboardContent() {
   const loadCategories = async () => {
     setCategoriesError(null);
     setCategoriesLoading(true);
+    const EAGER_ROWS = 6;
+    const REST_BATCH = 4;
     try {
-      const results = await Promise.all(CATEGORIES.map(async (cat) => {
+      const eagerCats = CATEGORIES.slice(0, EAGER_ROWS);
+      const restCats = CATEGORIES.slice(EAGER_ROWS);
+      const eagerResults = await Promise.all(eagerCats.map(async (cat) => {
         const { movies, hasNext, totalCount } = await fetchCategoryPage(cat, 0);
         return { [cat.id]: { movies, hasNext, page: 0, totalCount } };
       }));
-      const merged = results.reduce((acc, r) => ({ ...acc, ...r }), {});
-      setCategoriesData(merged);
+      setCategoriesData(eagerResults.reduce((acc, r) => ({ ...acc, ...r }), {}));
+      setCategoriesLoading(false);
+
+      // 나머지 행은 첫 화면 포스터가 뜬 뒤 4개씩 이어서 로드 → API·이미지 대역폭 경합 완화
+      for (let i = 0; i < restCats.length; i += REST_BATCH) {
+        const batch = restCats.slice(i, i + REST_BATCH);
+        const batchResults = await Promise.all(batch.map(async (cat) => {
+          const { movies, hasNext, totalCount } = await fetchCategoryPage(cat, 0);
+          return { [cat.id]: { movies, hasNext, page: 0, totalCount } };
+        }));
+        setCategoriesData((prev) => ({
+          ...prev,
+          ...batchResults.reduce((acc, r) => ({ ...acc, ...r }), {}),
+        }));
+      }
     } catch (err) {
       setCategoriesError(t("dashboard.categoriesLoadError"));
       setCategoriesData({});
-    } finally {
       setCategoriesLoading(false);
     }
   };
@@ -863,7 +879,7 @@ function DashboardContent() {
                       overflow: "hidden", flexShrink: 0, background: "#1a1a1a",
                     }}>
                       {getPosterPath(m) ? (
-                        <img src={`https://image.tmdb.org/t/p/w185${getPosterPath(m)}`} alt={getMovieTitle(m)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <img src={`https://image.tmdb.org/t/p/w185${getPosterPath(m)}`} alt={getMovieTitle(m)} style={{ width: "100%", height: "100%", objectFit: "cover" }} loading="lazy" decoding="async" />
                       ) : <div style={{ width: "100%", height: "100%", background: "rgba(218,165,32,0.1)" }} />}
                       <div style={{
                         position: "absolute", top: "-1px", left: "-1px", width: "18px", height: "18px",
@@ -912,7 +928,7 @@ function DashboardContent() {
                       overflow: "hidden", flexShrink: 0, background: "#1a1a1a",
                     }}>
                       {getPosterPath(m) ? (
-                        <img src={`https://image.tmdb.org/t/p/w185${getPosterPath(m)}`} alt={getMovieTitle(m)} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        <img src={`https://image.tmdb.org/t/p/w185${getPosterPath(m)}`} alt={getMovieTitle(m)} style={{ width: "100%", height: "100%", objectFit: "cover" }} loading="lazy" decoding="async" />
                       ) : <div style={{ width: "100%", height: "100%", background: "rgba(99,102,241,0.1)" }} />}
                       <div style={{
                         position: "absolute", top: "-1px", left: "-1px", width: "18px", height: "18px",
@@ -988,7 +1004,7 @@ function DashboardContent() {
                         boxShadow: idx < 3 ? `0 2px 8px rgba(${idx === 0 ? "255,215,0" : idx === 1 ? "192,192,192" : "205,127,50"},0.4)` : "none",
                       }}>{idx + 1}</div>
                       <div style={{ width: "36px", height: "52px", borderRadius: "6px", overflow: "hidden", flexShrink: 0, background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)" }}>
-                        {getPosterPath(m) ? <img src={`https://image.tmdb.org/t/p/w185${getPosterPath(m)}`} alt={getMovieTitle(m)} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "rgba(218,165,32,0.1)" }} />}
+                        {getPosterPath(m) ? <img src={`https://image.tmdb.org/t/p/w185${getPosterPath(m)}`} alt={getMovieTitle(m)} style={{ width: "100%", height: "100%", objectFit: "cover" }} loading="lazy" decoding="async" /> : <div style={{ width: "100%", height: "100%", background: "rgba(218,165,32,0.1)" }} />}
                       </div>
                       <span style={{ color: idx < 3 ? "#ffd700" : "rgba(255,235,180,0.8)", fontSize: "12px", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{getMovieTitle(m)}</span>
                     </button>
@@ -1028,7 +1044,7 @@ function DashboardContent() {
                         boxShadow: idx < 3 ? `0 2px 8px rgba(${idx === 0 ? "255,215,0" : idx === 1 ? "192,192,192" : "205,127,50"},0.4)` : "none",
                       }}>{idx + 1}</div>
                       <div style={{ width: "36px", height: "52px", borderRadius: "6px", overflow: "hidden", flexShrink: 0, background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)" }}>
-                        {getPosterPath(m) ? <img src={`https://image.tmdb.org/t/p/w185${getPosterPath(m)}`} alt={getMovieTitle(m)} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "rgba(147,51,234,0.1)" }} />}
+                        {getPosterPath(m) ? <img src={`https://image.tmdb.org/t/p/w185${getPosterPath(m)}`} alt={getMovieTitle(m)} style={{ width: "100%", height: "100%", objectFit: "cover" }} loading="lazy" decoding="async" /> : <div style={{ width: "100%", height: "100%", background: "rgba(147,51,234,0.1)" }} />}
                       </div>
                       <span style={{ color: idx < 3 ? "#a78bfa" : "rgba(180,190,255,0.8)", fontSize: "12px", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{getMovieTitle(m)}</span>
                     </button>
@@ -1068,7 +1084,7 @@ function DashboardContent() {
                         boxShadow: idx < 3 ? `0 2px 8px rgba(${idx === 0 ? "255,215,0" : idx === 1 ? "192,192,192" : "205,127,50"},0.4)` : "none",
                       }}>{idx + 1}</div>
                       <div style={{ width: "36px", height: "52px", borderRadius: "6px", overflow: "hidden", flexShrink: 0, background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)" }}>
-                        {getPosterPath(m) ? <img src={`https://image.tmdb.org/t/p/w185${getPosterPath(m)}`} alt={getMovieTitle(m)} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "rgba(218,165,32,0.1)" }} />}
+                        {getPosterPath(m) ? <img src={`https://image.tmdb.org/t/p/w185${getPosterPath(m)}`} alt={getMovieTitle(m)} style={{ width: "100%", height: "100%", objectFit: "cover" }} loading="lazy" decoding="async" /> : <div style={{ width: "100%", height: "100%", background: "rgba(218,165,32,0.1)" }} />}
                       </div>
                       <span style={{ color: idx < 3 ? "#ffd700" : "rgba(255,235,180,0.8)", fontSize: "12px", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{getMovieTitle(m)}</span>
                     </button>
@@ -1108,7 +1124,7 @@ function DashboardContent() {
                         boxShadow: idx < 3 ? `0 2px 8px rgba(${idx === 0 ? "255,215,0" : idx === 1 ? "192,192,192" : "205,127,50"},0.4)` : "none",
                       }}>{idx + 1}</div>
                       <div style={{ width: "36px", height: "52px", borderRadius: "6px", overflow: "hidden", flexShrink: 0, background: "#1a1a1a", border: "1px solid rgba(255,255,255,0.1)" }}>
-                        {getPosterPath(m) ? <img src={`https://image.tmdb.org/t/p/w185${getPosterPath(m)}`} alt={getMovieTitle(m)} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <div style={{ width: "100%", height: "100%", background: "rgba(147,51,234,0.1)" }} />}
+                        {getPosterPath(m) ? <img src={`https://image.tmdb.org/t/p/w185${getPosterPath(m)}`} alt={getMovieTitle(m)} style={{ width: "100%", height: "100%", objectFit: "cover" }} loading="lazy" decoding="async" /> : <div style={{ width: "100%", height: "100%", background: "rgba(147,51,234,0.1)" }} />}
                       </div>
                       <span style={{ color: idx < 3 ? "#a78bfa" : "rgba(180,190,255,0.8)", fontSize: "12px", fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1, minWidth: 0 }}>{getMovieTitle(m)}</span>
                     </button>
@@ -1215,9 +1231,9 @@ function DashboardContent() {
                         onClick={() => router.push(`/dashboard/images?movieName=${encodeURIComponent(item.movieName)}&contentType=${ct}`)}
                       >
                         {getPosterPath(item) ? (
-                          <img src={`https://image.tmdb.org/t/p/w342${getPosterPath(item)}`} alt={getMovieTitle(item)} draggable={false} className="dash-card-img" />
+                          <img src={`https://image.tmdb.org/t/p/w342${getPosterPath(item)}`} alt={getMovieTitle(item)} draggable={false} className="dash-card-img" loading="lazy" decoding="async" />
                         ) : (
-                          <img src="/no-poster-placeholder.png" alt="No Image" className="dash-card-img" />
+                          <img src="/no-poster-placeholder.png" alt="No Image" className="dash-card-img" loading="lazy" decoding="async" />
                         )}
                         {isNewItem(item) && <NewBadge />}
                         <ContentBadge contentType={ct} />
@@ -1434,9 +1450,9 @@ function DashboardContent() {
                         onClick={() => router.push(`/dashboard/images?movieName=${encodeURIComponent(m.movieName)}&contentType=${ct}`)}
                       >
                         {getPosterPath(m) ? (
-                          <img src={`https://image.tmdb.org/t/p/w342${getPosterPath(m)}`} alt={getMovieTitle(m)} draggable={false} style={{ width: "100%", height: "200px", objectFit: "cover", display: "block" }} />
+                          <img src={`https://image.tmdb.org/t/p/w342${getPosterPath(m)}`} alt={getMovieTitle(m)} draggable={false} style={{ width: "100%", height: "200px", objectFit: "cover", display: "block" }} loading="lazy" decoding="async" />
                         ) : (
-                          <img src="/no-poster-placeholder.png" alt="No Image" style={{ width: "100%", height: "200px", objectFit: "cover", display: "block" }} />
+                          <img src="/no-poster-placeholder.png" alt="No Image" style={{ width: "100%", height: "200px", objectFit: "cover", display: "block" }} loading="lazy" decoding="async" />
                         )}
                         {isNewItem(m) && <NewBadge />}
                         <ContentBadge contentType={ct} />
@@ -1691,6 +1707,8 @@ function DashboardContent() {
                           alt={getMovieTitle(m)}
                           draggable={false}
                           className="dash-card-img"
+                          loading="lazy"
+                          decoding="async"
                         />
                         {isNewItem(m) && <NewBadge />}
                         <ContentBadge contentType={ct} />
@@ -1866,9 +1884,11 @@ function DashboardContent() {
                             alt={getMovieTitle(item)}
                             draggable={false}
                             className="dash-card-img"
+                            loading="lazy"
+                            decoding="async"
                           />
                         ) : (
-                          <img src="/no-poster-placeholder.png" alt="No Image" className="dash-card-img" />
+                          <img src="/no-poster-placeholder.png" alt="No Image" className="dash-card-img" loading="lazy" decoding="async" />
                         )}
                         {isNewItem(item) && <NewBadge />}
                         <ContentBadge contentType={item.contentType} />
