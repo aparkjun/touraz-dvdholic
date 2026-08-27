@@ -47,9 +47,9 @@ public class SecurityConfig {
         httpSecurity.formLogin(AbstractHttpConfigurer::disable);
         httpSecurity.cors(cors -> cors.configurationSource(corsConfigurationSource()));
         
-        // JWT 기반 인증이므로 세션을 사용하지 않음 (Stateless)
-        httpSecurity.sessionManagement(session -> 
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+        // API는 JWT. OAuth(특히 Apple form_post)는 state/nonce를 세션에 잠시 둔다.
+        httpSecurity.sessionManagement(session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED));
 
         // API: 인증 불필요(공개) 경로 permitAll, 나머지 인증 필요 / 비 API(SPA·정적): 모두 permitAll
         // App Store Guideline 5.1.1(v): 계정 삭제는 인증 필수
@@ -79,7 +79,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll());
         
-        // OAuth2 로그인 설정 (카카오/Apple) - 성공 시 JWT 발급 후 /dashboard 로 리다이렉트
+        // OAuth2 로그인 설정 (카카오/Apple) - 성공 시 JWT 발급 후 대시보드로 리다이렉트
         httpSecurity.oauth2Login(oauth2 -> oauth2
                 .successHandler(oauth2LoginSuccessHandler)
                 .failureHandler((request, response, exception) -> {

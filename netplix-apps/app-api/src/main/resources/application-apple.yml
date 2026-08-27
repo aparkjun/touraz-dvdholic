@@ -1,22 +1,23 @@
 # App Store Guideline 4.8: Sign in with Apple
-# 활성화: spring.profiles.active=apple 및 아래 환경 변수 설정
-# APPLE_SETUP.md 참고
+# apple 등록은 application.yml 에 포함됨. 이 파일은 하위 호환용(SPRING_PROFILES_ACTIVE=apple).
 spring:
   security:
     oauth2:
       client:
         registration:
           apple:
-            client-id: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_APPLE_CLIENT_ID}
-            client-secret: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_APPLE_CLIENT_SECRET}
+            client-id: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_APPLE_CLIENT_ID:}
+            client-secret: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_APPLE_CLIENT_SECRET:}
             client-name: Apple
             authorization-grant-type: authorization_code
-            redirect-uri: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_APPLE_REDIRECT_URI}
-            scope: openid, name, email
+            redirect-uri: "${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_APPLE_REDIRECT_URI:https://touraz-dvdholic-2194adc70fa6.herokuapp.com/login/oauth2/code/apple}"
+            scope:
+              - openid
+              - name
+              - email
             client-authentication-method: client_secret_post
         provider:
           apple:
-            issuer-uri: https://appleid.apple.com
             authorization-uri: https://appleid.apple.com/auth/authorize?response_mode=form_post
             token-uri: https://appleid.apple.com/auth/token
             jwk-set-uri: https://appleid.apple.com/auth/keys

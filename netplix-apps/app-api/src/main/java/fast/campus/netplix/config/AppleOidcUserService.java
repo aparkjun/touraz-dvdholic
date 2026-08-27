@@ -5,7 +5,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
 import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
-import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Service;
@@ -32,10 +31,6 @@ public class AppleOidcUserService extends OidcUserService {
                         .map(s -> (GrantedAuthority) () -> "SCOPE_" + s)
         ).collect(Collectors.toSet());
 
-        return new DefaultOidcUser(
-                authorities,
-                userRequest.getIdToken(),
-                (OidcUserInfo) null  // userInfo - Apple 미제공
-        );
+        return new DefaultOidcUser(authorities, userRequest.getIdToken());
     }
 }

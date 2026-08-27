@@ -2,10 +2,17 @@
 # 전송 크기를 크게 줄인다(단일 512MB 다이노에서 첫 로딩 체감 개선). min-response-size
 # 이상만 압축해 작은 응답의 오버헤드는 피한다.
 server:
+  forward-headers-strategy: framework
   compression:
     enabled: true
     mime-types: application/json,application/javascript,text/css,text/html,text/plain,text/xml,application/xml
     min-response-size: 1024
+  servlet:
+    session:
+      cookie:
+        # Apple form_post 콜백은 다른 사이트에서 POST 하므로 Lax 세션 쿠키가 안 붙는다.
+        same-site: none
+        secure: true
 
 spring:
   # null 필드는 직렬화에서 제외 → 아직 채워지지 않은 다국어/부가 메타(En/Ja/Zh, budget 등)
@@ -38,12 +45,29 @@ spring:
               - profile_nickname
               - account_email
             client-authentication-method: client_secret_post
+          apple:
+            client-id: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_APPLE_CLIENT_ID:}
+            client-secret: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_APPLE_CLIENT_SECRET:}
+            client-name: Apple
+            authorization-grant-type: authorization_code
+            redirect-uri: "${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_APPLE_REDIRECT_URI:https://touraz-dvdholic-2194adc70fa6.herokuapp.com/login/oauth2/code/apple}"
+            scope:
+              - openid
+              - name
+              - email
+            client-authentication-method: client_secret_post
         provider:
           kakao:
             authorization-uri: https://kauth.kakao.com/oauth/authorize
             token-uri: https://kauth.kakao.com/oauth/token
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-name-attribute: id
+          apple:
+            # issuer-uri 는 Apple OIDC discovery와 충돌하므로 쓰지 않는다.
+            authorization-uri: https://appleid.apple.com/auth/authorize?response_mode=form_post
+            token-uri: https://appleid.apple.com/auth/token
+            jwk-set-uri: https://appleid.apple.com/auth/keys
+            user-name-attribute: sub
 # Heroku: JWT_SECRET/AES_SECRET에 "${JWT_SECRET}" 넣으면 Circular reference → APP_* 사용. 로컬은 JWT_SECRET/AES_SECRET 가능
 jwt:
   secret: ${APP_JWT_SECRET:${JWT_SECRET:}}
