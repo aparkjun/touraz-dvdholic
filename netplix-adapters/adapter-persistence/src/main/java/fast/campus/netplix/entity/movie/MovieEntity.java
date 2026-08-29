@@ -178,19 +178,19 @@ public class MovieEntity extends MutableBaseEntity {
     @Column(name = "BACKDROP_PATH_NE", length = 500)
     private String backdropPathNe;
 
-    @Column(name = "MOVIE_NAME_PT", length = 500)
+    @Column(name = "MOVIE_NAME_PT", columnDefinition = "TEXT")
     private String movieNamePt;
 
     @Column(name = "OVERVIEW_PT", columnDefinition = "TEXT")
     private String overviewPt;
 
-    @Column(name = "TAGLINE_PT", length = 500)
+    @Column(name = "TAGLINE_PT", columnDefinition = "TEXT")
     private String taglinePt;
 
-    @Column(name = "POSTER_PATH_PT", length = 500)
+    @Column(name = "POSTER_PATH_PT", columnDefinition = "TEXT")
     private String posterPathPt;
 
-    @Column(name = "BACKDROP_PATH_PT", length = 500)
+    @Column(name = "BACKDROP_PATH_PT", columnDefinition = "TEXT")
     private String backdropPathPt;
 
     @Setter
