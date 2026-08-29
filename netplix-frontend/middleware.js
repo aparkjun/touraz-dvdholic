@@ -45,6 +45,7 @@ export function middleware(request) {
   }
 
   const hasVisited = request.cookies.get(VISITED_COOKIE)?.value === '1';
+  const isNativeApp = request.cookies.get('X-App-Platform')?.value === 'native';
 
   // 홈('/') 진입 시: 방문 쿠키를 세팅하고 통과
   if (pathname === '/') {
@@ -54,15 +55,18 @@ export function middleware(request) {
         path: '/',
         maxAge: COOKIE_MAX_AGE,
         httpOnly: false,
-        sameSite: 'lax',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         secure: process.env.NODE_ENV === 'production',
       });
     }
     return response;
   }
 
-  // 그 외 경로는 홈 방문 이력이 없으면 홈으로 리다이렉트
-  if (!hasVisited) {
+  // 랜딩 CTA(둘러보기·로그인·회원가입) 와 네이티브 앱은 방문 쿠키가 없어도 통과.
+  // iOS Capacitor WKWebView 는 Set-Cookie/Lax 쿠키가 다음 이동에 안 붙어
+  // /login 등이 즉시 / 로 튕겨 '버튼이 안 눌리는' 것처럼 보인다.
+  const LANDING_EXITS = new Set(['/login', '/signup', '/dashboard']);
+  if (!hasVisited && !isNativeApp && !LANDING_EXITS.has(pathname)) {
     const url = nextUrl.clone();
     url.pathname = '/';
     // 방문 후 원래 목적지로 이동할 수 있도록 next 파라미터 저장

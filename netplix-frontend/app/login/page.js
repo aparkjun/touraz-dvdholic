@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import axios from "@/lib/axiosConfig";
 import { getApiBaseUrl } from "@/lib/apiConfig";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { hardNavigate } from "@/lib/hardNavigate";
 let Capacitor, Browser;
 let capacitorReadyPromise = null;
 function ensureCapacitorLoaded() {
@@ -39,7 +39,6 @@ function redirectAfterLogin() {
 }
 
 function LoginContent() {
-  const router = useRouter();
   const { t } = useTranslation();
 
   const [email, setEmail] = useState("");
@@ -137,7 +136,7 @@ function LoginContent() {
     };
   }, []);
 
-  const handleBrowse = () => router.push('/dashboard');
+  const handleBrowse = () => hardNavigate("/dashboard");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -472,7 +471,7 @@ function LoginContent() {
               {t("login.noAccount")}{' '}
               <button
                 type="button"
-                onClick={() => router.push("/signup")}
+                onClick={() => hardNavigate("/signup")}
                 style={{
                   color: '#3b82f6',
                   fontWeight: 600,

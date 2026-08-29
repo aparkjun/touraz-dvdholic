@@ -23,8 +23,18 @@ export default function Providers({ children }) {
     (async () => {
       try {
         const { Capacitor } = await import('@capacitor/core');
-        if (Capacitor.getPlatform?.() === 'android') {
-          document.documentElement.classList.add('is-cap-android');
+        if (Capacitor.isNativePlatform?.()) {
+          document.documentElement.classList.add('is-cap-native');
+          const isHttps = location.protocol === 'https:';
+          const sameSite = isHttps ? 'None; Secure' : 'Lax';
+          document.cookie = `X-App-Platform=native; Path=/; Max-Age=${60 * 60 * 24 * 30}; SameSite=${sameSite}`;
+          document.cookie = `visited_home=1; Path=/; Max-Age=${60 * 60 * 24 * 30}; SameSite=${sameSite}`;
+          if (Capacitor.getPlatform?.() === 'ios') {
+            document.documentElement.classList.add('is-cap-ios');
+          }
+          if (Capacitor.getPlatform?.() === 'android') {
+            document.documentElement.classList.add('is-cap-android');
+          }
         }
       } catch (_) {}
     })();

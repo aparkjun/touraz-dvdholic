@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import { Film, Info, Star, Sparkles } from "lucide-react";
+import { hardNavigate, markHomeVisited } from "@/lib/hardNavigate";
 
 /**
  * middleware 가 최초 방문자를 `/?next=/원래경로` 로 보낼 때 사용.
@@ -23,10 +23,31 @@ function sanitizeInternalNext(raw) {
   return s;
 }
 
+const landingCtaStyle = {
+  width: "100%",
+  height: "56px",
+  fontSize: "17px",
+  fontWeight: 700,
+  color: "#fff",
+  border: "none",
+  borderRadius: "14px",
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: "8px",
+  textDecoration: "none",
+  WebkitTapHighlightColor: "transparent",
+  touchAction: "manipulation",
+  position: "relative",
+  zIndex: 1,
+};
+
 function Main() {
-  const router = useRouter();
   const { t } = useTranslation();
   const [gradientIndex, setGradientIndex] = useState(0);
+  const [isNative, setIsNative] = useState(false);
+  const [particles, setParticles] = useState([]);
 
   const gradients = [
     "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -38,6 +59,37 @@ function Main() {
   // 로그인 여부와 무관하게 메인(랜딩) 페이지를 항상 첫 화면으로 노출한다.
   // 로그인된 사용자는 아래의 "둘러보기" 버튼을 통해 /dashboard 로 진입할 수 있고,
   // 비로그인 사용자는 로그인/회원가입 버튼을 통해 진입할 수 있다.
+
+  useEffect(() => {
+    markHomeVisited();
+    let cancelled = false;
+    (async () => {
+      let native = false;
+      try {
+        const { Capacitor } = await import("@capacitor/core");
+        native = !!Capacitor.isNativePlatform?.();
+      } catch {
+        /* 웹 */
+      }
+      if (cancelled) return;
+      setIsNative(native);
+      if (native) {
+        setParticles([]);
+        return;
+      }
+      setParticles([...Array(50)].map((_, i) => ({
+        id: i,
+        left: Math.random() * 100,
+        top: Math.random() * 100,
+        size: Math.random() * 3 + 1,
+        duration: Math.random() * 3 + 2,
+        delay: Math.random() * 2,
+      })));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Animated gradient background cycle
   useEffect(() => {
@@ -53,19 +105,8 @@ function Main() {
     const params = new URLSearchParams(window.location.search);
     const next = sanitizeInternalNext(params.get("next"));
     if (!next || next === "/") return;
-    router.replace(next);
-  }, [router]);
-
-  const [particles, setParticles] = useState([]);
-  useEffect(() => {
-    setParticles([...Array(50)].map((_, i) => ({
-      id: i,
-      left: Math.random() * 100,
-      top: Math.random() * 100,
-      size: Math.random() * 3 + 1,
-      duration: Math.random() * 3 + 2,
-      delay: Math.random() * 2,
-    })));
+    markHomeVisited();
+    window.location.replace(next);
   }, []);
 
   return (
@@ -92,9 +133,14 @@ function Main() {
           background-clip: text;
           animation: animate-gradient 6s ease infinite;
         }
-        .btn-hover:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+        @media (hover: hover) {
+          .btn-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+          }
+        }
+        .landing-cta:active {
+          transform: scale(0.98);
         }
       `}</style>
 
@@ -104,13 +150,23 @@ function Main() {
           position: "absolute",
           inset: 0,
           background: gradients[gradientIndex],
+          pointerEvents: "none",
+          zIndex: 0,
         }}
         animate={{ background: gradients[gradientIndex] }}
         transition={{ duration: 2, ease: "easeInOut" }}
       />
 
       {/* Dark Overlay */}
-      <div style={{ position: "absolute", inset: 0, background: "rgba(0, 0, 0, 0.2)" }} />
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "rgba(0, 0, 0, 0.2)",
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      />
 
       {/* Sparkle Particles */}
       {particles.map((particle) => (
@@ -125,6 +181,8 @@ function Main() {
             background: "#fff",
             borderRadius: "50%",
             boxShadow: "0 0 6px 2px rgba(255, 255, 255, 0.5)",
+            pointerEvents: "none",
+            zIndex: 0,
           }}
           animate={{
             opacity: [0, 1, 0],
@@ -160,12 +218,16 @@ function Main() {
           {/* Glass Card */}
           <div
             style={{
-              backdropFilter: "blur(20px)",
+              backdropFilter: isNative ? "none" : "blur(20px)",
+              WebkitBackdropFilter: isNative ? "none" : "blur(20px)",
               background: "rgba(255, 255, 255, 0.1)",
               border: "1px solid rgba(255, 255, 255, 0.2)",
               borderRadius: "24px",
               boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
               padding: "40px 32px",
+              position: "relative",
+              zIndex: 2,
+              pointerEvents: "auto",
             }}
           >
             <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
@@ -235,91 +297,62 @@ function Main() {
                 </p>
               </motion.div>
 
-              {/* Buttons */}
-              <motion.div
-                style={{ display: "flex", flexDirection: "column", gap: "14px" }}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-              >
-                {/* Browse Button */}
+              {/* Buttons — iOS 앱(Capacitor WKWebView)은 Next Link/router.push 가
+                  화면을 안 바꿀 수 있어 실제 문서 이동(hardNavigate)을 쓴다. */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px", position: "relative", zIndex: 2 }}>
                 <div style={{ width: "100%" }}>
-                  <motion.button
-                    className="btn-hover"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => router.push("/dashboard")}
+                  <a
+                    href="/dashboard"
+                    className="btn-hover landing-cta"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      hardNavigate("/dashboard");
+                    }}
                     style={{
-                      width: "100%",
-                      height: "56px",
-                      fontSize: "17px",
-                      fontWeight: 700,
+                      ...landingCtaStyle,
                       background: "linear-gradient(135deg, #0ea5e9, #06b6d4)",
-                      color: "#fff",
-                      border: "none",
-                      borderRadius: "14px",
-                      cursor: "pointer",
                       boxShadow: "0 4px 20px rgba(14, 165, 233, 0.4)",
-                      transition: "all 0.3s ease",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "8px",
                     }}
                   >
                     {t("main.browseWithoutLogin")}
-                  </motion.button>
+                  </a>
                   <p style={{ margin: "6px 0 0", fontSize: "12px", color: "rgba(255,255,255,0.7)", textAlign: "center" }}>
                     {t("main.browseDesc")}
                   </p>
                 </div>
 
-                {/* Login Button */}
-                <motion.button
-                  className="btn-hover"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => router.push("/login")}
+                <a
+                  href="/login"
+                  className="btn-hover landing-cta"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    hardNavigate("/login");
+                  }}
                   style={{
-                    width: "100%",
-                    height: "56px",
-                    fontSize: "17px",
-                    fontWeight: 700,
+                    ...landingCtaStyle,
                     background: "linear-gradient(135deg, #ec4899, #db2777)",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "14px",
-                    cursor: "pointer",
                     boxShadow: "0 4px 20px rgba(236, 72, 153, 0.4)",
-                    transition: "all 0.3s ease",
                   }}
                 >
                   {t("main.login")}
-                </motion.button>
+                </a>
 
-                {/* Signup Button */}
-                <motion.button
-                  className="btn-hover"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => router.push("/signup")}
+                <a
+                  href="/signup"
+                  className="btn-hover landing-cta"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    hardNavigate("/signup");
+                  }}
                   style={{
-                    width: "100%",
-                    height: "56px",
-                    fontSize: "17px",
-                    fontWeight: 700,
+                    ...landingCtaStyle,
                     background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "14px",
-                    cursor: "pointer",
                     boxShadow: "0 4px 20px rgba(99, 102, 241, 0.4)",
-                    transition: "all 0.3s ease",
                   }}
                 >
                   {t("main.signup")}
-                </motion.button>
-              </motion.div>
+                </a>
+              </div>
 
               {/* Feature Icons */}
               <motion.div
