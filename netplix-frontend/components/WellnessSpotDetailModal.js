@@ -724,14 +724,14 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           gap: 0;
           border-radius: 14px;
           overflow: hidden;
-          border: 1px solid rgba(110, 231, 183, 0.32);
+          border: 1px solid rgba(248, 113, 113, 0.38);
           background:
-            radial-gradient(130% 90% at 0% -10%, rgba(52, 211, 153, 0.38) 0%, transparent 48%),
-            radial-gradient(110% 80% at 110% 110%, rgba(167, 139, 250, 0.32) 0%, transparent 52%),
-            linear-gradient(165deg, rgba(12, 42, 38, 0.94) 0%, rgba(18, 28, 52, 0.92) 48%, rgba(36, 22, 58, 0.94) 100%);
+            radial-gradient(120% 80% at 8% 0%, rgba(220, 38, 38, 0.42) 0%, transparent 50%),
+            radial-gradient(90% 70% at 100% 100%, rgba(127, 29, 29, 0.5) 0%, transparent 55%),
+            linear-gradient(168deg, #3f1214 0%, #2a1018 48%, #1c0c12 100%);
           box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.12),
-            0 10px 28px rgba(16, 185, 129, 0.12);
+            inset 0 1px 0 rgba(254, 202, 202, 0.18),
+            0 8px 22px rgba(127, 29, 29, 0.28);
         }
         .ws-mod-fact {
           display: grid;
@@ -740,10 +740,10 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           padding: 11px 13px;
           background: linear-gradient(
             90deg,
-            rgba(255, 255, 255, 0.07) 0%,
-            rgba(255, 255, 255, 0.025) 100%
+            rgba(255, 228, 230, 0.08) 0%,
+            rgba(255, 255, 255, 0.02) 100%
           );
-          border-bottom: 1px solid rgba(167, 243, 208, 0.14);
+          border-bottom: 1px solid rgba(254, 202, 202, 0.16);
         }
         .ws-mod-fact:last-child {
           border-bottom: none;
@@ -752,19 +752,17 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           margin: 0;
           font-size: 12.5px;
           font-weight: 800;
-          color: #bbf7d0;
+          color: #fecaca;
           letter-spacing: 0.01em;
-          text-shadow: 0 1px 8px rgba(16, 185, 129, 0.35);
         }
         .ws-mod-fact dd {
           margin: 0;
           font-size: 13.5px;
           line-height: 1.55;
           font-weight: 600;
-          color: #f8fafc;
+          color: #fff7f7;
           white-space: pre-line;
           word-break: break-word;
-          text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
         }
 
         .ws-mod-info {
