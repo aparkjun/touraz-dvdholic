@@ -15,6 +15,7 @@
  *  3) 없으면 전체 미노출
  *
  * 카드(이미지) 탭 시 /medical-tourism 과 동일하게 MedicalTourismDetailModal 을 연다.
+ * 작품명·contentType(movie/dvd)과 무관 — 새 카탈로그 행도 이 스트립을 쓰면 동일하게 동작한다.
  */
 
 import { useEffect, useMemo, useState } from "react";

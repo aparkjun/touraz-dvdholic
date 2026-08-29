@@ -15,6 +15,7 @@
  *
  * <p>결과 0건이면 섹션 자체를 숨겨 UX 공백을 없앰.
  * 카드(이미지) 탭 시 /wellness 와 동일하게 WellnessSpotDetailModal 을 연다.
+ * 작품명·contentType(movie/dvd)과 무관 — 새 카탈로그 행도 이 스트립을 쓰면 동일하게 동작한다.
  * "전체 보기" 버튼은 /wellness 으로 이동.
  */
 
