@@ -25,6 +25,15 @@ export function ktoThumbUrl(url) {
   return s;
 }
 
+/** 히어로·라이트박스용. KTO 썸네일(image3)이면 원본급(image2)으로 되돌린다. */
+export function ktoFullUrl(url) {
+  const s = httpsImageUrl(url);
+  if (!s) return "";
+  if (s.includes("_image3_")) return s.replace(/_image3_/g, "_image2_");
+  if (s.includes("/image3/")) return s.replace("/image3/", "/image2/");
+  return s;
+}
+
 const TMDB_SIZE_RE = /\/t\/p\/(?:original|w\d+)\//;
 
 export function tmdbSizedUrl(url, size = "w342") {

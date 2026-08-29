@@ -16,7 +16,7 @@ import {
 import axios from '@/lib/axiosConfig';
 import useBackButtonClose from '@/lib/useBackButtonClose';
 import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
-import { httpsImageUrl, ktoThumbUrl } from '@/lib/fastImage';
+import { httpsImageUrl, ktoThumbUrl, ktoFullUrl } from '@/lib/fastImage';
 
 /**
  * 상세 본문(개요/이용정보/갤러리) 렌더 중 예외가 나도 앱 전체가 흰 화면/"This page couldn't load"
@@ -103,6 +103,8 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
 
   const [detail, setDetail] = React.useState(null);
   const [detailLoading, setDetailLoading] = React.useState(false);
+  const [heroIndex, setHeroIndex] = React.useState(0);
+  const [heroFailed, setHeroFailed] = React.useState(false);
 
   React.useEffect(() => {
     if (!spot) return undefined;
@@ -167,19 +169,36 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
     };
   }, [spot?.id, spot?.contentTypeId]);
 
-  // 추가 사진 갤러리(히어로 포함). 중복 제거 후 https 승격 + 썸네일 치환.
+  React.useEffect(() => {
+    setHeroIndex(0);
+    setHeroFailed(false);
+  }, [spot?.id]);
+
+  // 추가 사진 갤러리(히어로 포함). 중복 제거 후 원본(full)·썸네일(thumb) 쌍으로 보관.
   // ⚠ 훅은 조기 반환(if (!spot) return null) 위에 있어야 한다(React 훅 순서 규칙).
   const galleryImages = React.useMemo(() => {
     if (!spot) return [];
     const arr = [];
+    const seen = new Set();
     const push = (u) => {
-      const s = ktoThumbUrl(u);
-      if (s && !arr.includes(s)) arr.push(s);
+      const full = ktoFullUrl(u);
+      if (!full || seen.has(full)) return;
+      seen.add(full);
+      arr.push({ full, thumb: ktoThumbUrl(full) });
     };
     if (spot.imageUrl) push(spot.imageUrl);
     (detail?.images || []).forEach(push);
     return arr;
   }, [spot, detail]);
+
+  const safeHeroIndex = galleryImages.length
+    ? Math.min(heroIndex, galleryImages.length - 1)
+    : 0;
+  const heroSrc = galleryImages[safeHeroIndex]?.full || httpsImageUrl(spot?.imageUrl) || '';
+
+  React.useEffect(() => {
+    setHeroFailed(false);
+  }, [heroSrc]);
 
   if (!spot) return null;
 
@@ -233,17 +252,15 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
         </button>
 
         <div className="ws-mod-hero">
-          {spot.imageUrl ? (
+          {heroSrc && !heroFailed ? (
             <img
-              src={httpsImageUrl(spot.imageUrl)}
+              key={heroSrc}
+              src={heroSrc}
               alt={spot.name || ''}
-              loading="lazy"
+              loading="eager"
               decoding="async"
               referrerPolicy="no-referrer"
-              onError={(e) => {
-                e.currentTarget.style.display = 'none';
-                e.currentTarget.parentElement.classList.add('ws-mod-hero-fallback');
-              }}
+              onError={() => setHeroFailed(true)}
             />
           ) : (
             <div className="ws-mod-hero-empty">
@@ -289,11 +306,19 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
 
           {galleryImages.length > 1 && (
             <div className="ws-mod-gallery js-drag-scroll" aria-label="추가 사진">
-              {galleryImages.map((src, i) => (
-                <div className="ws-mod-gallery-item" key={`${src}-${i}`}>
+              {galleryImages.map((img, i) => (
+                <button
+                  type="button"
+                  className={`ws-mod-gallery-item${i === safeHeroIndex ? ' is-active' : ''}`}
+                  key={`${img.full}-${i}`}
+                  onClick={() => setHeroIndex(i)}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  aria-label={`${spot.name || ''} ${i + 1}`}
+                  aria-pressed={i === safeHeroIndex}
+                >
                   <img
-                    src={src}
-                    alt={`${spot.name || ''} ${i + 1}`}
+                    src={img.thumb}
+                    alt=""
                     loading="lazy"
                     decoding="async"
                     referrerPolicy="no-referrer"
@@ -302,7 +327,7 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
                       e.currentTarget.parentElement.style.display = 'none';
                     }}
                   />
-                </div>
+                </button>
               ))}
             </div>
           )}
@@ -619,10 +644,27 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           flex: 0 0 auto;
           width: 140px;
           height: 96px;
+          padding: 0;
           border-radius: 12px;
           overflow: hidden;
           background: #0a1020;
           border: 1px solid rgba(148, 163, 184, 0.14);
+          cursor: pointer;
+          appearance: none;
+          -webkit-appearance: none;
+          transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+        }
+        .ws-mod-gallery-item:hover {
+          transform: translateY(-1px);
+          border-color: rgba(16, 185, 129, 0.45);
+        }
+        .ws-mod-gallery-item.is-active {
+          border-color: rgba(52, 211, 153, 0.9);
+          box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.45);
+        }
+        .ws-mod-gallery-item:focus-visible {
+          outline: 2px solid rgba(16, 185, 129, 0.75);
+          outline-offset: 2px;
         }
         .ws-mod-gallery-item img {
           width: 100%;
