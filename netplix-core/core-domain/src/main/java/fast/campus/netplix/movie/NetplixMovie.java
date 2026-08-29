@@ -65,5 +65,11 @@ public class NetplixMovie {
     private final String posterPathNe;
     private final String backdropPathNe;
 
+    private final String movieNamePt;      // 브라질 포르투갈어 제목 (TMDB pt-BR)
+    private final String overviewPt;       // 줄거리 (TMDB pt-BR → 없으면 AI 번역)
+    private final String taglinePt;
+    private final String posterPathPt;     // pt 로컬 포스터(이미지 위 제목 글씨)
+    private final String backdropPathPt;
+
     private final LocalDateTime firstSeenAt; // 이 영화/DVD가 카탈로그에 최초 등장한 시점 (NEW 뱃지 기준)
 }

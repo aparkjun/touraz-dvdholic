@@ -2,6 +2,7 @@ package fast.campus.netplix.repository.movie;
 
 import fast.campus.netplix.entity.movie.MovieEntity;
 import fast.campus.netplix.movie.NepaliScript;
+import fast.campus.netplix.movie.PortugueseScript;
 import fast.campus.netplix.movie.NetplixMovie;
 import fast.campus.netplix.movie.PersistenceMoviePort;
 import lombok.RequiredArgsConstructor;
@@ -115,6 +116,14 @@ public class MovieRepository implements PersistenceMoviePort {
                         && NepaliScript.isUsable(netplixMovie.getOverviewNe());
                 boolean taglineNeedsNe = !NepaliScript.isUsable(existingEntity.getTaglineNe())
                         && NepaliScript.isUsable(netplixMovie.getTaglineNe());
+                boolean missingPt = existingEntity.getMovieNamePt() == null || existingEntity.getMovieNamePt().isBlank();
+                boolean incomingPt = netplixMovie.getMovieNamePt() != null && !netplixMovie.getMovieNamePt().isBlank();
+                boolean overviewNeedsPt = !PortugueseScript.isUsable(existingEntity.getOverviewPt())
+                        && PortugueseScript.isUsable(netplixMovie.getOverviewPt());
+                boolean taglineNeedsPt = !PortugueseScript.isUsable(existingEntity.getTaglinePt())
+                        && PortugueseScript.isUsable(netplixMovie.getTaglinePt());
+                boolean posterNeedsPt = (existingEntity.getPosterPathPt() == null || existingEntity.getPosterPathPt().isBlank())
+                        && netplixMovie.getPosterPathPt() != null && !netplixMovie.getPosterPathPt().isBlank();
                 if (missingNe && incomingNe) {
                     log.info("Backfilling Nepali titles: {}", netplixMovie.getMovieName());
                     existingEntity.applyNepaliFrom(netplixMovie);
@@ -124,6 +133,18 @@ public class MovieRepository implements PersistenceMoviePort {
                 if (overviewNeedsNe || taglineNeedsNe) {
                     log.info("Backfilling Nepali overview/tagline: {}", netplixMovie.getMovieName());
                     existingEntity.applyNepaliCopy(netplixMovie.getOverviewNe(), netplixMovie.getTaglineNe());
+                    movieJpaRepository.save(existingEntity);
+                    return existingEntity.getMovieId();
+                }
+                if ((missingPt && incomingPt) || posterNeedsPt) {
+                    log.info("Backfilling Portuguese titles/posters: {}", netplixMovie.getMovieName());
+                    existingEntity.applyPortugueseFrom(netplixMovie);
+                    movieJpaRepository.save(existingEntity);
+                    return existingEntity.getMovieId();
+                }
+                if (overviewNeedsPt || taglineNeedsPt) {
+                    log.info("Backfilling Portuguese overview/tagline: {}", netplixMovie.getMovieName());
+                    existingEntity.applyPortugueseCopy(netplixMovie.getOverviewPt(), netplixMovie.getTaglinePt());
                     movieJpaRepository.save(existingEntity);
                     return existingEntity.getMovieId();
                 }
@@ -152,6 +173,16 @@ public class MovieRepository implements PersistenceMoviePort {
         if (movieName == null || movieName.isBlank()) return;
         movieJpaRepository.findByMovieName(movieName).ifPresent(existing -> {
             existing.applyNepaliCopy(overviewNe, taglineNe);
+            movieJpaRepository.save(existing);
+        });
+    }
+
+    @Override
+    @Transactional
+    public void updatePortugueseCopy(String movieName, String overviewPt, String taglinePt) {
+        if (movieName == null || movieName.isBlank()) return;
+        movieJpaRepository.findByMovieName(movieName).ifPresent(existing -> {
+            existing.applyPortugueseCopy(overviewPt, taglinePt);
             movieJpaRepository.save(existing);
         });
     }

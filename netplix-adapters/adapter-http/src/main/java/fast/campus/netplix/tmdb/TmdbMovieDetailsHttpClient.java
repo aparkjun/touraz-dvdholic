@@ -74,11 +74,22 @@ public class TmdbMovieDetailsHttpClient {
         return fetchMovieDetailsForLanguage(movieId, "ne-NP", "NE");
     }
 
+    public TmdbMovieDetails fetchMovieDetailsPt(Integer movieId) {
+        return fetchMovieDetailsForLanguage(movieId, "pt-BR", "PT", true);
+    }
+
     private TmdbMovieDetails fetchMovieDetailsForLanguage(Integer movieId, String languageTag, String logLabel) {
+        return fetchMovieDetailsForLanguage(movieId, languageTag, logLabel, false);
+    }
+
+    private TmdbMovieDetails fetchMovieDetailsForLanguage(Integer movieId, String languageTag, String logLabel, boolean includeLocalizedImages) {
         try {
             log.debug("→ Fetching {} details for movieId: {}", logLabel, movieId);
             String url = movieDetailsUrl.replace("{movie_id}", String.valueOf(movieId))
                     .replace("language=ko-KR", "language=" + languageTag);
+            if (includeLocalizedImages) {
+                url += "&append_to_response=images&include_image_language=pt,null";
+            }
             String response = createRestClientWithTimeout()
                     .get()
                     .uri(url)

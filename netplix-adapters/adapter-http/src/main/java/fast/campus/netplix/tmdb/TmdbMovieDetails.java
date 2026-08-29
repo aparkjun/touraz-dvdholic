@@ -60,6 +60,53 @@ public class TmdbMovieDetails {
 
     private String homepage;
 
+    /** append_to_response=images 일 때만 채워짐 (pt 로컬 포스터 등) */
+    private TmdbImages images;
+
+    public String pickPosterForLanguage(String iso6391) {
+        if (iso6391 != null && images != null && images.getPosters() != null) {
+            for (TmdbImage img : images.getPosters()) {
+                if (img == null || img.getFilePath() == null || img.getFilePath().isBlank()) continue;
+                String iso = img.getIso6391();
+                if (iso6391.equalsIgnoreCase(iso)
+                        || (iso6391.equals("pt") && iso != null && iso.toLowerCase().startsWith("pt"))) {
+                    return img.getFilePath();
+                }
+            }
+        }
+        return posterPath;
+    }
+
+    public String pickBackdropForLanguage(String iso6391) {
+        if (iso6391 != null && images != null && images.getBackdrops() != null) {
+            for (TmdbImage img : images.getBackdrops()) {
+                if (img == null || img.getFilePath() == null || img.getFilePath().isBlank()) continue;
+                String iso = img.getIso6391();
+                if (iso6391.equalsIgnoreCase(iso)
+                        || (iso6391.equals("pt") && iso != null && iso.toLowerCase().startsWith("pt"))) {
+                    return img.getFilePath();
+                }
+            }
+        }
+        return backdropPath;
+    }
+
+    @Getter
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TmdbImages {
+        private List<TmdbImage> posters;
+        private List<TmdbImage> backdrops;
+    }
+
+    @Getter
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TmdbImage {
+        @JsonProperty("file_path")
+        private String filePath;
+        @JsonProperty("iso_639_1")
+        private String iso6391;
+    }
+
     public String getCollectionName() {
         if (belongsToCollection != null && belongsToCollection.get("name") != null) {
             return (String) belongsToCollection.get("name");

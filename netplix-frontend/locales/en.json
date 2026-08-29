@@ -32,6 +32,15 @@
     "rating": "Ratings",
     "recommend": "Picks"
   },
+  "paywall": {
+    "title": "Unlock the app",
+    "body": "A one-time unlock is required to use Touraz Holic. Pay once and you can restore on reinstall with the same Google account.",
+    "buy": "Unlock for {{price}}",
+    "restore": "Restore purchase",
+    "restoreEmpty": "No purchase found on this account.",
+    "notUnlocked": "Purchase did not complete. Please try again.",
+    "error": "Billing failed. Check your Play Store account and network."
+  },
   "login": {
     "heroDesc": "Log in and discover personalized content",
     "email": "Email",

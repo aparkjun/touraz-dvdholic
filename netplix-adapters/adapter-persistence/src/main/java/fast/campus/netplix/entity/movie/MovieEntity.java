@@ -3,6 +3,7 @@ package fast.campus.netplix.entity.movie;
 import fast.campus.netplix.entity.audit.MutableBaseEntity;
 import fast.campus.netplix.movie.NepaliScript;
 import fast.campus.netplix.movie.NetplixMovie;
+import fast.campus.netplix.movie.PortugueseScript;
 import io.micrometer.common.util.StringUtils;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -177,6 +178,21 @@ public class MovieEntity extends MutableBaseEntity {
     @Column(name = "BACKDROP_PATH_NE", length = 500)
     private String backdropPathNe;
 
+    @Column(name = "MOVIE_NAME_PT", length = 500)
+    private String movieNamePt;
+
+    @Column(name = "OVERVIEW_PT", columnDefinition = "TEXT")
+    private String overviewPt;
+
+    @Column(name = "TAGLINE_PT", length = 500)
+    private String taglinePt;
+
+    @Column(name = "POSTER_PATH_PT", length = 500)
+    private String posterPathPt;
+
+    @Column(name = "BACKDROP_PATH_PT", length = 500)
+    private String backdropPathPt;
+
     @Setter
     @Column(name = "FIRST_SEEN_AT")
     private LocalDateTime firstSeenAt;
@@ -233,6 +249,11 @@ public class MovieEntity extends MutableBaseEntity {
                 .taglineNe(this.taglineNe)
                 .posterPathNe(this.posterPathNe)
                 .backdropPathNe(this.backdropPathNe)
+                .movieNamePt(this.movieNamePt)
+                .overviewPt(this.overviewPt)
+                .taglinePt(this.taglinePt)
+                .posterPathPt(this.posterPathPt)
+                .backdropPathPt(this.backdropPathPt)
                 .firstSeenAt(this.firstSeenAt)
                 .build();
     }
@@ -290,6 +311,11 @@ public class MovieEntity extends MutableBaseEntity {
                 netplixMovie.getTaglineNe(),
                 netplixMovie.getPosterPathNe(),
                 netplixMovie.getBackdropPathNe(),
+                netplixMovie.getMovieNamePt(),
+                truncateOrNull(netplixMovie.getOverviewPt()),
+                netplixMovie.getTaglinePt(),
+                netplixMovie.getPosterPathPt(),
+                netplixMovie.getBackdropPathPt(),
                 netplixMovie.getFirstSeenAt() != null ? netplixMovie.getFirstSeenAt() : LocalDateTime.now()
         );
     }
@@ -309,6 +335,24 @@ public class MovieEntity extends MutableBaseEntity {
         }
         if (NepaliScript.isUsable(taglineNe)) {
             this.taglineNe = taglineNe;
+        }
+    }
+
+    public void applyPortugueseFrom(NetplixMovie src) {
+        if (src == null) return;
+        this.movieNamePt = src.getMovieNamePt();
+        this.overviewPt = src.getOverviewPt();
+        this.taglinePt = src.getTaglinePt();
+        this.posterPathPt = src.getPosterPathPt();
+        this.backdropPathPt = src.getBackdropPathPt();
+    }
+
+    public void applyPortugueseCopy(String overviewPt, String taglinePt) {
+        if (PortugueseScript.isUsable(overviewPt)) {
+            this.overviewPt = overviewPt;
+        }
+        if (PortugueseScript.isUsable(taglinePt)) {
+            this.taglinePt = taglinePt;
         }
     }
 

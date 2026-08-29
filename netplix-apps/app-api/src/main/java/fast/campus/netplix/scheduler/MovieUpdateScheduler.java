@@ -2,6 +2,7 @@ package fast.campus.netplix.scheduler;
 
 import fast.campus.netplix.dvdstore.DvdStoreUseCase;
 import fast.campus.netplix.movie.NepaliScript;
+import fast.campus.netplix.movie.PortugueseScript;
 import fast.campus.netplix.movie.NetplixMovie;
 import fast.campus.netplix.movie.NetplixPageableMovies;
 import fast.campus.netplix.movie.OwnerRecommendUseCase;
@@ -37,6 +38,9 @@ public class MovieUpdateScheduler {
     private static volatile String lastNepaliBackfill;
     private static volatile String lastNepaliType;
     private static volatile Integer lastNepaliCount;
+    private static volatile String lastPortugueseBackfill;
+    private static volatile String lastPortugueseType;
+    private static volatile Integer lastPortugueseCount;
 
     private final TmdbMoviePort tmdbMoviePort;
     private final TmdbMoviePlayingPort tmdbMoviePlayingPort;
@@ -59,6 +63,9 @@ public class MovieUpdateScheduler {
     public static String getLastNepaliBackfill() { return lastNepaliBackfill; }
     public static String getLastNepaliType() { return lastNepaliType; }
     public static Integer getLastNepaliCount() { return lastNepaliCount; }
+    public static String getLastPortugueseBackfill() { return lastPortugueseBackfill; }
+    public static String getLastPortugueseType() { return lastPortugueseType; }
+    public static Integer getLastPortugueseCount() { return lastPortugueseCount; }
 
     /**
      * DVD매장(비디오물감상실업 + 비디오물시청제공업) 공공데이터 자동 갱신 - 매월 1일 09:00 (KST) = UTC 00:00
@@ -383,6 +390,11 @@ public class MovieUpdateScheduler {
                 .taglineNe(movie.getTaglineNe())
                 .posterPathNe(movie.getPosterPathNe())
                 .backdropPathNe(movie.getBackdropPathNe())
+                .movieNamePt(movie.getMovieNamePt())
+                .overviewPt(movie.getOverviewPt())
+                .taglinePt(movie.getTaglinePt())
+                .posterPathPt(movie.getPosterPathPt())
+                .backdropPathPt(movie.getBackdropPathPt())
                 .firstSeenAt(firstSeenAt)
                 .build();
     }
@@ -465,7 +477,7 @@ public class MovieUpdateScheduler {
             }
             Map<String, String> byName = translateField(need, overview
                     ? MovieUpdateScheduler::overviewSource
-                    : MovieUpdateScheduler::taglineSource);
+                    : MovieUpdateScheduler::taglineSource, "ne");
             for (Map.Entry<String, String> e : byName.entrySet()) {
                 if (overview) {
                     persistenceMoviePort.updateNepaliCopy(e.getKey(), e.getValue(), null);
@@ -480,18 +492,98 @@ public class MovieUpdateScheduler {
         return updated;
     }
 
+    /**
+     * 이미 저장된 영화/DVD 중 포르투갈어 줄거리·태그라인이 없거나 영어 폴백인 것만
+     * 한국어 원문(없으면 영어·일본어·중국어)에서 AI 번역해 채운다.
+     */
+    public void backfillPortugueseOverviews(String contentType) {
+        String type = contentType == null ? "" : contentType.trim().toLowerCase();
+        if (!"dvd".equals(type) && !"movie".equals(type)) {
+            log.warn("=== 포르투갈어 줄거리 백필 스킵: type={} ===", contentType);
+            return;
+        }
+        if (!batchInProgress.compareAndSet(false, true)) {
+            log.warn("=== 다른 배치 실행 중. 포르투갈어 줄거리 백필 스킵 ===");
+            return;
+        }
+        try {
+            if (textTranslationPort == null || !textTranslationPort.isAvailable()) {
+                log.warn("=== 포르투갈어 줄거리 백필 중단: 번역기 없음 ===");
+                return;
+            }
+            log.info("=== 포르투갈어 줄거리 백필 시작 type={} ({}) ===", type, LocalDateTime.now());
+            int updated = backfillPortugueseOverviewsForType(type);
+            lastPortugueseBackfill = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            lastPortugueseType = type;
+            lastPortugueseCount = updated;
+            log.info("=== 포르투갈어 줄거리 백필 완료 type={} {}편 갱신 ===", type, updated);
+            releaseTranslationMemory();
+        } catch (Exception e) {
+            log.error("=== 포르투갈어 줄거리 백필 실패: {} ===", e.getMessage(), e);
+        } finally {
+            batchInProgress.set(false);
+        }
+    }
+
+    private int backfillPortugueseOverviewsForType(String contentType) {
+        int updated = 0;
+        updated += backfillPortugueseField(contentType, true);
+        releaseTranslationMemory();
+        updated += backfillPortugueseField(contentType, false);
+        return updated;
+    }
+
+    private int backfillPortugueseField(String contentType, boolean overview) {
+        int updated = 0;
+        int page = 0;
+        while (true) {
+            List<NetplixMovie> batch = persistenceMoviePort.fetchByContentType(contentType, page, 50);
+            if (batch.isEmpty()) break;
+            List<NetplixMovie> need = new ArrayList<>();
+            for (NetplixMovie m : batch) {
+                if (overview) {
+                    if (!PortugueseScript.isUsable(m.getOverviewPt())
+                            && overviewSource(m) != null) {
+                        need.add(m);
+                    }
+                } else if (!PortugueseScript.isUsable(m.getTaglinePt())
+                        && taglineSource(m) != null) {
+                    need.add(m);
+                }
+            }
+            Map<String, String> byName = translateField(need, overview
+                    ? MovieUpdateScheduler::overviewSource
+                    : MovieUpdateScheduler::taglineSource, "pt");
+            for (Map.Entry<String, String> e : byName.entrySet()) {
+                if (overview) {
+                    persistenceMoviePort.updatePortugueseCopy(e.getKey(), e.getValue(), null);
+                } else {
+                    persistenceMoviePort.updatePortugueseCopy(e.getKey(), null, e.getValue());
+                }
+                updated++;
+            }
+            if (batch.size() < 50) break;
+            page++;
+        }
+        return updated;
+    }
+
     private Map<String, String> translateField(List<NetplixMovie> movies, java.util.function.Function<NetplixMovie, String> getter) {
+        return translateField(movies, getter, "ne");
+    }
+
+    private Map<String, String> translateField(List<NetplixMovie> movies, java.util.function.Function<NetplixMovie, String> getter, String lang) {
         Map<String, String> out = new LinkedHashMap<>();
         if (movies.isEmpty()) return out;
         // 8편씩이면 gpt-4o-mini 가 24초 읽기 제한을 자주 넘긴다. 3편 + 실패 시 1편 재시도.
         final int chunk = 3;
         for (int i = 0; i < movies.size(); i += chunk) {
             List<NetplixMovie> slice = movies.subList(i, Math.min(i + chunk, movies.size()));
-            Map<String, String> part = translateSlice(slice, getter);
+            Map<String, String> part = translateSlice(slice, getter, lang);
             if (part.size() < slice.size()) {
                 for (NetplixMovie m : slice) {
                     if (part.containsKey(m.getMovieName())) continue;
-                    part.putAll(translateSlice(List.of(m), getter));
+                    part.putAll(translateSlice(List.of(m), getter, lang));
                 }
             }
             out.putAll(part);
@@ -500,22 +592,25 @@ public class MovieUpdateScheduler {
     }
 
     private Map<String, String> translateSlice(List<NetplixMovie> slice,
-            java.util.function.Function<NetplixMovie, String> getter) {
+            java.util.function.Function<NetplixMovie, String> getter, String lang) {
         Map<String, String> out = new LinkedHashMap<>();
         List<String> sources = slice.stream().map(getter).toList();
         try {
-            List<String> translated = textTranslationPort.translate(sources, "ne", "film");
+            List<String> translated = textTranslationPort.translate(sources, lang, "film");
             if (translated == null || translated.size() != sources.size()) {
                 return out;
             }
             for (int j = 0; j < slice.size(); j++) {
                 String dst = translated.get(j);
-                if (NepaliScript.isUsable(dst)) {
+                boolean usable = "pt".equals(lang)
+                        ? PortugueseScript.isUsable(dst)
+                        : NepaliScript.isUsable(dst);
+                if (usable) {
                     out.put(slice.get(j).getMovieName(), dst);
                 }
             }
         } catch (Exception e) {
-            log.warn("네팔어 번역 청크 실패 count={}: {}", slice.size(), e.getMessage());
+            log.warn("{} 번역 청크 실패 count={}: {}", lang, slice.size(), e.getMessage());
         }
         return out;
     }

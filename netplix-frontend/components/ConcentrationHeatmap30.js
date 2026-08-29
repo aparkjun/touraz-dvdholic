@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next';
  */
 export default function ConcentrationHeatmap30({ areaCode = null, regionLabel = '' }) {
   const { i18n } = useTranslation();
-  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja') || i18n.language.startsWith('zh'));
+  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja') || i18n.language.startsWith('zh') || i18n.language.startsWith('pt') || i18n.language.startsWith('ne'));
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
 

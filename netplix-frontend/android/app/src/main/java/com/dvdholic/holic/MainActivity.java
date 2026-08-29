@@ -25,6 +25,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
+        registerPlugin(AppUnlockPlugin.class);
         super.onCreate(savedInstanceState);
 
         Window window = getWindow();

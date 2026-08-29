@@ -61,6 +61,9 @@ public class BatchController {
         status.put("lastNepaliBackfill", MovieUpdateScheduler.getLastNepaliBackfill());
         status.put("lastNepaliType", MovieUpdateScheduler.getLastNepaliType());
         status.put("lastNepaliCount", MovieUpdateScheduler.getLastNepaliCount());
+        status.put("lastPortugueseBackfill", MovieUpdateScheduler.getLastPortugueseBackfill());
+        status.put("lastPortugueseType", MovieUpdateScheduler.getLastPortugueseType());
+        status.put("lastPortugueseCount", MovieUpdateScheduler.getLastPortugueseCount());
         status.put("ownerTrendingReady", ownerRecommendUseCase.hasTrendingContext());
         status.put("schedule", Map.of(
             "movie", "매일 03:00 KST (UTC 18:00 전날)",
@@ -209,6 +212,27 @@ public class BatchController {
         } catch (Exception e) {
             log.error("네팔어 줄거리 백필 실패: {}", e.getMessage(), e);
             return NetplixApiResponse.ok("네팔어 줄거리 백필 실패: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/portuguese-overviews")
+    public NetplixApiResponse<String> backfillPortugueseOverviews(
+            @RequestParam(value = "type", defaultValue = "dvd") String type) {
+        String t = type == null ? "dvd" : type.trim().toLowerCase();
+        log.info("포르투갈어 줄거리 백필 요청 type={}", t);
+        if (!"dvd".equals(t) && !"movie".equals(t)) {
+            return NetplixApiResponse.ok("type은 dvd 또는 movie 여야 합니다.");
+        }
+        if (movieUpdateScheduler.isBatchRunning()) {
+            return NetplixApiResponse.ok("다른 배치 실행 중입니다. 완료 후 다시 시도하세요.");
+        }
+        try {
+            CompletableFuture.runAsync(() -> movieUpdateScheduler.backfillPortugueseOverviews(t));
+            return NetplixApiResponse.ok(
+                    "포르투갈어 줄거리 번역을 시작했습니다. 대상=" + t + ". 기존 목록을 지우지 않고 비어 있는 줄거리만 채웁니다.");
+        } catch (Exception e) {
+            log.error("포르투갈어 줄거리 백필 실패: {}", e.getMessage(), e);
+            return NetplixApiResponse.ok("포르투갈어 줄거리 백필 실패: " + e.getMessage());
         }
     }
 

@@ -26,7 +26,7 @@ import { resolveAreaCode, areaLabel } from '@/lib/regionAreaCode';
  */
 export default function DvdReturnQuietSpots({ keyword = '', lat, lng }) {
   const { i18n } = useTranslation();
-  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja') || i18n.language.startsWith('zh'));
+  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja') || i18n.language.startsWith('zh') || i18n.language.startsWith('pt') || i18n.language.startsWith('ne'));
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);

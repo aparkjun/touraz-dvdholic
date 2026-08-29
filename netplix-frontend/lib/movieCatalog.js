@@ -12,6 +12,7 @@ export function hasCatalogMovieSummary(movie) {
   if (typeof movie.movieNameJa === 'string' && movie.movieNameJa.trim()) return true;
   if (typeof movie.movieNameZh === 'string' && movie.movieNameZh.trim()) return true;
   if (typeof movie.movieNameNe === 'string' && movie.movieNameNe.trim()) return true;
+  if (typeof movie.movieNamePt === 'string' && movie.movieNamePt.trim()) return true;
   if (typeof movie.releasedAt === 'string' && movie.releasedAt.trim()) return true;
   if (typeof movie.backdropPath === 'string' && movie.backdropPath.trim()) return true;
   return false;

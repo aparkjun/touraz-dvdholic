@@ -829,7 +829,11 @@ body.app-theme-travel-cinema .app-nav-mobile .app-chip-mypage:hover {
 /* 랜딩(/) 전용 — 언어 토글(KO/EN/日本語)이 가운데 브랜드 로고를 가리지 않도록,
  * 세 버튼을 같은 수평선에 유지한 채 상단바 로고 아래(둘째 줄, 좌측)로 내린다. */
 .app-nav.app-nav--landing {
-  padding-bottom: 42px;
+  padding-bottom: 72px;
+}
+.app-nav.app-nav--landing .app-lang-switch {
+  flex-wrap: wrap;
+  max-width: min(92vw, 340px);
 }
 .app-nav.app-nav--landing .app-nav-leftmost {
   position: absolute;

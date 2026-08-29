@@ -5,6 +5,7 @@ import en from "@/locales/en.json";
 import ja from "@/locales/ja.json";
 import zh from "@/locales/zh.json";
 import ne from "@/locales/ne.json";
+import pt from "@/locales/pt.json";
 
 i18n.use(initReactI18next).init({
   resources: {
@@ -13,13 +14,14 @@ i18n.use(initReactI18next).init({
     ja: { translation: ja },
     zh: { translation: zh },
     ne: { translation: ne },
+    pt: { translation: pt },
   },
   lng: "ko",
   fallbackLng: "ko",
   interpolation: { escapeValue: false },
 });
 
-export const SUPPORTED_LANGS = ["ko", "en", "ja", "zh", "ne"];
+export const SUPPORTED_LANGS = ["ko", "en", "ja", "zh", "ne", "pt"];
 
 export function detectAndApplyLanguage() {
   if (typeof window === "undefined") return;

@@ -122,7 +122,13 @@ function MypageContent() {
     if (diffMins < 60) return t("mypage.minutesAgo", { count: diffMins });
     if (diffHours < 24) return t("mypage.hoursAgo", { count: diffHours });
     if (diffDays < 7) return t("mypage.daysAgo", { count: diffDays });
-    return date.toLocaleDateString(i18n.language === "en" ? "en-US" : "ko-KR");
+    return date.toLocaleDateString(
+      i18n.language?.startsWith("en") ? "en-US"
+        : i18n.language?.startsWith("pt") ? "pt-BR"
+        : i18n.language?.startsWith("ja") ? "ja-JP"
+        : i18n.language?.startsWith("zh") ? "zh-CN"
+        : "ko-KR"
+    );
   };
 
   const getDateKey = (dateVal) => {

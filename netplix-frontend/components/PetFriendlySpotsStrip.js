@@ -96,7 +96,7 @@ const THEME_PALETTE = {
 
 export default function PetFriendlySpotsStrip({ areaCode, regionLabel = '', theme = 'dark' }) {
   const { i18n } = useTranslation();
-  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja') || i18n.language.startsWith('zh'));
+  const isForeign = i18n.language && (i18n.language.startsWith('en') || i18n.language.startsWith('ja') || i18n.language.startsWith('zh') || i18n.language.startsWith('pt') || i18n.language.startsWith('ne'));
   const palette = THEME_PALETTE[theme === 'light' ? 'light' : 'dark'];
 
   const [buckets, setBuckets] = useState({});

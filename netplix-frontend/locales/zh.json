@@ -32,6 +32,15 @@
     "rating": "评分",
     "recommend": "推荐"
   },
+  "paywall": {
+    "title": "解锁应用",
+    "body": "使用 Touraz Holic 全部功能需要一次性解锁。同一 Google 账号重新安装后可恢复购买。",
+    "buy": "以 {{price}} 解锁",
+    "restore": "恢复购买",
+    "restoreEmpty": "此账号没有购买记录。",
+    "notUnlocked": "购买未完成，请重试。",
+    "error": "支付失败，请检查 Play 商店账号和网络。"
+  },
   "login": {
     "heroDesc": "登录后邂逅为你定制的内容",
     "email": "邮箱",

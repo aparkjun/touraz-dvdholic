@@ -5,6 +5,7 @@ import fast.campus.netplix.movie.NetplixMovie;
 import fast.campus.netplix.movie.NetplixPageableMovies;
 import fast.campus.netplix.movie.TmdbMoviePort;
 import fast.campus.netplix.movie.NepaliScript;
+import fast.campus.netplix.movie.PortugueseScript;
 import fast.campus.netplix.translation.TextTranslationPort;
 import fast.campus.netplix.util.ObjectMapperUtil;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,10 @@ public class TmdbMovieListHttpClient implements TmdbMoviePort {
     /** TMDB 네팔어 줄거리가 없거나 영어 폴백일 때 한국어 원문을 AI로 네팔어 번역해 채운다. */
     @Value("${tmdb.batch.ne-translate-fallback:true}")
     private boolean neTranslateFallback;
+
+    /** TMDB pt-BR 줄거리가 없거나 영어 폴백일 때 한국어 원문을 AI(브라질 현지 페르소나)로 번역해 채운다. */
+    @Value("${tmdb.batch.pt-translate-fallback:true}")
+    private boolean ptTranslateFallback;
 
     private final TmdbHttpClient tmdbHttpClient;
     private final TmdbMovieDetailsHttpClient tmdbMovieDetailsHttpClient;
@@ -103,6 +108,7 @@ public class TmdbMovieListHttpClient implements TmdbMoviePort {
             TmdbMovieDetails detailsJa = tmdbMovieDetailsHttpClient.fetchMovieDetailsJa(tmdbId);
             TmdbMovieDetails detailsZh = tmdbMovieDetailsHttpClient.fetchMovieDetailsZh(tmdbId);
             TmdbMovieDetails detailsNe = tmdbMovieDetailsHttpClient.fetchMovieDetailsNe(tmdbId);
+            TmdbMovieDetails detailsPt = tmdbMovieDetailsHttpClient.fetchMovieDetailsPt(tmdbId);
 
             String trailerUrl = tmdbMovieDetailsHttpClient.fetchMovieTrailer(tmdbId);
             String ottProviders = tmdbMovieDetailsHttpClient.fetchOttProviders(tmdbId);
@@ -165,6 +171,15 @@ public class TmdbMovieListHttpClient implements TmdbMoviePort {
                             detailsEn != null ? detailsEn.getTagline() : null))
                     .posterPathNe(detailsNe != null ? detailsNe.getPosterPath() : null)
                     .backdropPathNe(detailsNe != null ? detailsNe.getBackdropPath() : null)
+                    .movieNamePt(detailsPt != null ? detailsPt.getTitle() : null)
+                    .overviewPt(resolveOverviewPt(detailsPt, movie.getOverview(),
+                            detailsEn != null ? detailsEn.getOverview() : null))
+                    .taglinePt(resolvePtText(
+                            detailsPt != null ? detailsPt.getTagline() : null,
+                            details != null ? details.getTagline() : null,
+                            detailsEn != null ? detailsEn.getTagline() : null))
+                    .posterPathPt(detailsPt != null ? detailsPt.pickPosterForLanguage("pt") : null)
+                    .backdropPathPt(detailsPt != null ? detailsPt.pickBackdropForLanguage("pt") : null)
                     .build();
                     
             log.info("✓ Enriched movie: {}", movie.getMovieName());
@@ -244,6 +259,33 @@ public class TmdbMovieListHttpClient implements TmdbMoviePort {
             }
         } catch (Exception e) {
             log.warn("✗ NE text translate fallback failed: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 브라질 포르투갈어 줄거리: TMDB pt-BR 에 포르투갈어 표지가 있으면 그대로,
+     * 없거나 영어 폴백이면 한국어(없으면 영어)를 AI(30년차 브라질 현지인)로 번역.
+     */
+    private String resolveOverviewPt(TmdbMovieDetails detailsPt, String koOverview, String enOverview) {
+        return resolvePtText(detailsPt != null ? detailsPt.getOverview() : null, koOverview, enOverview);
+    }
+
+    private String resolvePtText(String tmdbPt, String koText, String enText) {
+        if (PortugueseScript.isUsable(tmdbPt)) {
+            return tmdbPt;
+        }
+        String src = PortugueseScript.firstTranslatable(koText, enText);
+        if (!ptTranslateFallback || src == null || !textTranslationPort.isAvailable()) {
+            return null;
+        }
+        try {
+            List<String> out = textTranslationPort.translate(List.of(src), "pt", "film");
+            if (out != null && !out.isEmpty() && PortugueseScript.isUsable(out.get(0))) {
+                return out.get(0);
+            }
+        } catch (Exception e) {
+            log.warn("✗ PT text translate fallback failed: {}", e.getMessage());
         }
         return null;
     }

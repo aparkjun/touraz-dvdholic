@@ -6,6 +6,7 @@ import { clearOAuthRedirectPending } from '@/lib/oauthPending';
 import { OAUTH_BROWSER_CANCELLED, resetNativeOAuthSession } from '@/lib/oauthNativeBrowser';
 import useDragScrollAll from '@/lib/useDragScroll';
 import { isSameAppOrigin, openExternalUrl } from '@/lib/openExternalUrl';
+import AppPaywall from '@/components/AppPaywall';
 
 export default function Providers({ children }) {
   useEffect(() => {
@@ -276,5 +277,10 @@ export default function Providers({ children }) {
     };
   }, []);
 
-  return <>{children}</>;
+  return (
+    <>
+      <AppPaywall />
+      {children}
+    </>
+  );
 }
