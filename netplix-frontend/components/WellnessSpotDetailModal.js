@@ -724,14 +724,14 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           gap: 0;
           border-radius: 14px;
           overflow: hidden;
-          border: 1px solid rgba(248, 113, 113, 0.38);
+          border: 1px solid rgba(244, 63, 94, 0.35);
           background:
-            radial-gradient(120% 80% at 8% 0%, rgba(220, 38, 38, 0.42) 0%, transparent 50%),
-            radial-gradient(90% 70% at 100% 100%, rgba(127, 29, 29, 0.5) 0%, transparent 55%),
-            linear-gradient(168deg, #3f1214 0%, #2a1018 48%, #1c0c12 100%);
+            radial-gradient(120% 90% at 0% 0%, #fecdd3 0%, transparent 55%),
+            radial-gradient(90% 80% at 100% 100%, #fb7185 0%, transparent 58%),
+            linear-gradient(165deg, #fff1f2 0%, #fda4af 48%, #fb7185 100%);
           box-shadow:
-            inset 0 1px 0 rgba(254, 202, 202, 0.18),
-            0 8px 22px rgba(127, 29, 29, 0.28);
+            inset 0 1px 0 rgba(255, 255, 255, 0.7),
+            0 8px 22px rgba(244, 63, 94, 0.18);
         }
         .ws-mod-fact {
           display: grid;
@@ -740,10 +740,10 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           padding: 11px 13px;
           background: linear-gradient(
             90deg,
-            rgba(255, 228, 230, 0.08) 0%,
-            rgba(255, 255, 255, 0.02) 100%
+            rgba(255, 255, 255, 0.45) 0%,
+            rgba(255, 255, 255, 0.12) 100%
           );
-          border-bottom: 1px solid rgba(254, 202, 202, 0.16);
+          border-bottom: 1px solid rgba(190, 18, 60, 0.12);
         }
         .ws-mod-fact:last-child {
           border-bottom: none;
@@ -752,7 +752,7 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           margin: 0;
           font-size: 12.5px;
           font-weight: 800;
-          color: #fecaca;
+          color: #9f1239;
           letter-spacing: 0.01em;
         }
         .ws-mod-fact dd {
@@ -760,7 +760,7 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           font-size: 13.5px;
           line-height: 1.55;
           font-weight: 600;
-          color: #fff7f7;
+          color: #1c1917;
           white-space: pre-line;
           word-break: break-word;
         }
