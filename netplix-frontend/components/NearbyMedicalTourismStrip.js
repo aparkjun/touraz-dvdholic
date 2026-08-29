@@ -13,6 +13,8 @@
  *  1) lat/lng → /api/v1/medical-tourism/nearby
  *  2) keyword → /api/v1/medical-tourism/search?q=
  *  3) 없으면 전체 미노출
+ *
+ * 카드(이미지) 탭 시 /medical-tourism 과 동일하게 MedicalTourismDetailModal 을 연다.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -21,6 +23,7 @@ import { useTranslation } from "react-i18next";
 import axios from "@/src/axiosConfig";
 import { Stethoscope, MapPin, Phone, ArrowRight, Globe2 } from "lucide-react";
 import FastImg from "@/components/FastImg";
+import MedicalTourismDetailModal from "@/components/MedicalTourismDetailModal";
 
 export default function NearbyMedicalTourismStrip({
   lat,
@@ -36,6 +39,7 @@ export default function NearbyMedicalTourismStrip({
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errored, setErrored] = useState(false);
+  const [selectedSpot, setSelectedSpot] = useState(null);
 
   const lang = (i18n?.language || "ko").toLowerCase().startsWith("en") ? "en" : "ko";
   const useCoords = typeof lat === "number" && typeof lng === "number"
@@ -119,17 +123,42 @@ export default function NearbyMedicalTourismStrip({
               </div>
             ))
           : items.map((s) => (
-              <MedicalMiniCard key={s.id} spot={s} />
+              <MedicalMiniCard
+                key={s.id}
+                spot={s}
+                onOpen={() => setSelectedSpot(s)}
+              />
             ))}
       </div>
+      {selectedSpot && (
+        <MedicalTourismDetailModal
+          spot={selectedSpot}
+          userPos={useCoords ? { lat, lon: lng } : null}
+          onClose={() => setSelectedSpot(null)}
+        />
+      )}
     </section>
   );
 }
 
-function MedicalMiniCard({ spot }) {
+function MedicalMiniCard({ spot, onOpen }) {
   const { t } = useTranslation();
+  const openDetail = () => onOpen?.(spot);
+  const onKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openDetail();
+    }
+  };
   return (
-    <article className="nmt-card">
+    <article
+      className="nmt-card nmt-card-link"
+      role="button"
+      tabIndex={0}
+      onClick={openDetail}
+      onKeyDown={onKeyDown}
+      aria-label={t("medicalTourism.cardOpen", { name: spot.name || "" })}
+    >
       <div className="nmt-img">
         {spot.imageUrl ? (
           <FastImg
@@ -218,6 +247,11 @@ const cssBlock = `
   box-shadow: 0 2px 8px rgba(0,0,0,0.25);
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
   display: flex; flex-direction: column;
+}
+.nmt-card-link { cursor: pointer; outline: none; }
+.nmt-card-link:focus-visible {
+  border-color: rgba(14, 165, 233, 0.7);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.35);
 }
 .nmt-card:hover {
   transform: translateY(-2px);

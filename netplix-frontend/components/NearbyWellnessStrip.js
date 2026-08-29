@@ -14,6 +14,7 @@
  *  4) 위 세 가지 모두 없으면 아무것도 렌더하지 않음
  *
  * <p>결과 0건이면 섹션 자체를 숨겨 UX 공백을 없앰.
+ * 카드(이미지) 탭 시 /wellness 와 동일하게 WellnessSpotDetailModal 을 연다.
  * "전체 보기" 버튼은 /wellness 으로 이동.
  */
 
@@ -23,6 +24,7 @@ import { useTranslation } from "react-i18next";
 import axios from "@/src/axiosConfig";
 import { Sparkles, MapPin, Phone, ArrowRight } from "lucide-react";
 import FastImg from "@/components/FastImg";
+import WellnessSpotDetailModal from "@/components/WellnessSpotDetailModal";
 
 /**
  * 영화 장르 → 웰니스 키워드 매핑.
@@ -91,6 +93,7 @@ export default function NearbyWellnessStrip({
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [errored, setErrored] = useState(false);
+  const [selectedSpot, setSelectedSpot] = useState(null);
 
   const useCoords = typeof lat === "number" && typeof lng === "number"
     && !Number.isNaN(lat) && !Number.isNaN(lng);
@@ -181,17 +184,39 @@ export default function NearbyWellnessStrip({
               </div>
             ))
           : items.map((s) => (
-              <WellnessMiniCard key={s.id} spot={s} />
+              <WellnessMiniCard
+                key={s.id}
+                spot={s}
+                onOpen={() => setSelectedSpot(s)}
+              />
             ))}
       </div>
+      <WellnessSpotDetailModal
+        spot={selectedSpot}
+        onClose={() => setSelectedSpot(null)}
+      />
     </section>
   );
 }
 
-function WellnessMiniCard({ spot }) {
+function WellnessMiniCard({ spot, onOpen }) {
   const { t } = useTranslation();
+  const openDetail = () => onOpen?.(spot);
+  const onKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      openDetail();
+    }
+  };
   return (
-    <article className="nws-card">
+    <article
+      className="nws-card nws-card-link"
+      role="button"
+      tabIndex={0}
+      onClick={openDetail}
+      onKeyDown={onKeyDown}
+      aria-label={`${spot.name || ""} ${t("nearbyWellness.openDetail", "상세 보기")}`}
+    >
       <div className="nws-img">
         {spot.imageUrl ? (
           <FastImg
@@ -273,6 +298,11 @@ const cssBlock = `
   box-shadow: 0 2px 8px rgba(0,0,0,0.25);
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
   display: flex; flex-direction: column;
+}
+.nws-card-link { cursor: pointer; outline: none; }
+.nws-card-link:focus-visible {
+  border-color: rgba(16, 185, 129, 0.7);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.35);
 }
 .nws-card:hover {
   transform: translateY(-2px);
