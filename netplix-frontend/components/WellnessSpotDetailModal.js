@@ -17,6 +17,7 @@ import axios from '@/lib/axiosConfig';
 import useBackButtonClose from '@/lib/useBackButtonClose';
 import { MapServiceLinkButton } from '@/components/MapServiceLinkButton';
 import { httpsImageUrl, ktoThumbUrl, ktoFullUrl } from '@/lib/fastImage';
+import { detailInfoPanelThemeCss } from '@/lib/detailInfoPanelTheme';
 
 /**
  * 상세 본문(개요/이용정보/갤러리) 렌더 중 예외가 나도 앱 전체가 흰 화면/"This page couldn't load"
@@ -232,14 +233,15 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
 
   return (
     <div
-      className="ws-mod-root"
+      className="ws-mod-root dh-modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-label={spot.name}
       onClick={onClose}
     >
+      <style>{detailInfoPanelThemeCss}</style>
       <div
-        className="ws-mod-card"
+        className="ws-mod-card dh-modal-card"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -348,7 +350,7 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
                 <Sparkles size={14} />
                 이용 정보
               </h3>
-              <dl className="ws-mod-facts-grid">
+              <dl className="ws-mod-facts-grid dh-info-panel">
                 {facts.map((f, i) => (
                   <div className="ws-mod-fact" key={`${f.label}-${i}`}>
                     <dt>{f.label}</dt>
@@ -454,11 +456,6 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           display: flex;
           align-items: center;
           justify-content: center;
-          box-sizing: border-box;
-          padding:
-            max(40px, 6vh, calc(env(safe-area-inset-top, 0px) + 24px))
-            20px
-            max(40px, 6vh, calc(env(safe-area-inset-bottom, 0px) + 24px));
           background: rgba(2, 6, 23, 0.78);
           backdrop-filter: blur(8px);
           -webkit-backdrop-filter: blur(8px);
@@ -468,8 +465,6 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           position: relative;
           display: flex;
           flex-direction: column;
-          width: min(680px, 100%);
-          max-height: 100%;
           overflow: hidden;
           background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
           border: 1px solid rgba(148, 163, 184, 0.18);
@@ -724,14 +719,6 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           gap: 0;
           border-radius: 14px;
           overflow: hidden;
-          border: 1px solid rgba(244, 63, 94, 0.35);
-          background:
-            radial-gradient(120% 90% at 0% 0%, #fecdd3 0%, transparent 55%),
-            radial-gradient(90% 80% at 100% 100%, #fb7185 0%, transparent 58%),
-            linear-gradient(165deg, #fff1f2 0%, #fda4af 48%, #fb7185 100%);
-          box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.7),
-            0 8px 22px rgba(244, 63, 94, 0.18);
         }
         .ws-mod-fact {
           display: grid;
@@ -752,7 +739,6 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           margin: 0;
           font-size: 12.5px;
           font-weight: 800;
-          color: #9f1239;
           letter-spacing: 0.01em;
         }
         .ws-mod-fact dd {
@@ -760,7 +746,6 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           font-size: 13.5px;
           line-height: 1.55;
           font-weight: 600;
-          color: #1c1917;
           white-space: pre-line;
           word-break: break-word;
         }

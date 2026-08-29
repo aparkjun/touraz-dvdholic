@@ -27,6 +27,7 @@ import { useMedicalFavorites } from "@/lib/useMedicalFavorites";
 import { areaLabel, resolveAreaCode } from "@/lib/regionAreaCode";
 import useBackButtonClose from "@/lib/useBackButtonClose";
 import { MapServiceLinkButton } from "@/components/MapServiceLinkButton";
+import { detailInfoPanelThemeCss } from "@/lib/detailInfoPanelTheme";
 import {
   X,
   ChevronLeft,
@@ -257,7 +258,7 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
 
   return (
     <div
-      className="mtd-overlay"
+      className="mtd-overlay dh-modal-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby="mtd-title"
@@ -266,7 +267,8 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
       }}
     >
       <style>{cssBlock}</style>
-      <div className="mtd-modal">
+      <style>{detailInfoPanelThemeCss}</style>
+      <div className="mtd-modal dh-modal-card">
         <button
           type="button"
           className="mtd-back"
@@ -377,7 +379,7 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
           )}
 
           {!detailLoading && detail && hasDetailContent && (
-            <div className="mtd-detail">
+            <div className="mtd-detail dh-info-panel">
               {(detail.institutionType || detail.divInfo || detail.coordinatorResident) && (
                 <div className="mtd-detail-tags">
                   {detail.institutionType && (
@@ -398,11 +400,11 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
                 </div>
               )}
 
-              {detail.overview && <p className="mtd-overview">{detail.overview}</p>}
+              {detail.overview && <p className="mtd-overview dh-info-value">{detail.overview}</p>}
 
               {detail.specialties && detail.specialties.length > 0 && (
                 <div className="mtd-field">
-                  <div className="mtd-field-label">
+                  <div className="mtd-field-label dh-info-label">
                     <Stethoscope size={13} />
                     {t("medicalTourism.detail.specialties", "주요 진료과목")}
                   </div>
@@ -416,7 +418,7 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
 
               {detail.languages && detail.languages.length > 0 && (
                 <div className="mtd-field">
-                  <div className="mtd-field-label">
+                  <div className="mtd-field-label dh-info-label">
                     <Languages size={13} />
                     {t("medicalTourism.detail.languages", "응대 가능 언어")}
                   </div>
@@ -430,31 +432,31 @@ export default function MedicalTourismDetailModal({ spot, userPos, onClose }) {
 
               {detail.specialProcedures && (
                 <div className="mtd-field">
-                  <div className="mtd-field-label">
+                  <div className="mtd-field-label dh-info-label">
                     <Sparkles size={13} />
                     {t("medicalTourism.detail.procedures", "특화 시술")}
                   </div>
-                  <p className="mtd-field-text">{detail.specialProcedures}</p>
+                  <p className="mtd-field-text dh-info-value">{detail.specialProcedures}</p>
                 </div>
               )}
 
               {detail.specialFacilities && (
                 <div className="mtd-field">
-                  <div className="mtd-field-label">
+                  <div className="mtd-field-label dh-info-label">
                     <ClipboardList size={13} />
                     {t("medicalTourism.detail.facilities", "외국인 편의 시설")}
                   </div>
-                  <p className="mtd-field-text">{detail.specialFacilities}</p>
+                  <p className="mtd-field-text dh-info-value">{detail.specialFacilities}</p>
                 </div>
               )}
 
               {detail.history && (
                 <div className="mtd-field">
-                  <div className="mtd-field-label">
+                  <div className="mtd-field-label dh-info-label">
                     <HistoryIcon size={13} />
                     {t("medicalTourism.detail.history", "연혁")}
                   </div>
-                  <p className="mtd-field-text">{detail.history}</p>
+                  <p className="mtd-field-text dh-info-value">{detail.history}</p>
                 </div>
               )}
 
@@ -917,8 +919,6 @@ const cssBlock = `
   margin: 2px 0 16px;
   padding: 14px;
   border-radius: 14px;
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
   display: flex; flex-direction: column; gap: 13px;
 }
 .mtd-detail-tags { display: flex; flex-wrap: wrap; gap: 6px; }
