@@ -721,33 +721,50 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           padding: 0;
           display: flex;
           flex-direction: column;
-          gap: 1px;
-          border-radius: 12px;
+          gap: 0;
+          border-radius: 14px;
           overflow: hidden;
-          border: 1px solid rgba(148, 163, 184, 0.14);
-          background: rgba(148, 163, 184, 0.14);
+          border: 1px solid rgba(110, 231, 183, 0.32);
+          background:
+            radial-gradient(130% 90% at 0% -10%, rgba(52, 211, 153, 0.38) 0%, transparent 48%),
+            radial-gradient(110% 80% at 110% 110%, rgba(167, 139, 250, 0.32) 0%, transparent 52%),
+            linear-gradient(165deg, rgba(12, 42, 38, 0.94) 0%, rgba(18, 28, 52, 0.92) 48%, rgba(36, 22, 58, 0.94) 100%);
+          box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.12),
+            0 10px 28px rgba(16, 185, 129, 0.12);
         }
         .ws-mod-fact {
           display: grid;
           grid-template-columns: 92px 1fr;
           gap: 10px;
-          padding: 10px 12px;
-          background: rgba(15, 23, 42, 0.6);
+          padding: 11px 13px;
+          background: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.07) 0%,
+            rgba(255, 255, 255, 0.025) 100%
+          );
+          border-bottom: 1px solid rgba(167, 243, 208, 0.14);
+        }
+        .ws-mod-fact:last-child {
+          border-bottom: none;
         }
         .ws-mod-fact dt {
           margin: 0;
-          font-size: 12px;
-          font-weight: 700;
-          color: #94a3b8;
+          font-size: 12.5px;
+          font-weight: 800;
+          color: #bbf7d0;
           letter-spacing: 0.01em;
+          text-shadow: 0 1px 8px rgba(16, 185, 129, 0.35);
         }
         .ws-mod-fact dd {
           margin: 0;
-          font-size: 13px;
-          line-height: 1.5;
-          color: #e2e8f0;
+          font-size: 13.5px;
+          line-height: 1.55;
+          font-weight: 600;
+          color: #f8fafc;
           white-space: pre-line;
           word-break: break-word;
+          text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
         }
 
         .ws-mod-info {
