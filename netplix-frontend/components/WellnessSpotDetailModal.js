@@ -454,7 +454,11 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
           display: flex;
           align-items: center;
           justify-content: center;
-          padding: 16px;
+          box-sizing: border-box;
+          padding:
+            max(40px, 6vh, calc(env(safe-area-inset-top, 0px) + 24px))
+            20px
+            max(40px, 6vh, calc(env(safe-area-inset-bottom, 0px) + 24px));
           background: rgba(2, 6, 23, 0.78);
           backdrop-filter: blur(8px);
           -webkit-backdrop-filter: blur(8px);
@@ -462,10 +466,11 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
         }
         .ws-mod-card {
           position: relative;
-          width: 100%;
-          max-width: 560px;
-          max-height: calc(100dvh - 32px);
-          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          width: min(680px, 100%);
+          max-height: 100%;
+          overflow: hidden;
           background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
           border: 1px solid rgba(148, 163, 184, 0.18);
           border-radius: 18px;
@@ -499,8 +504,10 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
 
         .ws-mod-hero {
           position: relative;
+          flex-shrink: 0;
           width: 100%;
-          aspect-ratio: 16 / 10;
+          aspect-ratio: 16 / 9;
+          min-height: 200px;
           background: #0a1020;
           overflow: hidden;
           border-radius: 18px 18px 0 0;
@@ -590,6 +597,16 @@ export default function WellnessSpotDetailModal({ spot, onClose }) {
 
         .ws-mod-body {
           padding: 16px 18px 20px;
+          flex: 1 1 auto;
+          min-height: 0;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch;
+          overscroll-behavior: contain;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+        }
+        .ws-mod-body::-webkit-scrollbar {
+          display: none;
         }
 
         .ws-mod-boundary {
