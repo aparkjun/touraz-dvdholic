@@ -1521,7 +1521,12 @@
     "ottPlatforms": "Plataformas disponíveis",
     "persons": "",
     "collapseReview": "Recolher ▲",
-    "expandReview": "Expandir avaliação completa ▼"
+    "expandReview": "Expandir avaliação completa ▼",
+    "adLabel": "Anúncio",
+    "adCineTrip": "Ir aos locais desta obra",
+    "adCineTripSub": "Ver roteiros CineTrip",
+    "adWellness": "Relaxar depois da maratona",
+    "adWellnessSub": "Spots wellness por perto"
   },
   "common": {
     "lang": "Português",

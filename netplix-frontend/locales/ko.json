@@ -1521,7 +1521,12 @@
     "ottPlatforms": "시청 가능한 플랫폼",
     "persons": "명",
     "collapseReview": "접기 ▲",
-    "expandReview": "긴 리뷰 펼치기 ▼"
+    "expandReview": "긴 리뷰 펼치기 ▼",
+    "adLabel": "광고",
+    "adCineTrip": "이 작품의 촬영지로",
+    "adCineTripSub": "시네트립 코스 보기",
+    "adWellness": "정주행 후 힐링",
+    "adWellnessSub": "근처 웰니스 스팟"
   },
   "common": {
     "lang": "한국어",

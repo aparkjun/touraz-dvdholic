@@ -1370,3 +1370,96 @@ html.is-cap-android .js-drag-scroll {
   transform: none !important;
   contain: none !important;
 }
+
+/* 영화·DVD 상세 PC 좌우 AdSense/하우스 레일 — 1400px 미만·네이티브에서는 숨김 */
+.movie-images-layout {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: center;
+}
+.movie-images-main {
+  min-width: 0;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+}
+.movie-images-ad-rail {
+  display: none;
+}
+.movie-images-ad-rail-inner {
+  position: sticky;
+  top: calc(env(safe-area-inset-top, 0px) + 80px);
+}
+.movie-images-adsense {
+  min-height: 600px;
+  width: 100%;
+  overflow: hidden;
+}
+.movie-images-house-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.movie-images-house-ad {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 280px;
+  padding: 18px 14px;
+  border-radius: 14px;
+  text-decoration: none;
+  color: var(--ds-text);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.78), rgba(238, 244, 249, 0.92));
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+}
+.movie-images-house-ad strong {
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+.movie-images-house-ad > span:last-child {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ds-text-muted);
+  word-break: keep-all;
+}
+.movie-images-ad-label {
+  align-self: flex-start;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  background: rgba(15, 23, 42, 0.06);
+}
+.movie-images-house-ad:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px rgba(15, 23, 42, 0.12);
+}
+@media (min-width: 1400px) {
+  .movie-images-layout {
+    grid-template-columns: 160px minmax(0, 960px) 160px;
+    gap: 20px;
+    max-width: 1360px;
+    margin: 0 auto;
+  }
+  .movie-images-main {
+    max-width: none;
+    margin: 0;
+  }
+  .movie-images-ad-rail {
+    display: block;
+  }
+}
+@media (min-width: 1720px) {
+  .movie-images-layout {
+    grid-template-columns: 300px minmax(0, 960px) 300px;
+    gap: 24px;
+    max-width: 1648px;
+  }
+}

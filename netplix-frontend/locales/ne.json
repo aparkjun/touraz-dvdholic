@@ -1521,7 +1521,12 @@
     "ottPlatforms": "उपलब्ध प्लेटफर्म",
     "persons": "",
     "collapseReview": "संक्षिप्त ▲",
-    "expandReview": "पूरा रिव्यू खोल्नुहोस् ▼"
+    "expandReview": "पूरा रिव्यू खोल्नुहोस् ▼",
+    "adLabel": "विज्ञापन",
+    "adCineTrip": "यो फिल्मका स्थानमा जानुहोस्",
+    "adCineTripSub": "CineTrip कोर्स हेर्नुहोस्",
+    "adWellness": "हेरेपछि आराम",
+    "adWellnessSub": "नजिकै वेलनेस"
   },
   "common": {
     "lang": "नेपाली",

@@ -1521,7 +1521,12 @@
     "ottPlatforms": "可观看的平台",
     "persons": "人",
     "collapseReview": "收起 ▲",
-    "expandReview": "展开长篇评价 ▼"
+    "expandReview": "展开长篇评价 ▼",
+    "adLabel": "广告",
+    "adCineTrip": "前往这部作品的取景地",
+    "adCineTripSub": "查看 CineTrip 行程",
+    "adWellness": "追完剧后放松",
+    "adWellnessSub": "附近养生地点"
   },
   "common": {
     "lang": "中文",

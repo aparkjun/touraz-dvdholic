@@ -1521,7 +1521,12 @@
     "ottPlatforms": "視聴できるプラットフォーム",
     "persons": "人",
     "collapseReview": "閉じる ▲",
-    "expandReview": "長いレビューを開く ▼"
+    "expandReview": "長いレビューを開く ▼",
+    "adLabel": "広告",
+    "adCineTrip": "この作品のロケ地へ",
+    "adCineTripSub": "CineTripコースを見る",
+    "adWellness": "一気見のあとに癒やし",
+    "adWellnessSub": "近くのウェルネス"
   },
   "common": {
     "lang": "日本語",

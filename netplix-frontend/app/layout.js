@@ -5,6 +5,8 @@ import NavBar from "@/components/NavBar";
 import Providers from "@/components/Providers";
 import AppRouteTheme from "@/components/AppRouteTheme";
 import FloatingBackButton from "@/components/FloatingBackButton";
+import AdSenseScript from "@/components/AdSenseScript";
+import { getAdSenseClient } from "@/lib/adsense";
 
 export const metadata = {
   title: "Holic Store",
@@ -40,8 +42,12 @@ export default function RootLayout({ children }) {
         <link rel="manifest" href="/manifest.json" />
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" />
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/d2coding@1.3.2/d2coding-full.css" />
+        {getAdSenseClient() ? (
+          <meta name="google-adsense-account" content={getAdSenseClient()} />
+        ) : null}
       </head>
       <body suppressHydrationWarning>
+        <AdSenseScript />
         <Providers>
           <AppRouteTheme>
             <div className="app-shell">

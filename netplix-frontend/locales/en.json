@@ -1521,7 +1521,12 @@
     "ottPlatforms": "Available Platforms",
     "persons": "",
     "collapseReview": "Collapse ▲",
-    "expandReview": "Expand full review ▼"
+    "expandReview": "Expand full review ▼",
+    "adLabel": "Ad",
+    "adCineTrip": "Visit this film's locations",
+    "adCineTripSub": "Open CineTrip courses",
+    "adWellness": "Unwind after the binge",
+    "adWellnessSub": "Nearby wellness spots"
   },
   "common": {
     "lang": "English",

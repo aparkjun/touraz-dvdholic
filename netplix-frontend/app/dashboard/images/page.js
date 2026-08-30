@@ -14,6 +14,7 @@ import NearbyMedicalTourismStrip from "@/components/NearbyMedicalTourismStrip";
 import NearbyAudioGuideStrip from "@/components/NearbyAudioGuideStrip";
 import MovieCrowdRadarStrip from "@/components/MovieCrowdRadarStrip";
 import AmbientBackdrop from "@/components/AmbientBackdrop";
+import MovieImagesSideAd from "@/components/MovieImagesSideAd";
 
 const baseUrl = "https://image.tmdb.org/t/p/original";
 
@@ -438,16 +439,21 @@ function MovieImagesContent() {
 
   return (
     <div
+      className="movie-images-page"
       style={{
         position: "relative",
         isolation: "isolate",
-        overflow: "hidden",
         minHeight: "100vh",
         background: TRAVEL_PAGE_BG,
         padding: "20px 16px 40px",
       }}
     >
       <AmbientBackdrop {...TRAVEL_BACKDROP} />
+      <div className="movie-images-layout">
+        <aside className="movie-images-ad-rail movie-images-ad-rail--left">
+          <MovieImagesSideAd side="left" />
+        </aside>
+        <div className="movie-images-main">
       <h1 style={{ color: palette.text, fontSize: "22px", fontWeight: 800, marginBottom: "24px", textAlign: "center" }}>
         {displayName}
       </h1>
@@ -988,6 +994,11 @@ function MovieImagesContent() {
           </div>
           </div>
         </div>
+      </div>
+        </div>
+        <aside className="movie-images-ad-rail movie-images-ad-rail--right">
+          <MovieImagesSideAd side="right" />
+        </aside>
       </div>
     </div>
   );
