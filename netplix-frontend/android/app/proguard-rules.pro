@@ -34,3 +34,11 @@
 -keep class com.android.billingclient.** { *; }
 -dontwarn com.android.billingclient.**
 -keep class com.dvdholic.holic.AppUnlockPlugin { *; }
+-keep class com.dvdholic.holic.OneStoreUnlockBilling { *; }
+-keep class com.dvdholic.holic.BillingStore { *; }
+
+# ONE Store IAP
+-keep class com.gaa.sdk.** { *; }
+-keep class com.onestorecorp.** { *; }
+-dontwarn com.gaa.sdk.**
+-dontwarn com.onestorecorp.**

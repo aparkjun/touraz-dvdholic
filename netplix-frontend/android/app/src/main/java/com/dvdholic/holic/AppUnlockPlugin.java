@@ -30,7 +30,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * Google Play 일회성 상품 {@code dvdholic_unlock} (구매 옵션 ID: default).
+ * 일회성 상품 {@code dvdholic_unlock}.
+ * Play 스토어 설치본은 Google Play Billing, 원스토어·사이드로드는 원스토어 IAP.
  */
 @CapacitorPlugin(name = "AppUnlock")
 public class AppUnlockPlugin extends Plugin implements PurchasesUpdatedListener {
@@ -38,6 +39,8 @@ public class AppUnlockPlugin extends Plugin implements PurchasesUpdatedListener 
     public static final String PRODUCT_ID = "dvdholic_unlock";
 
     private BillingClient billingClient;
+    @Nullable
+    private OneStoreUnlockBilling oneStore;
     private final AtomicBoolean connecting = new AtomicBoolean(false);
     private final List<Runnable> onReady = new CopyOnWriteArrayList<>();
     @Nullable
@@ -46,6 +49,11 @@ public class AppUnlockPlugin extends Plugin implements PurchasesUpdatedListener 
 
     @Override
     public void load() {
+        if (!BillingStore.useGooglePlay(getContext())) {
+            oneStore = new OneStoreUnlockBilling(this);
+            oneStore.load();
+            return;
+        }
         billingClient = BillingClient.newBuilder(getContext())
                 .setListener(this)
                 .enablePendingPurchases(
@@ -54,18 +62,46 @@ public class AppUnlockPlugin extends Plugin implements PurchasesUpdatedListener 
         connect(null);
     }
 
+    @Override
+    protected void handleOnDestroy() {
+        if (oneStore != null) {
+            oneStore.destroy();
+            oneStore = null;
+        }
+        if (billingClient != null) {
+            try {
+                billingClient.endConnection();
+            } catch (Exception ignored) {
+                /* already closed */
+            }
+        }
+        super.handleOnDestroy();
+    }
+
     @PluginMethod
     public void isUnlocked(PluginCall call) {
+        if (oneStore != null) {
+            oneStore.isUnlocked(call);
+            return;
+        }
         runWhenReady(call, () -> queryOwned(call, false));
     }
 
     @PluginMethod
     public void restore(PluginCall call) {
+        if (oneStore != null) {
+            oneStore.restore(call);
+            return;
+        }
         runWhenReady(call, () -> queryOwned(call, true));
     }
 
     @PluginMethod
     public void getProduct(PluginCall call) {
+        if (oneStore != null) {
+            oneStore.getProduct(call);
+            return;
+        }
         runWhenReady(call, () -> queryDetails(call, details -> {
             JSObject out = new JSObject();
             out.put("productId", PRODUCT_ID);
@@ -85,6 +121,10 @@ public class AppUnlockPlugin extends Plugin implements PurchasesUpdatedListener 
 
     @PluginMethod
     public void purchase(PluginCall call) {
+        if (oneStore != null) {
+            oneStore.purchase(call);
+            return;
+        }
         call.setKeepAlive(true);
         runWhenReady(call, () -> queryDetails(call, details -> {
             if (details == null) {

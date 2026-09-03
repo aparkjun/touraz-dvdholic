@@ -21,6 +21,17 @@
         android:name="com.android.vending.BILLING"
         tools:node="merge" />
 
+    <!-- 원스토어 IAP SDK: Android 11+ 패키지 가시성 -->
+    <queries>
+        <intent>
+            <action android:name="com.onestore.ipc.iap.IapService.ACTION" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="onestore" />
+        </intent>
+    </queries>
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
