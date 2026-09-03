@@ -7,6 +7,7 @@ public class NetplixException extends RuntimeException {
     private final ErrorCode errorCode;
 
     public NetplixException(ErrorCode errorCode) {
+        super(errorCode.getDesc());
         this.errorCode = errorCode;
     }
 }

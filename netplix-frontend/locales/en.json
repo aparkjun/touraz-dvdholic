@@ -34,12 +34,12 @@
   },
   "paywall": {
     "title": "Unlock the app",
-    "body": "A one-time unlock is required to use Touraz Holic. Pay once and you can restore on reinstall with the same Google account.",
+    "body": "A one-time unlock is required to use Touraz Holic. Pay once and you can restore on reinstall with the same store account.",
     "buy": "Unlock for {{price}}",
     "restore": "Restore purchase",
     "restoreEmpty": "No purchase found on this account.",
     "notUnlocked": "Purchase did not complete. Please try again.",
-    "error": "Billing failed. Check your Play Store account and network."
+    "error": "Billing failed. Check your store account and network."
   },
   "login": {
     "heroDesc": "Log in and discover personalized content",
@@ -77,10 +77,10 @@
     "processing": "Processing...",
     "hasAccount": "Already have an account?",
     "login": "Login",
-    "nameMinLength": "Name must be at least 2 characters.",
+    "nameMinLength": "Name must be 2–50 characters.",
     "invalidEmail": "Invalid email format. (e.g., user@example.com)",
     "passwordMismatch": "Passwords do not match.",
-    "invalidPhone": "Please enter a 10-digit phone number. (e.g., 1012345678)",
+    "invalidPhone": "Enter a phone number with digits only. (e.g., 01012345678)",
     "signupComplete": "Registration complete! Please log in.",
     "signupFailed": "Registration failed: ",
     "serverError": "Server error"

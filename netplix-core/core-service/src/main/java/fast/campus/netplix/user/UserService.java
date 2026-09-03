@@ -19,7 +19,6 @@ import java.util.regex.Pattern;
 public class UserService implements RegisterUserUseCase, FetchUserUseCase, DeleteUserUseCase {
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
-    private static final Pattern PHONE_PATTERN = Pattern.compile("^\\(\\+\\d{1,3}\\)\\d{10}$");
 
     private final SearchUserPort searchUserPort;
     private final InsertUserPort insertUserPort;
@@ -29,13 +28,13 @@ public class UserService implements RegisterUserUseCase, FetchUserUseCase, Delet
 
     @Override
     public UserRegistrationResponse register(UserRegistrationCommand request) {
-        String username = request.username();
-        if (username == null || username.trim().length() < 2) {
+        String username = request.username() == null ? "" : request.username().trim();
+        if (username.length() < 2 || username.length() > 50) {
             throw new UserException.InvalidUsernameException();
         }
 
-        String email = request.email();
-        if (email == null || !EMAIL_PATTERN.matcher(email).matches()) {
+        String email = request.email() == null ? "" : request.email().trim().toLowerCase();
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
             throw new UserException.InvalidEmailFormatException();
         }
 
@@ -44,17 +43,19 @@ public class UserService implements RegisterUserUseCase, FetchUserUseCase, Delet
             throw new UserException.UserAlreadyExistException();
         }
 
-        String phone = request.phone();
-        if (phone != null && !phone.isBlank() && !PHONE_PATTERN.matcher(phone).matches()) {
+        String phone;
+        try {
+            phone = PhoneNumberFormatter.normalize(request.phone());
+        } catch (IllegalArgumentException e) {
             throw new UserException.InvalidPhoneFormatException();
         }
 
         NetplixUser netplixUser = insertUserPort.create(
                 CreateUser.builder()
-                        .username(request.username())
+                        .username(username)
                         .encryptedPassword(request.encryptedPassword())
-                        .email(request.email())
-                        .phone(request.phone())
+                        .email(email)
+                        .phone(phone)
                         .build()
         );
         runDailyBatchCatchupForNewUser(netplixUser.getUserId());

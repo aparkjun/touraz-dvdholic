@@ -34,12 +34,12 @@
   },
   "paywall": {
     "title": "Desbloquear o app",
-    "body": "Para usar o Touraz Holic por completo, faça o desbloqueio único. Pague uma vez e restaure na mesma conta Google se reinstalar.",
+    "body": "Para usar o Touraz Holic por completo, faça o desbloqueio único. Pague uma vez e restaure na mesma conta da loja se reinstalar.",
     "buy": "Desbloquear por {{price}}",
     "restore": "Restaurar compra",
     "restoreEmpty": "Nenhuma compra encontrada nesta conta.",
     "notUnlocked": "A compra não foi concluída. Tente de novo.",
-    "error": "Falha no pagamento. Confira a conta da Play Store e a internet."
+    "error": "Falha no pagamento. Confira a conta da loja e a internet."
   },
   "login": {
     "heroDesc": "Entre e descubra conteúdos sob medida pra você",
@@ -77,10 +77,10 @@
     "processing": "Processando...",
     "hasAccount": "Já tem uma conta?",
     "login": "Entrar",
-    "nameMinLength": "O nome precisa ter pelo menos 2 caracteres.",
+    "nameMinLength": "O nome precisa ter de 2 a 50 caracteres.",
     "invalidEmail": "E-mail inválido. (ex.: user@example.com)",
     "passwordMismatch": "As senhas não coincidem.",
-    "invalidPhone": "Informe um telefone com 10 dígitos. (ex.: 1012345678)",
+    "invalidPhone": "Informe só os números do telefone. (ex.: 01012345678)",
     "signupComplete": "Cadastro feito! Agora é só entrar.",
     "signupFailed": "Não foi possível cadastrar: ",
     "serverError": "Erro no servidor"

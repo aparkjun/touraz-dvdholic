@@ -11,9 +11,9 @@ public enum ErrorCode {
 
     USER_ALREADY_EXIST("NPX2000", "사용자가 이미 존재합니다."),
     USER_DOES_NOT_EXIST("NPX2001", "사용자가 존재하지 않습니다."),
-    INVALID_USERNAME("NPX2002", "이름은 최소 2자 이상이어야 합니다."),
+    INVALID_USERNAME("NPX2002", "이름은 2자 이상 50자 이하여야 합니다."),
     INVALID_EMAIL_FORMAT("NPX2003", "이메일 형식이 올바르지 않습니다."),
-    INVALID_PHONE_FORMAT("NPX2003", "전화번호 형식이 올바르지 않습니다. (예: (+82)1012345678)"),
+    INVALID_PHONE_FORMAT("NPX2004", "전화번호 형식이 올바르지 않습니다. (예: 010-1234-5678)"),
     ;
 
     private final String code;

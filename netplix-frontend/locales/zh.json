@@ -34,12 +34,12 @@
   },
   "paywall": {
     "title": "解锁应用",
-    "body": "使用 Touraz Holic 全部功能需要一次性解锁。同一 Google 账号重新安装后可恢复购买。",
+    "body": "使用 Touraz Holic 全部功能需要一次性解锁。同一商店账号重新安装后可恢复购买。",
     "buy": "以 {{price}} 解锁",
     "restore": "恢复购买",
     "restoreEmpty": "此账号没有购买记录。",
     "notUnlocked": "购买未完成，请重试。",
-    "error": "支付失败，请检查 Play 商店账号和网络。"
+    "error": "支付失败，请检查商店账号和网络。"
   },
   "login": {
     "heroDesc": "登录后邂逅为你定制的内容",
@@ -77,10 +77,10 @@
     "processing": "处理中...",
     "hasAccount": "已经有账户了吗？",
     "login": "登录",
-    "nameMinLength": "用户名至少需要2个字符。",
+    "nameMinLength": "用户名需为2–50个字符。",
     "invalidEmail": "邮箱格式不正确。（例如：user@example.com）",
     "passwordMismatch": "两次输入的密码不一致。",
-    "invalidPhone": "手机号请输入10位数字。（例如：1012345678）",
+    "invalidPhone": "手机号请输入数字。（例如：01012345678）",
     "signupComplete": "注册已完成。请登录。",
     "signupFailed": "注册失败： ",
     "serverError": "服务器错误"

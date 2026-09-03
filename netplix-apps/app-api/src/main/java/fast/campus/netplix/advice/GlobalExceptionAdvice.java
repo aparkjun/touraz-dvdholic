@@ -16,8 +16,9 @@ public class GlobalExceptionAdvice {
 
     @ExceptionHandler(NetplixException.class)
     protected NetplixApiResponse<?> handleSecurityException(NetplixException e) {
-        log.error("error={}", e.getMessage(), e);
-        return NetplixApiResponse.fail(e.getErrorCode(), e.getMessage());
+        String message = e.getMessage() != null ? e.getMessage() : e.getErrorCode().getDesc();
+        log.warn("error={}", message);
+        return NetplixApiResponse.fail(e.getErrorCode(), message);
     }
 
     /** 로그인 시 이메일/비밀번호 불일치 등 인증 실패 */

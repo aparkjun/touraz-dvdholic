@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { useTranslation } from 'react-i18next';
 import { Lock, Loader2 } from 'lucide-react';
 import {
@@ -12,6 +13,7 @@ import {
 } from '@/lib/appUnlock';
 
 export default function AppPaywall() {
+  const pathname = usePathname() || '';
   const { t } = useTranslation();
   const [needed, setNeeded] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -19,8 +21,10 @@ export default function AppPaywall() {
   const [price, setPrice] = useState('₩1,000');
   const [error, setError] = useState('');
 
+  const isAuthRoute = pathname === '/login' || pathname === '/signup' || pathname.startsWith('/login/');
+
   const refresh = useCallback(async () => {
-    if (!shouldLockApp()) {
+    if (isAuthRoute || !shouldLockApp()) {
       setNeeded(false);
       setChecking(false);
       return;
@@ -39,7 +43,7 @@ export default function AppPaywall() {
     } finally {
       setChecking(false);
     }
-  }, [t]);
+  }, [t, isAuthRoute]);
 
   useEffect(() => {
     refresh();
@@ -74,7 +78,7 @@ export default function AppPaywall() {
     }
   };
 
-  if (checking || !needed) return null;
+  if (isAuthRoute || checking || !needed) return null;
 
   return (
     <div

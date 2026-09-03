@@ -44,6 +44,9 @@ axios.interceptors.request.use(
     const base = config.baseURL || "";
     const full = path.startsWith("http") ? path : (base + path);
     const isPublicReadOnly =
+      full.includes("/api/v1/user/register") ||
+      full.includes("/api/v1/auth/login") ||
+      full.includes("/api/v1/admin/login") ||
       full.includes("/api/v1/movie/search") || 
       full.includes("/api/v1/movie/playing/search") ||
       full.includes("/like-count") ||
@@ -107,6 +110,8 @@ axios.interceptors.response.use(
     if (error.response && error.response.status === 401) {
       const url = error.config?.url || "";
       const noRedirectOn401 =
+        url.includes("/api/v1/user/register") ||
+        url.includes("/api/v1/auth/login") ||
         url.includes("/api/v1/admin/") ||
         url.includes("/api/v1/cine-trip/auto-map") ||
         url.includes("/api/v1/cine-trip/") ||

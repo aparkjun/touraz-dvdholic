@@ -26,36 +26,55 @@ function Signup() {
   const [countryCode, setCountryCode] = useState("+82");
 
   const formatPhoneDigits = (value) => {
-    return value.replace(/\D/g, "").slice(0, 10);
+    return value.replace(/\D/g, "").slice(0, 11);
   };
 
   const handlePhoneChange = (e) => {
     setPhone(formatPhoneDigits(e.target.value));
   };
 
+  const toNationalNumber = (cc, digits) => {
+    if (!digits) return "";
+    if (cc === "+82" && digits.startsWith("0")) {
+      return digits.replace(/^0+/, "");
+    }
+    return digits;
+  };
+
   const getFullPhone = () => {
-    if (!phone) return null;
-    return `(${countryCode})${phone}`;
+    const national = toNationalNumber(countryCode, phone);
+    if (!national) return null;
+    return `(${countryCode})${national}`;
   };
 
   const isPhoneValid = (value) => {
     if (!value) return true;
-    return /^\d{10}$/.test(value);
+    if (!/^\d{9,11}$/.test(value)) return false;
+    const national = toNationalNumber(countryCode, value);
+    return /^\d{8,11}$/.test(national);
   };
 
   const isEmailValid = (value) => {
     return /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(value);
   };
 
+  const failDetail = (data) => {
+    if (!data) return t("signup.serverError");
+    return data.message || data.code || t("login.unknownError");
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!username || username.trim().length < 2) {
+    const trimmedUsername = (username || "").trim();
+    const trimmedEmail = (email || "").trim().replace(/\s/g, "");
+
+    if (!trimmedUsername || trimmedUsername.length < 2 || trimmedUsername.length > 50) {
       alert(t("signup.nameMinLength"));
       return;
     }
 
-    if (!isEmailValid(email)) {
+    if (!isEmailValid(trimmedEmail)) {
       alert(t("signup.invalidEmail"));
       return;
     }
@@ -74,9 +93,9 @@ function Signup() {
 
     try {
       const response = await axios.post("/api/v1/user/register", {
-        username,
+        username: trimmedUsername,
         password: password1,
-        email,
+        email: trimmedEmail,
         phone: getFullPhone(),
       });
 
@@ -86,14 +105,12 @@ function Signup() {
         const url = base.startsWith("http") ? `${base.replace(/\/$/, "")}/login` : "/login";
         window.location.replace(url);
       } else {
-        alert(t("signup.signupFailed") + response.data.code);
+        alert(t("signup.signupFailed") + failDetail(response.data));
       }
     } catch (error) {
       console.error("register failed:", error);
       if (error.response && error.response.data) {
-        alert(
-          t("signup.signupFailed") + (error.response.data.message || t("login.unknownError"))
-        );
+        alert(t("signup.signupFailed") + failDetail(error.response.data));
       } else {
         alert(t("signup.signupFailed") + t("signup.serverError"));
       }
@@ -353,6 +370,7 @@ function Signup() {
                     onFocus={() => setFocusedField('username')}
                     onBlur={() => setFocusedField(null)}
                     required
+                    maxLength={50}
                     className="w-full h-11 pl-11 pr-4 rounded-xl outline-none transition-all duration-200"
                     style={getInputStyle('username')}
                   />
@@ -394,8 +412,9 @@ function Signup() {
                   <div className="relative flex-1">
                     <input
                       type="tel"
-                      placeholder="1012345678"
-                      maxLength={10}
+                      inputMode="numeric"
+                      placeholder="01012345678"
+                      maxLength={11}
                       value={phone}
                       onChange={handlePhoneChange}
                       onFocus={() => setFocusedField('phone')}
