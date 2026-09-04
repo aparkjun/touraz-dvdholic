@@ -1,5 +1,7 @@
 package fast.campus.netplix.controller.user.request;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import fast.campus.netplix.annotation.PasswordEncryption;
 
 public class UserRegistrationRequest {
@@ -14,11 +16,14 @@ public class UserRegistrationRequest {
 
     private final Boolean privacyConsent;
 
-    public UserRegistrationRequest(String username, String password, String email, String phone) {
-        this(username, password, email, phone, null);
-    }
-
-    public UserRegistrationRequest(String username, String password, String email, String phone, Boolean privacyConsent) {
+    @JsonCreator
+    public UserRegistrationRequest(
+            @JsonProperty("username") String username,
+            @JsonProperty("password") String password,
+            @JsonProperty("email") String email,
+            @JsonProperty("phone") String phone,
+            @JsonProperty("privacyConsent") Boolean privacyConsent
+    ) {
         this.username = username;
         this.password = password;
         this.email = email;

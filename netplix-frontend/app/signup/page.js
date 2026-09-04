@@ -64,7 +64,11 @@ function Signup() {
 
   const failDetail = (data) => {
     if (!data) return t("signup.serverError");
-    return data.message || data.code || t("login.unknownError");
+    if (typeof data === "string") {
+      const trimmed = data.trim();
+      return trimmed ? trimmed.slice(0, 180) : t("signup.serverError");
+    }
+    return data.message || data.error || data.code || t("login.unknownError");
   };
 
   const handleSubmit = async (e) => {
