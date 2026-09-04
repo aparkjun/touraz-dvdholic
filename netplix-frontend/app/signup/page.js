@@ -24,6 +24,10 @@ function Signup() {
   const { t } = useTranslation();
 
   const [countryCode, setCountryCode] = useState("+82");
+  const [agreeCollect, setAgreeCollect] = useState(false);
+  const [agreeAge, setAgreeAge] = useState(false);
+  const [agreePolicy, setAgreePolicy] = useState(false);
+  const [agreePhone, setAgreePhone] = useState(false);
 
   const formatPhoneDigits = (value) => {
     return value.replace(/\D/g, "").slice(0, 11);
@@ -89,6 +93,16 @@ function Signup() {
       return;
     }
 
+    if (!agreeCollect || !agreeAge || !agreePolicy) {
+      alert(t("signup.needConsent"));
+      return;
+    }
+
+    if (phone && !agreePhone) {
+      alert(t("signup.needPhoneConsent"));
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -96,7 +110,8 @@ function Signup() {
         username: trimmedUsername,
         password: password1,
         email: trimmedEmail,
-        phone: getFullPhone(),
+        phone: agreePhone ? getFullPhone() : null,
+        privacyConsent: true,
       });
 
       if (response.data.success) {
@@ -129,6 +144,25 @@ function Signup() {
   });
 
   const getIconColor = (fieldName) => focusedField === fieldName ? '#8b5cf6' : '#71717a';
+
+  const requiredConsentOk = agreeCollect && agreeAge && agreePolicy;
+  const checkboxLabelStyle = {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 10,
+    fontSize: 13,
+    lineHeight: 1.5,
+    color: '#e4e4e7',
+    cursor: 'pointer',
+  };
+  const checkboxStyle = {
+    width: 18,
+    height: 18,
+    marginTop: 2,
+    flexShrink: 0,
+    accentColor: '#8b5cf6',
+    cursor: 'pointer',
+  };
 
   return (
     <div className="min-h-screen w-full relative overflow-hidden flex items-center justify-center p-4"
@@ -426,6 +460,95 @@ function Signup() {
                 </div>
               </motion.div>
 
+              {/* Privacy consent — ONE Store / PIPA: notice + unchecked checkboxes */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.52 }}
+                className="space-y-3"
+              >
+                <div
+                  style={{
+                    border: '1px solid rgba(255,255,255,0.12)',
+                    borderRadius: 12,
+                    padding: '12px 14px',
+                    background: 'rgba(0,0,0,0.25)',
+                    fontSize: 12,
+                    lineHeight: 1.55,
+                    color: '#d4d4d8',
+                  }}
+                >
+                  <p style={{ margin: '0 0 8px', fontWeight: 700, color: '#fafafa', fontSize: 13 }}>
+                    {t("signup.consentTitle")}
+                  </p>
+                  <p style={{ margin: '0 0 6px' }}>
+                    <strong style={{ color: '#fde68a' }}>{t("signup.consentRequiredBadge")}</strong>{' '}
+                    {t("signup.noticeRequiredItems")}
+                  </p>
+                  <p style={{ margin: '0 0 6px' }}>
+                    <strong>{t("signup.noticePurposeLabel")}</strong> {t("signup.noticePurpose")}
+                  </p>
+                  <p style={{ margin: '0 0 6px' }}>
+                    <strong>{t("signup.noticeRetentionLabel")}</strong> {t("signup.noticeRetention")}
+                  </p>
+                  <p style={{ margin: '0 0 6px' }}>
+                    <strong style={{ color: '#a1a1aa' }}>{t("signup.consentOptionalBadge")}</strong>{' '}
+                    {t("signup.noticeOptionalItems")}
+                  </p>
+                  <p style={{ margin: 0 }}>
+                    <strong>{t("signup.noticeRefuseLabel")}</strong> {t("signup.noticeRefuse")}
+                  </p>
+                </div>
+
+                <label style={checkboxLabelStyle}>
+                  <input
+                    type="checkbox"
+                    checked={agreeCollect}
+                    onChange={(e) => setAgreeCollect(e.target.checked)}
+                    style={checkboxStyle}
+                  />
+                  <span>{t("signup.agreeCollect")}</span>
+                </label>
+                <label style={checkboxLabelStyle}>
+                  <input
+                    type="checkbox"
+                    checked={agreeAge}
+                    onChange={(e) => setAgreeAge(e.target.checked)}
+                    style={checkboxStyle}
+                  />
+                  <span>{t("signup.agreeAge")}</span>
+                </label>
+                <label style={checkboxLabelStyle}>
+                  <input
+                    type="checkbox"
+                    checked={agreePolicy}
+                    onChange={(e) => setAgreePolicy(e.target.checked)}
+                    style={checkboxStyle}
+                  />
+                  <span>
+                    {t("signup.agreePolicy")}{' '}
+                    <a
+                      href="/privacy-policy.html"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ color: '#a78bfa', textDecoration: 'underline' }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {t("signup.policyLink")}
+                    </a>
+                  </span>
+                </label>
+                <label style={checkboxLabelStyle}>
+                  <input
+                    type="checkbox"
+                    checked={agreePhone}
+                    onChange={(e) => setAgreePhone(e.target.checked)}
+                    style={checkboxStyle}
+                  />
+                  <span>{t("signup.agreePhone")}</span>
+                </label>
+              </motion.div>
+
               {/* Submit Button */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
@@ -435,14 +558,14 @@ function Signup() {
               >
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !requiredConsentOk}
                   className="w-full h-12 rounded-xl font-semibold transition-all duration-300"
                   style={{
                     background: 'linear-gradient(135deg, #8b5cf6, #3b82f6)',
                     color: '#fff',
                     border: 'none',
-                    cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                    opacity: isSubmitting ? 0.6 : 1,
+                    cursor: isSubmitting || !requiredConsentOk ? 'not-allowed' : 'pointer',
+                    opacity: isSubmitting || !requiredConsentOk ? 0.6 : 1,
                     boxShadow: '0 4px 20px rgba(139, 92, 246, 0.3)',
                   }}
                 >

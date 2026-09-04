@@ -10,6 +10,7 @@ import fast.campus.netplix.user.command.UserRegistrationCommand;
 import fast.campus.netplix.user.response.SimpleUserResponse;
 import fast.campus.netplix.controller.NetplixApiResponse;
 import fast.campus.netplix.controller.user.request.UserRegistrationRequest;
+import fast.campus.netplix.exception.ErrorCode;
 import fast.campus.netplix.user.response.UserRegistrationResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -43,6 +44,11 @@ public class UserController {
     public NetplixApiResponse<UserRegistrationResponse> register(
             @RequestBody UserRegistrationRequest request
     ) {
+        if (!Boolean.TRUE.equals(request.getPrivacyConsent())) {
+            return NetplixApiResponse.fail(
+                    ErrorCode.PRIVACY_CONSENT_REQUIRED,
+                    ErrorCode.PRIVACY_CONSENT_REQUIRED.getDesc());
+        }
         UserRegistrationCommand command = UserRegistrationCommand.builder()
                 .username(request.getUsername())
                 .encryptedPassword(request.getPassword())

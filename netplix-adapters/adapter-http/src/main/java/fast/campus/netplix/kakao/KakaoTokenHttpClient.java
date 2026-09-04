@@ -2,6 +2,7 @@ package fast.campus.netplix.kakao;
 
 import fast.campus.netplix.auth.KakaoTokenPort;
 import fast.campus.netplix.client.HttpClient;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
@@ -28,6 +29,14 @@ public class KakaoTokenHttpClient implements KakaoTokenPort {
     private final String KAKAO_TOKEN_URL = "https://kauth.kakao.com/oauth/token";
 
     private final HttpClient httpClient;
+
+    @PostConstruct
+    void rejectAppleRedirectUri() {
+        if (kakaoRedirectUri != null && kakaoRedirectUri.contains("/code/apple")) {
+            throw new IllegalStateException(
+                    "Kakao redirect-uri 가 Apple 콜백(/code/apple)으로 설정되어 있습니다: " + kakaoRedirectUri);
+        }
+    }
 
     @Override
     public String getAccessTokenByCode(String code) {

@@ -12,11 +12,18 @@ public class UserRegistrationRequest {
 
     private final String phone;
 
+    private final Boolean privacyConsent;
+
     public UserRegistrationRequest(String username, String password, String email, String phone) {
+        this(username, password, email, phone, null);
+    }
+
+    public UserRegistrationRequest(String username, String password, String email, String phone, Boolean privacyConsent) {
         this.username = username;
         this.password = password;
         this.email = email;
         this.phone = phone;
+        this.privacyConsent = privacyConsent;
     }
 
     public String getUsername() {
@@ -33,5 +40,9 @@ public class UserRegistrationRequest {
 
     public String getPhone() {
         return phone;
+    }
+
+    public Boolean getPrivacyConsent() {
+        return privacyConsent;
     }
 }

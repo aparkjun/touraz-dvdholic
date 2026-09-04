@@ -14,6 +14,7 @@ public enum ErrorCode {
     INVALID_USERNAME("NPX2002", "이름은 2자 이상 50자 이하여야 합니다."),
     INVALID_EMAIL_FORMAT("NPX2003", "이메일 형식이 올바르지 않습니다."),
     INVALID_PHONE_FORMAT("NPX2004", "전화번호 형식이 올바르지 않습니다. (예: 010-1234-5678)"),
+    PRIVACY_CONSENT_REQUIRED("NPX2005", "개인정보 수집·이용에 동의한 뒤에 가입할 수 있습니다."),
     ;
 
     private final String code;

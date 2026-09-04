@@ -40,6 +40,7 @@ spring:
             client-secret: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KAKAO_CLIENT_SECRET:}
             client-name: Kakao
             authorization-grant-type: authorization_code
+            # 카카오 Redirect URI. /apple 이 들어가면 카카오 개발자 콘솔에 등록한 /kakao 와 불일치한다.
             redirect-uri: "${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_KAKAO_REDIRECT_URI:http://localhost:3000/login/oauth2/code/kakao}"
             scope:
               - profile_nickname
