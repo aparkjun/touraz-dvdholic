@@ -6,10 +6,12 @@ import { useTranslation } from 'react-i18next';
 import { Lock, Loader2 } from 'lucide-react';
 import {
   fetchUnlockProduct,
+  isAndroidNative,
   purchaseUnlock,
   queryUnlocked,
   restoreUnlock,
-  shouldLockApp,
+  UNLOCK_PRICE_LABEL,
+  waitForAndroidNative,
 } from '@/lib/appUnlock';
 
 export default function AppPaywall() {
@@ -18,18 +20,24 @@ export default function AppPaywall() {
   const [needed, setNeeded] = useState(false);
   const [checking, setChecking] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [price, setPrice] = useState('₩1,000');
+  const [price, setPrice] = useState(UNLOCK_PRICE_LABEL);
   const [error, setError] = useState('');
 
   const isAuthRoute = pathname === '/login' || pathname === '/signup' || pathname.startsWith('/login/');
 
   const refresh = useCallback(async () => {
-    if (isAuthRoute || !shouldLockApp()) {
+    if (isAuthRoute) {
       setNeeded(false);
       setChecking(false);
       return;
     }
     setChecking(true);
+    const native = isAndroidNative() || (await waitForAndroidNative());
+    if (!native) {
+      setNeeded(false);
+      setChecking(false);
+      return;
+    }
     try {
       const [unlocked, product] = await Promise.all([
         queryUnlocked(),

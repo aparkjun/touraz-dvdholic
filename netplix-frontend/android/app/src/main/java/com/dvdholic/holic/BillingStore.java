@@ -13,7 +13,10 @@ final class BillingStore {
     private BillingStore() {}
 
     static boolean useGooglePlay(Context ctx) {
-        String installer = installerOf(ctx);
+        return isPlayInstaller(installerOf(ctx));
+    }
+
+    private static boolean isPlayInstaller(String installer) {
         return "com.android.vending".equals(installer)
                 || "com.google.android.feedback".equals(installer);
     }
@@ -25,8 +28,14 @@ final class BillingStore {
             if (Build.VERSION.SDK_INT >= 30) {
                 InstallSourceInfo info = pm.getInstallSourceInfo(pkg);
                 String installing = info.getInstallingPackageName();
+                String initiating = info.getInitiatingPackageName();
+                String originating = info.getOriginatingPackageName();
+                if (isPlayInstaller(installing) || isPlayInstaller(initiating)
+                        || isPlayInstaller(originating)) {
+                    return "com.android.vending";
+                }
                 if (installing != null && !installing.isEmpty()) return installing;
-                return info.getInitiatingPackageName();
+                return initiating;
             }
             return pm.getInstallerPackageName(pkg);
         } catch (Exception ignored) {

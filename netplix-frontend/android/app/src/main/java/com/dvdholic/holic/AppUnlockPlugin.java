@@ -58,6 +58,7 @@ public class AppUnlockPlugin extends Plugin implements PurchasesUpdatedListener 
                 .setListener(this)
                 .enablePendingPurchases(
                         PendingPurchasesParams.newBuilder().enableOneTimeProducts().build())
+                .enableAutoServiceReconnection()
                 .build();
         connect(null);
     }
@@ -247,11 +248,14 @@ public class AppUnlockPlugin extends Plugin implements PurchasesUpdatedListener 
                                 .setProductType(BillingClient.ProductType.INAPP)
                                 .build()))
                 .build();
-        billingClient.queryProductDetailsAsync(params, (result, list) -> {
+        billingClient.queryProductDetailsAsync(params, (result, detailsResult) -> {
             if (result.getResponseCode() != BillingClient.BillingResponseCode.OK) {
                 reject(call, "QUERY_FAILED", result.getDebugMessage());
                 return;
             }
+            List<ProductDetails> list = detailsResult == null
+                    ? null
+                    : detailsResult.getProductDetailsList();
             ProductDetails found = null;
             if (list != null) {
                 for (ProductDetails d : list) {
@@ -306,32 +310,16 @@ public class AppUnlockPlugin extends Plugin implements PurchasesUpdatedListener 
     @Nullable
     private static String offerTokenOf(@Nullable ProductDetails.OneTimePurchaseOfferDetails offer) {
         if (offer == null) return null;
-        try {
-            java.lang.reflect.Method m = offer.getClass().getMethod("getOfferToken");
-            Object token = m.invoke(offer);
-            if (token instanceof String && !((String) token).isBlank()) {
-                return (String) token;
-            }
-        } catch (Exception ignored) {
-            /* Billing 7.1 OneTimePurchaseOfferDetails 에는 offerToken 이 없을 수 있음 */
-        }
-        return null;
+        String token = offer.getOfferToken();
+        if (token == null || token.isBlank()) return null;
+        return token;
     }
 
     @Nullable
     private static ProductDetails.OneTimePurchaseOfferDetails pickOffer(ProductDetails details) {
-        try {
-            java.lang.reflect.Method m = details.getClass().getMethod("getOneTimePurchaseOfferDetailsList");
-            Object raw = m.invoke(details);
-            if (raw instanceof List<?> list && !list.isEmpty()) {
-                Object first = list.get(0);
-                if (first instanceof ProductDetails.OneTimePurchaseOfferDetails) {
-                    return (ProductDetails.OneTimePurchaseOfferDetails) first;
-                }
-            }
-        } catch (Exception ignored) {
-            /* Billing 7.0 이하는 목록 API 없음 */
-        }
+        List<ProductDetails.OneTimePurchaseOfferDetails> list =
+                details.getOneTimePurchaseOfferDetailsList();
+        if (list != null && !list.isEmpty()) return list.get(0);
         return details.getOneTimePurchaseOfferDetails();
     }
 
